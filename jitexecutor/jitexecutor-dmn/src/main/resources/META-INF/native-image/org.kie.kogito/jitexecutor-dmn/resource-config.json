@@ -1,7 +1,0 @@
-{
-    "resources": [
-        {
-            "pattern": "META-INF/services/org.kie.api.command.KieCommands"
-        }
-    ]
-}
