@@ -36,6 +36,7 @@
   <properties>
     <java.module.name>org.kie.kogito.ddl</java.module.name>
     <db.scripts.descriptor>src/assembly/multi-repo-zip.xml</db.scripts.descriptor>
+    <project.root.dir>${project.basedir}/../..</project.root.dir>
   </properties>
 
   <dependencies>

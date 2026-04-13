@@ -23,12 +23,13 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <groupId>org.kie.kogito</groupId>
-        <artifactId>kogito-apps</artifactId>
+        <groupId>org.kubesmarts</groupId>
+        <artifactId>logic-apps</artifactId>
         <version>999-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
+    <groupId>org.kie.kogito</groupId>
     <artifactId>kogito-apps-build-parent</artifactId>
     <packaging>pom</packaging>
 
@@ -151,7 +152,7 @@
             <dependency>
                 <groupId>org.kie.kogito</groupId>
                 <artifactId>kogito-quarkus-bom</artifactId>
-                <version>${project.version}</version>
+                <version>${kogito.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

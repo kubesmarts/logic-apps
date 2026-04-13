@@ -1,38 +1,22 @@
-<?xml version="1.0" encoding="UTF-8"?><!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
---><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>org.kie.kogito</groupId>
-    <artifactId>kogito-build-parent</artifactId>
-    <version>999-SNAPSHOT</version>
-    <relativePath/>
-  </parent>
-  <artifactId>kogito-apps</artifactId>
+
+  <groupId>org.kubesmarts</groupId>
+  <artifactId>logic-apps</artifactId>
+  <version>999-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <name>Kogito Apps</name>
-  <description>Kogito Apps</description>
+
+  <name>KubeSmarts Logic Apps</name>
+  <description>OpenShift Serverless Logic - Data Index and Jobs Service for Serverless Workflow 1.0.0</description>
+
   <organization>
-    <name>The Apache Software Foundation</name>
-    <url>https://apache.org/</url>
+    <name>KubeSmarts</name>
+    <url>https://github.com/kubesmarts</url>
   </organization>
+
   <licenses>
     <license>
       <name>The Apache Software License, Version 2.0</name>
@@ -40,73 +24,238 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
+
   <scm>
-    <connection>scm:git:https://github.com/apache/incubator-kie-kogito-apps.git</connection>
-    <developerConnection>scm:git:https://github.com/apache/incubator-kie-kogito-apps.git</developerConnection>
-    <url>https://github.com/apache/incubator-kie-kogito-apps</url>
+    <connection>scm:git:https://github.com/kubesmarts/logic-apps.git</connection>
+    <developerConnection>scm:git:https://github.com/kubesmarts/logic-apps.git</developerConnection>
+    <url>https://github.com/kubesmarts/logic-apps</url>
   </scm>
-  <developers>
-    <developer>
-      <name>The Apache KIE Team</name>
-      <email>dev@kie.apache.org</email>
-      <url>https://kie.apache.org</url>
-      <organization>Apache Software Foundation</organization>
-      <organizationUrl>http://apache.org/</organizationUrl>
-    </developer>
-  </developers>
-  <mailingLists>
-    <mailingList>
-      <name>Development List</name>
-      <subscribe>dev-subscribe@kie.apache.org</subscribe>
-      <unsubscribe>dev-unsubscribe@kie.apache.org</unsubscribe>
-      <post>dev@kie.apache.org</post>
-      <archive>https://lists.apache.org/list.html?dev@kie.apache.org</archive>
-    </mailingList>
-    <mailingList>
-      <name>User List</name>
-      <subscribe>users-subscribe@kie.apache.org</subscribe>
-      <unsubscribe>users-unsubscribe@kie.apache.org</unsubscribe>
-      <post>users@kie.apache.org</post>
-      <archive>https://lists.apache.org/list.html?users@kie.apache.org</archive>
-    </mailingList>
-    <mailingList>
-      <name>Commits List</name>
-      <subscribe>commits-subscribe@kie.apache.org</subscribe>
-      <unsubscribe>commits-unsubscribe@kie.apache.org</unsubscribe>
-      <post>commits@kie.apache.org</post>
-      <archive>https://lists.apache.org/list.html?commits@kie.apache.org</archive>
-    </mailingList>
-  </mailingLists>
+
   <properties>
+    <!-- Java & Maven -->
     <maven.compiler.release>17</maven.compiler.release>
-    <project.build.outputTimestamp>2024-01-16T00:00:00Z</project.build.outputTimestamp>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <project.build.outputTimestamp>2026-04-13T00:00:00Z</project.build.outputTimestamp>
+
+    <!--Quarkus -->
+    <quarkus.platform.version>3.27.2</quarkus.platform.version>
+    <version.io.quarkus>${quarkus.platform.version}</version.io.quarkus>
+
+    <!-- Kogito/Serverless Workflow (keep existing Kogito dependencies for now) -->
+    <kogito.version>999-SNAPSHOT</kogito.version>
+
+    <!-- Testing -->
+    <failsafe.include>**/*IT.java</failsafe.include>
+    <failsafe.exclude>**/Native*IT.java</failsafe.exclude>
+    <tests.quarkus.http.port>0</tests.quarkus.http.port>
+
+    <!-- Third-party libraries -->
+    <version.org.hibernate>7.1.14.Final</version.org.hibernate>
+    <version.com.graphql-java>24.3</version.com.graphql-java>
+    <version.com.graphql-java-extended-scalars>24.0</version.com.graphql-java-extended-scalars>
+    <version.org.mapstruct>1.5.5.Final</version.org.mapstruct>
+    <version.org.skyscreamer>1.5.1</version.org.skyscreamer>
+    <version.io.smallrye.reactive.mutiny-zero>1.1.1</version.io.smallrye.reactive.mutiny-zero>
+    <version.io.quarkiverse.reactivemessaging.http>2.7.1</version.io.quarkiverse.reactivemessaging.http>
+    <version.org.testcontainers>1.20.4</version.org.testcontainers>
+
+    <!-- Maven plugins -->
+    <version.maven-compiler-plugin>3.13.0</version.maven-compiler-plugin>
+    <version.maven-surefire-plugin>3.2.5</version.maven-surefire-plugin>
+    <version.maven-failsafe-plugin>3.2.5</version.maven-failsafe-plugin>
+    <version.maven-install-plugin>3.1.1</version.maven-install-plugin>
+    <version.maven-deploy-plugin>3.1.1</version.maven-deploy-plugin>
+
+    <!-- Skip enforcer from Kogito BOM -->
+    <enforcer.skip>true</enforcer.skip>
+
+    <!-- Project root directory (for assembly plugin) -->
+    <project.root.dir>${project.basedir}</project.root.dir>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- Quarkus BOM -->
+      <dependency>
+        <groupId>io.quarkus.platform</groupId>
+        <artifactId>quarkus-bom</artifactId>
+        <version>${quarkus.platform.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Override Hibernate version -->
+      <dependency>
+        <groupId>org.hibernate.orm</groupId>
+        <artifactId>hibernate-core</artifactId>
+        <version>${version.org.hibernate}</version>
+      </dependency>
+
+      <!-- GraphQL -->
+      <dependency>
+        <groupId>com.graphql-java</groupId>
+        <artifactId>graphql-java</artifactId>
+        <version>${version.com.graphql-java}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.graphql-java</groupId>
+        <artifactId>graphql-java-extended-scalars</artifactId>
+        <version>${version.com.graphql-java-extended-scalars}</version>
+      </dependency>
+
+      <!-- Utilities -->
+      <dependency>
+        <groupId>org.mapstruct</groupId>
+        <artifactId>mapstruct</artifactId>
+        <version>${version.org.mapstruct}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.smallrye.reactive</groupId>
+        <artifactId>mutiny-zero-flow-adapters</artifactId>
+        <version>${version.io.smallrye.reactive.mutiny-zero}</version>
+      </dependency>
+
+      <!-- Testing -->
+      <dependency>
+        <groupId>org.skyscreamer</groupId>
+        <artifactId>jsonassert</artifactId>
+        <version>${version.org.skyscreamer}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-core</artifactId>
+        <version>3.25.3</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-simple</artifactId>
+        <version>2.0.12</version>
+        <scope>test</scope>
+      </dependency>
+
+      <!-- Kogito Runtime APIs (temporary - used by existing modules) -->
+      <dependency>
+        <groupId>org.kie.kogito</groupId>
+        <artifactId>kogito-api</artifactId>
+        <version>${kogito.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kie.kogito</groupId>
+        <artifactId>kogito-events-core</artifactId>
+        <version>${kogito.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kie.kogito</groupId>
+        <artifactId>jobs-service-api</artifactId>
+        <version>${kogito.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kie</groupId>
+        <artifactId>jobs-common-embedded</artifactId>
+        <version>${kogito.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kie</groupId>
+        <artifactId>kogito-addons-common-embedded-jobs-jpa</artifactId>
+        <version>${kogito.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kie</groupId>
+        <artifactId>kogito-addons-quarkus-embedded-jobs-jpa</artifactId>
+        <version>${kogito.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kie</groupId>
+        <artifactId>kie-addons-quarkus-flyway</artifactId>
+        <version>${kogito.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.quarkiverse.reactivemessaging.http</groupId>
+        <artifactId>quarkus-reactive-messaging-http</artifactId>
+        <version>${version.io.quarkiverse.reactivemessaging.http}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <build>
     <pluginManagement>
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-artifact-plugin</artifactId>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>enforce-versions</id>
+              <phase>none</phase>
+            </execution>
+            <execution>
+              <id>enforce-maven-version</id>
+              <phase>none</phase>
+            </execution>
+            <execution>
+              <id>enforce-java-version</id>
+              <phase>none</phase>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>${version.maven-compiler-plugin}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>${version.maven-surefire-plugin}</version>
           <configuration>
-            <outputTimestamp>${project.build.outputTimestamp}</outputTimestamp>
-            <!-- Generated images in zip format are not reproducible-->
-            <ignore>image-build.zip</ignore>
+            <systemPropertyVariables>
+              <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+            </systemPropertyVariables>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>${version.maven-failsafe-plugin}</version>
+          <configuration>
+            <includes>
+              <include>${failsafe.include}</include>
+            </includes>
+            <excludes>
+              <exclude>${failsafe.exclude}</exclude>
+            </excludes>
+            <systemPropertyVariables>
+              <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+              <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
+              <quarkus.http.test-port>${tests.quarkus.http.port}</quarkus.http.test-port>
+            </systemPropertyVariables>
+            <classesDirectory>${project.build.outputDirectory}</classesDirectory>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-install-plugin</artifactId>
+          <version>${version.maven-install-plugin}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>${version.maven-deploy-plugin}</version>
+        </plugin>
+        <plugin>
+          <groupId>io.quarkus</groupId>
+          <artifactId>quarkus-maven-plugin</artifactId>
+          <version>${quarkus.platform.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
   </build>
-  <repositories>
-    <!-- useful to resolve parent pom when it is a SNAPSHOT -->
-    <repository>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <id>apache.snapshots</id>
-      <name>Apache Snapshot Repository</name>
-      <url>https://repository.apache.org/snapshots</url>
-    </repository>
-  </repositories>
+
   <modules>
     <module>kogito-apps-bom</module>
     <module>kogito-apps-build-parent</module>
@@ -116,33 +265,16 @@
     <module>security-commons</module>
     <module>jobs</module>
   </modules>
-  <profiles>
-    <profile>
-      <id>reproducible-build</id>
-      <activation>
-        <property>
-          <name>reproducible</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-artifact-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>check-buildplan</id>
-                <goals>
-                  <goal>check-buildplan</goal>
-                </goals>
-                <!-- The execution's configuration is part of the pluginManagement. This piece here only makes sure the
-                     execution is enabled (by specifying a phase) for full profile builds. -->
-                <phase>validate</phase>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
+
+  <repositories>
+    <!-- Apache snapshots for Kogito runtime dependencies (temporary) -->
+    <repository>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <id>apache.snapshots</id>
+      <name>Apache Snapshot Repository</name>
+      <url>https://repository.apache.org/snapshots</url>
+    </repository>
+  </repositories>
 </project>

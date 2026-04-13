@@ -68,22 +68,6 @@
             </includes>
         </fileSet>
 
-        <!-- Data Audit -->
-        <fileSet>
-            <directory>${project.root.dir}/data-audit/kogito-addons-data-audit-jpa/kogito-addons-data-audit-jpa-common/src/main/resources/kie-flyway/db/data-audit/h2</directory>
-            <outputDirectory>h2/data-audit</outputDirectory>
-            <includes>
-                <include>*.sql</include>
-            </includes>
-        </fileSet>
-        <fileSet>
-            <directory>${project.root.dir}/data-audit/kogito-addons-data-audit-jpa/kogito-addons-data-audit-jpa-common/src/main/resources/kie-flyway/db/data-audit/postgresql</directory>
-            <outputDirectory>postgresql/data-audit</outputDirectory>
-            <includes>
-                <include>*.sql</include>
-            </includes>
-        </fileSet>
-
         <!-- Job Service -->
         <fileSet>
             <directory>${project.root.dir}/jobs-service/jobs-service-storage-jpa/src/main/resources/kie-flyway/db/jobs-service/ansi</directory>
