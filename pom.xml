@@ -113,45 +113,10 @@
     <module>persistence-commons</module>
     <module>jobs-service</module>
     <module>data-index</module>
-    <module>data-audit</module>
     <module>security-commons</module>
-    <module>explainability</module>
-    <module>trusty</module>
-    <module>jitexecutor</module>
     <module>jobs</module>
   </modules>
   <profiles>
-    <profile>
-      <id>allSubmodules</id>
-      <activation>
-        <property>
-          <name>!only.reproducible</name>
-        </property>
-      </activation>
-      <modules>
-        <module>apps-integration-tests</module>
-      </modules>
-    </profile>
-    <profile>
-      <id>optaplanner-downstream</id>
-      <activation>
-        <property>
-          <name>optaplanner</name>
-        </property>
-      </activation>
-      <modules>
-        <module>kogito-apps-bom</module>
-        <module>kogito-apps-build-parent</module>
-        <module>explainability</module>
-        <module>trusty</module>
-      </modules>
-    </profile>
-    <profile>
-      <id>jitexecutor-native</id>
-      <modules>
-        <module>jitexecutor-native</module>
-      </modules>
-    </profile>
     <profile>
       <id>reproducible-build</id>
       <activation>
