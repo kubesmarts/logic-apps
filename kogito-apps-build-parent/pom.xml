@@ -69,10 +69,9 @@
         <version.org.jredisearch>2.2.0</version.org.jredisearch>
 
         <version.org.json>20231013</version.org.json>
-        <version.org.mapstruct>1.5.5.Final</version.org.mapstruct>
+        <version.org.mapstruct>1.6.3</version.org.mapstruct>
         <version.org.skyscreamer>1.5.1</version.org.skyscreamer>
-        <!-- graphql-java upgraded from 22.0 to 24.3 for java-dataloader 3.4.0+ compatibility
-             required by Spring Boot 3.5.x (DataLoaderOptions.newDefaultOptions()).
+        <!-- graphql-java 24.3 is latest stable with extended-scalars 24.0.
              extended-scalars version must match graphql-java major version. -->
         <version.com.graphql-java>24.3</version.com.graphql-java>
         <version.com.graphql-java-extended-scalars>24.0</version.com.graphql-java-extended-scalars>

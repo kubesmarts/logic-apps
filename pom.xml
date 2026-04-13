@@ -40,7 +40,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.build.outputTimestamp>2026-04-13T00:00:00Z</project.build.outputTimestamp>
 
-    <!--Quarkus -->
+    <!--Quarkus - keep 3.27.2 until kogito-quarkus-bom dependency removed -->
     <quarkus.platform.version>3.27.2</quarkus.platform.version>
     <version.io.quarkus>${quarkus.platform.version}</version.io.quarkus>
 
@@ -54,15 +54,15 @@
     <failsafe.exclude>**/Native*IT.java</failsafe.exclude>
     <tests.quarkus.http.port>0</tests.quarkus.http.port>
 
-    <!-- Third-party libraries -->
+    <!-- Third-party libraries - keep Hibernate 7.1.14 until Quarkus upgrade -->
     <version.org.hibernate>7.1.14.Final</version.org.hibernate>
     <version.com.graphql-java>24.3</version.com.graphql-java>
     <version.com.graphql-java-extended-scalars>24.0</version.com.graphql-java-extended-scalars>
-    <version.org.mapstruct>1.5.5.Final</version.org.mapstruct>
+    <version.org.mapstruct>1.6.3</version.org.mapstruct>
     <version.org.skyscreamer>1.5.1</version.org.skyscreamer>
     <version.io.smallrye.reactive.mutiny-zero>1.1.1</version.io.smallrye.reactive.mutiny-zero>
     <version.io.quarkiverse.reactivemessaging.http>2.7.1</version.io.quarkiverse.reactivemessaging.http>
-    <version.org.testcontainers>1.20.4</version.org.testcontainers>
+    <version.org.testcontainers>2.0.4</version.org.testcontainers>
 
     <!-- Maven plugins -->
     <version.maven-compiler-plugin>3.13.0</version.maven-compiler-plugin>
