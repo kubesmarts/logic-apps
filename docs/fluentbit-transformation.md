@@ -240,7 +240,16 @@ FluentBit uses the PostgreSQL output plugin which automatically maps JSON fields
 | `input` | `input_data` | JSONB (may be truncated) |
 | `output` | `output_data` | JSONB (may be truncated) |
 | `error.message` | `error_message` | Text extracted from error object |
-| `error` | `error_details` | Full error object as JSONB |
+| `error.details` | `error_details` | Full error object as JSONB |
+| `error.endpoint` | `endpoint` | v0.8 compatibility field (extracted from error_details) |
+| `error.businessKey` | `business_key` | v0.8 compatibility field |
+| `error.parentInstanceId` | `parent_instance_id` | v0.8 compatibility field |
+| `error.rootInstanceId` | `root_instance_id` | v0.8 compatibility field |
+| `error.createdBy` | `created_by` | v0.8 compatibility field |
+| `error.updatedBy` | `updated_by` | v0.8 compatibility field |
+
+**Note:** v0.8 compatibility fields are embedded in the `error_details` JSONB column in workflow_events,
+and extracted by PostgreSQL triggers when materializing workflow_instances.
 
 ### Quarkus Flow Event → task_executions table
 
@@ -258,6 +267,51 @@ FluentBit uses the PostgreSQL output plugin which automatically maps JSON fields
 | `output` | `output_data` | JSONB (may be truncated) |
 | `error.message` | `error_message` | Text extracted from error object |
 | `error` | `error_details` | Full error object as JSONB |
+
+### Operator Event → workflows table
+
+Workflow definitions are registered by the OpenShift Serverless Logic Operator when LogicFlow CRs are created/updated.
+
+| Event Field | DB Column | Notes |
+|------------|-----------|-------|
+| `namespace` | `namespace` | Kubernetes namespace |
+| `name` | `name` | Workflow name |
+| `version` | `version` | Workflow version |
+| `dsl` | `dsl` | Always "1.0.0" for SW 1.0.0 |
+| `title` | `title` | Human-readable title |
+| `summary` | `summary` | Description |
+| `tags` | `tags` | JSONB key-value pairs |
+| `metadata` | `metadata` | JSONB custom metadata |
+| `source` | `source` | BYTEA (base64-encoded workflow YAML/JSON) |
+| `endpoint` | `endpoint` | REST endpoint URL for this workflow |
+
+**Event Type:** `workflow.definition.registered`  
+**Emitted by:** logic-operator (not Quarkus Flow runtime)
+
+### Timer Event → jobs table
+
+Timer and scheduled task events (WaitTask, timeouts, scheduled workflows).
+
+| Event Field | DB Column | Notes |
+|------------|-----------|-------|
+| `jobId` | `job_id` | Primary key (UUID) |
+| `workflowInstanceId` | `workflow_instance_id` | Optional - null for scheduled workflow triggers |
+| `taskExecutionId` | `task_execution_id` | Optional - for task timeouts |
+| `jobType` | `job_type` | WAIT_TASK, TIMEOUT, SCHEDULED_WORKFLOW |
+| `status` | `status` | SCHEDULED, RUNNING, EXECUTED, FAILED, CANCELLED |
+| `expirationTime` | `expiration_time` | When job should fire |
+| `callbackEndpoint` | `callback_endpoint` | URL to call when job fires |
+| `repeatInterval` | `repeat_interval` | Milliseconds between repetitions |
+| `repeatLimit` | `repeat_limit` | Max number of repetitions |
+| `executionCount` | `execution_count` | Current execution count |
+| `priority` | `priority` | Job priority |
+| `errorMessage` | `error_message` | Error if job failed |
+
+**Event Types:**
+- `workflow.job.scheduled` - Job created
+- `workflow.job.executed` - Job fired successfully
+- `workflow.job.failed` - Job execution failed
+- `workflow.job.cancelled` - Job canceled
 
 ## Error Handling
 
@@ -288,6 +342,67 @@ FluentBit uses the PostgreSQL output plugin which automatically maps JSON fields
 - Table row counts (growth rate)
 - Index hit ratio
 - Query performance (p50, p95, p99)
+
+## GraphQL API Compatibility
+
+### Dual API Support
+
+The schema supports both Serverless Workflow 1.0.0 (native) and Kogito 0.8 (compatibility) APIs through SQL views.
+
+**Native SW 1.0.0 API:**
+```graphql
+# Query workflow_instances table directly
+query {
+  WorkflowInstances(where: {status: {equal: RUNNING}}) {
+    instanceId
+    workflowName
+    status
+    startTime
+  }
+}
+```
+
+**Kogito 0.8 Compatible API:**
+```graphql
+# Query process_instances view (maps to workflow_instances)
+query {
+  ProcessInstances(where: {state: {equal: ACTIVE}}) {
+    id
+    processId
+    state
+    start
+  }
+}
+```
+
+### View Mappings
+
+**process_instances view** → workflow_instances table:
+- `id` ← `instance_id`
+- `processId` ← `workflow_name`
+- `state` ← `status` (enum mapped: RUNNING=1, COMPLETED=2, etc.)
+- `start` ← `start_time`
+- `end` ← `end_time`
+- `variables` ← `input_data`
+
+**nodes view** → task_executions table:
+- `id` ← `task_execution_id`
+- `name` ← `task_name`
+- `enter` ← `start_time`
+- `exit` ← `end_time`
+- `processInstanceId` ← `instance_id`
+
+**definitions view** → workflows table:
+- `id` ← `CONCAT(namespace, '.', name)`
+- `name` ← `title`
+- `type` ← `'WORKFLOW'` (constant)
+
+### Migration Strategy
+
+1. **Phase 1:** Deploy new schema with v0.8 views
+2. **Phase 2:** GraphQL Gateway queries views (v0.8 API works unchanged)
+3. **Phase 3:** Gradually migrate clients to v1.0.0 API
+4. **Phase 4:** Eventually deprecate v0.8 views (not before 2027)
 
 ## Deployment
 
