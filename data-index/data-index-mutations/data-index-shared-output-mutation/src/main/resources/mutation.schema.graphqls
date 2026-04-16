@@ -1,3 +1,0 @@
-extend type Mutation {
-    ExecuteAfter(completedInstanceId: String, processId: String!, processVersion: String!, input: JSON, excludeProperties: [String]): String
-}
