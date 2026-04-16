@@ -51,6 +51,11 @@
         <artifactId>data-index-service</artifactId>
         <version>${project.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.kie.kogito</groupId>
+        <artifactId>data-index-integration-tests</artifactId>
+        <version>${project.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -58,6 +63,7 @@
     <module>data-index-model</module>
     <module>data-index-storage-postgresql</module>
     <module>data-index-service</module>
+    <module>data-index-integration-tests</module>
   </modules>
 
 </project>
