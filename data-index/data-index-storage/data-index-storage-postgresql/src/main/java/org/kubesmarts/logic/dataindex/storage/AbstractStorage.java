@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import org.kubesmarts.logic.dataindex.entity.AbstractEntity;
+import org.kubesmarts.logic.dataindex.storage.entity.AbstractEntity;
 import org.kie.kogito.persistence.api.Storage;
 
 import jakarta.persistence.EntityManager;

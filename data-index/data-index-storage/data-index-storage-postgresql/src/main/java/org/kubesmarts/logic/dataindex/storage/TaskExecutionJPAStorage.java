@@ -20,8 +20,8 @@ import java.util.Optional;
 import org.kubesmarts.logic.dataindex.storage.AbstractStorage;
 import org.kubesmarts.logic.dataindex.storage.JsonPredicateBuilder;
 import org.kubesmarts.logic.dataindex.api.TaskExecutionStorage;
-import org.kubesmarts.logic.dataindex.entity.TaskExecutionEntity;
-import org.kubesmarts.logic.dataindex.mapper.TaskExecutionEntityMapper;
+import org.kubesmarts.logic.dataindex.storage.entity.TaskExecutionEntity;
+import org.kubesmarts.logic.dataindex.storage.mapper.TaskExecutionEntityMapper;
 import org.kubesmarts.logic.dataindex.model.TaskExecution;
 
 import jakarta.enterprise.context.ApplicationScoped;

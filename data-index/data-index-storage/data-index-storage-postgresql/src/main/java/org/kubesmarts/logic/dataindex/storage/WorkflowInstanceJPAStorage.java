@@ -20,8 +20,8 @@ import java.util.Optional;
 import org.kubesmarts.logic.dataindex.storage.AbstractStorage;
 import org.kubesmarts.logic.dataindex.storage.JsonPredicateBuilder;
 import org.kubesmarts.logic.dataindex.api.WorkflowInstanceStorage;
-import org.kubesmarts.logic.dataindex.entity.WorkflowInstanceEntity;
-import org.kubesmarts.logic.dataindex.mapper.WorkflowInstanceEntityMapper;
+import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceEntity;
+import org.kubesmarts.logic.dataindex.storage.mapper.WorkflowInstanceEntityMapper;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 
 import jakarta.enterprise.context.ApplicationScoped;

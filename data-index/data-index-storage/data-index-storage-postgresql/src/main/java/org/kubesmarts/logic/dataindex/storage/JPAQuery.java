@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-import org.kubesmarts.logic.dataindex.entity.AbstractEntity;
+import org.kubesmarts.logic.dataindex.storage.entity.AbstractEntity;
 import org.kie.kogito.persistence.api.query.AttributeFilter;
 import org.kie.kogito.persistence.api.query.AttributeSort;
 import org.kie.kogito.persistence.api.query.Query;
