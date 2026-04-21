@@ -52,11 +52,6 @@
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.kie.kogito</groupId>
-        <artifactId>data-index-storage-postgresql</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
         <groupId>org.kubesmarts.logic.apps</groupId>
         <artifactId>data-index-event-processor</artifactId>
         <version>${project.version}</version>
@@ -78,7 +73,6 @@
     <module>data-index-model</module>
     <module>data-index-storage</module>
     <module>data-index-event-processor</module>
-    <module>data-index-storage-postgresql</module>
     <module>data-index-service</module>
     <module>data-index-integration-tests</module>
   </modules>
