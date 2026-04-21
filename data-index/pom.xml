@@ -47,6 +47,11 @@
         <version>${project.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-storage-postgresql</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.kie.kogito</groupId>
         <artifactId>data-index-storage-postgresql</artifactId>
         <version>${project.version}</version>

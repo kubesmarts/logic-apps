@@ -100,6 +100,20 @@
       <artifactId>data-index-service</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!-- Data Index Storage PostgreSQL (for event classes in tests) -->
+    <dependency>
+      <groupId>org.kubesmarts.logic.apps</groupId>
+      <artifactId>data-index-storage-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- WireMock for HTTP mocking in tests -->
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

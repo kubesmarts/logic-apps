@@ -1,0 +1,10 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: simple-set
+  version: '1.0.0'
+do:
+  - setMessage:
+      set:
+        greeting: Hello from Quarkus Flow!
+        timestamp: '${ now() }'

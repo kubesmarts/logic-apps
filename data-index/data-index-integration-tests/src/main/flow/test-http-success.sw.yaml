@@ -1,14 +1,14 @@
 document:
   dsl: '1.0.0'
   namespace: test
-  name: hello-world
+  name: test-http-success
   version: '1.0.0'
 do:
   - fetchData:
       call: http
       with:
         method: get
-        endpoint: https://httpbin.org/json
+        endpoint: http://localhost:28080/json
   - processResponse:
       set:
         message: '${ "Received slide: " + .slideshow.title }'
