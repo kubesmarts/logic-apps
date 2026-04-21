@@ -90,11 +90,12 @@ create_cluster() {
     log_info "Creating KIND cluster '${CLUSTER_NAME}'..."
 
     # KIND cluster configuration
+    # Using single control-plane node with workloads enabled for simplicity and reliability
     cat <<EOF | kind create cluster --name "${CLUSTER_NAME}" --config=-
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
-  # Control plane node
+  # Single control-plane node (can run workloads)
   - role: control-plane
     kubeadmConfigPatches:
     - |
@@ -127,16 +128,6 @@ nodes:
     - containerPort: 30920
       hostPort: 30920
       protocol: TCP
-
-  # Worker node 1
-  - role: worker
-    labels:
-      node.kubernetes.io/workload: data-index
-
-  # Worker node 2
-  - role: worker
-    labels:
-      node.kubernetes.io/workload: dependencies
 EOF
 
     log_info "✓ Cluster created"
