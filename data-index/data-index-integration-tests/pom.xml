@@ -23,13 +23,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.kie.kogito</groupId>
+    <groupId>org.kubesmarts.logic.apps</groupId>
     <artifactId>data-index</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
 
   <artifactId>data-index-integration-tests</artifactId>
-  <name>Data Index :: Integration Tests</name>
+  <name>KubeSmarts Logic Apps :: Data Index :: Integration Tests</name>
   <description>End-to-end integration tests with Quarkus Flow workflows</description>
 
   <properties>
@@ -96,7 +96,7 @@
 
     <!-- Data Index Service (for GraphQL queries) -->
     <dependency>
-      <groupId>org.kie.kogito</groupId>
+      <groupId>org.kubesmarts.logic.apps</groupId>
       <artifactId>data-index-service</artifactId>
       <scope>test</scope>
     </dependency>
