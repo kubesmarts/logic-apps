@@ -15,6 +15,8 @@
  */
 package org.kubesmarts.logic.dataindex.elasticsearch.config;
 
+import io.quarkus.runtime.annotations.ConfigPhase;
+import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 
@@ -49,6 +51,7 @@ import io.smallrye.config.WithDefault;
  *
  * @see <a href="https://quarkus.io/guides/elasticsearch">Quarkus Elasticsearch Guide</a>
  */
+@ConfigRoot(phase = ConfigPhase.RUN_TIME)
 @ConfigMapping(prefix = "data-index.elasticsearch")
 public interface ElasticsearchConfiguration {
 
