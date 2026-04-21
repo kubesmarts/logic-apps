@@ -1,0 +1,150 @@
+{
+  "source": {
+    "index": "workflow-events-raw",
+    "query": {
+      "bool": {
+        "should": [
+          {
+            "term": {
+              "cloudEvent.type": "task.started"
+            }
+          },
+          {
+            "term": {
+              "cloudEvent.type": "task.completed"
+            }
+          },
+          {
+            "term": {
+              "cloudEvent.type": "task.faulted"
+            }
+          }
+        ],
+        "minimum_should_match": 1
+      }
+    }
+  },
+  "dest": {
+    "index": "task-executions"
+  },
+  "frequency": "10s",
+  "sync": {
+    "time": {
+      "field": "@timestamp",
+      "delay": "30s"
+    }
+  },
+  "pivot": {
+    "group_by": {
+      "id": {
+        "terms": {
+          "field": "cloudEvent.data.taskId"
+        }
+      }
+    },
+    "aggregations": {
+      "taskName": {
+        "terms": {
+          "field": "cloudEvent.data.taskName",
+          "size": 1
+        }
+      },
+      "taskPosition": {
+        "terms": {
+          "field": "cloudEvent.data.taskPosition",
+          "size": 1
+        }
+      },
+      "workflowInstanceId": {
+        "terms": {
+          "field": "cloudEvent.data.workflowInstanceId",
+          "size": 1
+        }
+      },
+      "status": {
+        "terms": {
+          "field": "cloudEvent.data.status",
+          "size": 1,
+          "order": {
+            "_key": "desc"
+          }
+        }
+      },
+      "enter": {
+        "min": {
+          "field": "@timestamp"
+        }
+      },
+      "exit": {
+        "max": {
+          "field": "@timestamp"
+        }
+      },
+      "duration": {
+        "bucket_script": {
+          "buckets_path": {
+            "enter": "enter",
+            "exit": "exit"
+          },
+          "script": "params.exit - params.enter"
+        }
+      },
+      "inputArgs": {
+        "top_hits": {
+          "size": 1,
+          "sort": [
+            {
+              "@timestamp": {
+                "order": "asc"
+              }
+            }
+          ],
+          "_source": {
+            "includes": [
+              "cloudEvent.data.inputArgs"
+            ]
+          }
+        }
+      },
+      "outputArgs": {
+        "top_hits": {
+          "size": 1,
+          "sort": [
+            {
+              "@timestamp": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": {
+            "includes": [
+              "cloudEvent.data.outputArgs"
+            ]
+          }
+        }
+      },
+      "errorMessage": {
+        "top_hits": {
+          "size": 1,
+          "sort": [
+            {
+              "@timestamp": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": {
+            "includes": [
+              "cloudEvent.data.errorMessage"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "description": "Transform task CloudEvents to normalized task executions. Merges multiple events (started, completed, faulted) by task ID.",
+  "settings": {
+    "max_page_search_size": 500,
+    "docs_per_second": null
+  }
+}
