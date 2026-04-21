@@ -1,8 +1,6 @@
 package org.kubesmarts.logic.dataindex.test;
 
-import io.quarkiverse.flow.Flow;
 import io.quarkus.logging.Log;
-import io.smallrye.common.annotation.Identifier;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -23,20 +21,18 @@ import java.util.concurrent.CompletableFuture;
 public class WorkflowTestResource {
 
     @Inject
-    @Identifier("test.SimpleSetJava")
-    Flow simpleSetJava;
+    SimpleSetWorkflow simpleSet;
 
     @Inject
-    @Identifier("test.HelloWorldJava")
-    Flow helloWorldJava;
+    HelloWorldWorkflow helloWorld;
 
     @POST
     @Path("/simple-set")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public CompletableFuture<Map<String, Object>> executeSimpleSet(Map<String, Object> input) {
-        Log.info("Executing simple-set-java workflow with input: " + input);
-        return simpleSetJava.instance(input).start()
+        Log.info("Executing simple-set workflow with input: " + input);
+        return simpleSet.instance(input).start()
                 .thenApply(model -> model.asMap().orElseThrow());
     }
 
@@ -45,8 +41,8 @@ public class WorkflowTestResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public CompletableFuture<Map<String, Object>> executeHelloWorld(Map<String, Object> input) {
-        Log.info("Executing hello-world-java workflow with input: " + input);
-        return helloWorldJava.instance(input).start()
+        Log.info("Executing hello-world workflow with input: " + input);
+        return helloWorld.instance(input).start()
                 .thenApply(model -> model.asMap().orElseThrow());
     }
 }
