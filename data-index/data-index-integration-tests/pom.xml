@@ -36,7 +36,7 @@
     <java.module.name>org.kubesmarts.logic.dataindex.integration.tests</java.module.name>
     <quarkus-flow.version>1.0.0-SNAPSHOT</quarkus-flow.version>
     <!-- Override parent Quarkus version for Quarkus Flow compatibility -->
-    <quarkus.platform.version>3.34.3</quarkus.platform.version>
+    <quarkus.platform.version>3.34.5</quarkus.platform.version>
   </properties>
 
   <dependencyManagement>
@@ -48,11 +48,16 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      <!-- Override serverlessworkflow version (Quarkus BOM has 4.x, but Quarkus Flow needs 7.x) -->
+      <!-- Force jackson-jq 1.6.1 to match serverlessworkflow SDK expectations -->
       <dependency>
-        <groupId>io.serverlessworkflow</groupId>
-        <artifactId>serverlessworkflow-api</artifactId>
-        <version>7.17.1.Final</version>
+        <groupId>net.thisptr</groupId>
+        <artifactId>jackson-jq</artifactId>
+        <version>1.6.1</version>
+      </dependency>
+      <dependency>
+        <groupId>net.thisptr</groupId>
+        <artifactId>jackson-jq-extra</artifactId>
+        <version>1.6.1</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
