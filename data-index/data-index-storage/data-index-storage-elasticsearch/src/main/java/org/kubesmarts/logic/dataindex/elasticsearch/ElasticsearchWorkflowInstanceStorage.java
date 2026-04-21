@@ -27,8 +27,6 @@ import org.kie.kogito.persistence.api.query.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.DeleteRequest;
 import co.elastic.clients.elasticsearch.core.DeleteResponse;
@@ -47,9 +45,8 @@ import jakarta.inject.Inject;
  *
  * <p>Uses:
  * <ul>
- *   <li>ElasticsearchClient - Java client for Elasticsearch operations
+ *   <li>ElasticsearchClient - Java client for Elasticsearch operations (handles JSON internally)
  *   <li>ElasticsearchQuery - Query implementation for filtering/sorting/pagination
- *   <li>ObjectMapper - JSON serialization for document storage
  * </ul>
  *
  * <p><b>Index Structure</b>:
@@ -70,23 +67,19 @@ public class ElasticsearchWorkflowInstanceStorage implements WorkflowInstanceSto
     private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchWorkflowInstanceStorage.class);
 
     private final ElasticsearchClient client;
-    private final ObjectMapper objectMapper;
     private final String indexName;
 
     @Inject
     public ElasticsearchWorkflowInstanceStorage(
             ElasticsearchClient client,
-            ObjectMapper objectMapper,
             ElasticsearchConfiguration config) {
         this.client = client;
-        this.objectMapper = objectMapper;
         this.indexName = config.workflowInstanceIndex();
     }
 
     // Default constructor for CDI proxying
     protected ElasticsearchWorkflowInstanceStorage() {
         this.client = null;
-        this.objectMapper = null;
         this.indexName = "workflow-instances";
     }
 
