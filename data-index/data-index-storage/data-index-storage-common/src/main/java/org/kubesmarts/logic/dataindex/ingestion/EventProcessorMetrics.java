@@ -19,10 +19,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Instance;
-import jakarta.inject.Inject;
-
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.kubesmarts.logic.dataindex.api.PollingEventProcessor;
 import org.slf4j.Logger;
@@ -31,6 +27,10 @@ import org.slf4j.LoggerFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.quarkus.scheduler.Scheduled;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
 
 /**
  * Backend-agnostic metrics for event processor monitoring.
@@ -52,25 +52,21 @@ import io.quarkus.scheduler.Scheduled;
 public class EventProcessorMetrics {
 
     private static final Logger log = LoggerFactory.getLogger(EventProcessorMetrics.class);
-
-    @Inject
-    Instance<PollingEventProcessor<?>> eventProcessors;
-
-    @Inject
-    MeterRegistry meterRegistry;
-
-    @ConfigProperty(name = "data-index.event-processor.enabled", defaultValue = "true")
-    boolean enabled;
-
     // Atomic gauges for thread-safe updates (per processor)
     private final Map<String, AtomicLong> backlogGauges = new HashMap<>();
     private final Map<String, AtomicLong> lagGauges = new HashMap<>();
     private final Map<String, AtomicLong> oldestAgeGauges = new HashMap<>();
+    @Inject
+    Instance<PollingEventProcessor<?>> eventProcessors;
+    @Inject
+    MeterRegistry meterRegistry;
+    @ConfigProperty(name = "data-index.event-processor.enabled", defaultValue = "true")
+    boolean enabled;
 
     /**
      * Initialize gauges on startup.
      */
-    void onStart(@jakarta.enterprise.event.Observes io.quarkus.runtime.StartupEvent event) {
+    void onStart(@Observes io.quarkus.runtime.StartupEvent event) {
         log.info("Initializing event processor metrics");
 
         // Register gauges for each processor
