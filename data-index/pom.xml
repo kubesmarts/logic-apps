@@ -61,6 +61,7 @@
 
   <modules>
     <module>data-index-model</module>
+    <module>data-index-storage</module>
     <module>data-index-storage-postgresql</module>
     <module>data-index-service</module>
     <module>data-index-integration-tests</module>
