@@ -80,13 +80,9 @@ Conducted systematic audit across all categories:
 
 ## Module 2: data-index-common
 
-**Status:** Pending
+**Status:** N/A - Module does not exist
 
-### Removed Items
-- TBD
-
-### Reasoning
-- TBD
+**Note:** This module is not part of the current data-index structure. Common utilities may be integrated into other modules or no common module was needed for this implementation.
 
 ---
 
@@ -164,13 +160,9 @@ Conducted systematic audit across all categories:
 
 ## Module 9: data-index-graphql
 
-**Status:** Pending
+**Status:** N/A - Module does not exist separately
 
-### Removed Items
-- TBD
-
-### Reasoning
-- TBD
+**Note:** GraphQL types and resolvers are integrated into the data-index-service module. No separate graphql module exists in the current architecture.
 
 ---
 
