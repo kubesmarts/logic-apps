@@ -41,7 +41,7 @@ class FilterConverterTest {
 
     @Test
     void testConvertNullFilter() {
-        List<AttributeFilter<?>> result = FilterConverter.convert(null);
+        List<AttributeFilter<?>> result = FilterConverter.convert((WorkflowInstanceFilter) null);
         assertThat(result).isEmpty();
     }
 

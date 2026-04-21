@@ -22,6 +22,7 @@ import org.eclipse.microprofile.graphql.Description;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Name;
 import org.eclipse.microprofile.graphql.Query;
+import org.kubesmarts.logic.dataindex.api.TaskExecutionStorage;
 import org.kubesmarts.logic.dataindex.api.WorkflowInstanceStorage;
 import org.kubesmarts.logic.dataindex.model.TaskExecution;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
@@ -34,7 +35,7 @@ import jakarta.inject.Inject;
  * <p>Provides queries for:
  * <ul>
  *   <li>Workflow instances (getWorkflowInstance, getWorkflowInstances)
- *   <li>Task executions (getTaskExecutions)
+ *   <li>Task executions (getTaskExecution, getTaskExecutions, getTaskExecutionsByWorkflowInstance)
  * </ul>
  *
  * <p><b>Data Index v1.0.0 is read-only</b> - only query operations are supported.
@@ -44,6 +45,9 @@ public class WorkflowInstanceGraphQLApi {
 
     @Inject
     WorkflowInstanceStorage workflowInstanceStorage;
+
+    @Inject
+    TaskExecutionStorage taskExecutionStorage;
 
     /**
      * Get a single workflow instance by ID.
@@ -60,28 +64,104 @@ public class WorkflowInstanceGraphQLApi {
     /**
      * Get multiple workflow instances.
      *
-     * <p>TODO: Implement filtering, sorting, pagination
-     * Currently returns all instances (for initial testing with mocked data).
-     *
-     * @return List of all workflow instances
+     * @param filter Optional filter criteria
+     * @param orderBy Optional sort order
+     * @param limit Maximum number of results
+     * @param offset Number of results to skip
+     * @return List of workflow instances matching criteria
      */
     @Query("getWorkflowInstances")
     @Description("Get multiple workflow instances with optional filtering, sorting, and pagination.")
-    public List<WorkflowInstance> getWorkflowInstances() {
-        // TODO: Implement filter, orderBy, pagination
-        // For now, return all instances using query API
-        return new ArrayList<>(workflowInstanceStorage.query().execute());
+    public List<WorkflowInstance> getWorkflowInstances(
+            @Name("filter") org.kubesmarts.logic.dataindex.graphql.filter.WorkflowInstanceFilter filter,
+            @Name("orderBy") org.kubesmarts.logic.dataindex.graphql.filter.WorkflowInstanceOrderBy orderBy,
+            @Name("limit") Integer limit,
+            @Name("offset") Integer offset) {
+
+        org.kie.kogito.persistence.api.query.Query<WorkflowInstance> query = workflowInstanceStorage.query();
+
+        // Apply filter
+        if (filter != null) {
+            query.filter(org.kubesmarts.logic.dataindex.graphql.filter.FilterConverter.convert(filter));
+        }
+
+        // Apply ordering
+        if (orderBy != null) {
+            query.sort(org.kubesmarts.logic.dataindex.graphql.filter.OrderByConverter.convert(orderBy));
+        }
+
+        // Apply pagination
+        if (limit != null) {
+            query.limit(limit);
+        }
+        if (offset != null) {
+            query.offset(offset);
+        }
+
+        return query.execute();
     }
 
     /**
-     * Get task executions for a workflow instance.
+     * Get a single task execution by ID.
      *
-     * @param workflowInstanceId Workflow instance ID
-     * @return List of task executions
+     * @param id Task execution ID
+     * @return TaskExecution or null if not found
+     */
+    @Query("getTaskExecution")
+    @Description("Get a single task execution by ID. Returns null if not found.")
+    public TaskExecution getTaskExecution(@Name("id") String id) {
+        return taskExecutionStorage.get(id);
+    }
+
+    /**
+     * Get multiple task executions with filtering, sorting, and pagination.
+     *
+     * @param filter Optional filter criteria
+     * @param orderBy Optional sort order
+     * @param limit Maximum number of results
+     * @param offset Number of results to skip
+     * @return List of task executions matching criteria
      */
     @Query("getTaskExecutions")
-    @Description("Get task executions for a workflow instance.")
-    public List<TaskExecution> getTaskExecutions(@Name("workflowInstanceId") String workflowInstanceId) {
+    @Description("Get multiple task executions with optional filtering, sorting, and pagination.")
+    public List<TaskExecution> getTaskExecutions(
+            @Name("filter") org.kubesmarts.logic.dataindex.graphql.filter.TaskExecutionFilter filter,
+            @Name("orderBy") org.kubesmarts.logic.dataindex.graphql.filter.TaskExecutionOrderBy orderBy,
+            @Name("limit") Integer limit,
+            @Name("offset") Integer offset) {
+
+        org.kie.kogito.persistence.api.query.Query<TaskExecution> query = taskExecutionStorage.query();
+
+        // Apply filter
+        if (filter != null) {
+            query.filter(org.kubesmarts.logic.dataindex.graphql.filter.FilterConverter.convert(filter));
+        }
+
+        // Apply ordering
+        if (orderBy != null) {
+            query.sort(org.kubesmarts.logic.dataindex.graphql.filter.OrderByConverter.convert(orderBy));
+        }
+
+        // Apply pagination
+        if (limit != null) {
+            query.limit(limit);
+        }
+        if (offset != null) {
+            query.offset(offset);
+        }
+
+        return query.execute();
+    }
+
+    /**
+     * Get task executions for a workflow instance (via aggregate navigation).
+     *
+     * @param workflowInstanceId Workflow instance ID
+     * @return List of task executions for this workflow instance
+     */
+    @Query("getTaskExecutionsByWorkflowInstance")
+    @Description("Get task executions for a specific workflow instance.")
+    public List<TaskExecution> getTaskExecutionsByWorkflowInstance(@Name("workflowInstanceId") String workflowInstanceId) {
         WorkflowInstance instance = workflowInstanceStorage.get(workflowInstanceId);
         if (instance == null) {
             return List.of();

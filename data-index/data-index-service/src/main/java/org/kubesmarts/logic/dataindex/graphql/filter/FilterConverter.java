@@ -85,6 +85,36 @@ public class FilterConverter {
     }
 
     /**
+     * Convert TaskExecutionFilter to AttributeFilter list.
+     *
+     * @param filter GraphQL filter input
+     * @return List of AttributeFilter objects for storage Query API
+     */
+    public static List<AttributeFilter<?>> convert(TaskExecutionFilter filter) {
+        List<AttributeFilter<?>> result = new ArrayList<>();
+
+        if (filter == null) {
+            return result;
+        }
+
+        // String filters
+        addStringFilters(result, "id", filter.getId());
+        addStringFilters(result, "taskName", filter.getTaskName());
+        addStringFilters(result, "taskPosition", filter.getTaskPosition());
+        addStringFilters(result, "errorMessage", filter.getErrorMessage());
+
+        // DateTime filters
+        addDateTimeFilters(result, "enter", filter.getEnter());
+        addDateTimeFilters(result, "exit", filter.getExit());
+
+        // JSON filters
+        addJsonFilters(result, "inputArgs", filter.getInputArgs());
+        addJsonFilters(result, "outputArgs", filter.getOutputArgs());
+
+        return result;
+    }
+
+    /**
      * Add string field filters.
      */
     private static void addStringFilters(List<AttributeFilter<?>> result, String fieldName, StringFilter filter) {
