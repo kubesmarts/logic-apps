@@ -30,13 +30,9 @@ import org.kubesmarts.logic.dataindex.api.WorkflowInstanceStorage;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstanceStatus;
 
-import io.quarkiverse.flow.Flow;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.QuarkusTestProfile;
-import io.quarkus.test.junit.TestProfile;
 import io.serverlessworkflow.impl.WorkflowModel;
-import io.smallrye.common.annotation.Identifier;
 
 /**
  * End-to-end integration test for Data Index.
@@ -55,7 +51,6 @@ import io.smallrye.common.annotation.Identifier;
  * NOT manual SQL scripts. Schema is derived from JPA entities.
  */
 @QuarkusTest
-@TestProfile(DataIndexIntegrationTest.DatabaseEnabledProfile.class)
 @QuarkusTestResource(HttpBinMockServer.class)
 public class DataIndexIntegrationTest {
 
@@ -190,35 +185,4 @@ public class DataIndexIntegrationTest {
         assertThat(persisted.getOutput().get("message")).isNotNull();
     }
 
-    /**
-     * Test profile that enables PostgreSQL database for integration tests.
-     * Uses existing PostgreSQL container to avoid Testcontainers timeout issues.
-     */
-    public static class DatabaseEnabledProfile implements QuarkusTestProfile {
-        @Override
-        public Map<String, String> getConfigOverrides() {
-            Map<String, String> config = new java.util.HashMap<>();
-
-            // Disable Dev Services - use existing PostgreSQL container
-            config.put("quarkus.devservices.enabled", "false");
-            config.put("quarkus.datasource.devservices.enabled", "false");
-
-            // Connect to existing PostgreSQL container on port 33224
-            config.put("quarkus.datasource.jdbc.url", "jdbc:postgresql://localhost:33224/quarkus");
-            config.put("quarkus.datasource.username", "quarkus");
-            config.put("quarkus.datasource.password", "quarkus");
-
-            // Enable Hibernate ORM with schema generation
-            config.put("quarkus.hibernate-orm.enabled", "true");
-            config.put("quarkus.hibernate-orm.database.generation", "drop-and-create");
-            config.put("quarkus.hibernate-orm.log.sql", "false");
-
-            // Keep structured logging enabled
-            config.put("quarkus.flow.structured-logging.enabled", "true");
-            config.put("quarkus.flow.structured-logging.events", "*");
-            config.put("quarkus.flow.structured-logging.include-workflow-payloads", "true");
-
-            return config;
-        }
-    }
 }

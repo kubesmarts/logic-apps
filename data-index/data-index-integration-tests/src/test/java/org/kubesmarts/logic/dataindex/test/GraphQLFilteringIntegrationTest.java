@@ -35,8 +35,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.QuarkusTestProfile;
-import io.quarkus.test.junit.TestProfile;
 import io.restassured.http.ContentType;
 
 /**
@@ -53,7 +51,6 @@ import io.restassured.http.ContentType;
  * </ul>
  */
 @QuarkusTest
-@TestProfile(GraphQLFilteringIntegrationTest.DatabaseEnabledProfile.class)
 public class GraphQLFilteringIntegrationTest {
 
     @Inject
@@ -403,35 +400,4 @@ public class GraphQLFilteringIntegrationTest {
             .body("data.getWorkflowInstances.name", everyItem(startsWith("greeting")));
     }
 
-    /**
-     * Test profile that enables PostgreSQL database for GraphQL filtering tests.
-     */
-    public static class DatabaseEnabledProfile implements QuarkusTestProfile {
-        @Override
-        public Map<String, String> getConfigOverrides() {
-            Map<String, String> config = new java.util.HashMap<>();
-
-            // Disable Dev Services - use existing PostgreSQL container
-            config.put("quarkus.devservices.enabled", "false");
-            config.put("quarkus.datasource.devservices.enabled", "false");
-
-            // Connect to existing PostgreSQL container on port 33224
-            config.put("quarkus.datasource.jdbc.url", "jdbc:postgresql://localhost:33224/quarkus");
-            config.put("quarkus.datasource.username", "quarkus");
-            config.put("quarkus.datasource.password", "quarkus");
-
-            // Enable Hibernate ORM with schema generation
-            config.put("quarkus.hibernate-orm.enabled", "true");
-            config.put("quarkus.hibernate-orm.database.generation", "drop-and-create");
-            config.put("quarkus.hibernate-orm.log.sql", "true");
-
-            // Configure Hibernate ORM JSON format mapper
-            config.put("quarkus.hibernate-orm.mapping.format.global", "ignore");
-
-            // Enable GraphQL
-            config.put("quarkus.smallrye-graphql.enabled", "true");
-
-            return config;
-        }
-    }
 }

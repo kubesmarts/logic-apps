@@ -24,6 +24,8 @@ class WorkflowExecutionTest {
     void shouldExecuteSimpleWorkflowWithoutHttp() {
         // When/Then: invoke simple workflow (no HTTP) via REST endpoint
         given()
+                .contentType("application/json")
+                .body("{}")
                 .when().post("/test-workflows/simple-set")
                 .then()
                 .statusCode(200)
