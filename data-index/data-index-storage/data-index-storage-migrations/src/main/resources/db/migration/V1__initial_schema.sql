@@ -181,7 +181,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to normalize task events with field-level idempotency
+-- Function to normalize task events with UPDATE-first pattern
+--
+-- Pattern:
+--   1. Try UPDATE by (instance_id, task_position) WHERE "end" IS NULL
+--   2. If no rows updated, INSERT new row
+--
+-- The "end" IS NULL condition is critical:
+--   - Prevents updating completed tasks (supports loop iterations)
+--   - Only updates in-progress tasks (task.started → task.completed for same execution)
+--   - Allows same position to execute multiple times (different rows)
 CREATE OR REPLACE FUNCTION normalize_task_event()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -196,57 +205,67 @@ BEGIN
   VALUES (NEW.data->>'instanceId', NEW.time, NEW.time, event_timestamp)
   ON CONFLICT (id) DO NOTHING;
 
-  -- Upsert task instance with field-level idempotency
-  INSERT INTO task_instances (
-    task_execution_id,
-    instance_id,
-    task_name,
-    task_position,
-    status,
-    start,
-    "end",
-    input,
-    output,
-    last_event_time,
-    created_at,
-    updated_at
-  ) VALUES (
-    NEW.data->>'taskExecutionId',
-    NEW.data->>'instanceId',
-    NEW.data->>'taskName',
-    NEW.data->>'taskPosition',
-    NEW.data->>'status',
-    to_timestamp((NEW.data->>'startTime')::numeric),
-    to_timestamp((NEW.data->>'endTime')::numeric),
-    NEW.data->'input',
-    NEW.data->'output',
-    event_timestamp,
-    NEW.time,
-    NEW.time
-  )
-  ON CONFLICT (task_execution_id) DO UPDATE SET
+  -- Try UPDATE first - match on (instance_id, task_position)
+  -- CRITICAL: Only update if "end" IS NULL (task not yet completed)
+  -- This prevents updating completed tasks, enabling loop iterations
+  UPDATE task_instances SET
     -- Status: Use event timestamp to determine winner
     status = CASE
-      WHEN event_timestamp > task_instances.last_event_time
-      THEN EXCLUDED.status
-      ELSE task_instances.status
+      WHEN event_timestamp > last_event_time
+      THEN NEW.data->>'status'
+      ELSE status
     END,
 
-    -- Immutable fields: First event wins
-    task_name = COALESCE(task_instances.task_name, EXCLUDED.task_name),
-    task_position = COALESCE(task_instances.task_position, EXCLUDED.task_position),
-    start = COALESCE(task_instances.start, EXCLUDED.start),
-    input = COALESCE(task_instances.input, EXCLUDED.input),
+    -- Immutable fields: Keep first non-null (don't overwrite)
+    task_name = COALESCE(task_name, NEW.data->>'taskName'),
+    task_position = COALESCE(task_position, NEW.data->>'taskPosition'),
+    start = COALESCE(start, to_timestamp((NEW.data->>'startTime')::numeric)),
+    input = COALESCE(input, NEW.data->'input'),
 
-    -- Terminal fields: Preserve if already set
-    "end" = COALESCE(EXCLUDED."end", task_instances."end"),
-    output = COALESCE(EXCLUDED.output, task_instances.output),
+    -- Terminal fields: Keep latest non-null (preserve completion data)
+    "end" = COALESCE(to_timestamp((NEW.data->>'endTime')::numeric), "end"),
+    output = COALESCE(NEW.data->'output', output),
 
     -- Timestamp tracking: Keep latest event timestamp
-    last_event_time = GREATEST(event_timestamp, task_instances.last_event_time),
+    last_event_time = GREATEST(event_timestamp, last_event_time),
 
     -- Audit: Always update
-    updated_at = NEW.time;
+    updated_at = NEW.time
+
+  WHERE instance_id = NEW.data->>'instanceId'
+    AND task_position = NEW.data->>'taskPosition'
+    AND "end" IS NULL;  -- CRITICAL: Only update non-terminal tasks
+
+  -- If UPDATE didn't match any rows (NOT FOUND), INSERT new row
+  IF NOT FOUND THEN
+    INSERT INTO task_instances (
+      task_execution_id,
+      instance_id,
+      task_name,
+      task_position,
+      status,
+      start,
+      "end",
+      input,
+      output,
+      last_event_time,
+      created_at,
+      updated_at
+    ) VALUES (
+      NEW.data->>'taskExecutionId',
+      NEW.data->>'instanceId',
+      NEW.data->>'taskName',
+      NEW.data->>'taskPosition',
+      NEW.data->>'status',
+      to_timestamp((NEW.data->>'startTime')::numeric),
+      to_timestamp((NEW.data->>'endTime')::numeric),
+      NEW.data->'input',
+      NEW.data->'output',
+      event_timestamp,
+      NEW.time,
+      NEW.time
+    );
+  END IF;
 
   RETURN NEW;
 END;
