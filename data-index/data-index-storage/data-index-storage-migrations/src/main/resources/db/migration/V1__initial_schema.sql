@@ -64,10 +64,10 @@ CREATE INDEX IF NOT EXISTS idx_workflow_instances_start ON workflow_instances (s
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_last_event_time ON workflow_instances (last_event_time DESC);
 
 CREATE TABLE IF NOT EXISTS task_instances (
-  task_execution_id VARCHAR(255),  -- Event ID from whichever event we saw first (not semantically important)
+  task_execution_id VARCHAR(255) PRIMARY KEY,
   instance_id VARCHAR(255) NOT NULL,
   task_name VARCHAR(255),
-  task_position VARCHAR(255) NOT NULL,
+  task_position VARCHAR(255),
   status VARCHAR(50),
   start TIMESTAMP WITH TIME ZONE,
   "end" TIMESTAMP WITH TIME ZONE,
@@ -76,8 +76,7 @@ CREATE TABLE IF NOT EXISTS task_instances (
   output JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  CONSTRAINT fk_task_instance_workflow FOREIGN KEY (instance_id) REFERENCES workflow_instances(id) ON DELETE CASCADE,
-  CONSTRAINT task_instances_natural_key UNIQUE (instance_id, task_position)  -- Natural key: task position within workflow instance
+  CONSTRAINT fk_task_instance_workflow FOREIGN KEY (instance_id) REFERENCES workflow_instances(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_task_instances_instance_id ON task_instances (instance_id);
@@ -198,8 +197,6 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
 
   -- Upsert task instance with field-level idempotency
-  -- Natural key: (instance_id, task_position) uniquely identifies a task execution
-  -- Multiple events (task.started, task.completed) for the same task update the same row
   INSERT INTO task_instances (
     task_execution_id,
     instance_id,
@@ -227,10 +224,7 @@ BEGIN
     NEW.time,
     NEW.time
   )
-  ON CONFLICT (instance_id, task_position) DO UPDATE SET
-    -- task_execution_id: Keep first event's ID (don't update)
-    -- It's just "whichever event we saw first" and not semantically important
-
+  ON CONFLICT (task_execution_id) DO UPDATE SET
     -- Status: Use event timestamp to determine winner
     status = CASE
       WHEN event_timestamp > task_instances.last_event_time
