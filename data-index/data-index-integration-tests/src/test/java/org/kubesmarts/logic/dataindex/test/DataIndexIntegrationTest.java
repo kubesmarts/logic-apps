@@ -62,8 +62,7 @@ public class DataIndexIntegrationTest {
     private static final Path LOG_FILE = Path.of("target/quarkus-flow-events.log");
 
     @Inject
-    @Identifier("test.TestHttpSuccess")
-    Flow testHttpSuccess;
+    SimpleSetWorkflow simpleSetWorkflow;
 
     @Inject
     WorkflowInstanceStorage workflowInstanceStorage;
@@ -79,7 +78,7 @@ public class DataIndexIntegrationTest {
     @Transactional
     void shouldIngestWorkflowEventsIntoDatabase() throws Exception {
         // Given: workflow executes successfully
-        io.serverlessworkflow.impl.WorkflowInstance instance = testHttpSuccess.instance();
+        io.serverlessworkflow.impl.WorkflowInstance instance = simpleSetWorkflow.instance();
         WorkflowModel result = instance.start().get(5, TimeUnit.SECONDS);
 
         String instanceId = instance.id();
@@ -94,9 +93,9 @@ public class DataIndexIntegrationTest {
 
         // And: instance has correct metadata from events
         assertThat(workflowInstance.getId()).isEqualTo(instanceId);
-        assertThat(workflowInstance.getNamespace()).isEqualTo("test");
-        assertThat(workflowInstance.getName()).isEqualTo("test-http-success");
-        assertThat(workflowInstance.getVersion()).isEqualTo("1.0.0");
+        assertThat(workflowInstance.getNamespace()).isEqualTo("org.acme");
+        assertThat(workflowInstance.getName()).isEqualTo("simple-set");
+        assertThat(workflowInstance.getVersion()).isEqualTo("0.0.1");
         assertThat(workflowInstance.getStatus()).isEqualTo(WorkflowInstanceStatus.COMPLETED);
         assertThat(workflowInstance.getStart()).isNotNull();
         assertThat(workflowInstance.getEnd()).isNotNull();
@@ -127,7 +126,7 @@ public class DataIndexIntegrationTest {
         WorkflowInstance persisted = workflowInstanceStorage.get(instanceId);
         assertThat(persisted).isNotNull();
         assertThat(persisted.getId()).isEqualTo(instanceId);
-        assertThat(persisted.getName()).isEqualTo("test-http-success");
+        assertThat(persisted.getName()).isEqualTo("simple-set");
         assertThat(persisted.getStatus()).isEqualTo(WorkflowInstanceStatus.COMPLETED);
 
         // And: task executions are persisted with the instance
@@ -140,9 +139,9 @@ public class DataIndexIntegrationTest {
     @Transactional
     void shouldHandleMultipleWorkflowInstances() throws Exception {
         // Given: multiple workflow instances execute
-        io.serverlessworkflow.impl.WorkflowInstance instance1 = testHttpSuccess.instance();
-        io.serverlessworkflow.impl.WorkflowInstance instance2 = testHttpSuccess.instance();
-        io.serverlessworkflow.impl.WorkflowInstance instance3 = testHttpSuccess.instance();
+        io.serverlessworkflow.impl.WorkflowInstance instance1 = simpleSetWorkflow.instance();
+        io.serverlessworkflow.impl.WorkflowInstance instance2 = simpleSetWorkflow.instance();
+        io.serverlessworkflow.impl.WorkflowInstance instance3 = simpleSetWorkflow.instance();
 
         instance1.start().get(5, TimeUnit.SECONDS);
         instance2.start().get(5, TimeUnit.SECONDS);
@@ -173,7 +172,7 @@ public class DataIndexIntegrationTest {
     void shouldPersistWorkflowInputAndOutput() throws Exception {
         // Given: workflow with specific input
         Map<String, Object> input = Map.of("testKey", "testValue");
-        io.serverlessworkflow.impl.WorkflowInstance instance = testHttpSuccess.instance(input);
+        io.serverlessworkflow.impl.WorkflowInstance instance = simpleSetWorkflow.instance(input);
         instance.start().get(5, TimeUnit.SECONDS);
 
         // When: events are parsed and persisted
