@@ -173,6 +173,13 @@ init_database_schema() {
     log_info "✓ Database schema initialized"
 }
 
+# Create namespace for data-index
+create_namespace() {
+    log_step "Creating data-index namespace..."
+    kubectl create namespace data-index --dry-run=client -o yaml | kubectl apply -f -
+    log_info "✓ Namespace created"
+}
+
 # Create ConfigMap for data-index configuration
 create_configmap() {
     log_step "Creating data-index ConfigMap..."
@@ -390,11 +397,16 @@ main() {
         log_info "Skipping image build (SKIP_IMAGE_BUILD=true)"
     fi
 
-    # Initialize database for PostgreSQL modes
+    # Initialize database for PostgreSQL modes (skip if already initialized in CI)
     if [[ "$MODE" == "postgresql-polling" ]] || [[ "$MODE" == "kafka-postgresql" ]]; then
-        init_database_schema
+        if [[ "${SKIP_DB_INIT:-false}" != "true" ]]; then
+            init_database_schema
+        else
+            log_info "Skipping database initialization (SKIP_DB_INIT=true)"
+        fi
     fi
 
+    create_namespace
     create_configmap
     create_secret
     deploy_service

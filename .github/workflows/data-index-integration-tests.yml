@@ -101,7 +101,8 @@ jobs:
 
       - name: Deploy Data Index service
         run: |
-          SKIP_IMAGE_BUILD=true bash data-index/scripts/kind/deploy-data-index.sh postgresql-polling
+          SKIP_IMAGE_BUILD=true SKIP_DB_INIT=true \
+            bash data-index/scripts/kind/deploy-data-index.sh postgresql-polling
 
       - name: Deploy FluentBit
         run: |
