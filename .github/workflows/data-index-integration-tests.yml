@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feat/data-index-v1-phase1-cleanup
     paths:
       - 'data-index/**'
       - 'persistence-commons/**'
@@ -34,25 +33,17 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build project and container images
+      - name: Build project
         run: |
           mvn -B clean install -DskipTests \
             -pl persistence-commons,data-index \
             --no-transfer-progress
 
-      - name: Build data-index-service container image
+      - name: Build container images
         run: |
+          cd data-index
           mvn -B package -DskipTests \
-            -pl data-index/data-index-service \
-            -am \
-            -Dquarkus.container-image.build=true \
-            --no-transfer-progress
-
-      - name: Build workflow-test-app container image
-        run: |
-          mvn -B package -DskipTests \
-            -pl data-index/data-index-integration-tests \
-            -am \
+            -pl data-index-service,data-index-integration-tests \
             -Dquarkus.container-image.build=true \
             --no-transfer-progress
 
