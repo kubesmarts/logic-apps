@@ -86,7 +86,7 @@
       </dependency>
       <dependency>
         <groupId>org.kubesmarts.logic.apps</groupId>
-        <artifactId>data-index-integration-tests</artifactId>
+        <artifactId>workflow-test-app</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -170,7 +170,7 @@
     <module>data-index-model</module>
     <module>data-index-storage</module>
     <module>data-index-service</module>
-    <module>data-index-integration-tests</module>
+    <module>workflow-test-app</module>
   </modules>
 
 </project>

@@ -28,12 +28,12 @@
     <version>999-SNAPSHOT</version>
   </parent>
 
-  <artifactId>data-index-integration-tests</artifactId>
-  <name>KubeSmarts Logic Apps :: Data Index :: Integration Tests</name>
-  <description>End-to-end integration tests with Quarkus Flow workflows</description>
+  <artifactId>workflow-test-app</artifactId>
+  <name>KubeSmarts Logic Apps :: Workflow Test App</name>
+  <description>Quarkus Flow workflow test application for Data Index integration testing</description>
 
   <properties>
-    <java.module.name>org.kubesmarts.logic.dataindex.integration.tests</java.module.name>
+    <java.module.name>org.kubesmarts.logic.workflow.test</java.module.name>
     <quarkus-flow.version>0.9.0</quarkus-flow.version>
   </properties>
 

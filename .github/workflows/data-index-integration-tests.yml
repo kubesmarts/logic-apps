@@ -41,7 +41,7 @@ jobs:
       - name: Build container images
         run: |
           mvn -B package -DskipTests \
-            -pl data-index/data-index-service,data-index/data-index-integration-tests \
+            -pl data-index/data-index-service,data-index/workflow-test-app \
             -Dquarkus.container-image.build=true \
             --no-transfer-progress
 
