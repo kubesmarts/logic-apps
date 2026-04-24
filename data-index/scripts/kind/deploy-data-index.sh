@@ -382,7 +382,13 @@ main() {
 
     validate_mode
     check_prerequisites
-    build_image
+
+    # Skip image build if SKIP_IMAGE_BUILD is set (e.g., in CI where images are pre-built)
+    if [[ "${SKIP_IMAGE_BUILD:-false}" != "true" ]]; then
+        build_image
+    else
+        log_info "Skipping image build (SKIP_IMAGE_BUILD=true)"
+    fi
 
     # Initialize database for PostgreSQL modes
     if [[ "$MODE" == "postgresql-polling" ]] || [[ "$MODE" == "kafka-postgresql" ]]; then
