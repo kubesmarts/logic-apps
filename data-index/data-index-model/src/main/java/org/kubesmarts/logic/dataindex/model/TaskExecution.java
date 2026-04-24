@@ -44,25 +44,33 @@ public class TaskExecution {
      */
     private String taskPosition;
 
-    @JsonProperty("triggerTime")
-    private ZonedDateTime enter;
+    /**
+     * Task execution status.
+     * Values: RUNNING, COMPLETED, FAULTED
+     */
+    private String status;
 
-    @JsonProperty("leaveTime")
-    private ZonedDateTime exit;
+    @JsonProperty("startDate")
+    private ZonedDateTime start;
+
+    @JsonProperty("endDate")
+    private ZonedDateTime end;
 
     private String errorMessage;
 
     /**
-     * TODO: Implement JSON scalar mapping for GraphQL
+     * Task input data (internal).
+     * <p>Hidden from GraphQL - use getInputData() instead
      */
     @Ignore
-    private JsonNode inputArgs;
+    private JsonNode input;
 
     /**
-     * TODO: Implement JSON scalar mapping for GraphQL
+     * Task output data (internal).
+     * <p>Hidden from GraphQL - use getOutputData() instead
      */
     @Ignore
-    private JsonNode outputArgs;
+    private JsonNode output;
 
     public String getId() {
         return id;
@@ -88,20 +96,28 @@ public class TaskExecution {
         this.taskPosition = taskPosition;
     }
 
-    public ZonedDateTime getEnter() {
-        return enter;
+    public String getStatus() {
+        return status;
     }
 
-    public void setEnter(ZonedDateTime enter) {
-        this.enter = enter;
+    public void setStatus(String status) {
+        this.status = status;
     }
 
-    public ZonedDateTime getExit() {
-        return exit;
+    public ZonedDateTime getStart() {
+        return start;
     }
 
-    public void setExit(ZonedDateTime exit) {
-        this.exit = exit;
+    public void setStart(ZonedDateTime start) {
+        this.start = start;
+    }
+
+    public ZonedDateTime getEnd() {
+        return end;
+    }
+
+    public void setEnd(ZonedDateTime end) {
+        this.end = end;
     }
 
     public String getErrorMessage() {
@@ -112,21 +128,40 @@ public class TaskExecution {
         this.errorMessage = errorMessage;
     }
 
-    public JsonNode getInputArgs() {
-        return inputArgs;
+    public JsonNode getInput() {
+        return input;
     }
 
-    public void setInputArgs(JsonNode inputArgs) {
-        this.inputArgs = inputArgs;
+    public void setInput(JsonNode input) {
+        this.input = input;
     }
 
-    public JsonNode getOutputArgs() {
-        return outputArgs;
+    public JsonNode getOutput() {
+        return output;
     }
 
-    public void setOutputArgs(JsonNode outputArgs) {
-        this.outputArgs = outputArgs;
+    public void setOutput(JsonNode output) {
+        this.output = output;
     }
+
+    /**
+     * Get input data as JSON string for GraphQL.
+     * @return JSON string or null if no input
+     */
+    @JsonProperty("inputData")
+    public String getInputData() {
+        return input != null ? input.toString() : null;
+    }
+
+    /**
+     * Get output data as JSON string for GraphQL.
+     * @return JSON string or null if no output
+     */
+    @JsonProperty("outputData")
+    public String getOutputData() {
+        return output != null ? output.toString() : null;
+    }
+
 
     @Override
     public boolean equals(Object o) {
@@ -151,8 +186,9 @@ public class TaskExecution {
                 "id='" + id + '\'' +
                 ", taskName='" + taskName + '\'' +
                 ", taskPosition='" + taskPosition + '\'' +
-                ", enter=" + enter +
-                ", exit=" + exit +
+                ", status='" + status + '\'' +
+                ", start=" + start +
+                ", end=" + end +
                 ", errorMessage='" + errorMessage + '\'' +
                 '}';
     }

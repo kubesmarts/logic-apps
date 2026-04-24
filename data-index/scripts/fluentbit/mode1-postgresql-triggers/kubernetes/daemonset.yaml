@@ -1,0 +1,194 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: workflows-fluent-bit-mode1
+  namespace: logging
+  labels:
+    app: workflows-fluent-bit-mode1
+    component: mode1-postgresql-triggers
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: workflows-fluent-bit-mode1
+  labels:
+    app: workflows-fluent-bit-mode1
+    component: mode1-postgresql-triggers
+rules:
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - pods
+      - pods/logs
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: workflows-fluent-bit-mode1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: workflows-fluent-bit-mode1
+subjects:
+  - kind: ServiceAccount
+    name: workflows-fluent-bit-mode1
+    namespace: logging
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: workflows-fluent-bit-mode1
+  namespace: logging
+  labels:
+    app: workflows-fluent-bit-mode1
+    component: mode1-postgresql-triggers
+spec:
+  selector:
+    matchLabels:
+      app: workflows-fluent-bit-mode1
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: workflows-fluent-bit-mode1
+        component: mode1-postgresql-triggers
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "2020"
+        prometheus.io/path: "/api/v1/metrics/prometheus"
+    spec:
+      serviceAccountName: workflows-fluent-bit-mode1
+      hostNetwork: false
+      dnsPolicy: ClusterFirst
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: fluent-bit
+        image: fluent/fluent-bit:3.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+              - ALL
+        ports:
+        - name: http
+          containerPort: 2020
+          protocol: TCP
+        env:
+        # Kubernetes metadata
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        # Workflow application configuration
+        - name: WORKFLOW_NAMESPACE
+          value: "workflows"
+        # PostgreSQL connection (Mode 1: Trigger-based normalization)
+        - name: POSTGRES_HOST
+          value: "postgresql.postgresql.svc.cluster.local"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DB
+          value: "dataindex"
+        - name: POSTGRES_USER
+          value: "dataindex"
+        - name: POSTGRES_PASSWORD
+          value: "dataindex123"
+        volumeMounts:
+        - name: config
+          mountPath: /fluent-bit/etc/
+        # Standard Kubernetes log locations
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        # FluentBit tail database (tracks file positions)
+        - name: tail-db
+          mountPath: /tail-db
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 2020
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 2020
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: workflows-fluent-bit-mode1-config
+      # Standard Kubernetes log directories (hostPath required for DaemonSet)
+      - name: varlog
+        hostPath:
+          path: /var/log
+          type: Directory
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+          type: DirectoryOrCreate
+      # FluentBit tail database (tracks which files/positions have been processed)
+      - name: tail-db
+        emptyDir: {}
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workflows-fluent-bit-mode1
+  namespace: logging
+  labels:
+    app: workflows-fluent-bit-mode1
+    component: mode1-postgresql-triggers
+spec:
+  type: ClusterIP
+  selector:
+    app: workflows-fluent-bit-mode1
+  ports:
+  - name: http
+    port: 2020
+    targetPort: 2020
+    protocol: TCP

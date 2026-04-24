@@ -15,7 +15,7 @@
  */
 package org.kubesmarts.logic.dataindex.storage.mapper;
 
-import org.kubesmarts.logic.dataindex.storage.entity.TaskExecutionEntity;
+import org.kubesmarts.logic.dataindex.storage.entity.TaskInstanceEntity;
 import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceEntity;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.mapstruct.AfterMapping;
@@ -34,7 +34,7 @@ import org.mapstruct.MappingTarget;
  * </ul>
  */
 @Mapper(componentModel = "cdi",
-        uses = { WorkflowInstanceErrorEntityMapper.class, TaskExecutionEntityMapper.class },
+        uses = { WorkflowInstanceErrorEntityMapper.class, TaskInstanceEntityMapper.class },
         injectionStrategy = InjectionStrategy.CONSTRUCTOR)
 public interface WorkflowInstanceEntityMapper {
 
@@ -60,12 +60,12 @@ public interface WorkflowInstanceEntityMapper {
 
     /**
      * Set bidirectional relationship after mapping.
-     * TaskExecutionEntity.workflowInstance must reference the parent WorkflowInstanceEntity.
+     * TaskInstanceEntity.workflowInstance must reference the parent WorkflowInstanceEntity.
      */
     @AfterMapping
     default void setTaskWorkflowReferences(@MappingTarget WorkflowInstanceEntity entity) {
         if (entity.getTaskExecutions() != null) {
-            for (TaskExecutionEntity task : entity.getTaskExecutions()) {
+            for (TaskInstanceEntity task : entity.getTaskExecutions()) {
                 task.setWorkflowInstance(entity);
             }
         }

@@ -20,8 +20,8 @@ import java.util.Optional;
 import org.kubesmarts.logic.dataindex.storage.AbstractStorage;
 import org.kubesmarts.logic.dataindex.storage.JsonPredicateBuilder;
 import org.kubesmarts.logic.dataindex.api.TaskExecutionStorage;
-import org.kubesmarts.logic.dataindex.storage.entity.TaskExecutionEntity;
-import org.kubesmarts.logic.dataindex.storage.mapper.TaskExecutionEntityMapper;
+import org.kubesmarts.logic.dataindex.storage.entity.TaskInstanceEntity;
+import org.kubesmarts.logic.dataindex.storage.mapper.TaskInstanceEntityMapper;
 import org.kubesmarts.logic.dataindex.model.TaskExecution;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -34,27 +34,27 @@ import jakarta.persistence.EntityManager;
  *
  * <p>Uses:
  * <ul>
- *   <li>TaskExecutionEntity - JPA entity for persistence
- *   <li>TaskExecutionEntityMapper - MapStruct mapper for entity/model conversion
+ *   <li>TaskInstanceEntity - JPA entity for persistence (maps to task_instances table)
+ *   <li>TaskInstanceEntityMapper - MapStruct mapper for entity/model conversion
  *   <li>AbstractStorage - Base JPA storage with query support
  * </ul>
  */
 @ApplicationScoped
-public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskExecutionEntity, TaskExecution>
+public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskInstanceEntity, TaskExecution>
         implements TaskExecutionStorage {
 
     @Inject
     public TaskExecutionJPAStorage(
             EntityManager em,
-            TaskExecutionEntityMapper mapper,
+            TaskInstanceEntityMapper mapper,
             Instance<JsonPredicateBuilder> jsonPredicateBuilder) {
         super(
                 em,
                 TaskExecution.class,
-                TaskExecutionEntity.class,
+                TaskInstanceEntity.class,
                 mapper::toModel,
                 mapper::toEntity,
-                TaskExecutionEntity::getId,
+                TaskInstanceEntity::getTaskExecutionId,
                 Optional.ofNullable(DependencyInjectionUtils.getInstance(jsonPredicateBuilder)));
     }
 

@@ -2,53 +2,59 @@
 
 ## Three Deployment Modes
 
-### Mode 1: Polling + PostgreSQL (Simple)
+### Mode 1: PostgreSQL Triggers (Production Ready)
 
 ```
 ┌──────────────┐      ┌──────────────┐      ┌────────────────────────┐
-│ Quarkus Flow │──┬──>│  FluentBit   │──┬──>│  PostgreSQL            │
-└──────────────┘  │   └──────────────┘  │   │  - event tables        │
-                  │                     │   │    • workflow_instance_│
-               (logs)                   │   │      events            │
-                                        │   │    • task_execution_   │
-                                        │   │      events            │
-                                        │   └────────────────────────┘
-                                        │             │
-                                        │             │ (polling every 5s)
-                                        │             ▼
-                                        │   ┌────────────────────────┐
-                                        │   │  Event Processor       │
-                                        │   │  (Java, polling)       │
-                                        │   └────────────────────────┘
-                                        │             │
-                                        │             ▼
-                                        │   ┌────────────────────────┐
-                                        │   │  PostgreSQL            │
-                                        └──>│  - normalized tables   │
-                                            │    • workflow_instances│
-                                            │    • task_executions   │
-                                            └────────────────────────┘
-                                                      │
-                                                      ▼
-                                            ┌────────────────────────┐
-                                            │  Data Index GraphQL    │
-                                            └────────────────────────┘
+│ Quarkus Flow │──┬──>│  FluentBit   │─────>│  PostgreSQL            │
+└──────────────┘  │   └──────────────┘      │  - raw tables          │
+                  │                          │    • workflow_events_  │
+               (logs)                        │      raw (JSONB)       │
+                                             │    • task_events_raw   │
+                                             │      (JSONB)           │
+                                             └────────────────────────┘
+                                                       │
+                                                       │ BEFORE INSERT triggers
+                                                       │ (immediate, < 1ms)
+                                                       ▼
+                                             ┌────────────────────────┐
+                                             │  Trigger Functions     │
+                                             │  - Extract JSONB fields│
+                                             │  - UPSERT normalized   │
+                                             │  - COALESCE for out-of-│
+                                             │    order events        │
+                                             └────────────────────────┘
+                                                       │
+                                                       ▼
+                                             ┌────────────────────────┐
+                                             │  PostgreSQL            │
+                                             │  - normalized tables   │
+                                             │    • workflow_instances│
+                                             │    • task_instances    │
+                                             └────────────────────────┘
+                                                       │
+                                                       ▼
+                                             ┌────────────────────────┐
+                                             │  Data Index GraphQL    │
+                                             └────────────────────────┘
 ```
 
 **Key Characteristics:**
-- ✅ Simplest setup (single PostgreSQL database)
-- ✅ ACID transactions
-- ✅ Easy to debug (Java event processor)
-- ⚠️ ~5-10s latency
-- ⚠️ < 10K workflows/day throughput
+- ✅ **Production ready** - complete E2E testing
+- ✅ **Real-time** - triggers fire immediately (< 1ms)
+- ✅ **Simplest deployment** - no Event Processor service
+- ✅ **ACID transactions** - guaranteed consistency
+- ✅ **Idempotent** - UPSERT with COALESCE handles replays
+- ✅ **Out-of-order safe** - COALESCE preserves existing values
+- ⚠️ **< 50K workflows/day** throughput (PostgreSQL limit)
 - ❌ Limited full-text search
 
 **Configuration:**
 ```properties
-data-index.event-processor.mode=polling
-data-index.event-processor.enabled=true
-data-index.event-processor.interval=5s
-data-index.storage.backend=postgresql
+# No event processor configuration needed - triggers handle normalization
+kogito.apps.persistence.type=postgresql
+kogito.data-index.domain-indexing=false
+kogito.data-index.blocking=true
 ```
 
 ---

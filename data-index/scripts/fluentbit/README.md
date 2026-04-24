@@ -22,29 +22,31 @@ Data Index GraphQL API
 
 ## Deployment Modes
 
-### Mode 1: PostgreSQL Polling
-**Directory**: `mode1-postgresql-polling/`
+### Mode 1: PostgreSQL Trigger-based Normalization
+**Directory**: `mode1-postgresql-triggers/`
 
-**Pipeline**: FluentBit → PostgreSQL tables → GraphQL queries
+**Pipeline**: FluentBit → PostgreSQL raw tables → Triggers → Normalized tables → GraphQL queries
 
 **How it works**:
-1. FluentBit tails container logs
-2. Parses JSON events
-3. Executes INSERT/UPDATE SQL directly on `workflow_instances` and `task_executions` tables
-4. GraphQL API queries tables directly via JPA
+1. FluentBit tails `/tmp/quarkus-flow-events.log` from workflow pods
+2. Routes events by type using `rewrite_tag` filter
+3. Inserts into `workflow_events_raw` or `task_events_raw` (tag, time, data JSONB)
+4. PostgreSQL BEFORE INSERT triggers extract fields from JSONB and UPSERT into normalized tables
+5. GraphQL API queries normalized tables via JPA
 
 **Pros**:
-- Simple architecture
-- No staging layer
-- Direct SQL control
-- Low latency
+- Real-time normalization (no polling delays)
+- No Event Processor service needed
+- Idempotent and handles out-of-order events
+- Raw events preserved for debugging
+- Simpler architecture
 
 **Cons**:
-- FluentBit couples to PostgreSQL schema
-- Schema changes require FluentBit config updates
-- No event history/replay
+- Normalization logic in database (PostgreSQL-specific)
+- Schema changes require trigger updates
+- All normalization happens synchronously on INSERT
 
-**Use case**: Development, simple deployments
+**Use case**: Production deployments, all scale levels
 
 ---
 

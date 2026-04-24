@@ -36,6 +36,7 @@
   <description>Storage layer parent - abstractions and implementations</description>
 
   <modules>
+    <module>data-index-storage-migrations</module>
     <module>data-index-storage-common</module>
     <module>data-index-storage-postgresql</module>
     <module>data-index-storage-elasticsearch</module>

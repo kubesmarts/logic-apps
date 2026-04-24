@@ -339,17 +339,17 @@ public class ElasticsearchStorageIntegrationTest {
     public void testQueryTasksByJsonOutputField() throws Exception {
         // Given
         TaskExecution task1 = createTaskExecution("task-1", "approvalTask", "/do/0");
-        task1.setOutputArgs(objectMapper.readTree("{\"decision\": \"approved\"}"));
+        task1.setOutput(objectMapper.readTree("{\"decision\": \"approved\"}"));
 
         TaskExecution task2 = createTaskExecution("task-2", "approvalTask", "/do/1");
-        task2.setOutputArgs(objectMapper.readTree("{\"decision\": \"rejected\"}"));
+        task2.setOutput(objectMapper.readTree("{\"decision\": \"rejected\"}"));
 
         taskStorage.put("task-1", task1);
         taskStorage.put("task-2", task2);
         waitForRefresh();
 
         // When
-        TestAttributeFilter<String> filter = new TestAttributeFilter<>("outputArgs.decision", EQUAL, "approved");
+        TestAttributeFilter<String> filter = new TestAttributeFilter<>("output.decision", EQUAL, "approved");
         filter.setJson(true);
 
         List<TaskExecution> results = taskStorage.query()
@@ -378,7 +378,7 @@ public class ElasticsearchStorageIntegrationTest {
         task.setId(id);
         task.setTaskName(taskName);
         task.setTaskPosition(taskPosition);
-        task.setEnter(ZonedDateTime.now());
+        task.setStart(ZonedDateTime.now());
         return task;
     }
 

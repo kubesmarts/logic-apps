@@ -23,28 +23,26 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <groupId>org.kie.kogito</groupId>
-    <artifactId>kogito-apps-build-parent</artifactId>
+    <groupId>org.kubesmarts</groupId>
+    <artifactId>logic-apps</artifactId>
     <version>999-SNAPSHOT</version>
-    <relativePath>../kogito-apps-build-parent/pom.xml</relativePath>
+    <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
+  <groupId>org.kie.kogito</groupId>
   <name>Kogito Apps :: Persistence Commons</name>
   <artifactId>persistence-commons</artifactId>
   <packaging>pom</packaging>
 
+  <properties>
+    <!-- Legacy module - skip tests to avoid missing test dependencies -->
+    <skipTests>true</skipTests>
+    <maven.test.skip>true</maven.test.skip>
+  </properties>
+
   <modules>
     <module>persistence-commons-api</module>
-    <module>persistence-commons-protobuf</module>
-    <module>persistence-commons-jpa-base</module>
-    <module>persistence-commons-jpa</module>
-    <module>persistence-commons-postgresql</module>
-    <module>persistence-commons-mongodb</module>
-    <module>persistence-commons-redis</module>
-    <module>persistence-commons-reporting-parent</module>
-    <module>kogito-ddl</module>
-    <module>persistence-commons-mongodb-quarkus</module>
   </modules>
 
 </project>

@@ -116,8 +116,8 @@ public class DataIndexIntegrationTest {
                     assertThat(task.getId()).isNotNull();
                     assertThat(task.getTaskName()).isNotBlank();
                     assertThat(task.getTaskPosition()).startsWith("do/");
-                    assertThat(task.getEnter()).isNotNull();
-                    assertThat(task.getExit()).isNotNull();
+                    assertThat(task.getStart()).isNotNull();
+                    assertThat(task.getEnd()).isNotNull();
                 });
 
         // When: instance is persisted to database

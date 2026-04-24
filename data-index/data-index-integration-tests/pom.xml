@@ -34,9 +34,7 @@
 
   <properties>
     <java.module.name>org.kubesmarts.logic.dataindex.integration.tests</java.module.name>
-    <quarkus-flow.version>1.0.0-SNAPSHOT</quarkus-flow.version>
-    <!-- Override parent Quarkus version for Quarkus Flow compatibility -->
-    <quarkus.platform.version>3.34.5</quarkus.platform.version>
+    <quarkus-flow.version>0.9.0</quarkus-flow.version>
   </properties>
 
   <dependencyManagement>
@@ -48,16 +46,11 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      <!-- Force jackson-jq 1.6.1 to match serverlessworkflow SDK expectations -->
+      <!-- WireMock for HTTP mocking -->
       <dependency>
-        <groupId>net.thisptr</groupId>
-        <artifactId>jackson-jq</artifactId>
-        <version>1.6.1</version>
-      </dependency>
-      <dependency>
-        <groupId>net.thisptr</groupId>
-        <artifactId>jackson-jq-extra</artifactId>
-        <version>1.6.1</version>
+        <groupId>org.wiremock</groupId>
+        <artifactId>wiremock</artifactId>
+        <version>3.10.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -82,10 +75,16 @@
       <artifactId>quarkus-smallrye-health</artifactId>
     </dependency>
 
+    <!-- Container image build -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-container-image-jib</artifactId>
+    </dependency>
+
     <!-- Test dependencies -->
     <dependency>
       <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-junit5</artifactId>
+      <artifactId>quarkus-junit</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

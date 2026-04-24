@@ -189,13 +189,13 @@ public class EventLogParser {
         if (eventType.contains("started")) {
             task.setTaskName(event.get("taskName").asText());
             task.setTaskPosition(event.get("taskPosition").asText());
-            task.setEnter(ZonedDateTime.parse(event.get("startTime").asText()));
+            task.setStart(ZonedDateTime.parse(event.get("startTime").asText()));
 
             if (event.has("input")) {
-                task.setInputArgs(event.get("input"));
+                task.setInput(event.get("input"));
             }
         } else if (eventType.contains("completed")) {
-            task.setExit(ZonedDateTime.parse(event.get("endTime").asText()));
+            task.setEnd(ZonedDateTime.parse(event.get("endTime").asText()));
 
             // Set position/name if not already set (shouldn't happen, but defensive)
             if (event.has("taskPosition") && task.getTaskPosition() == null) {
@@ -206,10 +206,10 @@ public class EventLogParser {
             }
 
             if (event.has("output")) {
-                task.setOutputArgs(event.get("output"));
+                task.setOutput(event.get("output"));
             }
         } else if (eventType.contains("faulted")) {
-            task.setExit(ZonedDateTime.parse(event.get("endTime").asText()));
+            task.setEnd(ZonedDateTime.parse(event.get("endTime").asText()));
 
             if (event.has("error") && event.get("error").has("title")) {
                 task.setErrorMessage(event.get("error").get("title").asText());

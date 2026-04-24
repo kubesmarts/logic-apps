@@ -128,10 +128,10 @@ public class WorkflowInstanceEntity extends AbstractEntity {
 
     /**
      * Task executions for this instance.
-     * <p>Source: workflow.task.* events aggregated into TaskExecutionEntity records
+     * <p>Source: workflow.task.* events aggregated into TaskInstanceEntity records
      */
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "workflowInstance")
-    private List<TaskExecutionEntity> taskExecutions;
+    private List<TaskInstanceEntity> taskExecutions;
 
     /**
      * Error information if instance failed.
@@ -139,6 +139,18 @@ public class WorkflowInstanceEntity extends AbstractEntity {
      */
     @Embedded
     private WorkflowInstanceErrorEntity error;
+
+    /**
+     * Record creation timestamp.
+     * <p>Auto-populated by database trigger when row is inserted
+     */
+    private ZonedDateTime createdAt;
+
+    /**
+     * Record last update timestamp.
+     * <p>Auto-populated by database trigger when row is updated
+     */
+    private ZonedDateTime updatedAt;
 
     public String getId() {
         return id;
@@ -220,11 +232,11 @@ public class WorkflowInstanceEntity extends AbstractEntity {
         this.output = output;
     }
 
-    public List<TaskExecutionEntity> getTaskExecutions() {
+    public List<TaskInstanceEntity> getTaskExecutions() {
         return taskExecutions;
     }
 
-    public void setTaskExecutions(List<TaskExecutionEntity> taskExecutions) {
+    public void setTaskExecutions(List<TaskInstanceEntity> taskExecutions) {
         this.taskExecutions = taskExecutions;
     }
 
@@ -234,6 +246,22 @@ public class WorkflowInstanceEntity extends AbstractEntity {
 
     public void setError(WorkflowInstanceErrorEntity error) {
         this.error = error;
+    }
+
+    public ZonedDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(ZonedDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public ZonedDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(ZonedDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     @Override

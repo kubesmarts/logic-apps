@@ -10,10 +10,9 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
-# express or implied. See the License for the specific language
-# governing permissions and limitations under the License.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 
 set -euo pipefail
@@ -27,7 +26,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 CLUSTER_NAME="${CLUSTER_NAME:-data-index-test}"
-MODE="${MODE:-all}"  # all, postgresql, kafka, elasticsearch
+MODE="${MODE:-postgresql}"  # postgresql, elasticsearch
 
 # Logging functions
 log_info() {
@@ -76,36 +75,12 @@ check_prerequisites() {
 create_namespaces() {
     log_step "Creating namespaces..."
 
-    kubectl create namespace data-index --dry-run=client -o yaml | kubectl apply -f -
-    kubectl create namespace fluent-bit --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace logging --dry-run=client -o yaml | kubectl apply -f -
     kubectl create namespace postgresql --dry-run=client -o yaml | kubectl apply -f -
-    kubectl create namespace kafka --dry-run=client -o yaml | kubectl apply -f -
     kubectl create namespace elasticsearch --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace workflows --dry-run=client -o yaml | kubectl apply -f -
 
     log_info "✓ Namespaces created"
-}
-
-# Install FluentBit
-install_fluentbit() {
-    log_step "Installing Fluent Bit..."
-
-    # Add Fluent Helm repository
-    helm repo add fluent https://fluent.github.io/helm-charts 2>/dev/null || true
-    helm repo update
-
-    # Install Fluent Bit
-    helm upgrade --install fluent-bit fluent/fluent-bit \
-      --namespace fluent-bit \
-      --set image.repository=fluent/fluent-bit \
-      --set image.tag=3.0 \
-      --set resources.requests.cpu=100m \
-      --set resources.requests.memory=128Mi \
-      --set resources.limits.cpu=500m \
-      --set resources.limits.memory=512Mi \
-      --wait \
-      --timeout=5m
-
-    log_info "✓ Fluent Bit installed"
 }
 
 # Install PostgreSQL
@@ -140,143 +115,6 @@ install_postgresql() {
 
     log_info "✓ PostgreSQL installed"
     log_info "  Connection: postgresql://dataindex:dataindex123@localhost:30432/dataindex"
-}
-
-# Install Strimzi Kafka Operator
-install_kafka_operator() {
-    log_step "Installing Strimzi Kafka Operator..."
-
-    # Install Strimzi operator
-    kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka || true
-
-    log_info "Waiting for Strimzi operator to be ready..."
-    kubectl wait --namespace kafka \
-      --for=condition=ready pod \
-      --selector=name=strimzi-cluster-operator \
-      --timeout=300s
-
-    log_info "✓ Strimzi operator installed"
-}
-
-# Install Kafka cluster
-install_kafka() {
-    install_kafka_operator
-
-    log_step "Installing Kafka cluster..."
-
-    # Create Kafka cluster
-    kubectl apply -f - <<EOF
-apiVersion: kafka.strimzi.io/v1beta2
-kind: Kafka
-metadata:
-  name: data-index-kafka
-  namespace: kafka
-spec:
-  kafka:
-    version: 3.7.0
-    replicas: 1
-    listeners:
-      - name: plain
-        port: 9092
-        type: internal
-        tls: false
-      - name: external
-        port: 9094
-        type: nodeport
-        tls: false
-        configuration:
-          bootstrap:
-            nodePort: 30092
-    config:
-      offsets.topic.replication.factor: 1
-      transaction.state.log.replication.factor: 1
-      transaction.state.log.min.isr: 1
-      default.replication.factor: 1
-      min.insync.replicas: 1
-    storage:
-      type: jbod
-      volumes:
-      - id: 0
-        type: persistent-claim
-        size: 1Gi
-        deleteClaim: false
-    resources:
-      requests:
-        memory: 512Mi
-        cpu: 200m
-      limits:
-        memory: 1Gi
-        cpu: 1000m
-  zookeeper:
-    replicas: 1
-    storage:
-      type: persistent-claim
-      size: 1Gi
-      deleteClaim: false
-    resources:
-      requests:
-        memory: 256Mi
-        cpu: 100m
-      limits:
-        memory: 512Mi
-        cpu: 500m
-  entityOperator:
-    topicOperator:
-      resources:
-        requests:
-          memory: 128Mi
-          cpu: 50m
-        limits:
-          memory: 256Mi
-          cpu: 200m
-    userOperator:
-      resources:
-        requests:
-          memory: 128Mi
-          cpu: 50m
-        limits:
-          memory: 256Mi
-          cpu: 200m
-EOF
-
-    log_info "Waiting for Kafka cluster to be ready (this may take several minutes)..."
-    kubectl wait --namespace kafka \
-      --for=condition=ready kafka/data-index-kafka \
-      --timeout=600s
-
-    # Create topics
-    kubectl apply -f - <<EOF
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaTopic
-metadata:
-  name: workflow-instance-events
-  namespace: kafka
-  labels:
-    strimzi.io/cluster: data-index-kafka
-spec:
-  partitions: 3
-  replicas: 1
-  config:
-    retention.ms: 86400000
-    segment.bytes: 1073741824
----
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaTopic
-metadata:
-  name: task-execution-events
-  namespace: kafka
-  labels:
-    strimzi.io/cluster: data-index-kafka
-spec:
-  partitions: 3
-  replicas: 1
-  config:
-    retention.ms: 86400000
-    segment.bytes: 1073741824
-EOF
-
-    log_info "✓ Kafka cluster installed"
-    log_info "  Bootstrap: localhost:30092"
 }
 
 # Install Elasticsearch (ECK Operator)
@@ -373,24 +211,19 @@ print_summary() {
     echo ""
 
     log_info "Installed Components:"
-    echo "  - Fluent Bit: $(kubectl get pods -n fluent-bit -o json | jq -r '.items[0].status.phase')"
 
-    if [[ "$MODE" == "all" ]] || [[ "$MODE" == "postgresql" ]] || [[ "$MODE" == "kafka" ]]; then
-        echo "  - PostgreSQL: $(kubectl get pods -n postgresql -l app.kubernetes.io/component=primary -o json | jq -r '.items[0].status.phase')"
+    if [[ "$MODE" == "postgresql" ]]; then
+        echo "  - PostgreSQL: $(kubectl get pods -n postgresql -l app.kubernetes.io/component=primary -o json | jq -r '.items[0].status.phase' 2>/dev/null || echo 'N/A')"
     fi
 
-    if [[ "$MODE" == "all" ]] || [[ "$MODE" == "kafka" ]]; then
-        echo "  - Kafka: $(kubectl get kafka -n kafka data-index-kafka -o json | jq -r '.status.conditions[] | select(.type=="Ready") | .status')"
-    fi
-
-    if [[ "$MODE" == "all" ]] || [[ "$MODE" == "elasticsearch" ]]; then
-        echo "  - Elasticsearch: $(kubectl get elasticsearch -n elasticsearch data-index-es -o json | jq -r '.status.health')"
+    if [[ "$MODE" == "elasticsearch" ]]; then
+        echo "  - Elasticsearch: $(kubectl get elasticsearch -n elasticsearch data-index-es -o json | jq -r '.status.health' 2>/dev/null || echo 'N/A')"
     fi
 
     echo ""
     log_info "Next Steps:"
-    echo "  1. Deploy data-index: ./deploy-data-index.sh <mode>"
-    echo "     Modes: postgresql-polling | kafka-postgresql | elasticsearch"
+    echo "  - MODE 1 (PostgreSQL): Deploy FluentBit with MODE 1 config (see test-mode1-e2e.sh)"
+    echo "  - MODE 2 (Elasticsearch): Deploy FluentBit with MODE 2 config (not yet implemented)"
     echo ""
 }
 
@@ -401,26 +234,16 @@ main() {
 
     check_prerequisites
     create_namespaces
-    install_fluentbit
 
     case "$MODE" in
-        all)
-            install_postgresql
-            install_kafka
-            install_elasticsearch
-            ;;
         postgresql)
             install_postgresql
-            ;;
-        kafka)
-            install_postgresql
-            install_kafka
             ;;
         elasticsearch)
             install_elasticsearch
             ;;
         *)
-            log_error "Invalid MODE: ${MODE}. Valid options: all, postgresql, kafka, elasticsearch"
+            log_error "Invalid MODE: ${MODE}. Valid options: postgresql, elasticsearch"
             exit 1
             ;;
     esac

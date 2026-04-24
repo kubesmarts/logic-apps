@@ -1,166 +1,91 @@
 # Data Index Documentation
 
-**Last Updated**: 2026-04-16
-
----
+**Version:** 1.0.0  
+**Status:** Production Ready (MODE 1)  
+**Last Updated:** 2026-04-24
 
 ## Overview
 
-This directory contains all documentation for Data Index v1.0.0, a passive query service for Serverless Workflow 1.0.0 execution data.
+The Data Index is a read-only query service for Serverless Workflow (SW 1.0.0) execution data. It provides a GraphQL API for querying workflow instances and task executions, with multiple deployment modes optimized for different operational requirements.
 
-**Core Principle**: Data Index does NOT own event infrastructure. FluentBit handles event pipeline, PostgreSQL owns merge logic, Data Index only queries.
+**Key Features:**
+- ✅ Real-time workflow execution visibility
+- ✅ GraphQL API with filtering, sorting, pagination
+- ✅ Multiple deployment modes (PostgreSQL, Elasticsearch)
+- ✅ Trigger-based normalization (MODE 1)
+- ✅ Idempotent event processing (handles replay)
+- ✅ Quarkus Flow 0.9.0+ structured logging integration
 
----
+## Quick Start
 
-## Core Documentation
+```bash
+# 1. Review architecture
+cat ARCHITECTURE-SUMMARY.md
 
-| Document | Description | Status |
-|----------|-------------|--------|
-| [Architecture](architecture.md) | Complete architecture overview, design decisions, data flow diagrams | ✅ Current |
-| [Current State](current-state.md) | What's done, what's next, test results | ✅ Current |
-| [Database Schema](database-schema.md) | Complete schema + event-to-column mappings | ✅ Current |
-| [Quarkus Flow Events](quarkus-flow-events.md) | Event structure reference from Quarkus Flow runtime | ✅ Current |
-| [Event Ingestion Architecture](event-ingestion-architecture.md) | Out-of-order event handling analysis (4 approaches compared) | ✅ Current |
-| [FluentBit Configuration](fluentbit-configuration.md) | FluentBit setup, testing, troubleshooting | ✅ Current |
-| [Domain Model Design](domain-model-design.md) | Domain model reset decisions (SW 1.0.0 only, no v0.8 legacy) | ✅ Current |
-| [GraphQL Testing Guide](graphql-testing.md) | How to test the GraphQL API with sample queries | ✅ Current |
-| [Production Viability Analysis](production-viability-analysis.md) | Enterprise readiness assessment, limitations, alternatives | ✅ Current |
-| [Ingestion Migration Strategy](ingestion-migration-strategy.md) | How to migrate FluentBit→Debezium→Kafka without changing Data Index | ✅ Current |
+# 2. Deploy MODE 1 (recommended)
+cat deployment/MODE1_HANDOFF.md
 
----
+# 3. Test end-to-end
+cat deployment/MODE1_E2E_TESTING.md
+```
 
-## Quick Navigation
+## Documentation Structure
 
-### By Topic
+### 📋 Architecture (root level)
+- **ARCHITECTURE-SUMMARY.md** - Overview of all deployment modes
+- **ARCHITECTURE-CQRS-SEPARATION.md** - Command/Query separation design  
 
-**Architecture & Design**:
-- [Architecture Overview](architecture.md) - Start here for complete system design
-- [Design Decisions](#key-design-decisions) - Why we made specific architectural choices
+### 🚀 Deployment (`deployment/`)
+- **MODE1_HANDOFF.md** - PostgreSQL trigger-based (production ready) ✅
+- **MODE1_E2E_TESTING.md** - Complete testing guide
+- **MODE1_ARCHITECTURE_UPDATE.md** - Migration from polling to triggers
+- **MODE1_STDOUT_MIGRATION.md** - Log file migration notes
+- **MODE2_IMPLEMENTATION_PLAN.md** - Elasticsearch (planned)
+- **MODE3_IMPLEMENTATION_PLAN.md** - Kafka streaming (planned)
 
-**Database**:
-- [Database Schema](database-schema.md) - Tables, columns, indexes, triggers
-- [Event Mappings](database-schema.md#field-by-field-event-mapping) - How events map to database columns
+### ⚙️ Operations (`operations/`)
+- **FLUENTBIT_PARSER_CONFIGURATION.md** - CRI vs Docker parser configuration
+- **MODE1_EVENT_RELIABILITY.md** - Event loss mitigation strategies
 
-**Events & Ingestion**:
-- [Quarkus Flow Events](quarkus-flow-events.md) - Event structure and fields
-- [Event Ingestion Architecture](event-ingestion-architecture.md) - How events flow into PostgreSQL
-- [FluentBit Configuration](fluentbit-configuration.md) - Event pipeline setup
+### 💻 Development (`development/`)
+- **GRAPHQL_API.md** - GraphQL API schema and queries
+- **DATABASE_SCHEMA.md** - PostgreSQL schema with triggers
+- **DOMAIN_MODEL.md** - Java domain model design
+- **GRAPHQL_TESTING.md** - GraphQL integration tests
 
-**Domain Model**:
-- [Domain Model Design](domain-model-design.md) - WorkflowInstance, TaskExecution, Error spec
-- [JPA Entities](domain-model-design.md#jpa-entities) - Entity classes and mappings
+### 📚 Reference (`reference/`)
+- **QUARKUS_FLOW_INTEGRATION.md** - Quarkus Flow structured logging
+- **FLUENTBIT_ARCHITECTURE.md** - FluentBit log collection
+- **EVENT_PROCESSOR_DESIGN.md** - Event processor architecture (legacy)
 
-**Status & Planning**:
-- [Current State](current-state.md) - What's done, what's next
-- [Test Results](current-state.md#build-status) - Latest test results
+### 📝 Additional Documentation (root level)
+- **jsonnode-scalar-analysis.md** - JSON data exposure in GraphQL
+- **MULTI_TENANT_FLUENTBIT.md** - Multi-tenant FluentBit configuration
+- **STAGING_TABLE_SCHEMA.md** - Staging table design (legacy)
+- **GRAPHQL-FILTERING-*.md** - GraphQL filtering implementation notes
 
-### By Audience
+## Deployment Modes
 
-**For Architects**:
-1. [Architecture](architecture.md) - Complete system design
-2. [Event Ingestion Architecture](event-ingestion-architecture.md) - Out-of-order event handling
-3. [Design Decisions](#key-design-decisions) - Rationale for key choices
+| Mode | Status | Best For |
+|------|--------|----------|
+| **MODE 1** PostgreSQL Triggers | ✅ Production | All use cases (recommended) |
+| **MODE 2** Elasticsearch | 📋 Planned | Advanced search, analytics |
+| **MODE 3** Kafka Streaming | ⚠️ Not Implemented | Future: long-term replay (30+ days) |
 
-**For Developers**:
-1. [Database Schema](database-schema.md) - Tables and triggers
-2. [Domain Model Design](domain-model-design.md) - Java classes
-3. [Quarkus Flow Events](quarkus-flow-events.md) - Event structure
-4. [Current State](current-state.md) - What's implemented
+**Notes:**
+- MODE 1 is production-ready with full E2E testing
+- MODE 2 simplified: FluentBit → Elasticsearch (no Kafka/Event Processor)
+- MODE 3 removed from codebase (optional future feature)
 
-**For DevOps/SRE**:
-1. [FluentBit Configuration](fluentbit-configuration.md) - Event pipeline setup
-2. [Database Schema](database-schema.md) - PostgreSQL schema deployment
-3. [Architecture](architecture.md#architecture-diagram) - System components
+See `deployment/MODE2_IMPLEMENTATION_PLAN.md` and `deployment/MODE3_IMPLEMENTATION_PLAN.md` for details.
 
----
+## Getting Help
 
-## Key Design Decisions
+**Common Issues:**
+1. Events not reaching PostgreSQL → `operations/FLUENTBIT_PARSER_CONFIGURATION.md`
+2. Triggers not normalizing → `operations/TROUBLESHOOTING.md`  
+3. GraphQL query errors → `development/GRAPHQL_API.md`
 
-### 1. Data Index is Passive (Query-Only)
-
-**Decision**: Data Index does NOT handle events directly. It only queries PostgreSQL.
-
-**Rationale**:
-- ✅ No bottleneck: FluentBit handles event pipeline
-- ✅ No failure points: Data Index can restart without losing events
-- ✅ Separation of concerns: Event ingestion vs. querying are separate
-- ✅ Scalability: Data Index scales independently of event volume
-
-**See**: [Architecture - Data Index is Passive](architecture.md#1-data-index-is-passive-query-only)
-
-### 2. PostgreSQL Triggers Handle Out-of-Order Events
-
-**Decision**: Use PostgreSQL triggers with COALESCE-based UPSERT.
-
-**Rationale**:
-- ✅ Database-level logic (declarative, tested)
-- ✅ Handles `completed` arriving before `started`
-- ✅ No application code needed for merge logic
-
-**See**: [Event Ingestion Architecture - Solution 4](event-ingestion-architecture.md#solution-4-application-level-ingestion-recommended)
-
-### 3. Serverless Workflow 1.0.0 as Source of Truth
-
-**Decision**: Domain model based ONLY on SW 1.0.0 spec + Quarkus Flow events.
-
-**Rationale**:
-- ✅ Clean break from Kogito legacy
-- ✅ Every field traceable to specific event
-- ✅ Forward-compatible with SW spec evolution
-
-**See**: [Domain Model Design](domain-model-design.md)
-
-### 4. Staging + Final Tables Pattern
-
-**Decision**: FluentBit writes to staging tables, triggers merge into final tables.
-
-**Rationale**:
-- ✅ Staging tables preserve raw events (audit trail)
-- ✅ Final tables optimized for queries
-- ✅ Can reprocess events by replaying staging data
-
-**See**: [Architecture - Staging + Final Tables](architecture.md#3-staging-tables--final-tables-pattern)
-
-### 5. FluentBit Owns the Pipeline
-
-**Decision**: FluentBit handles all event pipeline concerns.
-
-**Rationale**:
-- ✅ Battle-tested (production-grade log shipper)
-- ✅ Built-in retry/buffering logic
-- ✅ Pluggable outputs (can add Elasticsearch, etc.)
-
-**See**: [Architecture - FluentBit Owns the Pipeline](architecture.md#5-fluentbit-owns-the-event-pipeline)
-
----
-
-## Archive
-
-Historical documentation from previous phases (v0.8 cleanup, phase-based planning) is in [archive/](archive/).
-
-These docs are kept for historical context but are NOT accurate for v1.0.0:
-- `phase-*.md` - Phase-based planning docs (replaced by current-state.md)
-- `bpmn-entity-removal.md` - BPMN entity cleanup (completed)
-- `jpa-schema-validation.md` - Old JPA validation approach
-- `schema-testing-plan.md` - Superseded by FluentBit test approach
-- `api-compatibility-v0.8.md` - Will be revisited after v1.0.0 GraphQL implemented
-
----
-
-## Contributing
-
-When adding documentation:
-1. Place new docs in `/docs` (this directory)
-2. Update this README with a link
-3. Update [../README.md](../README.md) with a link
-4. Follow naming convention: `lowercase-with-hyphens.md`
-5. Move outdated docs to `/docs/archive`
-
----
-
-## References
-
-- **Main README**: [../README.md](../README.md)
-- **Quarkus Flow**: [github.com/quarkiverse/quarkus-flow](https://github.com/quarkiverse/quarkus-flow)
-- **Serverless Workflow Spec**: [serverlessworkflow.io](https://serverlessworkflow.io)
-- **FluentBit**: [fluentbit.io](https://fluentbit.io)
+**Support:**
+- GitHub Issues: [kubesmarts/logic-apps](https://github.com/kubesmarts/logic-apps/issues)
+- Quarkus Flow: [quarkiverse/quarkus-flow](https://github.com/quarkiverse/quarkus-flow)

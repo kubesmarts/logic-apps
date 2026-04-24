@@ -74,21 +74,19 @@ spec:
         - name: QUARKUS_LOG_CATEGORY_IO_QUARKIVERSE_FLOW_LEVEL
           value: "DEBUG"
         # Configure Quarkus Flow structured logging
+        # Events written to stdout (raw JSON format, mixed with app logs)
+        # FluentBit tails /var/log/containers/ and filters JSON events
         - name: QUARKUS_FLOW_STRUCTURED_LOGGING_ENABLED
           value: "true"
         - name: QUARKUS_FLOW_STRUCTURED_LOGGING_EVENTS
-          value: "workflow.*,task.*"
+          value: "workflow.*"
         - name: QUARKUS_FLOW_STRUCTURED_LOGGING_INCLUDE_WORKFLOW_PAYLOADS
           value: "true"
         - name: QUARKUS_FLOW_STRUCTURED_LOGGING_INCLUDE_TASK_PAYLOADS
-          value: "true"
-        # Log to stdout for FluentBit to capture
-        - name: QUARKUS_LOG_HANDLER_FILE_FLOW_EVENTS_ENABLE
-          value: "true"
-        - name: QUARKUS_LOG_HANDLER_FILE_FLOW_EVENTS_PATH
-          value: "/var/log/quarkus-flow/events.log"
-        - name: QUARKUS_LOG_CONSOLE_JSON
           value: "false"
+        # Structured events go to stdout (mixed with app logs)
+        # Kubernetes captures to /var/log/containers/<pod>_<namespace>_<container>.log
+        # FluentBit DaemonSet tails /var/log/containers/ and filters JSON events
         resources:
           requests:
             memory: "256Mi"

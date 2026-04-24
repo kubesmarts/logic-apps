@@ -40,12 +40,11 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.build.outputTimestamp>2026-04-13T00:00:00Z</project.build.outputTimestamp>
 
-    <!-- Quarkus - keep 3.27.2 for main modules (3.34.3 has SerializedApplication incompatibility) -->
-    <!-- integration-tests module overrides to 3.34.3 for Quarkus Flow compatibility -->
-    <quarkus.platform.version>3.27.2</quarkus.platform.version>
+    <!-- Quarkus - upgraded to match Quarkus Flow 0.9.0 compatibility -->
+    <quarkus.platform.version>3.34.5</quarkus.platform.version>
     <version.io.quarkus>${quarkus.platform.version}</version.io.quarkus>
 
-    <!-- Kogito/Serverless Workflow (keep existing Kogito dependencies for now) -->
+    <!-- Persistence Commons API version (legacy, minimal dependency) -->
     <kogito.version>999-SNAPSHOT</kogito.version>
 
     <!-- Testing - skip by default during migration phase -->
@@ -55,14 +54,15 @@
     <failsafe.exclude>**/Native*IT.java</failsafe.exclude>
     <tests.quarkus.http.port>0</tests.quarkus.http.port>
 
-    <!-- Third-party libraries - use versions from Quarkus BOM -->
+    <!-- Third-party libraries -->
     <version.com.graphql-java>24.3</version.com.graphql-java>
     <version.com.graphql-java-extended-scalars>24.0</version.com.graphql-java-extended-scalars>
     <version.org.mapstruct>1.6.3</version.org.mapstruct>
     <version.org.skyscreamer>1.5.1</version.org.skyscreamer>
     <version.io.smallrye.reactive.mutiny-zero>1.1.1</version.io.smallrye.reactive.mutiny-zero>
-    <version.io.quarkiverse.reactivemessaging.http>2.7.1</version.io.quarkiverse.reactivemessaging.http>
     <version.org.testcontainers>2.0.4</version.org.testcontainers>
+    <version.org.assertj>3.27.7</version.org.assertj>
+    <version.org.slf4j>2.0.12</version.org.slf4j>
 
     <!-- Maven plugins -->
     <version.maven-compiler-plugin>3.13.0</version.maven-compiler-plugin>
@@ -123,56 +123,28 @@
       <dependency>
         <groupId>org.assertj</groupId>
         <artifactId>assertj-core</artifactId>
-        <version>3.27.7</version>
+        <version>${version.org.assertj}</version>
         <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-simple</artifactId>
-        <version>2.0.12</version>
+        <version>${version.org.slf4j}</version>
         <scope>test</scope>
       </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-bom</artifactId>
+        <version>${version.org.testcontainers}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
 
-      <!-- Kogito Runtime APIs (temporary - used by existing modules) -->
+      <!-- Persistence Commons API (provides Storage interface abstraction) -->
       <dependency>
         <groupId>org.kie.kogito</groupId>
-        <artifactId>kogito-api</artifactId>
+        <artifactId>persistence-commons-api</artifactId>
         <version>${kogito.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.kie.kogito</groupId>
-        <artifactId>kogito-events-core</artifactId>
-        <version>${kogito.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.kie.kogito</groupId>
-        <artifactId>jobs-service-api</artifactId>
-        <version>${kogito.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.kie</groupId>
-        <artifactId>jobs-common-embedded</artifactId>
-        <version>${kogito.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.kie</groupId>
-        <artifactId>kogito-addons-common-embedded-jobs-jpa</artifactId>
-        <version>${kogito.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.kie</groupId>
-        <artifactId>kogito-addons-quarkus-embedded-jobs-jpa</artifactId>
-        <version>${kogito.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.kie</groupId>
-        <artifactId>kie-addons-quarkus-flyway</artifactId>
-        <version>${kogito.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.quarkiverse.reactivemessaging.http</groupId>
-        <artifactId>quarkus-reactive-messaging-http</artifactId>
-        <version>${version.io.quarkiverse.reactivemessaging.http}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -252,17 +224,14 @@
   </build>
 
   <modules>
-    <module>kogito-apps-bom</module>
-    <module>kogito-apps-build-parent</module>
     <module>persistence-commons</module>
-    <module>jobs-service</module>
     <module>data-index</module>
     <module>security-commons</module>
-    <module>jobs</module>
   </modules>
 
   <repositories>
-    <!-- Apache snapshots for Kogito runtime dependencies (temporary) -->
+    <!-- Apache snapshots - required for persistence-commons-api:999-SNAPSHOT -->
+    <!-- TODO: Remove when we inline persistence-commons-api or use released version -->
     <repository>
       <releases>
         <enabled>false</enabled>
