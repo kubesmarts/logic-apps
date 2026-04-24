@@ -33,10 +33,15 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build project and container images
+      - name: Build project
         run: |
           mvn -B clean install -DskipTests \
-            -pl persistence-commons,data-index \
+            --no-transfer-progress
+
+      - name: Build container images
+        run: |
+          mvn -B package -DskipTests \
+            -pl data-index/data-index-service,data-index/data-index-integration-tests \
             -Dquarkus.container-image.build=true \
             --no-transfer-progress
 

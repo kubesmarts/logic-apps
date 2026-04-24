@@ -47,9 +47,9 @@
     <!-- Persistence Commons API version (legacy, minimal dependency) -->
     <kogito.version>999-SNAPSHOT</kogito.version>
 
-    <!-- Testing - skip by default during migration phase -->
-    <skipTests>true</skipTests>
-    <skipITs>true</skipITs>
+    <!-- Testing - enabled by default, can override with -DskipTests -->
+    <skipTests>false</skipTests>
+    <skipITs>false</skipITs>
     <failsafe.include>**/*IT.java</failsafe.include>
     <failsafe.exclude>**/Native*IT.java</failsafe.exclude>
     <tests.quarkus.http.port>0</tests.quarkus.http.port>
