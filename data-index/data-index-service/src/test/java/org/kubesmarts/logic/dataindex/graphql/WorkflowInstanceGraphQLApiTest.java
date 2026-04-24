@@ -335,12 +335,12 @@ public class WorkflowInstanceGraphQLApiTest {
                 {
                   getWorkflowInstance(id: "%s") {
                     id
-                    input
-                    output
+                    inputData
+                    outputData
                     taskExecutions {
                       id
-                      input
-                      output
+                      inputData
+                      outputData
                     }
                   }
                 }
@@ -353,10 +353,10 @@ public class WorkflowInstanceGraphQLApiTest {
                 .post("/graphql")
                 .then()
                 .statusCode(200)
-                .body("data.getWorkflowInstance.input", notNullValue())
-                .body("data.getWorkflowInstance.output", notNullValue())
-                .body("data.getWorkflowInstance.taskExecutions[0].input", notNullValue())
-                .body("data.getWorkflowInstance.taskExecutions[0].output", notNullValue());
+                .body("data.getWorkflowInstance.inputData", notNullValue())
+                .body("data.getWorkflowInstance.outputData", notNullValue())
+                .body("data.getWorkflowInstance.taskExecutions[0].inputData", notNullValue())
+                .body("data.getWorkflowInstance.taskExecutions[0].outputData", notNullValue());
     }
 
     /**
