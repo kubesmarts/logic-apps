@@ -76,6 +76,12 @@ generate_configmap() {
     local mode_name=$(basename "$mode_dir")
     local to_file="${2:-false}"
 
+    # Determine ConfigMap name based on mode
+    local configmap_name="fluent-bit-config"
+    if [[ "$mode_name" == "mode1-postgresql-triggers" ]]; then
+        configmap_name="workflows-fluent-bit-mode1-config"
+    fi
+
     cat <<EOF
 # ============================================================================
 # FluentBit ConfigMap - ${mode_name}
@@ -86,16 +92,16 @@ generate_configmap() {
 #
 # To regenerate:
 #   cd scripts/fluentbit
-#   ./generate-configmap.sh ${mode_name}
+#   ./generate-configmap.sh ${mode_name} ${mode_dir}/kubernetes/configmap.yaml
 #
 # ============================================================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: fluent-bit-config
+  name: ${configmap_name}
   namespace: logging
   labels:
-    app: fluent-bit
+    app: ${configmap_name}
     mode: ${mode_name}
 data:
 EOF
