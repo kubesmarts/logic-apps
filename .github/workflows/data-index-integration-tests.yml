@@ -108,6 +108,11 @@ jobs:
         run: |
           kubectl create namespace logging
 
+          # Generate ConfigMap from source files
+          cd data-index/scripts/fluentbit
+          ./generate-configmap.sh mode1-postgresql-triggers
+          cd -
+
           # Apply ConfigMap and DaemonSet
           kubectl apply -f data-index/scripts/fluentbit/mode1-postgresql-triggers/kubernetes/configmap.yaml
           kubectl apply -f data-index/scripts/fluentbit/mode1-postgresql-triggers/kubernetes/daemonset.yaml
