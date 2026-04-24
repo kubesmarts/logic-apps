@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Index | KubeSmarts</title>
+    <link rel="stylesheet" href="https://unpkg.com/@patternfly/patternfly@5.2.0/patternfly.min.css">
+    <style>
+        :root {
+            --pf-global--Color--100: #fff;
+            --pf-global--Color--200: #f0f0f0;
+            --pf-global--danger-color--100: #c9190b;
+            --pf-global--danger-color--200: #a30000;
+            --pf-global--BackgroundColor--100: #151515;
+            --pf-global--BackgroundColor--200: #1a1a1a;
+            --pf-global--BackgroundColor--300: #212121;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: RedHatDisplay, "Red Hat Display", "Overpass", overpass, Helvetica, Arial, sans-serif;
+            background-color: #0f0f0f;
+            color: #f0f0f0;
+        }
+
+        .page-header {
+            background: #212121;
+            border-bottom: 1px solid #3c3f42;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .version-badge {
+            background: #292e34;
+            color: #c9190b;
+            padding: 0.25rem 0.75rem;
+            border-radius: 3px;
+            font-size: 0.875rem;
+            font-family: 'Liberation Mono', 'Consolas', 'Courier New', monospace;
+            border: 1px solid #3c3f42;
+        }
+
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        .hero-banner {
+            background: linear-gradient(90deg, #151515 0%, #1a1a1a 100%);
+            border-left: 3px solid #c9190b;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 0;
+        }
+
+        .hero-banner h2 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.75rem;
+            font-weight: 400;
+            color: #fff;
+        }
+
+        .hero-banner p {
+            margin: 0;
+            color: #d2d2d2;
+            font-size: 1rem;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #fff;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #3c3f42;
+        }
+
+        .endpoints-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .endpoint-card {
+            background: #1a1a1a;
+            border: 1px solid #3c3f42;
+            padding: 1.25rem;
+            border-radius: 0;
+        }
+
+        .endpoint-card:hover {
+            border-color: #c9190b;
+            background: #1f1f1f;
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .endpoint-method {
+            font-family: 'Liberation Mono', 'Consolas', 'Courier New', monospace;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            background: #292e34;
+            color: #73bcf7;
+            border-radius: 2px;
+            font-weight: 600;
+        }
+
+        .endpoint-path {
+            font-family: 'Liberation Mono', 'Consolas', 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #f0f0f0;
+        }
+
+        .endpoint-desc {
+            color: #d2d2d2;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .btn-link {
+            display: inline-block;
+            background: #c9190b;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            text-decoration: none;
+            font-size: 0.875rem;
+            border-radius: 3px;
+            transition: background 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-link:hover {
+            background: #a30000;
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: #292e34;
+            color: #f0f0f0;
+        }
+
+        .btn-secondary:hover {
+            background: #3c3f42;
+            color: #fff;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-box {
+            background: #1a1a1a;
+            border: 1px solid #3c3f42;
+            padding: 1.5rem;
+        }
+
+        .info-box h3 {
+            margin: 0 0 1rem 0;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #f0f0f0;
+        }
+
+        .info-box ul {
+            margin: 0;
+            padding-left: 1.25rem;
+            color: #d2d2d2;
+        }
+
+        .info-box li {
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+
+        .info-box code {
+            background: #0f0f0f;
+            color: #73bcf7;
+            padding: 0.125rem 0.375rem;
+            border-radius: 2px;
+            font-size: 0.875em;
+            font-family: 'Liberation Mono', 'Consolas', 'Courier New', monospace;
+        }
+
+        .architecture-diagram {
+            background: #0f0f0f;
+            border: 1px solid #3c3f42;
+            padding: 1.5rem;
+            font-family: 'Liberation Mono', 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.8;
+            color: #d2d2d2;
+            overflow-x: auto;
+        }
+
+        .footer {
+            background: #212121;
+            border-top: 1px solid #3c3f42;
+            padding: 1.5rem;
+            text-align: center;
+            color: #d2d2d2;
+            font-size: 0.875rem;
+            margin-top: 3rem;
+        }
+
+        .footer a {
+            color: #73bcf7;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #3e8635;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <h1>Data Index | KubeSmarts</h1>
+        <span class="version-badge">v{{VERSION}}</span>
+    </header>
+
+    <main class="main-content">
+        <div class="hero-banner">
+            <h2><span class="status-indicator"></span>KubeSmarts Data Index</h2>
+            <p>Real-time GraphQL query service for Serverless Workflow execution data</p>
+        </div>
+
+        <section class="section">
+            <h3 class="section-title">API Endpoints</h3>
+            <div class="endpoints-grid">
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="endpoint-method">POST</span>
+                        <span class="endpoint-path">/graphql</span>
+                    </div>
+                    <div class="endpoint-desc">GraphQL API for querying workflow and task execution data</div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <a href="/q/graphql-ui" class="btn-link" target="_blank">GraphQL UI</a>
+                        <a href="/graphql/schema.graphql" class="btn-link btn-secondary" target="_blank">Schema (SDL)</a>
+                    </div>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="endpoint-method">GET</span>
+                        <span class="endpoint-path">/q/health</span>
+                    </div>
+                    <div class="endpoint-desc">Health check and readiness probes</div>
+                    <a href="/q/health" class="btn-link btn-secondary" target="_blank">View Health</a>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="endpoint-method">GET</span>
+                        <span class="endpoint-path">/q/metrics</span>
+                    </div>
+                    <div class="endpoint-desc">Prometheus metrics endpoint</div>
+                    <a href="/q/metrics" class="btn-link btn-secondary" target="_blank">View Metrics</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h3 class="section-title">Architecture</h3>
+            <div class="architecture-diagram">
+                <pre>Quarkus Flow App
+    ↓ (stdout - JSON events)
+Kubernetes /var/log/containers/
+    ↓ (FluentBit DaemonSet)
+PostgreSQL Raw Tables
+    ↓ (BEFORE INSERT Triggers)
+PostgreSQL Normalized Tables
+    ↓ (JPA / GraphQL)
+Data Index GraphQL API</pre>
+            </div>
+        </section>
+
+        <div class="info-grid">
+            <div class="info-box">
+                <h3>Data Model</h3>
+                <p><strong>WorkflowInstance</strong></p>
+                <ul>
+                    <li><code>id</code> - Instance ID (ULID)</li>
+                    <li><code>namespace</code>, <code>name</code> - Identity</li>
+                    <li><code>status</code> - RUNNING | COMPLETED | FAULTED</li>
+                    <li><code>startDate</code>, <code>endDate</code> - Lifecycle</li>
+                    <li><code>input</code>, <code>output</code> - Data (JSONB)</li>
+                </ul>
+                <p><strong>TaskExecution</strong></p>
+                <ul>
+                    <li><code>id</code> - Execution ID</li>
+                    <li><code>taskName</code>, <code>taskPosition</code></li>
+                    <li><code>status</code> - RUNNING | COMPLETED | FAULTED</li>
+                    <li><code>workflowInstance</code> - Parent reference</li>
+                </ul>
+            </div>
+
+            <div class="info-box">
+                <h3>Key Features</h3>
+                <ul>
+                    <li>Real-time workflow execution visibility</li>
+                    <li>GraphQL API with filtering and pagination</li>
+                    <li>Trigger-based data normalization</li>
+                    <li>Idempotent event processing</li>
+                    <li>Out-of-order event handling</li>
+                    <li>Event replay safety</li>
+                </ul>
+            </div>
+
+            <div class="info-box">
+                <h3>Available Queries</h3>
+                <ul>
+                    <li><code>getWorkflowInstances</code></li>
+                    <li><code>getWorkflowInstance(id: String!)</code></li>
+                    <li><code>getTaskExecutions</code></li>
+                    <li><code>getTaskExecution(id: String!)</code></li>
+                    <li><code>getTaskExecutionsByWorkflowInstance</code></li>
+                </ul>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="footer">
+        <p>
+            KubeSmarts Logic Apps © 2026 |
+            Data Index <strong>v{{VERSION}}</strong> |
+            Powered by <a href="https://quarkus.io" target="_blank">Quarkus</a> &
+            <a href="https://github.com/smallrye/smallrye-graphql" target="_blank">SmallRye GraphQL</a>
+        </p>
+        <p style="margin-top: 0.5rem;">
+            <a href="https://github.com/kubesmarts/logic-apps" target="_blank">GitHub</a> |
+            <a href="https://github.com/quarkiverse/quarkus-flow" target="_blank">Quarkus Flow</a> |
+            <a href="https://serverlessworkflow.io/" target="_blank">SW Spec</a>
+        </p>
+    </footer>
+</body>
+</html>

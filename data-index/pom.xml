@@ -23,41 +23,154 @@
          xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <groupId>org.kie.kogito</groupId>
-    <artifactId>kogito-apps-build-parent</artifactId>
+    <groupId>org.kubesmarts</groupId>
+    <artifactId>logic-apps</artifactId>
     <version>999-SNAPSHOT</version>
-    <relativePath>../kogito-apps-build-parent/pom.xml</relativePath>
+    <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
+  <groupId>org.kubesmarts.logic.apps</groupId>
   <artifactId>data-index</artifactId>
   <packaging>pom</packaging>
-  <name>Kogito Apps :: Data Index</name>
+  <name>KubeSmarts Logic Apps :: Data Index</name>
+  <description>Data Index v1.0.0 - Read-only query service for Serverless Workflow 1.0.0 runtime events</description>
+
+  <properties>
+    <!-- Data Index specific configuration -->
+    <quarkus.container-image.group>kubesmarts</quarkus.container-image.group>
+
+    <!-- Data Index specific plugin versions -->
+    <git-commit-id-plugin.version>4.9.10</git-commit-id-plugin.version>
+
+    <!-- Data Index specific dependency versions -->
+    <version.org.json>20231013</version.org.json>
+    <version.io.quarkiverse.reactive-messaging-http>2.7.1</version.io.quarkiverse.reactive-messaging-http>
+
+    <!-- Legacy Kogito dependencies (temporary - will be removed in future phases) -->
+    <kogito.version>999-SNAPSHOT</kogito.version>
+  </properties>
 
   <dependencyManagement>
     <dependencies>
+      <!-- Data Index internal modules -->
       <dependency>
-        <groupId>org.kie.kogito</groupId>
+        <groupId>org.kubesmarts.logic.apps</groupId>
         <artifactId>data-index-model</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.kie.kogito</groupId>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-storage-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
         <artifactId>data-index-storage-postgresql</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.kie.kogito</groupId>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-storage-elasticsearch</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-storage-migrations</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
         <artifactId>data-index-service</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>workflow-test-app</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <!-- Data Index specific dependencies -->
+      <dependency>
+        <groupId>org.json</groupId>
+        <artifactId>json</artifactId>
+        <version>${version.org.json}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.quarkiverse.reactivemessaging.http</groupId>
+        <artifactId>quarkus-reactive-messaging-http</artifactId>
+        <version>${version.io.quarkiverse.reactive-messaging-http}</version>
+      </dependency>
+
+      <!-- Persistence Commons API - provides Storage interface abstraction -->
+      <dependency>
+        <groupId>org.kie.kogito</groupId>
+        <artifactId>persistence-commons-api</artifactId>
+        <version>${kogito.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
 
+  <build>
+    <pluginManagement>
+      <plugins>
+        <!-- Git commit ID plugin for version tracking -->
+        <plugin>
+          <groupId>pl.project13.maven</groupId>
+          <artifactId>git-commit-id-plugin</artifactId>
+          <version>${git-commit-id-plugin.version}</version>
+          <executions>
+            <execution>
+              <id>get-the-git-infos</id>
+              <goals>
+                <goal>revision</goal>
+              </goals>
+              <phase>initialize</phase>
+            </execution>
+          </executions>
+          <configuration>
+            <generateGitPropertiesFile>true</generateGitPropertiesFile>
+            <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+            <failOnNoGitDirectory>false</failOnNoGitDirectory>
+            <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+          </configuration>
+        </plugin>
+
+        <!-- Jandex plugin for CDI bean indexing (version managed by Quarkus BOM) -->
+        <plugin>
+          <groupId>io.smallrye</groupId>
+          <artifactId>jandex-maven-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>make-index</id>
+              <goals>
+                <goal>jandex</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
+        <!-- Maven JAR plugin for test JARs -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <executions>
+            <execution>
+              <goals>
+                <goal>test-jar</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
   <modules>
     <module>data-index-model</module>
-    <module>data-index-storage-postgresql</module>
+    <module>data-index-storage</module>
     <module>data-index-service</module>
+    <module>workflow-test-app</module>
   </modules>
 
 </project>

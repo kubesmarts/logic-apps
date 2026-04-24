@@ -96,17 +96,15 @@ public class WorkflowInstance {
     private ZonedDateTime lastUpdate;
 
     /**
-     * Workflow input data.
-     * <p>Source: input from workflow.instance.started event
-     * <p>TODO: Implement JSON scalar mapping for GraphQL
+     * Workflow input data (internal).
+     * <p>Hidden from GraphQL - use getInputData() instead
      */
     @Ignore
     private JsonNode input;
 
     /**
-     * Workflow output data.
-     * <p>Source: output from workflow.instance.completed event
-     * <p>TODO: Implement JSON scalar mapping for GraphQL
+     * Workflow output data (internal).
+     * <p>Hidden from GraphQL - use getOutputData() instead
      */
     @Ignore
     private JsonNode output;
@@ -236,6 +234,25 @@ public class WorkflowInstance {
     public void setWorkflow(Workflow workflow) {
         this.workflow = workflow;
     }
+
+    /**
+     * Get input data as JSON string for GraphQL.
+     * @return JSON string or null if no input
+     */
+    @JsonProperty("inputData")
+    public String getInputData() {
+        return input != null ? input.toString() : null;
+    }
+
+    /**
+     * Get output data as JSON string for GraphQL.
+     * @return JSON string or null if no output
+     */
+    @JsonProperty("outputData")
+    public String getOutputData() {
+        return output != null ? output.toString() : null;
+    }
+
 
     @Override
     public boolean equals(Object o) {

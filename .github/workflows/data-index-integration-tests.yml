@@ -1,0 +1,203 @@
+name: Data Index Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'data-index/**'
+      - 'persistence-commons/**'
+      - '.github/workflows/data-index-integration-tests.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'data-index/**'
+      - 'persistence-commons/**'
+      - '.github/workflows/data-index-integration-tests.yml'
+
+jobs:
+  integration-test:
+    name: KIND Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build project
+        run: |
+          mvn -B clean install -DskipTests \
+            --no-transfer-progress
+
+      - name: Build container images
+        run: |
+          mvn -B package -DskipTests \
+            -pl data-index/data-index-service,data-index/workflow-test-app \
+            -Dquarkus.container-image.build=true \
+            --no-transfer-progress
+
+      - name: Set up KIND cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: data-index-test
+          wait: 3m
+
+      - name: Load container images into KIND
+        run: |
+          kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT \
+            --name data-index-test
+          kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT \
+            --name data-index-test
+
+      - name: Install PostgreSQL
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+
+          kubectl create namespace postgresql
+
+          helm install postgresql bitnami/postgresql \
+            --namespace postgresql \
+            --set auth.username=dataindex \
+            --set auth.password=dataindex123 \
+            --set auth.database=dataindex \
+            --set primary.persistence.enabled=false \
+            --wait --timeout=5m
+
+      - name: Initialize database schema
+        run: |
+          # Wait for PostgreSQL to be ready
+          kubectl wait --namespace postgresql \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/name=postgresql \
+            --timeout=300s
+
+          # Copy migration SQL to pod
+          kubectl cp \
+            data-index/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql \
+            postgresql/postgresql-0:/tmp/schema.sql
+
+          # Execute schema creation
+          kubectl exec -n postgresql postgresql-0 -- \
+            env PGPASSWORD=dataindex123 \
+            psql -U dataindex -d dataindex \
+            -f /tmp/schema.sql
+
+          # Verify tables created
+          echo "Verifying database schema..."
+          kubectl exec -n postgresql postgresql-0 -- \
+            env PGPASSWORD=dataindex123 \
+            psql -U dataindex -d dataindex \
+            -c '\dt'
+
+      - name: Deploy Data Index service
+        run: |
+          SKIP_IMAGE_BUILD=true SKIP_DB_INIT=true \
+            bash data-index/scripts/kind/deploy-data-index.sh postgresql-polling
+
+      - name: Deploy FluentBit
+        run: |
+          kubectl create namespace logging
+
+          # Generate ConfigMap from source files
+          cd data-index/scripts/fluentbit
+          ./generate-configmap.sh mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml
+          cd -
+
+          # Apply ConfigMap and DaemonSet
+          kubectl apply -f data-index/scripts/fluentbit/mode1-postgresql-triggers/kubernetes/configmap.yaml
+          kubectl apply -f data-index/scripts/fluentbit/mode1-postgresql-triggers/kubernetes/daemonset.yaml
+
+          # Wait for FluentBit to be ready
+          kubectl wait --namespace logging \
+            --for=condition=ready pod \
+            --selector=app=workflows-fluent-bit-mode1 \
+            --timeout=120s
+
+      - name: Deploy workflow test app
+        run: |
+          bash data-index/scripts/kind/deploy-workflow-app.sh
+
+      - name: Test workflow execution and GraphQL API
+        run: |
+          # Port forward data-index service
+          kubectl port-forward -n data-index svc/data-index-service 8080:8080 &
+          sleep 5
+
+          # Port forward workflow test app
+          kubectl port-forward -n workflows svc/workflow-test-app 8082:8080 &
+          sleep 5
+
+          # Execute a workflow
+          echo "Executing workflow..."
+          curl -X POST http://localhost:8082/test-workflows/simple-set \
+            -H "Content-Type: application/json" \
+            -d '{"test": "github-actions"}' \
+            --fail-with-body
+
+          # Wait for events to be processed
+          sleep 10
+
+          # Query GraphQL API
+          echo "Querying GraphQL API..."
+          RESPONSE=$(curl -s http://localhost:8080/graphql \
+            -H "Content-Type: application/json" \
+            -d '{"query":"{ getWorkflowInstances(limit: 1) { id name status inputData outputData } }"}')
+
+          echo "GraphQL Response: $RESPONSE"
+
+          # Verify response contains data
+          if ! echo "$RESPONSE" | grep -q '"data"'; then
+            echo "ERROR: GraphQL query failed"
+            echo "$RESPONSE"
+            exit 1
+          fi
+
+          # Verify workflow was created
+          if ! echo "$RESPONSE" | grep -q '"name":"simple-set"'; then
+            echo "ERROR: Workflow instance not found"
+            echo "$RESPONSE"
+            exit 1
+          fi
+
+          echo "✅ Integration tests passed!"
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          echo "=== PostgreSQL Logs ==="
+          kubectl logs -n postgresql -l app.kubernetes.io/name=postgresql --tail=100 || true
+
+          echo "=== Data Index Logs ==="
+          kubectl logs -n data-index -l app=data-index-service --tail=100 || true
+
+          echo "=== FluentBit Logs ==="
+          kubectl logs -n logging -l app=workflows-fluent-bit-mode1 --tail=100 || true
+
+          echo "=== Workflow App Logs ==="
+          kubectl logs -n workflows -l app=workflow-test-app --tail=100 || true
+
+          echo "=== Database Tables ==="
+          kubectl exec -n postgresql postgresql-0 -- \
+            env PGPASSWORD=dataindex123 \
+            psql -U dataindex -d dataindex -c '\dt' || true
+
+          echo "=== Raw Events Count ==="
+          kubectl exec -n postgresql postgresql-0 -- \
+            env PGPASSWORD=dataindex123 \
+            psql -U dataindex -d dataindex \
+            -c 'SELECT COUNT(*) FROM workflow_events_raw;' || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          kind delete cluster --name data-index-test || true

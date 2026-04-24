@@ -23,13 +23,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.kie.kogito</groupId>
+    <groupId>org.kubesmarts.logic.apps</groupId>
     <artifactId>data-index</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
 
   <artifactId>data-index-service</artifactId>
-  <name>Data Index :: Service</name>
+  <name>KubeSmarts Logic Apps :: Data Index :: Service</name>
   <description>Data Index Quarkus service with SmallRye GraphQL</description>
 
   <properties>
@@ -39,13 +39,13 @@
   <dependencies>
     <!-- Domain models -->
     <dependency>
-      <groupId>org.kie.kogito</groupId>
+      <groupId>org.kubesmarts.logic.apps</groupId>
       <artifactId>data-index-model</artifactId>
     </dependency>
 
     <!-- Storage -->
     <dependency>
-      <groupId>org.kie.kogito</groupId>
+      <groupId>org.kubesmarts.logic.apps</groupId>
       <artifactId>data-index-storage-postgresql</artifactId>
     </dependency>
 
@@ -69,11 +69,16 @@
       <artifactId>quarkus-smallrye-graphql</artifactId>
     </dependency>
 
-    <!-- Flyway (optional - for schema migrations) -->
+    <!-- REST (for JAX-RS resources like RootResource) -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest</artifactId>
+    </dependency>
+
+    <!-- Flyway - for schema migrations -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-flyway</artifactId>
-      <optional>true</optional>
     </dependency>
 
     <!-- Health checks -->
@@ -91,7 +96,7 @@
     <!-- Test dependencies -->
     <dependency>
       <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-junit5</artifactId>
+      <artifactId>quarkus-junit</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -118,6 +123,31 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>pl.project13.maven</groupId>
+        <artifactId>git-commit-id-plugin</artifactId>
+        <version>${git-commit-id-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>get-the-git-infos</id>
+            <goals>
+              <goal>revision</goal>
+            </goals>
+            <phase>initialize</phase>
+          </execution>
+        </executions>
+        <configuration>
+          <generateGitPropertiesFile>true</generateGitPropertiesFile>
+          <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+          <includeOnlyProperties>
+            <includeOnlyProperty>^git.build.*</includeOnlyProperty>
+            <includeOnlyProperty>^git.commit.id.abbrev</includeOnlyProperty>
+            <includeOnlyProperty>^git.commit.id.describe</includeOnlyProperty>
+            <includeOnlyProperty>^git.branch</includeOnlyProperty>
+          </includeOnlyProperties>
+          <commitIdGenerationMode>full</commitIdGenerationMode>
+        </configuration>
       </plugin>
     </plugins>
   </build>

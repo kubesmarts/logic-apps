@@ -1,0 +1,64 @@
+{
+  "mappings": {
+    "properties": {
+      "id": {
+        "type": "keyword"
+      },
+      "workflowInstanceId": {
+        "type": "keyword"
+      },
+      "taskName": {
+        "type": "keyword"
+      },
+      "taskPosition": {
+        "type": "integer"
+      },
+      "status": {
+        "type": "keyword"
+      },
+      "startTime": {
+        "type": "date",
+        "format": "strict_date_optional_time||epoch_millis"
+      },
+      "endTime": {
+        "type": "date",
+        "format": "strict_date_optional_time||epoch_millis"
+      },
+      "duration": {
+        "type": "long"
+      },
+      "input": {
+        "type": "flattened"
+      },
+      "output": {
+        "type": "flattened"
+      },
+      "error": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "text"
+          },
+          "timestamp": {
+            "type": "date"
+          },
+          "errorType": {
+            "type": "keyword"
+          },
+          "errorCode": {
+            "type": "keyword"
+          }
+        }
+      },
+      "metadata": {
+        "type": "object",
+        "enabled": false
+      }
+    }
+  },
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 1,
+    "index.refresh_interval": "1s"
+  }
+}

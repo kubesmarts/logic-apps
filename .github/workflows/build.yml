@@ -20,12 +20,6 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    - name: Build with Maven
-      run: mvn -B clean install -pl persistence-commons,data-index,security-commons --no-transfer-progress
+    - name: Build and test with Maven
+      run: mvn -B clean install --no-transfer-progress
 
-    # Note: Only building modules needed for Data Index v1.0.0
-    # Excluded: jobs-service, jobs, kogito-apps-bom, kogito-apps-build-parent
-    # (BOM declares jobs-service in dependencyManagement, causing those modules to build)
-    #
-    # TODO: Enable tests incrementally as we migrate to SW 1.0.0
-    # Current test infrastructure relies on Apache Kogito runtime artifacts

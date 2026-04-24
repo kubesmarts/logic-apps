@@ -23,13 +23,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.kie.kogito</groupId>
+    <groupId>org.kubesmarts.logic.apps</groupId>
     <artifactId>data-index</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
 
   <artifactId>data-index-model</artifactId>
-  <name>Data Index :: Model</name>
+  <name>KubeSmarts Logic Apps :: Data Index :: Model</name>
   <description>Serverless Workflow 1.0.0 domain models for Data Index v1.0.0</description>
 
   <properties>

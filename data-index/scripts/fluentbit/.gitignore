@@ -1,0 +1,4 @@
+# Auto-generated Kubernetes ConfigMap YAML files
+# These are generated from .conf and .lua files via generate-configmap.sh
+**/kubernetes/configmap.yaml
+**/kubernetes/generated-*.yaml

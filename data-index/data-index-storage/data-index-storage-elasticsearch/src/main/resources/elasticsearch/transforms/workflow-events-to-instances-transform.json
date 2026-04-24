@@ -1,0 +1,160 @@
+{
+  "source": {
+    "index": "workflow-events-raw",
+    "query": {
+      "bool": {
+        "should": [
+          {
+            "term": {
+              "cloudEvent.type": "workflow.started"
+            }
+          },
+          {
+            "term": {
+              "cloudEvent.type": "workflow.completed"
+            }
+          },
+          {
+            "term": {
+              "cloudEvent.type": "workflow.faulted"
+            }
+          },
+          {
+            "term": {
+              "cloudEvent.type": "workflow.error"
+            }
+          }
+        ],
+        "minimum_should_match": 1
+      }
+    }
+  },
+  "dest": {
+    "index": "workflow-instances"
+  },
+  "frequency": "10s",
+  "sync": {
+    "time": {
+      "field": "@timestamp",
+      "delay": "30s"
+    }
+  },
+  "pivot": {
+    "group_by": {
+      "id": {
+        "terms": {
+          "field": "cloudEvent.data.id"
+        }
+      }
+    },
+    "aggregations": {
+      "name": {
+        "terms": {
+          "field": "cloudEvent.data.name",
+          "size": 1
+        }
+      },
+      "namespace": {
+        "terms": {
+          "field": "cloudEvent.data.namespace",
+          "size": 1
+        }
+      },
+      "version": {
+        "terms": {
+          "field": "cloudEvent.data.version",
+          "size": 1
+        }
+      },
+      "status": {
+        "terms": {
+          "field": "cloudEvent.data.status",
+          "size": 1,
+          "order": {
+            "_key": "desc"
+          }
+        }
+      },
+      "startTime": {
+        "min": {
+          "field": "@timestamp"
+        }
+      },
+      "endTime": {
+        "max": {
+          "field": "@timestamp"
+        }
+      },
+      "duration": {
+        "bucket_script": {
+          "buckets_path": {
+            "start": "startTime",
+            "end": "endTime"
+          },
+          "script": "params.end - params.start"
+        }
+      },
+      "input_data": {
+        "top_hits": {
+          "size": 1,
+          "sort": [
+            {
+              "@timestamp": {
+                "order": "asc"
+              }
+            }
+          ],
+          "_source": {
+            "includes": [
+              "cloudEvent.data.input"
+            ]
+          }
+        }
+      },
+      "output_data": {
+        "top_hits": {
+          "size": 1,
+          "sort": [
+            {
+              "@timestamp": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": {
+            "includes": [
+              "cloudEvent.data.output"
+            ]
+          }
+        }
+      },
+      "error_messages": {
+        "top_hits": {
+          "size": 5,
+          "sort": [
+            {
+              "@timestamp": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": {
+            "includes": [
+              "cloudEvent.data.error"
+            ]
+          }
+        }
+      },
+      "last_updated": {
+        "max": {
+          "field": "@timestamp"
+        }
+      }
+    }
+  },
+  "description": "Transform workflow CloudEvents to normalized workflow instances. Merges multiple events (started, completed, faulted, error) by workflow ID.",
+  "settings": {
+    "max_page_search_size": 500,
+    "docs_per_second": null
+  }
+}
