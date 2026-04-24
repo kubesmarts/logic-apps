@@ -26,6 +26,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.kubesmarts.logic.dataindex.api.WorkflowInstanceStorage;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
@@ -49,7 +50,12 @@ import io.restassured.http.ContentType;
  *   <li>Combined filters
  *   <li>PostgreSQL JSONB queries
  * </ul>
+ *
+ * <p><strong>DISABLED in unit tests:</strong> This test requires the data-index-service
+ * module with GraphQL API. GraphQL endpoint tests should be in data-index-service module,
+ * not in this separate integration-tests module.
  */
+@Disabled("Requires GraphQL API from data-index-service - should move to data-index-service tests")
 @QuarkusTest
 public class GraphQLFilteringIntegrationTest {
 

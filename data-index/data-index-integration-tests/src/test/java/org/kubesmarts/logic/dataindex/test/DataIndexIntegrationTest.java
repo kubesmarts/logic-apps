@@ -25,6 +25,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.kubesmarts.logic.dataindex.api.WorkflowInstanceStorage;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
@@ -49,7 +50,12 @@ import io.serverlessworkflow.impl.WorkflowModel;
  *
  * <p>Note: This test uses JPA-generated schema (drop-and-create),
  * NOT manual SQL scripts. Schema is derived from JPA entities.
+ *
+ * <p><strong>DISABLED in unit tests:</strong> This test requires the full E2E environment
+ * with FluentBit reading from log files. It runs in the KIND Integration Tests GitHub Actions
+ * workflow instead. See .github/workflows/data-index-integration-tests.yml
  */
+@Disabled("E2E test - runs in KIND cluster via GitHub Actions, not in unit tests")
 @QuarkusTest
 @QuarkusTestResource(HttpBinMockServer.class)
 public class DataIndexIntegrationTest {

@@ -23,13 +23,14 @@ class WorkflowExecutionTest {
     @Test
     void shouldExecuteSimpleWorkflowWithoutHttp() {
         // When/Then: invoke simple workflow (no HTTP) via REST endpoint
+        // Note: Workflow has 2 set() tasks, each overwrites context. Final output is from last set().
         given()
                 .contentType("application/json")
                 .body("{}")
                 .when().post("/test-workflows/simple-set")
                 .then()
                 .statusCode(200)
-                .body("greeting", equalTo("Hello from Quarkus Flow!"))
-                .body("timestamp", notNullValue());
+                .body("completed", equalTo(true))
+                .body("mode", equalTo("Mode 1: PostgreSQL Polling"));
     }
 }
