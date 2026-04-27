@@ -119,17 +119,10 @@ run_migrations() {
     kubectl cp "${PROJECT_ROOT}/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql" \
       postgresql/postgresql-0:/tmp/V1__initial_schema.sql
 
-    kubectl cp "${PROJECT_ROOT}/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V2__add_idempotency.sql" \
-      postgresql/postgresql-0:/tmp/V2__add_idempotency.sql
-
     # Execute migrations
-    log_info "Executing V1 migration (initial schema)..."
+    log_info "Executing V1 migration (initial schema with idempotency)..."
     kubectl exec -n postgresql postgresql-0 -- \
-      env PGPASSWORD=dataindex123 env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -f /tmp/V1__initial_schema.sql
-
-    log_info "Executing V2 migration (idempotency)..."
-    kubectl exec -n postgresql postgresql-0 -- \
-      env PGPASSWORD=dataindex123 env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -f /tmp/V2__add_idempotency.sql
+      env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -f /tmp/V1__initial_schema.sql
 
     # Verify schema
     log_info "Verifying schema..."
@@ -174,7 +167,7 @@ deploy_fluentbit() {
 deploy_workflow_app() {
     log_step "Building workflow test app..."
 
-    cd "${PROJECT_ROOT}/data-index-integration-tests"
+    cd "${PROJECT_ROOT}/workflow-test-app"
 
     # Build container image with Jib
     mvn package -Dquarkus.container-image.build=true -DskipTests
@@ -199,7 +192,7 @@ execute_workflows() {
     log_step "Executing test workflows..."
 
     # Port-forward to workflow app
-    kubectl port-forward -n workflows svc/workflow-test-app 8082:8082 &
+    kubectl port-forward -n workflows svc/workflow-test-app 8082:8080 &
     PORT_FORWARD_PID=$!
     sleep 3
 
@@ -227,7 +220,7 @@ verify_events() {
     # Check FluentBit logs
     log_info "Checking FluentBit captured events..."
     kubectl logs -n logging -l app=workflows-fluent-bit-mode1 --tail=100 | \
-      grep -q "workflow.instance.started" || {
+      grep -q "io.serverlessworkflow.workflow.started" || {
         log_error "FluentBit did not capture workflow.started events"
         kubectl logs -n logging -l app=workflows-fluent-bit-mode1 --tail=50
         exit 1
