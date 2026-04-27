@@ -4,6 +4,22 @@ Follow these steps to get your Quarkus Flow application sending events to Data I
 
 ---
 
+## 🚀 TL;DR for KIND (Local Development)
+
+**After configuration (steps 1-5 below):**
+
+```bash
+# Deploy everything in ONE command!
+mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
+
+# Quarkus automatically builds, loads to KIND, and deploys.
+# No manual 'kind load' or 'kubectl apply' needed!
+```
+
+**Full setup below** ⬇️
+
+---
+
 ## ✅ Pre-Deployment Checklist
 
 - [ ] Kubernetes cluster is running
@@ -38,14 +54,43 @@ quarkus.flow.structured-logging.include-workflow-payloads=true
 quarkus.flow.structured-logging.include-task-payloads=false
 ```
 
-### 3. Create `application-kubernetes.properties`:
+### 3a. For KIND (Local Development) - `application-kubernetes.properties`:
 
 ```properties
+# KIND automatic image loading (no manual 'kind load' needed!)
+quarkus.kubernetes.deployment-target=kind
+quarkus.kind.cluster-name=data-index-test
+
 # CRITICAL: namespace must be 'workflows' for default FluentBit config
 quarkus.kubernetes.namespace=workflows
 
 # Container image
-quarkus.container-image.group=your-org
+quarkus.container-image.group=local
+quarkus.container-image.name=${quarkus.application.name}
+quarkus.container-image.tag=dev
+quarkus.container-image.build=true
+
+# CRITICAL: Use 'prod' profile at runtime
+quarkus.kubernetes.env.vars.QUARKUS_PROFILE=prod
+
+# Resources (lower for local dev)
+quarkus.kubernetes.resources.requests.memory=128Mi
+quarkus.kubernetes.resources.limits.memory=256Mi
+```
+
+### 3b. For Cloud (GKE/EKS/AKS) - `application-kubernetes.properties`:
+
+```properties
+# Cloud deployment
+quarkus.kubernetes.deployment-target=kubernetes
+quarkus.container-image.registry=gcr.io
+quarkus.container-image.group=your-gcp-project
+quarkus.container-image.push=true
+
+# CRITICAL: namespace must be 'workflows' for default FluentBit config
+quarkus.kubernetes.namespace=workflows
+
+# Container image
 quarkus.container-image.name=${quarkus.application.name}
 quarkus.container-image.tag=1.0.0
 quarkus.container-image.build=true
@@ -77,31 +122,28 @@ mvn quarkus:dev
 
 ## ✅ Build and Deploy
 
-### 6. Build with Kubernetes profile:
+### 6a. KIND (Local Development) - One Command! ⚡
 
 ```bash
-mvn package -Dquarkus.profile=kubernetes
+# Build, load to KIND, and deploy - all in one step!
+mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
 ```
 
-**This generates:**
-- Container image: `your-org/my-workflow-app:1.0.0`
-- Kubernetes manifest: `target/kubernetes/kubernetes.yml`
+**Quarkus automatically:**
+1. Builds container image with Jib
+2. Loads image to KIND cluster (no manual `kind load` needed!)
+3. Generates `target/kubernetes/kubernetes.yml`
+4. Deploys to cluster (`kubectl apply`)
 
-### 7. Load image to cluster (KIND/minikube only):
+**Done!** Skip to step 9 for verification.
 
-```bash
-# KIND
-kind load docker-image your-org/my-workflow-app:1.0.0 --name your-cluster
-
-# Minikube
-eval $(minikube docker-env)
-mvn package -Dquarkus.profile=kubernetes
-```
-
-### 8. Deploy:
+### 6b. Cloud Deployment - Two Commands
 
 ```bash
-kubectl apply -f target/kubernetes/kubernetes.yml
+# 1. Build, push to registry, and deploy
+mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
+
+# 2. Verify
 kubectl get pods -n workflows
 ```
 

@@ -181,40 +181,225 @@ cat target/kubernetes/kubernetes.yml
 - ✅ Resource requests/limits are appropriate
 - ✅ Health probes are configured
 
-### Step 3: Load Image to Cluster (KIND/minikube only)
+### Step 3: Deploy to Kubernetes
 
-For local clusters, load the image:
+#### Option A: Local Development (KIND) - Automatic Image Loading ⚡
 
-```bash
-# KIND
-kind load docker-image your-org/my-workflow-app:1.0.0 --name your-cluster-name
+**Quarkus can automatically load images to KIND!** No manual `kind load` needed.
 
-# Minikube
-eval $(minikube docker-env)
-mvn package -Dquarkus.profile=kubernetes
+Add KIND-specific properties to `application-kubernetes.properties`:
+
+```properties
+# KIND automatic image loading
+quarkus.kubernetes.deployment-target=kind
+quarkus.kind.cluster-name=data-index-test
 ```
 
-For cloud clusters (GKE, EKS, AKS), push to registry:
+Then deploy in one command:
 
 ```bash
-# Enable push in application-kubernetes.properties
-# quarkus.container-image.push=true
-# quarkus.container-image.registry=gcr.io  # or docker.io, quay.io, etc.
+# Build, load to KIND, and deploy - all in one step!
+mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
 
-mvn package -Dquarkus.profile=kubernetes
+# Quarkus automatically:
+# 1. Builds container image with Jib
+# 2. Loads image to KIND cluster
+# 3. Generates kubernetes.yml
+# 4. Applies manifest to cluster
 ```
 
-### Step 4: Deploy to Kubernetes
+**That's it!** No manual image loading needed.
+
+Verify deployment:
 
 ```bash
-# Apply the generated manifest
-kubectl apply -f target/kubernetes/kubernetes.yml
-
-# Verify pod is running
+# Check pod is running
 kubectl get pods -n workflows
 
-# Check logs to verify JSON events
+# Check logs for JSON events
 kubectl logs -n workflows -l app.kubernetes.io/name=my-workflow-app | grep eventType
+```
+
+**Complete `application-kubernetes.properties` for KIND:**
+
+```properties
+# KIND deployment configuration
+quarkus.kubernetes.deployment-target=kind
+quarkus.kind.cluster-name=data-index-test
+quarkus.kubernetes.namespace=workflows
+
+# Container image
+quarkus.container-image.group=local
+quarkus.container-image.name=${quarkus.application.name}
+quarkus.container-image.tag=dev
+quarkus.container-image.build=true
+
+# Runtime profile
+quarkus.kubernetes.env.vars.QUARKUS_PROFILE=prod
+
+# Resources (lower for local dev)
+quarkus.kubernetes.resources.requests.memory=128Mi
+quarkus.kubernetes.resources.limits.memory=256Mi
+```
+
+#### Option B: Minikube - Use Docker Daemon
+
+For minikube, use the cluster's Docker daemon:
+
+```bash
+# Point to minikube Docker daemon
+eval $(minikube docker-env)
+
+# Build and deploy
+mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
+```
+
+#### Option C: Cloud Clusters (GKE, EKS, AKS) - Push to Registry
+
+For cloud clusters, enable registry push in `application-kubernetes.properties`:
+
+```properties
+# Cloud deployment
+quarkus.kubernetes.deployment-target=kubernetes
+quarkus.container-image.registry=gcr.io
+quarkus.container-image.group=your-gcp-project
+quarkus.container-image.push=true
+```
+
+Then deploy:
+
+```bash
+# Build, push to registry, and deploy
+mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
+```
+
+---
+
+## Part 2A: Local Development with KIND (Fastest Path) ⚡
+
+For local development, Quarkus provides the fastest deployment experience with KIND.
+
+### Complete KIND Workflow
+
+**1. Configure `application-kubernetes.properties` for KIND:**
+
+```properties
+# KIND-specific settings
+quarkus.kubernetes.deployment-target=kind
+quarkus.kind.cluster-name=data-index-test
+
+# Standard settings
+quarkus.kubernetes.namespace=workflows
+quarkus.container-image.group=local
+quarkus.container-image.name=${quarkus.application.name}
+quarkus.container-image.tag=dev
+quarkus.container-image.build=true
+quarkus.kubernetes.env.vars.QUARKUS_PROFILE=prod
+
+# Lower resources for local dev
+quarkus.kubernetes.resources.requests.memory=128Mi
+quarkus.kubernetes.resources.limits.memory=256Mi
+```
+
+**2. Deploy with one command:**
+
+```bash
+mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
+```
+
+**What happens:**
+1. ✅ Builds container image (`local/my-workflow-app:dev`)
+2. ✅ Automatically loads image to KIND cluster (no manual `kind load`!)
+3. ✅ Generates Kubernetes manifests
+4. ✅ Deploys to `workflows` namespace
+
+**3. Verify:**
+
+```bash
+kubectl get pods -n workflows
+kubectl logs -n workflows -l app.kubernetes.io/name=my-workflow-app | grep eventType
+```
+
+**4. Make code changes and redeploy:**
+
+```bash
+# Just run the same command again!
+mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
+```
+
+Quarkus handles everything - no manual image loading, no separate kubectl commands.
+
+### KIND vs Manual Deployment
+
+| Step | Manual Approach | KIND Approach |
+|------|----------------|---------------|
+| Build image | `mvn package` | Automatic |
+| Load to cluster | `kind load docker-image ...` | **Automatic** ✅ |
+| Generate manifest | Automatic | Automatic |
+| Deploy | `kubectl apply -f ...` | **Automatic** ✅ |
+| **Total commands** | 3 commands | **1 command** ✅ |
+
+### Complete Example: Local Developer Workflow
+
+```bash
+# Start with Data Index already running in KIND
+# (see test-mode1-e2e.sh for setup)
+
+# 1. Create your Quarkus Flow project
+mvn io.quarkus:quarkus-maven-plugin:create \
+  -DprojectGroupId=com.example \
+  -DprojectArtifactId=my-workflows \
+  -Dextensions=quarkus-flow,quarkus-kubernetes,quarkus-container-image-jib
+
+cd my-workflows
+
+# 2. Add dependencies and create workflow (your application code)
+# ... (create workflow classes, etc.)
+
+# 3. Configure for KIND
+cat >> src/main/resources/application.properties <<EOF
+quarkus.application.name=my-workflows
+quarkus.flow.structured-logging.enabled=true
+quarkus.flow.structured-logging.events=workflow.*
+quarkus.flow.structured-logging.include-workflow-payloads=true
+EOF
+
+cat > src/main/resources/application-kubernetes.properties <<EOF
+quarkus.kubernetes.deployment-target=kind
+quarkus.kind.cluster-name=data-index-test
+quarkus.kubernetes.namespace=workflows
+quarkus.container-image.group=local
+quarkus.container-image.name=\${quarkus.application.name}
+quarkus.container-image.tag=dev
+quarkus.container-image.build=true
+quarkus.kubernetes.env.vars.QUARKUS_PROFILE=prod
+quarkus.kubernetes.resources.requests.memory=128Mi
+quarkus.kubernetes.resources.limits.memory=256Mi
+EOF
+
+cat > src/main/resources/application-prod.properties <<EOF
+quarkus.log.level=INFO
+quarkus.http.port=8080
+EOF
+
+# 4. Deploy to KIND in one command!
+mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
+
+# 5. Test your workflow
+kubectl port-forward -n workflows svc/my-workflows 8080:8080 &
+curl -X POST http://localhost:8080/test/my-workflow/start -d '{"test":"data"}'
+
+# 6. Query Data Index (wait 10 seconds first)
+sleep 10
+curl -s http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ getWorkflowInstances(limit: 1) { id name status taskExecutions { taskPosition status } } }"}' \
+  | jq .
+
+# 7. Make changes and redeploy
+# Edit your code...
+mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
+# Done! New version is deployed.
 ```
 
 ---
