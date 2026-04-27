@@ -20,9 +20,14 @@ Before deploying your Quarkus Flow application, ensure:
 
 ### Step 1: Add Required Dependencies
 
-Add the Quarkus Kubernetes extension to your `pom.xml`:
+You have two options for adding Kubernetes deployment dependencies:
+
+#### Option A: Direct Dependencies (Always Available)
+
+Add to your `pom.xml` `<dependencies>` section:
 
 ```xml
+<!-- Kubernetes deployment -->
 <dependency>
   <groupId>io.quarkus</groupId>
   <artifactId>quarkus-kubernetes</artifactId>
@@ -31,7 +36,80 @@ Add the Quarkus Kubernetes extension to your `pom.xml`:
   <groupId>io.quarkus</groupId>
   <artifactId>quarkus-container-image-jib</artifactId>
 </dependency>
+
+<!-- Health checks (for liveness/readiness probes) -->
+<dependency>
+  <groupId>io.quarkus</groupId>
+  <artifactId>quarkus-smallrye-health</artifactId>
+</dependency>
 ```
+
+**Use this approach when**: You always want Kubernetes support available.
+
+#### Option B: Maven Profile (Conditional, Recommended)
+
+Keep deployment dependencies separate using a Maven profile:
+
+```xml
+<profiles>
+  <profile>
+    <id>kind</id>
+    <activation>
+      <property>
+        <name>quarkus.profile</name>
+        <value>kubernetes</value>
+      </property>
+    </activation>
+    <dependencies>
+      <!-- Kubernetes deployment -->
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-kubernetes</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-container-image-jib</artifactId>
+      </dependency>
+      
+      <!-- Health checks (for liveness/readiness probes) -->
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-smallrye-health</artifactId>
+      </dependency>
+    </dependencies>
+  </profile>
+</profiles>
+```
+
+**Use this approach when**:
+- You want to keep deployment dependencies separate from runtime dependencies
+- You build for Kubernetes conditionally (not every build)
+- You want to minimize dependencies in local dev mode
+
+**How it works**:
+```bash
+# Profile automatically activates when you build with kubernetes profile
+mvn package -Dquarkus.profile=kubernetes
+# The <activation> property matches, so dependencies are included
+
+# In dev mode or regular builds, profile is NOT active
+mvn quarkus:dev
+# Kubernetes dependencies not loaded - faster startup
+```
+
+**Benefits**:
+- ✅ **Cleaner dependency management**: Deployment deps separated from runtime deps
+- ✅ **Faster local dev**: `quarkus:dev` doesn't load Kubernetes/Jib extensions
+- ✅ **Conditional inclusion**: Dependencies only active when deploying
+- ✅ **Auto-activation**: No need for `-P kind`, activates automatically
+- ✅ **Smaller runtime**: Production runtime doesn't include build tools
+
+**Comparison**:
+
+| Approach | Dev Mode Startup | Kubernetes Deps in Runtime | When to Use |
+|----------|------------------|----------------------------|-------------|
+| Direct | Slower (loads K8s extensions) | Yes (included in uber-jar) | Always deploying to K8s |
+| Profile | **Faster** (no K8s extensions) | **No** (build-time only) | **Recommended** |
 
 ### Step 2: Configure Application Properties
 
@@ -92,8 +170,26 @@ quarkus.log.console.enabled=true
 quarkus.log.console.format=%d{HH:mm:ss} %-5p [%c{2.}] %s%e%n
 quarkus.log.level=INFO
 
-# Health checks
+# Health checks (requires quarkus-smallrye-health dependency)
 quarkus.smallrye-health.ui.enabled=true
+```
+
+**Dependency Requirements:**
+
+These properties require the following dependencies (add via direct dependencies or Maven profile):
+
+```xml
+<!-- Required for structured logging -->
+<dependency>
+  <groupId>io.quarkiverse.flow</groupId>
+  <artifactId>quarkus-flow</artifactId>
+</dependency>
+
+<!-- Required for health checks (liveness/readiness probes) -->
+<dependency>
+  <groupId>io.quarkus</groupId>
+  <artifactId>quarkus-smallrye-health</artifactId>
+</dependency>
 ```
 
 **Property Reference:**
@@ -411,11 +507,40 @@ Quarkus handles everything - no manual image loading, no separate kubectl comman
 mvn io.quarkus:quarkus-maven-plugin:create \
   -DprojectGroupId=com.example \
   -DprojectArtifactId=my-workflows \
-  -Dextensions=quarkus-flow,quarkus-kubernetes,quarkus-container-image-jib
+  -Dextensions=quarkus-flow
 
 cd my-workflows
 
-# 2. Add dependencies and create workflow (your application code)
+# 2. Add Kubernetes dependencies via Maven profile
+# Edit pom.xml and add this <profiles> section before </project>:
+#
+# <profiles>
+#   <profile>
+#     <id>kind</id>
+#     <activation>
+#       <property>
+#         <name>quarkus.profile</name>
+#         <value>kubernetes</value>
+#       </property>
+#     </activation>
+#     <dependencies>
+#       <dependency>
+#         <groupId>io.quarkus</groupId>
+#         <artifactId>quarkus-kubernetes</artifactId>
+#       </dependency>
+#       <dependency>
+#         <groupId>io.quarkus</groupId>
+#         <artifactId>quarkus-container-image-jib</artifactId>
+#       </dependency>
+#       <dependency>
+#         <groupId>io.quarkus</groupId>
+#         <artifactId>quarkus-smallrye-health</artifactId>
+#       </dependency>
+#     </dependencies>
+#   </profile>
+# </profiles>
+
+# 3. Create your workflow classes
 # ... (create workflow classes, etc.)
 
 # 3. Configure for KIND

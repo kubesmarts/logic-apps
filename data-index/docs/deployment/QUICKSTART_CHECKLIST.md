@@ -33,16 +33,54 @@ mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
 
 ### 1. Add dependencies to `pom.xml`:
 
+**Option A: Direct (always available):**
 ```xml
-<dependency>
-  <groupId>io.quarkus</groupId>
-  <artifactId>quarkus-kubernetes</artifactId>
-</dependency>
-<dependency>
-  <groupId>io.quarkus</groupId>
-  <artifactId>quarkus-container-image-jib</artifactId>
-</dependency>
+<dependencies>
+  <dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-kubernetes</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-container-image-jib</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-smallrye-health</artifactId>
+  </dependency>
+</dependencies>
 ```
+
+**Option B: Maven Profile (recommended, conditional):**
+```xml
+<profiles>
+  <profile>
+    <id>kind</id>
+    <activation>
+      <property>
+        <name>quarkus.profile</name>
+        <value>kubernetes</value>
+      </property>
+    </activation>
+    <dependencies>
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-kubernetes</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-container-image-jib</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-smallrye-health</artifactId>
+      </dependency>
+    </dependencies>
+  </profile>
+</profiles>
+```
+**Note**: Profile auto-activates when building with `-Dquarkus.profile=kubernetes`  
+**Benefit**: Faster `mvn quarkus:dev` (K8s deps not loaded), smaller runtime artifact
 
 ### 2. Create `application.properties`:
 
