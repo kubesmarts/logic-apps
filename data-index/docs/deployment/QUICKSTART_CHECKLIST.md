@@ -87,7 +87,6 @@ mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
 ```properties
 # Application
 quarkus.application.name=my-workflow-app
-quarkus.http.port=8080
 
 # Quarkus Flow structured logging (REQUIRED)
 quarkus.flow.structured-logging.enabled=true
@@ -106,11 +105,6 @@ quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
 quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
 quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
 quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
-
-# Console logging for app logs
-quarkus.log.console.enabled=true
-quarkus.log.console.format=%d{HH:mm:ss} %-5p [%c{2.}] %s%e%n
-quarkus.log.level=INFO
 
 # Health checks
 quarkus.smallrye-health.ui.enabled=true
@@ -169,10 +163,12 @@ quarkus.kubernetes.resources.limits.memory=512Mi
 
 ```properties
 # Production runtime settings
-quarkus.log.level=INFO
-quarkus.http.port=8080
+# Add your production-specific settings here:
+# - Database connections
+# - External service URLs
+# - Production-specific configuration
+# etc.
 
-# Add your production-specific settings here
 # NOTE: Do NOT set log level for 'io.quarkiverse.flow'
 # Structured logging config is in application.properties
 ```

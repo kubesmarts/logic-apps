@@ -122,7 +122,6 @@ Create three profile-specific property files:
 # Application metadata
 #
 quarkus.application.name=my-workflow-app
-quarkus.http.port=8080
 
 #
 # Quarkus Flow - Structured Logging Configuration
@@ -162,13 +161,6 @@ quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
 quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
 quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
 quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
-
-#
-# Console logging for application logs (human-readable)
-#
-quarkus.log.console.enabled=true
-quarkus.log.console.format=%d{HH:mm:ss} %-5p [%c{2.}] %s%e%n
-quarkus.log.level=INFO
 
 # Health checks (requires quarkus-smallrye-health dependency)
 quarkus.smallrye-health.ui.enabled=true
@@ -272,13 +264,12 @@ See [Quarkus Kubernetes Extension Guide](https://quarkus.io/guides/deploying-to-
 #
 # Production runtime settings
 #
-quarkus.log.level=INFO
-
-# HTTP configuration
-quarkus.http.port=8080
-
-# Add your production-specific settings here
-# (database connections, external services, etc.)
+# Add your production-specific settings here:
+# - Database connections
+# - External service URLs
+# - Production-specific timeouts
+# - Security settings
+# etc.
 
 # NOTE: Do NOT set log level for 'io.quarkiverse.flow' here
 # Structured logging configuration is in application.properties
@@ -546,7 +537,6 @@ cd my-workflows
 # 3. Configure for KIND
 cat > src/main/resources/application.properties <<EOF
 quarkus.application.name=my-workflows
-quarkus.http.port=8080
 
 # Quarkus Flow structured logging (REQUIRED)
 quarkus.flow.structured-logging.enabled=true
@@ -564,11 +554,6 @@ quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
 quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
 quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
 quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
-
-# Console logging for app logs
-quarkus.log.console.enabled=true
-quarkus.log.console.format=%d{HH:mm:ss} %-5p [%c{2.}] %s%e%n
-quarkus.log.level=INFO
 
 # Health checks
 quarkus.smallrye-health.ui.enabled=true
@@ -588,8 +573,8 @@ quarkus.kubernetes.resources.limits.memory=256Mi
 EOF
 
 cat > src/main/resources/application-prod.properties <<EOF
-quarkus.log.level=INFO
-quarkus.http.port=8080
+# Production runtime settings
+# Add your production-specific configuration here
 EOF
 
 # 4. Deploy to KIND in one command!
