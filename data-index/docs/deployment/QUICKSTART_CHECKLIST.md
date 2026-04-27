@@ -47,11 +47,35 @@ mvn clean package -Dquarkus.kubernetes.deploy=true -Dquarkus.profile=kubernetes
 ### 2. Create `application.properties`:
 
 ```properties
+# Application
 quarkus.application.name=my-workflow-app
+quarkus.http.port=8080
+
+# Quarkus Flow structured logging (REQUIRED)
 quarkus.flow.structured-logging.enabled=true
 quarkus.flow.structured-logging.events=workflow.*
 quarkus.flow.structured-logging.include-workflow-payloads=true
 quarkus.flow.structured-logging.include-task-payloads=false
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+quarkus.flow.structured-logging.log-level=INFO
+
+# Console handler for raw JSON output (REQUIRED)
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled=true
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
+
+# Route structured logging to console (REQUIRED)
+# CRITICAL: Use 'io.quarkiverse.flow.structuredlogging' not 'io.quarkiverse.flow'
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
+
+# Console logging for app logs
+quarkus.log.console.enabled=true
+quarkus.log.console.format=%d{HH:mm:ss} %-5p [%c{2.}] %s%e%n
+quarkus.log.level=INFO
+
+# Health checks
+quarkus.smallrye-health.ui.enabled=true
 ```
 
 ### 3a. For KIND (Local Development) - `application-kubernetes.properties`:
@@ -106,8 +130,13 @@ quarkus.kubernetes.resources.limits.memory=512Mi
 ### 4. Create `application-prod.properties`:
 
 ```properties
+# Production runtime settings
 quarkus.log.level=INFO
 quarkus.http.port=8080
+
+# Add your production-specific settings here
+# NOTE: Do NOT set log level for 'io.quarkiverse.flow'
+# Structured logging config is in application.properties
 ```
 
 ### 5. Test locally:
@@ -231,13 +260,15 @@ kubectl exec -n postgresql postgresql-0 -- \
 
 ## 📚 Common Mistakes
 
+❌ **Wrong log category** - Use `io.quarkiverse.flow.structuredlogging` (NOT `io.quarkiverse.flow`)  
+❌ **Missing timestamp format** - Must set `quarkus.flow.structured-logging.timestamp-format=epoch-seconds`  
+❌ **Missing console handler** - Need `FLOW_EVENTS_CONSOLE` handler for raw JSON output  
 ❌ **Building without kubernetes profile** - Use `mvn package -Dquarkus.profile=kubernetes`  
 ❌ **Wrong namespace in properties** - Must be `workflows` (or update FluentBit config)  
 ❌ **Missing QUARKUS_PROFILE=prod** - Add to `application-kubernetes.properties`  
-❌ **Not loading image to KIND** - Use `kind load docker-image ...`  
 ❌ **Not waiting for propagation** - Events take 5-10 seconds  
 
-✅ **Correct setup** - Three property files + kubernetes profile + wait 10 seconds
+✅ **Correct setup** - All required properties + three property files + kubernetes profile
 
 ---
 

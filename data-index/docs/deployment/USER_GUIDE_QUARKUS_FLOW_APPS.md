@@ -40,24 +40,81 @@ Create three profile-specific property files:
 #### `src/main/resources/application.properties` (Common configuration)
 
 ```properties
+#
 # Application metadata
+#
 quarkus.application.name=my-workflow-app
+quarkus.http.port=8080
 
-# Quarkus Flow structured logging (REQUIRED for Data Index integration)
+#
+# Quarkus Flow - Structured Logging Configuration
+#
+# REQUIRED for Data Index integration
+# Events are written to stdout as raw JSON, captured by Kubernetes logs,
+# then collected by FluentBit DaemonSet from /var/log/containers/*.log
+#
+
+# Enable structured logging
 quarkus.flow.structured-logging.enabled=true
+
+# Event filtering - capture all workflow and task events
 quarkus.flow.structured-logging.events=workflow.*
+
+# Payload inclusion
 quarkus.flow.structured-logging.include-workflow-payloads=true
 quarkus.flow.structured-logging.include-task-payloads=false
+
+# Timestamp format - use epoch-seconds for PostgreSQL compatibility
+# FluentBit pgsql output expects Unix epoch for TIMESTAMP WITH TIME ZONE columns
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+
+# Structured logging level
+quarkus.flow.structured-logging.log-level=INFO
+
+#
+# Console handler for structured events (stdout only)
+# CRITICAL: Route structured events to separate handler to output raw JSON
+#
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled=true
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
+
+# Route structured logging to console handler ONLY
+# CRITICAL: Use specific package 'io.quarkiverse.flow.structuredlogging' (not 'io.quarkiverse.flow')
+# Setting DEBUG on whole 'io.quarkiverse.flow' will cause issues
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
+
+#
+# Console logging for application logs (human-readable)
+#
+quarkus.log.console.enabled=true
+quarkus.log.console.format=%d{HH:mm:ss} %-5p [%c{2.}] %s%e%n
+quarkus.log.level=INFO
+
+# Health checks
+quarkus.smallrye-health.ui.enabled=true
 ```
 
 **Property Reference:**
 
-| Property | Default | Description |
-|----------|---------|-------------|
-| `quarkus.flow.structured-logging.enabled` | `false` | Enable JSON event logging to stdout |
-| `quarkus.flow.structured-logging.events` | - | Event pattern (use `workflow.*` for all events) |
-| `quarkus.flow.structured-logging.include-workflow-payloads` | `true` | Include workflow input/output in events |
-| `quarkus.flow.structured-logging.include-task-payloads` | `false` | Include task input/output (can be verbose) |
+| Property | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `quarkus.flow.structured-logging.enabled` | **YES** | `false` | Enable JSON event logging |
+| `quarkus.flow.structured-logging.events` | **YES** | - | Event pattern (use `workflow.*` for all events) |
+| `quarkus.flow.structured-logging.timestamp-format` | **YES** | - | Use `epoch-seconds` for PostgreSQL compatibility |
+| `quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled` | **YES** | - | Create console handler for raw JSON output |
+| `quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format` | **YES** | - | Use `%s%n` for raw output (no formatting) |
+| `quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers` | **YES** | - | Route to `FLOW_EVENTS_CONSOLE` only |
+| `quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers` | **YES** | `true` | Set to `false` to prevent duplicate output |
+| `quarkus.flow.structured-logging.include-workflow-payloads` | No | `true` | Include workflow input/output |
+| `quarkus.flow.structured-logging.include-task-payloads` | No | `false` | Include task input/output (verbose) |
+
+**CRITICAL Notes:**
+- ⚠️ Use `io.quarkiverse.flow.structuredlogging` (not `io.quarkiverse.flow`) for log category
+- ⚠️ Setting DEBUG on `io.quarkiverse.flow` will cause problems - be specific!
+- ⚠️ Use `epoch-seconds` timestamp format for PostgreSQL compatibility
+- ⚠️ Route to separate console handler to output raw JSON (not formatted logs)
 
 #### `src/main/resources/application-kubernetes.properties` (Kubernetes deployment configuration)
 
@@ -116,15 +173,20 @@ See [Quarkus Kubernetes Extension Guide](https://quarkus.io/guides/deploying-to-
 #### `src/main/resources/application-prod.properties` (Production runtime configuration)
 
 ```properties
+#
 # Production runtime settings
+#
 quarkus.log.level=INFO
-quarkus.log.category."io.quarkiverse.flow".level=DEBUG
 
 # HTTP configuration
 quarkus.http.port=8080
 
 # Add your production-specific settings here
 # (database connections, external services, etc.)
+
+# NOTE: Do NOT set log level for 'io.quarkiverse.flow' here
+# Structured logging configuration is in application.properties
+# Setting DEBUG on 'io.quarkiverse.flow' will cause issues
 ```
 
 ### Step 3: Verify Event Output Locally
@@ -357,11 +419,34 @@ cd my-workflows
 # ... (create workflow classes, etc.)
 
 # 3. Configure for KIND
-cat >> src/main/resources/application.properties <<EOF
+cat > src/main/resources/application.properties <<EOF
 quarkus.application.name=my-workflows
+quarkus.http.port=8080
+
+# Quarkus Flow structured logging (REQUIRED)
 quarkus.flow.structured-logging.enabled=true
 quarkus.flow.structured-logging.events=workflow.*
 quarkus.flow.structured-logging.include-workflow-payloads=true
+quarkus.flow.structured-logging.include-task-payloads=false
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+quarkus.flow.structured-logging.log-level=INFO
+
+# Console handler for raw JSON output (REQUIRED)
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled=true
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
+
+# Route structured logging to console (REQUIRED)
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
+
+# Console logging for app logs
+quarkus.log.console.enabled=true
+quarkus.log.console.format=%d{HH:mm:ss} %-5p [%c{2.}] %s%e%n
+quarkus.log.level=INFO
+
+# Health checks
+quarkus.smallrye-health.ui.enabled=true
 EOF
 
 cat > src/main/resources/application-kubernetes.properties <<EOF
@@ -592,7 +677,15 @@ To debug event structure:
 
 ```bash
 # View workflow pod logs with JSON events
-kubectl logs -n workflows -l app=my-workflow-app | grep eventType | jq .
+kubectl logs -n workflows -l app.kubernetes.io/name=my-workflow-app | grep eventType | jq .
+
+# Expected output (raw JSON, not formatted):
+# {"eventType":"io.serverlessworkflow.workflow.started.v1","instanceId":"...","timestamp":1777298129.919818,...}
+
+# If you see formatted logs instead of raw JSON, check:
+# 1. Console handler format: should be %s%n (not %d{HH:mm:ss} %-5p ...)
+# 2. use-parent-handlers: should be false
+# 3. Log category: should be 'io.quarkiverse.flow.structuredlogging' (not 'io.quarkiverse.flow')
 
 # View FluentBit processed events
 kubectl logs -n logging -l app=workflows-fluent-bit-mode1 | grep _flow_event | jq .
@@ -610,6 +703,12 @@ kubectl logs -n logging -l app=workflows-fluent-bit-mode1 | grep _flow_event | j
 |----------|-------|-------------|
 | `quarkus.flow.structured-logging.enabled` | `true` | Enable JSON event logging |
 | `quarkus.flow.structured-logging.events` | `workflow.*` | Which events to emit |
+| `quarkus.flow.structured-logging.timestamp-format` | `epoch-seconds` | **CRITICAL**: PostgreSQL compatibility |
+| `quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled` | `true` | Create console handler for raw JSON |
+| `quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format` | `%s%n` | Raw output format (no formatting) |
+| `quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers` | `FLOW_EVENTS_CONSOLE` | Route to JSON console handler |
+| `quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers` | `false` | Prevent duplicate output |
+| `quarkus.log.category."io.quarkiverse.flow.structuredlogging".level` | `INFO` | **CRITICAL**: Use specific package, not `io.quarkiverse.flow` |
 
 #### Kubernetes Deployment Properties (application-kubernetes.properties)
 
@@ -635,6 +734,17 @@ kubectl logs -n logging -l app=workflows-fluent-bit-mode1 | grep _flow_event | j
 - [Quarkus Flow Properties](https://docs.quarkiverse.io/quarkus-flow/dev/index.html)
 - [Quarkus Kubernetes Extension](https://quarkus.io/guides/deploying-to-kubernetes)
 - [Quarkus Container Image](https://quarkus.io/guides/container-image)
+
+### ⚠️ Common Configuration Mistakes
+
+| ❌ **WRONG** | ✅ **CORRECT** | Why |
+|-------------|---------------|-----|
+| `quarkus.log.category."io.quarkiverse.flow".level=DEBUG` | `quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO` | Setting DEBUG on whole package causes issues |
+| Missing `timestamp-format=epoch-seconds` | `quarkus.flow.structured-logging.timestamp-format=epoch-seconds` | PostgreSQL expects Unix epoch timestamps |
+| Missing console handler | `quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".*` | Structured events need raw JSON output |
+| `use-parent-handlers=true` | `use-parent-handlers=false` | Prevents duplicate/formatted output |
+| Wrong namespace | `quarkus.kubernetes.namespace=workflows` | FluentBit collects from `workflows` namespace |
+| Missing `QUARKUS_PROFILE=prod` | `quarkus.kubernetes.env.vars.QUARKUS_PROFILE=prod` | Prevents kubernetes profile at runtime |
 
 ---
 
