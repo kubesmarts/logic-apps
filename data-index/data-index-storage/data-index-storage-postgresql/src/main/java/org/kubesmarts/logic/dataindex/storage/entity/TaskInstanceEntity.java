@@ -26,6 +26,7 @@ import org.hibernate.type.SqlTypes;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
@@ -132,6 +133,15 @@ public class TaskInstanceEntity extends AbstractEntity {
     private JsonNode output;
 
     /**
+     * Error information if task failed.
+     * <p>Source: error object from workflow.task.faulted event
+     * <p>Extracted by trigger from: data->'error'
+     * <p>Stored in error_* columns
+     */
+    @Embedded
+    private ErrorEntity error;
+
+    /**
      * Record creation timestamp.
      * <p>Auto-populated by database trigger when row is inserted
      */
@@ -229,6 +239,14 @@ public class TaskInstanceEntity extends AbstractEntity {
         this.output = output;
     }
 
+    public ErrorEntity getError() {
+        return error;
+    }
+
+    public void setError(ErrorEntity error) {
+        this.error = error;
+    }
+
     public ZonedDateTime getCreatedAt() {
         return createdAt;
     }
@@ -280,6 +298,7 @@ public class TaskInstanceEntity extends AbstractEntity {
                 ", status='" + status + '\'' +
                 ", start=" + start +
                 ", end=" + end +
+                ", error=" + error +
                 '}';
     }
 }
