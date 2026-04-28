@@ -25,11 +25,11 @@ MODE=postgresql ./install-dependencies.sh
 # 2. Deploy Data Index service
 ./deploy-data-index.sh postgresql
 
-# 3. Deploy FluentBit DaemonSet (MODE 1)
-cd ../fluentbit/mode1-postgresql-triggers
-./generate-configmap.sh
-kubectl apply -f kubernetes/configmap.yaml
-kubectl apply -f kubernetes/daemonset.yaml
+# 3. Deploy FluentBit DaemonSet (PostgreSQL mode)
+cd ../fluentbit
+./generate-configmap.sh mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml
+kubectl apply -f mode1-postgresql-triggers/kubernetes/configmap.yaml
+kubectl apply -f mode1-postgresql-triggers/kubernetes/daemonset.yaml
 ----
 
 == Verify Installation

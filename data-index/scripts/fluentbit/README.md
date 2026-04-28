@@ -27,44 +27,24 @@ Data Index GraphQL API
 
 **Status**: ✅ Production Ready
 
-**Pipeline**: FluentBit → PostgreSQL raw tables → BEFORE INSERT triggers → Normalized tables → GraphQL API
+**Pipeline**: FluentBit → PostgreSQL raw tables → Real-time normalization → GraphQL API
 
-**Architecture:**
+**How it works:**
+1. FluentBit tails Kubernetes container logs (`/var/log/containers/*_workflows_*.log`)
+2. Parses structured JSON events from Quarkus Flow
+3. Routes workflow and task events using Lua script
+4. Inserts events into PostgreSQL as raw JSONB
+5. Events are normalized in real-time (< 1ms latency)
+6. Data Index GraphQL API serves normalized data
 
-FluentBit's [PostgreSQL output](https://docs.fluentbit.io/manual/data-pipeline/outputs/postgresql) requires pre-defined schemas. We use:
-
-1. **Raw tables** - Fixed schema (`tag`, `time`, `data JSONB`) for FluentBit
-2. **Triggers** - Extract fields from JSONB, normalize in real-time
-
-See [PostgreSQL Mode Architecture](../../data-index-docs/modules/ROOT/pages/architecture/postgresql-mode.adoc) for details.
-
-#### How it works:
-1. FluentBit tails `/var/log/containers/*_workflows_*.log` (Kubernetes container logs)
-2. Parses CRI format and extracts JSON events
-3. Routes events by type (workflow vs task) using Lua script
-4. Inserts into `workflow_events_raw` or `task_events_raw` (tag, time, data JSONB)
-5. PostgreSQL BEFORE INSERT triggers fire immediately (< 1ms):
-   - Extract fields from JSONB
-   - UPSERT into normalized tables (`workflow_instances`, `task_instances`)
-   - Handle out-of-order events with COALESCE
-6. GraphQL API queries normalized tables via JPA
-
-#### Pros:
-- ✅ Real-time normalization (< 1ms trigger execution)
-- ✅ No Event Processor service needed
-- ✅ Idempotent (handles duplicates and out-of-order events)
+**Benefits:**
+- ✅ Real-time event processing
+- ✅ Handles duplicates and out-of-order events
 - ✅ Raw events preserved for debugging
-- ✅ Simple architecture
+- ✅ Simple, reliable architecture
 - ✅ ACID transaction guarantees
-- ✅ Works within FluentBit's output plugin constraints
 
-#### Cons:
-- ⚠️ PostgreSQL-specific (trigger logic not portable)
-- ⚠️ Throughput limited to ~50K workflows/day
-- ⚠️ Schema changes require trigger updates
-- ⚠️ Normalization logic in SQL (harder to test than application code)
-
-**Use case**: Production deployments with moderate throughput, local development
+**Use case**: Production deployments with moderate throughput (~50K workflows/day), local development
 
 **Configuration files**:
 - `fluent-bit.conf` - Input (tail), filters (Lua), output (PostgreSQL)
@@ -80,28 +60,20 @@ See [PostgreSQL Mode Architecture](../../data-index-docs/modules/ROOT/pages/arch
 
 **Status**: 📋 Planned (backend not yet implemented)
 
-**Pipeline**: FluentBit → Elasticsearch raw indices → ES Transform → Normalized indices → GraphQL API
+**Pipeline**: FluentBit → Elasticsearch raw indices → Normalization → GraphQL API
 
-**How it works**:
-1. FluentBit tails container logs
-2. Parses JSON events
-3. Sends to Elasticsearch raw indices (`workflow-events`, `task-events`)
-4. Elasticsearch Transform (Painless scripts) processes asynchronously (~1s):
-   - Aggregate events by instance ID
-   - Extract and normalize fields
-   - Write to normalized indices (`workflow-instances`, `task-executions`)
-5. GraphQL API queries normalized indices via Elasticsearch client
+**How it works:**
+1. FluentBit tails Kubernetes container logs
+2. Parses structured JSON events from Quarkus Flow
+3. Sends events to Elasticsearch raw indices
+4. Events are normalized asynchronously (~1s latency)
+5. Data Index GraphQL API serves normalized data
 
-**Pros**:
+**Benefits:**
 - ✅ Full-text search capabilities
 - ✅ High throughput (100K+ workflows/day)
 - ✅ Horizontal scalability
 - ✅ Event history preserved
-
-**Cons**:
-- ⚠️ Higher complexity (ES cluster, transforms)
-- ⚠️ Transform latency (~1s)
-- ⚠️ Eventual consistency (no ACID)
 
 **Use case**: Production deployments requiring full-text search or high throughput
 
@@ -115,31 +87,32 @@ See [PostgreSQL Mode Architecture](../../data-index-docs/modules/ROOT/pages/arch
 # From data-index/scripts/fluentbit/
 
 # Deploy PostgreSQL mode
-./deploy-fluentbit.sh postgresql
+./deploy-fluentbit.sh mode1-postgresql-triggers
 
 # Deploy Elasticsearch mode (when available)
-./deploy-fluentbit.sh elasticsearch
+./deploy-fluentbit.sh mode2-elasticsearch
 ```
 
 The helper script:
-1. Generates ConfigMap from source files (`generate-configmap.sh`)
+1. Generates ConfigMap from source files (includes fluent-bit.conf, parsers.conf, and Lua scripts)
 2. Applies ConfigMap to `logging` namespace
 3. Deploys DaemonSet
 
 ### Manual Deployment
 
 ```bash
+# From data-index/scripts/fluentbit/
+
 # 1. Generate ConfigMap from source files
-cd mode1-postgresql-triggers
-../generate-configmap.sh
+./generate-configmap.sh mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml
 
 # 2. Apply to Kubernetes
-kubectl apply -f kubernetes/configmap.yaml
-kubectl apply -f kubernetes/daemonset.yaml
+kubectl apply -f mode1-postgresql-triggers/kubernetes/configmap.yaml
+kubectl apply -f mode1-postgresql-triggers/kubernetes/daemonset.yaml
 
 # 3. Verify
 kubectl get pods -n logging
-kubectl logs -n logging -l app=workflows-fluent-bit
+kubectl logs -n logging -l app=workflows-fluent-bit-mode1
 ```
 
 ## Configuration Files

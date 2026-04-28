@@ -248,7 +248,7 @@ Response:
   },
   "output": {
     "completed": true,
-    "mode": "Mode 1: PostgreSQL Polling"
+    "mode": "PostgreSQL"
   }
 }
 ----

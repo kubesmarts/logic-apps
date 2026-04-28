@@ -183,7 +183,7 @@ Data Index is **read-only**. It does NOT:
 * ❌ Modify workflow state
 * ❌ Provide workflow management (start/stop/retry)
 * ❌ Store workflow definitions
-* ❌ Use polling (storage-native normalization)
+* ❌ Require an Event Processor service (uses real-time normalization)
 ====
 
 == Choosing a Storage Backend

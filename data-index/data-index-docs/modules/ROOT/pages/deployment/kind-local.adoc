@@ -337,14 +337,14 @@ Run the complete test suite:
 1. Workflow execution triggers events
 2. FluentBit collects events from container logs
 3. PostgreSQL receives raw events
-4. Triggers normalize events to workflow_instances and task_instances
+4. Events are normalized in real-time to workflow_instances and task_instances
 5. GraphQL API returns normalized data
 
 **Test output example:**
 
 [source,text]
 ----
-[INFO] Testing MODE 1 (PostgreSQL Triggers) end-to-end
+[INFO] Testing PostgreSQL mode end-to-end
 [STEP] Executing test workflow...
 [INFO] ✓ Workflow executed
 [STEP] Waiting for event propagation (10s)...
@@ -359,7 +359,7 @@ Run the complete test suite:
 [STEP] Querying GraphQL API...
 [INFO] ✓ GraphQL returned workflow data
 [INFO] ========================================
-[INFO] MODE 1 End-to-End Test: PASSED
+[INFO] PostgreSQL Mode End-to-End Test: PASSED
 [INFO] ========================================
 ----
 

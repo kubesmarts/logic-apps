@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# MODE 1 End-to-End Integration Test
+# PostgreSQL Mode End-to-End Integration Test
 #
 # Tests complete flow:
-#   Quarkus Flow → stdout → K8s logs → FluentBit → PostgreSQL (triggers) → GraphQL
+#   Quarkus Flow → stdout → K8s logs → FluentBit → PostgreSQL → GraphQL
 #
 # Verifies:
 #   - Event collection from stdout
 #   - CRI parser for containerd
-#   - PostgreSQL trigger normalization
-#   - Idempotency (V2 migration)
+#   - Real-time event normalization
+#   - Idempotency
 #   - Out-of-order event handling
 #
 
@@ -135,9 +135,9 @@ run_migrations() {
     log_info "✓ Migrations applied successfully"
 }
 
-# Step 5: Deploy FluentBit MODE 1
+# Step 5: Deploy FluentBit (PostgreSQL mode)
 deploy_fluentbit() {
-    log_step "Deploying FluentBit MODE 1..."
+    log_step "Deploying FluentBit (PostgreSQL mode)..."
 
     # Generate ConfigMap from source files to temp file
     TEMP_CONFIGMAP=$(mktemp)
@@ -169,9 +169,8 @@ deploy_data_index() {
 
     cd "${PROJECT_ROOT}"
 
-    # Build with Maven using PostgreSQL profile (production: no Flyway)
-    mvn package -pl data-index-service -am \
-        -Dquarkus.profile=postgresql \
+    # Build with Maven (production: no Flyway)
+    mvn package -pl data-index/data-index-service/data-index-service-postgresql -am \
         -Dquarkus.container-image.build=true \
         -DskipFlyway=true \
         -DskipTests -q
@@ -337,7 +336,7 @@ test_idempotency() {
 print_summary() {
     echo ""
     log_info "=========================================="
-    log_info "MODE 1 E2E Test Results"
+    log_info "PostgreSQL Mode E2E Test Results"
     log_info "=========================================="
     echo ""
 
@@ -382,7 +381,7 @@ print_summary() {
 # Main execution
 main() {
     log_info "=========================================="
-    log_info "MODE 1 End-to-End Integration Test"
+    log_info "PostgreSQL Mode End-to-End Integration Test"
     log_info "=========================================="
     echo ""
 

@@ -143,7 +143,7 @@ build_image() {
 
     # Build with Maven using profile-based approach
     log_info "Building data-index-service-${MODE} module..."
-    mvn clean package -pl data-index-service/data-index-service-${MODE} -am \
+    mvn clean package -pl data-index/data-index-service/data-index-service-${MODE} -am \
         -Dquarkus.container-image.build=true \
         -DskipFlyway=true \
         -DskipTests -q

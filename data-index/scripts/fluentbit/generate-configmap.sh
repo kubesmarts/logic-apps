@@ -9,8 +9,8 @@
 #   ./generate-configmap.sh <mode-directory> [output-file]
 #
 # Example:
-#   ./generate-configmap.sh mode1-postgresql-polling
-#   ./generate-configmap.sh mode1-postgresql-polling kubernetes/configmap.yaml
+#   ./generate-configmap.sh mode1-postgresql-triggers
+#   ./generate-configmap.sh mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml
 #
 # ============================================================================
 
@@ -34,8 +34,8 @@ if [ $# -lt 1 ]; then
     error "Usage: $0 <mode-directory> [output-file]"
     error ""
     error "Examples:"
-    error "  $0 mode1-postgresql-polling"
-    error "  $0 mode1-postgresql-polling kubernetes/configmap.yaml"
+    error "  $0 mode1-postgresql-triggers"
+    error "  $0 mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml"
     exit 1
 fi
 
