@@ -1,0 +1,416 @@
+= Integrate Quarkus Flow Apps with Data Index
+:page-aliases:
+
+Learn how to configure your Quarkus Flow applications to send workflow events to Data Index.
+
+== Overview
+
+To integrate your Quarkus Flow app with Data Index, you need to:
+
+1. Add Kubernetes deployment dependencies
+2. Configure structured logging to stdout
+3. Configure Kubernetes deployment properties
+4. Build and deploy to your cluster
+
+== TL;DR for KIND (Local Development)
+
+After completing the configuration below, deploy with:
+
+[source,bash]
+----
+# Build and deploy
+mvn clean package -Pkind
+
+# Load image to KIND (required - not automatic!)
+kind load docker-image local/my-workflow-app:1.0.0 --name data-index-test
+
+# Pods start automatically
+----
+
+== Step 1: Add Dependencies
+
+Add Kubernetes and container image dependencies to your `pom.xml`.
+
+=== Option A: Maven Profile (Recommended)
+
+[source,xml]
+----
+<profiles>
+  <profile>
+    <id>kind</id>
+    <properties>
+      <quarkus.profile>kind</quarkus.profile>
+    </properties>
+    <dependencies>
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-kind</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-container-image-jib</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-smallrye-health</artifactId>
+      </dependency>
+    </dependencies>
+  </profile>
+</profiles>
+----
+
+[TIP]
+====
+*Benefits of Maven Profile:*
+
+* Faster `mvn quarkus:dev` (K8s deps not loaded)
+* Smaller runtime artifact
+* Kubernetes dependencies only loaded when needed
+====
+
+=== Option B: Direct Dependencies
+
+Add directly to `<dependencies>` section if you always deploy to Kubernetes:
+
+[source,xml]
+----
+<dependencies>
+  <dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-kubernetes</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-container-image-jib</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-smallrye-health</artifactId>
+  </dependency>
+</dependencies>
+----
+
+== Step 2: Configure Structured Logging
+
+Create or update `src/main/resources/application.properties`:
+
+[source,properties]
+----
+# Application name (used in container image name)
+quarkus.application.name=my-workflow-app
+
+# Default Kubernetes deployment target
+quarkus.kubernetes.deployment-target=kubernetes
+
+# ==========================================
+# Quarkus Flow Structured Logging (REQUIRED)
+# ==========================================
+
+# Enable structured logging
+quarkus.flow.structured-logging.enabled=true
+
+# Capture all workflow and task events
+quarkus.flow.structured-logging.events=workflow.*
+
+# Include workflow input/output in events
+quarkus.flow.structured-logging.include-workflow-payloads=true
+quarkus.flow.structured-logging.include-task-payloads=false
+
+# Use epoch-seconds for PostgreSQL compatibility
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+
+# Set log level
+quarkus.flow.structured-logging.log-level=INFO
+
+# ==========================================
+# Console Handler for Structured Events
+# ==========================================
+
+# Create dedicated console handler for JSON events
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled=true
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
+
+# Route structured logging to console handler ONLY
+# CRITICAL: Use 'io.quarkiverse.flow.structuredlogging' not 'io.quarkiverse.flow'
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
+
+# Health checks
+quarkus.smallrye-health.ui.enabled=true
+----
+
+[IMPORTANT]
+====
+*Why epoch-seconds timestamp format?*
+
+FluentBit's PostgreSQL output plugin expects Unix epoch timestamps for `TIMESTAMP WITH TIME ZONE` columns. Using epoch-seconds ensures proper timestamp parsing.
+====
+
+== Step 3: Configure Kubernetes Deployment
+
+=== For KIND (Local Development)
+
+Create `src/main/resources/application-kind.properties`:
+
+[source,properties]
+----
+# KIND deployment target
+quarkus.kubernetes.deployment-target=kind
+
+# CRITICAL: namespace must be 'workflows' for default FluentBit config
+quarkus.kubernetes.namespace=workflows
+
+# Container image - use single 'image' property
+quarkus.container-image.build=true
+quarkus.container-image.image=local/${quarkus.application.name}:1.0.0
+quarkus.container-image.push=false
+
+# Enable automatic deployment to cluster
+quarkus.kubernetes.deploy=true
+
+# Image pull policy
+quarkus.kubernetes.image-pull-policy=IfNotPresent
+
+# Service type - NodePort for easy local access
+quarkus.kubernetes.service-type=NodePort
+quarkus.kubernetes.node-port=30081
+
+# Use 'prod' profile at runtime
+quarkus.kubernetes.env.vars.QUARKUS_PROFILE=prod
+
+# Resource limits
+quarkus.kubernetes.resources.requests.memory=256Mi
+quarkus.kubernetes.resources.limits.memory=512Mi
+----
+
+[WARNING]
+====
+*Manual Image Loading Required*
+
+The `quarkus-kind` extension does **NOT** automatically load images to KIND for local development. You must manually run `kind load docker-image` after building.
+====
+
+=== For Cloud (GKE/EKS/AKS)
+
+Create `src/main/resources/application-kubernetes.properties`:
+
+[source,properties]
+----
+# Cloud deployment
+quarkus.kubernetes.deployment-target=kubernetes
+quarkus.container-image.registry=gcr.io
+quarkus.container-image.group=your-gcp-project
+quarkus.container-image.push=true
+
+# Namespace
+quarkus.kubernetes.namespace=workflows
+
+# Container image
+quarkus.container-image.name=${quarkus.application.name}
+quarkus.container-image.tag=1.0.0
+quarkus.container-image.build=true
+
+# Service type
+quarkus.kubernetes.service-type=ClusterIP
+
+# Runtime profile
+quarkus.kubernetes.env.vars.QUARKUS_PROFILE=prod
+
+# Resource limits
+quarkus.kubernetes.resources.requests.memory=256Mi
+quarkus.kubernetes.resources.limits.memory=512Mi
+----
+
+== Step 4: Configure Production Runtime
+
+Create `src/main/resources/application-prod.properties`:
+
+[source,properties]
+----
+# Production runtime settings
+# Add your production-specific settings here:
+# - Database connections
+# - External service URLs
+# - Production-specific configuration
+
+# Disable file handler in Kubernetes (use console only)
+# Quarkus Flow auto-creates a file handler, but pods don't have /var/log/quarkus-flow/
+quarkus.log.handler.file."FLOW_EVENTS".enabled=false
+----
+
+[TIP]
+====
+*Why disable the file handler?*
+
+Quarkus Flow automatically creates a file handler for structured logging. In Kubernetes, pods don't have write access to `/var/log/quarkus-flow/`, causing startup errors. Disabling the file handler ensures logs only go to stdout, which FluentBit can capture.
+====
+
+== Step 5: Build and Deploy
+
+=== KIND (Local Development)
+
+[source,bash]
+----
+# 1. Ensure kubectl context is correct
+kubectl config use-context kind-data-index-test
+
+# 2. Build and deploy
+mvn clean package -Pkind
+
+# 3. Load image to KIND (REQUIRED!)
+kind load docker-image local/my-workflow-app:1.0.0 --name data-index-test
+
+# 4. Verify deployment
+kubectl get pods -n workflows
+----
+
+[NOTE]
+====
+Pods may show `ImagePullBackOff` status between steps 2 and 3. This is expected - they automatically start once the image is loaded in step 3.
+====
+
+=== Cloud (GKE/EKS/AKS)
+
+[source,bash]
+----
+# Build, push, and deploy
+mvn clean package -Dquarkus.profile=kubernetes
+
+# Verify
+kubectl get pods -n workflows
+----
+
+== Step 6: Verify Integration
+
+=== Check Application Logs
+
+Verify structured logging is working:
+
+[source,bash]
+----
+kubectl logs -n workflows -l app.kubernetes.io/name=my-workflow-app | grep eventType
+----
+
+Expected output (JSON events):
+
+[source,json]
+----
+{"instanceId":"01KQ...", "eventType":"io.serverlessworkflow.workflow.started.v1", ...}
+{"instanceId":"01KQ...", "eventType":"io.serverlessworkflow.task.started.v1", ...}
+{"instanceId":"01KQ...", "eventType":"io.serverlessworkflow.task.completed.v1", ...}
+----
+
+=== Trigger a Workflow
+
+Execute a workflow via your JAX-RS endpoint:
+
+[source,bash]
+----
+# Option 1: NodePort (KIND)
+curl -X POST http://localhost:30081/your-endpoint \
+  -H "Content-Type: application/json" \
+  -d '{"input":"data"}'
+
+# Option 2: Port-forward (all clusters)
+kubectl port-forward -n workflows svc/my-workflow-app 8080:8080 &
+curl -X POST http://localhost:8080/your-endpoint \
+  -H "Content-Type: application/json" \
+  -d '{"input":"data"}'
+----
+
+=== Query Data Index
+
+Wait 5-10 seconds for event propagation, then query:
+
+[source,bash]
+----
+# Port-forward to Data Index
+kubectl port-forward -n data-index svc/data-index-service 8080:8080 &
+
+# Query workflow instances
+curl -s http://localhost:8080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ getWorkflowInstances { id name status taskExecutions { taskPosition status } } }"}' \
+  | jq .
+----
+
+Expected response:
+
+[source,json]
+----
+{
+  "data": {
+    "getWorkflowInstances": [
+      {
+        "id": "01KQ...",
+        "name": "your-workflow-name",
+        "status": "COMPLETED",
+        "taskExecutions": [...]
+      }
+    ]
+  }
+}
+----
+
+== Property Files Summary
+
+[cols="1,2,2"]
+|===
+|File |Purpose |Key Settings
+
+|`application.properties`
+|Common config (all profiles)
+|`quarkus.application.name` +
+`quarkus.flow.structured-logging.*` +
+Console handlers for JSON output
+
+|`application-kind.properties`
+|KIND build-time config
+|`quarkus.kubernetes.namespace=workflows` +
+`quarkus.kubernetes.env.vars.QUARKUS_PROFILE=prod` +
+Container image settings
+
+|`application-prod.properties`
+|Runtime production config
+|Production-specific settings +
+Disable file handler
+
+|===
+
+== Common Mistakes
+
+[cols="1,3"]
+|===
+|Mistake |Solution
+
+|Wrong log category
+|Use `io.quarkiverse.flow.structuredlogging` not `io.quarkiverse.flow`
+
+|Missing timestamp format
+|Must set `timestamp-format=epoch-seconds`
+
+|Missing console handler
+|Need `FLOW_EVENTS_CONSOLE` handler for raw JSON output
+
+|Building without profile
+|Use `mvn package -Pkind` or `-Dquarkus.profile=kubernetes`
+
+|Wrong namespace
+|Must be `workflows` (or update FluentBit config)
+
+|Missing QUARKUS_PROFILE=prod
+|Add to Kubernetes env vars in properties
+
+|Not waiting for propagation
+|Events take 5-10 seconds to reach Data Index
+
+|Forgetting kind load
+|`quarkus-kind` does NOT auto-load images locally
+|===
+
+== Next Steps
+
+* xref:developers/configuration.adoc#_structured_logging[Learn more about structured logging]
+* xref:developers/troubleshooting.adoc[Troubleshooting guide]
+* xref:api/graphql-overview.adoc[GraphQL API reference]

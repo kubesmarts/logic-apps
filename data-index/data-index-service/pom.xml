@@ -37,30 +37,23 @@
   </properties>
 
   <dependencies>
-    <!-- Domain models -->
+    <!-- Domain models (common across all backends) -->
     <dependency>
       <groupId>org.kubesmarts.logic.apps</groupId>
       <artifactId>data-index-model</artifactId>
     </dependency>
 
-    <!-- Storage -->
+    <!-- Documentation (served at /docs) -->
     <dependency>
       <groupId>org.kubesmarts.logic.apps</groupId>
-      <artifactId>data-index-storage-postgresql</artifactId>
+      <artifactId>data-index-docs</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
-    <!-- Quarkus -->
+    <!-- Quarkus core -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-arc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-hibernate-orm</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-jdbc-postgresql</artifactId>
     </dependency>
 
     <!-- SmallRye GraphQL -->
@@ -73,12 +66,6 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-rest</artifactId>
-    </dependency>
-
-    <!-- Flyway - for schema migrations -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-flyway</artifactId>
     </dependency>
 
     <!-- Health checks -->
@@ -111,11 +98,93 @@
     </dependency>
   </dependencies>
 
+  <profiles>
+    <!-- PostgreSQL Backend - Production Ready (MODE 1) -->
+    <profile>
+      <id>postgresql</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+        <property>
+          <name>quarkus.profile</name>
+          <value>postgresql</value>
+        </property>
+      </activation>
+      <dependencies>
+        <!-- PostgreSQL storage implementation -->
+        <dependency>
+          <groupId>org.kubesmarts.logic.apps</groupId>
+          <artifactId>data-index-storage-postgresql</artifactId>
+        </dependency>
+
+        <!-- Quarkus PostgreSQL -->
+        <dependency>
+          <groupId>io.quarkus</groupId>
+          <artifactId>quarkus-hibernate-orm</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>io.quarkus</groupId>
+          <artifactId>quarkus-jdbc-postgresql</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <!-- Development: Flyway Migrations (PostgreSQL only) -->
+    <profile>
+      <id>dev-flyway</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+        <property>
+          <name>!skipFlyway</name>
+        </property>
+      </activation>
+      <dependencies>
+        <!-- Database migrations (Flyway SQL scripts) -->
+        <dependency>
+          <groupId>org.kubesmarts.logic.apps</groupId>
+          <artifactId>data-index-storage-migrations</artifactId>
+        </dependency>
+
+        <!-- Flyway for schema migrations (dev/test only) -->
+        <dependency>
+          <groupId>io.quarkus</groupId>
+          <artifactId>quarkus-flyway</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <!-- Elasticsearch Backend - Not Implemented Yet (MODE 2) -->
+    <profile>
+      <id>elasticsearch</id>
+      <activation>
+        <property>
+          <name>quarkus.profile</name>
+          <value>elasticsearch</value>
+        </property>
+      </activation>
+      <dependencies>
+        <!-- Elasticsearch storage implementation (future) -->
+        <dependency>
+          <groupId>org.kubesmarts.logic.apps</groupId>
+          <artifactId>data-index-storage-elasticsearch</artifactId>
+        </dependency>
+
+        <!-- Quarkus Elasticsearch -->
+        <!-- TODO: Add when implementing MODE 2
+        <dependency>
+          <groupId>io.quarkus</groupId>
+          <artifactId>quarkus-elasticsearch-rest-client</artifactId>
+        </dependency>
+        -->
+      </dependencies>
+    </profile>
+  </profiles>
+
   <build>
     <plugins>
       <plugin>
         <groupId>io.quarkus</groupId>
         <artifactId>quarkus-maven-plugin</artifactId>
+        <extensions>true</extensions>
         <executions>
           <execution>
             <goals>

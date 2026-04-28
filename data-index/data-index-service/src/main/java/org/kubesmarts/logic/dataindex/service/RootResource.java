@@ -4,8 +4,10 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
@@ -15,7 +17,7 @@ import java.util.Properties;
 @Path("/")
 public class RootResource {
 
-    private String version;
+    private final String version;
     private String gitCommit;
 
     public RootResource() {
@@ -46,17 +48,10 @@ public class RootResource {
     }
 
     @GET
-    @Path("ui")
-    @Produces(MediaType.TEXT_HTML)
-    public String ui() {
-        return index();
-    }
-
-    @GET
-    @Path("test")
-    @Produces(MediaType.TEXT_PLAIN)
-    public String test() {
-        return "Test endpoint works!";
+    @Path("docs")
+    public Response docs() {
+        // Redirect /docs to /docs/ (with trailing slash)
+        return Response.seeOther(URI.create("/docs/")).build();
     }
 
     private String index() {

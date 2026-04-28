@@ -167,57 +167,6 @@
             color: #fff;
         }
 
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .info-box {
-            background: #1a1a1a;
-            border: 1px solid #3c3f42;
-            padding: 1.5rem;
-        }
-
-        .info-box h3 {
-            margin: 0 0 1rem 0;
-            font-size: 1rem;
-            font-weight: 500;
-            color: #f0f0f0;
-        }
-
-        .info-box ul {
-            margin: 0;
-            padding-left: 1.25rem;
-            color: #d2d2d2;
-        }
-
-        .info-box li {
-            margin-bottom: 0.5rem;
-            line-height: 1.5;
-        }
-
-        .info-box code {
-            background: #0f0f0f;
-            color: #73bcf7;
-            padding: 0.125rem 0.375rem;
-            border-radius: 2px;
-            font-size: 0.875em;
-            font-family: 'Liberation Mono', 'Consolas', 'Courier New', monospace;
-        }
-
-        .architecture-diagram {
-            background: #0f0f0f;
-            border: 1px solid #3c3f42;
-            padding: 1.5rem;
-            font-family: 'Liberation Mono', 'Consolas', 'Courier New', monospace;
-            font-size: 0.875rem;
-            line-height: 1.8;
-            color: #d2d2d2;
-            overflow-x: auto;
-        }
-
         .footer {
             background: #212121;
             border-top: 1px solid #3c3f42;
@@ -260,7 +209,7 @@
         </div>
 
         <section class="section">
-            <h3 class="section-title">API Endpoints</h3>
+            <h3 class="section-title">Quick Links</h3>
             <div class="endpoints-grid">
                 <div class="endpoint-card">
                     <div class="endpoint-header">
@@ -277,9 +226,18 @@
                 <div class="endpoint-card">
                     <div class="endpoint-header">
                         <span class="endpoint-method">GET</span>
+                        <span class="endpoint-path">/docs</span>
+                    </div>
+                    <div class="endpoint-desc">Complete documentation - getting started, deployment guides, API reference, and architecture</div>
+                    <a href="/docs" class="btn-link" target="_blank">View Documentation</a>
+                </div>
+
+                <div class="endpoint-card">
+                    <div class="endpoint-header">
+                        <span class="endpoint-method">GET</span>
                         <span class="endpoint-path">/q/health</span>
                     </div>
-                    <div class="endpoint-desc">Health check and readiness probes</div>
+                    <div class="endpoint-desc">Health check and readiness probes for Kubernetes deployments</div>
                     <a href="/q/health" class="btn-link btn-secondary" target="_blank">View Health</a>
                 </div>
 
@@ -288,70 +246,11 @@
                         <span class="endpoint-method">GET</span>
                         <span class="endpoint-path">/q/metrics</span>
                     </div>
-                    <div class="endpoint-desc">Prometheus metrics endpoint</div>
+                    <div class="endpoint-desc">Prometheus metrics endpoint for monitoring</div>
                     <a href="/q/metrics" class="btn-link btn-secondary" target="_blank">View Metrics</a>
                 </div>
             </div>
         </section>
-
-        <section class="section">
-            <h3 class="section-title">Architecture</h3>
-            <div class="architecture-diagram">
-                <pre>Quarkus Flow App
-    ↓ (stdout - JSON events)
-Kubernetes /var/log/containers/
-    ↓ (FluentBit DaemonSet)
-PostgreSQL Raw Tables
-    ↓ (BEFORE INSERT Triggers)
-PostgreSQL Normalized Tables
-    ↓ (JPA / GraphQL)
-Data Index GraphQL API</pre>
-            </div>
-        </section>
-
-        <div class="info-grid">
-            <div class="info-box">
-                <h3>Data Model</h3>
-                <p><strong>WorkflowInstance</strong></p>
-                <ul>
-                    <li><code>id</code> - Instance ID (ULID)</li>
-                    <li><code>namespace</code>, <code>name</code> - Identity</li>
-                    <li><code>status</code> - RUNNING | COMPLETED | FAULTED</li>
-                    <li><code>startDate</code>, <code>endDate</code> - Lifecycle</li>
-                    <li><code>input</code>, <code>output</code> - Data (JSONB)</li>
-                </ul>
-                <p><strong>TaskExecution</strong></p>
-                <ul>
-                    <li><code>id</code> - Execution ID</li>
-                    <li><code>taskName</code>, <code>taskPosition</code></li>
-                    <li><code>status</code> - RUNNING | COMPLETED | FAULTED</li>
-                    <li><code>workflowInstance</code> - Parent reference</li>
-                </ul>
-            </div>
-
-            <div class="info-box">
-                <h3>Key Features</h3>
-                <ul>
-                    <li>Real-time workflow execution visibility</li>
-                    <li>GraphQL API with filtering and pagination</li>
-                    <li>Trigger-based data normalization</li>
-                    <li>Idempotent event processing</li>
-                    <li>Out-of-order event handling</li>
-                    <li>Event replay safety</li>
-                </ul>
-            </div>
-
-            <div class="info-box">
-                <h3>Available Queries</h3>
-                <ul>
-                    <li><code>getWorkflowInstances</code></li>
-                    <li><code>getWorkflowInstance(id: String!)</code></li>
-                    <li><code>getTaskExecutions</code></li>
-                    <li><code>getTaskExecution(id: String!)</code></li>
-                    <li><code>getTaskExecutionsByWorkflowInstance</code></li>
-                </ul>
-            </div>
-        </div>
 
     </main>
 
@@ -364,6 +263,7 @@ Data Index GraphQL API</pre>
         </p>
         <p style="margin-top: 0.5rem;">
             <a href="https://github.com/kubesmarts/logic-apps" target="_blank">GitHub</a> |
+            <a href="/docs" target="_blank">Documentation</a> |
             <a href="https://github.com/quarkiverse/quarkus-flow" target="_blank">Quarkus Flow</a> |
             <a href="https://serverlessworkflow.io/" target="_blank">SW Spec</a>
         </p>

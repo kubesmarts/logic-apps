@@ -1,0 +1,184 @@
+= Deployment Overview
+:page-aliases:
+
+Data Index can be deployed with two storage backends depending on your requirements.
+
+== Deployment Architecture
+
+All deployments share the same core architecture:
+
+1. **Quarkus Flow applications** emit structured logging events
+2. **FluentBit** collects and forwards events
+3. **Storage backend** (PostgreSQL or Elasticsearch) stores and normalizes events
+4. **Data Index service** provides GraphQL API
+
+== Storage Backend Options
+
+=== PostgreSQL Mode
+
+[cols="1,3"]
+|===
+|Status |✅ Production Ready
+|Storage |PostgreSQL with JSONB columns
+|Processing |BEFORE INSERT triggers (real-time)
+|Latency |< 1ms normalization, 5-10s end-to-end
+|Throughput |< 50K workflows/day
+|Use Case |Production deployments, local development, ACID transactions
+|===
+
+**Data Flow:**
+
+[source,text]
+----
+Quarkus Flow → FluentBit → PostgreSQL (raw tables)
+                                ↓ (triggers)
+                            PostgreSQL (normalized tables)
+                                ↓ (JPA)
+                            GraphQL API
+----
+
+**Best for:**
+
+* Production Kubernetes deployments
+* Local development with KIND
+* When ACID transactions are required
+* When PostgreSQL is already in your stack
+* Moderate throughput (< 50K workflows/day)
+
+**Deployment guide:** xref:deployment/postgresql.adoc[PostgreSQL Deployment]
+
+=== Elasticsearch Mode
+
+[cols="1,3"]
+|===
+|Status |✅ Production Ready
+|Storage |Elasticsearch indices
+|Processing |ES Transform (asynchronous)
+|Latency |~1s normalization, 5-10s end-to-end
+|Throughput |100K+ workflows/day
+|Use Case |Full-text search, high throughput, analytics
+|===
+
+**Data Flow:**
+
+[source,text]
+----
+Quarkus Flow → FluentBit → Elasticsearch (raw indices)
+                                ↓ (ES Transform)
+                            Elasticsearch (normalized indices)
+                                ↓ (ES Client)
+                            GraphQL API
+----
+
+**Best for:**
+
+* Full-text search across workflow data
+* High-throughput deployments (>50K workflows/day)
+* Analytics and aggregations
+* When Elasticsearch is already in your stack
+* Horizontal scaling requirements
+
+**Deployment guide:** xref:deployment/elasticsearch.adoc[Elasticsearch Deployment]
+
+== Choosing a Storage Backend
+
+[cols="2,2,2"]
+|===
+|Requirement |PostgreSQL |Elasticsearch
+
+|**Production Ready**
+|✅ Yes
+|✅ Yes
+
+|**Normalization Latency**
+|< 1ms (triggers)
+|~1s (ES Transform)
+
+|**Consistency**
+|ACID transactions
+|Eventual consistency
+
+|**Full-text Search**
+|⚠️ Limited (basic LIKE queries)
+|✅ Excellent (full Lucene)
+
+|**Throughput**
+|< 50K workflows/day
+|100K+ workflows/day
+
+|**Complexity**
+|⭐⭐ Medium
+|⭐⭐⭐ Higher
+
+|**Scaling**
+|Vertical (single writer)
+|Horizontal (distributed cluster)
+
+|**Use PostgreSQL if:**
+2+|You need ACID transactions, have moderate throughput, or want simpler deployment
+
+|**Use Elasticsearch if:**
+2+|You need full-text search, have high throughput, or want horizontal scaling
+
+|===
+
+== Infrastructure Requirements
+
+=== PostgreSQL Mode Requirements
+
+**Kubernetes cluster:**
+
+* Kubernetes 1.24+
+* `kubectl` access
+* Namespaces: `data-index`, `postgresql`, `logging`, `workflows`
+
+**PostgreSQL:**
+
+* PostgreSQL 13+
+* PersistentVolume (for production)
+* Accessible from Data Index service and FluentBit
+
+**FluentBit:**
+
+* FluentBit 2.0+
+* Deployed as DaemonSet
+* Access to `/var/log/containers/` on nodes
+
+**Data Index service:**
+
+* Quarkus 3.x
+* JVM 17+
+* 512Mi-1Gi memory recommended
+
+=== Elasticsearch Mode Requirements
+
+**Kubernetes cluster:**
+
+* Kubernetes 1.24+
+* `kubectl` access
+* Namespaces: `data-index`, `elasticsearch`, `logging`, `workflows`
+
+**Elasticsearch:**
+
+* Elasticsearch 7.10+
+* Cluster with at least 3 nodes (production)
+* ES Transform feature enabled
+
+**FluentBit:**
+
+* FluentBit 2.0+
+* Deployed as DaemonSet
+* Elasticsearch output plugin
+
+**Data Index service:**
+
+* Quarkus 3.x
+* JVM 17+
+* 512Mi-1Gi memory recommended
+
+== Next Steps
+
+* xref:deployment/kind-local.adoc[Deploy to KIND for local development]
+* xref:deployment/postgresql.adoc[Deploy PostgreSQL Mode]
+* xref:deployment/elasticsearch.adoc[Deploy Elasticsearch Mode]
+* xref:architecture/overview.adoc[Compare architectures in detail]

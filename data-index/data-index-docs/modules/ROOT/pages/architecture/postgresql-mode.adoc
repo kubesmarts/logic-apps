@@ -1,0 +1,190 @@
+= PostgreSQL Mode Architecture
+:page-aliases:
+
+Data Index with PostgreSQL storage uses trigger-based normalization for real-time event processing.
+
+== Architecture Diagram
+
+[source,text]
+----
+Quarkus Flow App
+    ↓ (structured logging → stdout)
+FluentBit DaemonSet
+    ↓ (tail /var/log/containers/)
+PostgreSQL Raw Tables (JSONB)
+    ↓ (BEFORE INSERT triggers)
+PostgreSQL Normalized Tables
+    ↓ (JPA/Hibernate)
+GraphQL API
+----
+
+== Data Flow
+
+1. **Quarkus Flow emits events** - JSON to stdout
+2. **Kubernetes captures logs** - `/var/log/containers/POD_NAME.log`
+3. **FluentBit collects** - Tails log files, filters JSON events
+4. **INSERT to raw tables** - `workflow_events_raw`, `task_events_raw` (JSONB columns)
+5. **Triggers fire immediately** - Extract fields from JSONB
+6. **UPSERT to normalized tables** - `workflow_instances`, `task_instances`
+7. **GraphQL queries** - Via JPA entities
+
+== Key Characteristics
+
+[cols="1,3"]
+|===
+|Characteristic |Details
+
+|**Latency**
+|< 1ms for normalization, 5-10s end-to-end
+
+|**Consistency**
+|ACID transactions, guaranteed consistency
+
+|**Throughput**
+|< 50K workflows/day (PostgreSQL write limit)
+
+|**Complexity**
+|Simple - no separate event processor service
+
+|**Search**
+|Limited - basic filtering, no full-text search
+
+|**Status**
+|✅ Production Ready
+
+|===
+
+== Trigger-Based Normalization
+
+=== Why Triggers?
+
+FluentBit's https://docs.fluentbit.io/manual/data-pipeline/outputs/postgresql[PostgreSQL output plugin^] requires a pre-defined table schema. Since workflow events have dynamic structures, we use a two-stage approach:
+
+1. **FluentBit writes to raw tables** with fixed schema (`tag`, `time`, `data JSONB`)
+2. **PostgreSQL triggers normalize** by extracting fields from JSONB
+
+**Benefits:**
+
+- Real-time processing (<1ms latency)
+- No separate event processor service
+- ACID transaction guarantees
+- Idempotent (handles out-of-order events)
+
+**Trade-offs:**
+
+- PostgreSQL-specific SQL logic
+- Limited throughput vs. Elasticsearch mode
+- Schema changes require trigger updates
+
+== Raw Tables (JSONB Storage)
+
+Raw tables use a **fixed schema** that satisfies FluentBit's output plugin requirements:
+
+[source,sql]
+----
+CREATE TABLE workflow_events_raw (
+  tag  TEXT,              -- Event type (e.g., "workflow.started")
+  time TIMESTAMP,         -- Event received timestamp
+  data JSONB              -- Complete event as JSON
+);
+
+CREATE TABLE task_events_raw (
+  tag  TEXT,
+  time TIMESTAMP,
+  data JSONB
+);
+----
+
+**Why this schema?**
+
+- **FluentBit compatible** - Fixed 3-column structure that FluentBit PostgreSQL output can write to
+- **Flexible content** - JSONB column accepts any event structure
+- **Type-based routing** - Lua script routes workflow vs task events to correct table via `tag` field
+
+**Additional benefits:**
+
+- **Debugging** - Original events preserved
+- **Replay** - Can reprocess if normalization logic changes
+- **Audit** - Complete event history
+
+== Normalized Tables
+
+Triggers extract fields from JSONB and UPSERT to normalized tables:
+
+- **workflow_instances** - One row per workflow execution
+- **task_instances** - One row per task execution
+
+**UPSERT logic** (via COALESCE):
+- **Immutable fields** - Keep first value (e.g., `start` time)
+- **Terminal fields** - Keep latest value (e.g., `end` time, `output`)
+- **Status** - Use timestamp to resolve conflicts
+
+This handles out-of-order events gracefully.
+
+== Configuration
+
+=== Quarkus Flow Application
+
+[source,properties]
+----
+# Structured logging
+quarkus.flow.structured-logging.enabled=true
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+----
+
+=== FluentBit
+
+[source,conf]
+----
+[INPUT]
+    Name              tail
+    Path              /var/log/containers/*_workflows_*.log
+    Parser            docker
+
+[FILTER]
+    Name              grep
+    Match             *
+    Regex             log {".*eventType.*}
+
+[OUTPUT]
+    Name              pgsql
+    Match             *
+    Host              postgresql
+    Database          dataindex
+    Table             workflow_events_raw
+----
+
+=== Data Index Service
+
+[source,properties]
+----
+quarkus.datasource.db-kind=postgresql
+quarkus.datasource.jdbc.url=jdbc:postgresql://postgresql:5432/dataindex
+quarkus.hibernate-orm.database.generation=none
+quarkus.flyway.migrate-at-start=true
+----
+
+== Scaling Considerations
+
+PostgreSQL mode scales well for moderate workloads:
+
+**Vertical scaling:**
+- Increase PostgreSQL instance size
+- More CPU/memory for trigger processing
+- SSD storage for write performance
+
+**Horizontal scaling:**
+- Read replicas for GraphQL queries
+- Connection pooling in Data Index service
+- Multiple Data Index instances (stateless)
+
+**Limitations:**
+- Single PostgreSQL writer (triggers can't be distributed)
+- ~50K workflows/day practical limit
+- For higher throughput, consider xref:architecture/elasticsearch-mode.adoc[Elasticsearch mode]
+
+== Next Steps
+
+* xref:deployment/postgresql.adoc[Deploy PostgreSQL Mode]
+* xref:architecture/elasticsearch-mode.adoc[Compare with Elasticsearch Mode]
+* xref:architecture/overview.adoc[Architecture Overview]

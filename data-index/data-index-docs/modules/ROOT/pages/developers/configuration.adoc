@@ -1,0 +1,666 @@
+= Configuration Reference
+:page-aliases:
+
+Complete configuration reference for Data Index service and Quarkus Flow applications.
+
+== Data Index Service Configuration
+
+=== Storage Backend Selection
+
+Data Index supports multiple storage backends selected via Quarkus profiles, which automatically activate corresponding Maven profiles to control dependencies.
+
+**PostgreSQL (default, production-ready):**
+[source,bash]
+----
+mvn quarkus:dev -Dquarkus.profile=postgresql
+----
+
+**Elasticsearch (future):**
+[source,bash]
+----
+mvn quarkus:dev -Dquarkus.profile=elasticsearch
+----
+
+**How it works:**
+
+1. **Maven Profile** (pom.xml) - Activated by `-Dquarkus.profile=<name>`, includes only relevant dependencies
+2. **Quarkus Configuration** - Separate property file per backend: `application-<profile>.properties`
+
+**Configuration files:**
+
+* `application.properties` - Common configuration (GraphQL, HTTP, health, metrics)
+* `application-postgresql.properties` - PostgreSQL-specific configuration
+* `application-elasticsearch.properties` - Elasticsearch-specific configuration (placeholder)
+
+**Maven profiles in pom.xml:**
+
+* `postgresql` profile - Includes: data-index-storage-postgresql, quarkus-hibernate-orm, quarkus-jdbc-postgresql, quarkus-flyway
+* `elasticsearch` profile - Includes: data-index-storage-elasticsearch (future)
+
+Only one storage backend's dependencies are included in the build, keeping the deployment size minimal.
+
+=== Development Mode
+
+**Quarkus Dev Services** auto-starts storage backends in Docker - no manual database setup required.
+
+**Start development with PostgreSQL:**
+[source,bash]
+----
+cd data-index/data-index-service
+mvn quarkus:dev -Dquarkus.profile=postgresql
+----
+
+**What happens automatically:**
+
+1. Maven `postgresql` profile activates → includes PostgreSQL dependencies
+2. Quarkus loads `application-postgresql.properties`
+3. Dev Services starts `postgres:15` container
+4. Flyway runs migrations from `data-index-storage-migrations`
+5. Service starts on http://localhost:8080
+6. Documentation available at http://localhost:8080/docs
+
+**Dev Services PostgreSQL configuration:**
+
+* Container: `postgres:15`
+* Database: `dataindex`
+* Username: `dataindex`
+* Password: `dataindex123`
+* Automatic schema creation via Flyway
+* Container auto-starts with dev mode, auto-stops on exit
+
+**Live coding enabled:** Code changes trigger automatic rebuild and restart.
+
+=== Production Mode
+
+**Build for production:**
+[source,bash]
+----
+# Build with postgresql backend (excludes Flyway)
+mvn clean package -Dquarkus.profile=postgresql -DskipFlyway=true -DskipTests
+
+# Result: target/quarkus-app/ (includes only PostgreSQL dependencies, no Flyway)
+----
+
+**Why skip Flyway?**
+
+* Flyway and migration SQL files are only needed in development (Dev Services)
+* Production deployments initialize schema externally (init jobs, operators)
+* Skipping Flyway reduces container image size
+* Use `-DskipFlyway=true` to exclude from build
+
+**Runtime configuration** (via environment variables):
+
+[source,bash]
+----
+# Required - overrides Dev Services
+QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgresql.postgresql.svc.cluster.local:5432/dataindex
+QUARKUS_DATASOURCE_USERNAME=dataindex
+QUARKUS_DATASOURCE_PASSWORD=***
+
+# Optional - already configured with defaults
+QUARKUS_DATASOURCE_JDBC_MAX_SIZE=20
+QUARKUS_DATASOURCE_JDBC_MIN_SIZE=5
+----
+
+**How it works:**
+
+1. When `QUARKUS_DATASOURCE_JDBC_URL` is set, Dev Services is automatically disabled
+2. Application connects to the provided PostgreSQL instance
+3. Flyway migrations must be run externally (not by the application)
+
+**Database schema management in production:**
+
+Flyway is **disabled** in production (`quarkus.flyway.migrate-at-start=true` only applies in dev mode).
+
+Use external tools:
+* Kubernetes init jobs
+* Database operators
+* Manual migration scripts
+
+See: xref:deployment/postgresql.adoc#_database_migrations[PostgreSQL Deployment - Database Migrations]
+
+=== Hibernate Configuration
+
+**Timezone:**
+
+[source,properties]
+----
+# Use UTC for all timestamp operations
+quarkus.hibernate-orm.jdbc.timezone=UTC
+----
+
+**Naming strategy:**
+
+[source,properties]
+----
+# Convert camelCase to snake_case for database columns
+quarkus.hibernate-orm.physical-naming-strategy=org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+----
+
+**Schema generation:**
+
+[source,properties]
+----
+# Never auto-generate schema (Flyway handles migrations)
+quarkus.hibernate-orm.database.generation=none
+----
+
+**Logging:**
+
+[source,properties]
+----
+# Log SQL statements (development only)
+%dev.quarkus.hibernate-orm.log.sql=true
+
+# Format SQL for readability
+%dev.quarkus.hibernate-orm.log.format-sql=true
+
+# Log bind parameters
+%dev.quarkus.hibernate-orm.log.bind-parameters=true
+----
+
+=== Flyway Migrations
+
+**Basic configuration:**
+
+[source,properties]
+----
+# Run migrations on startup
+quarkus.flyway.migrate-at-start=true
+
+# Migration location
+quarkus.flyway.locations=classpath:db/migration
+
+# Baseline version (for existing databases)
+quarkus.flyway.baseline-version=1
+quarkus.flyway.baseline-on-migrate=false
+----
+
+**Production settings:**
+
+[source,properties]
+----
+# Disable in production (use init container or job)
+%prod.quarkus.flyway.migrate-at-start=false
+
+# Enable for development
+%dev.quarkus.flyway.migrate-at-start=true
+----
+
+=== GraphQL API Configuration
+
+**Endpoint:**
+
+[source,properties]
+----
+# GraphQL endpoint path
+quarkus.smallrye-graphql.root-path=/graphql
+
+# Enable GraphiQL UI
+quarkus.smallrye-graphql.ui.always-include=true
+
+# GraphiQL UI path (browser)
+# http://localhost:8080/graphql
+----
+
+**Error handling:**
+
+[source,properties]
+----
+# Print DataFetcher exceptions to logs
+quarkus.smallrye-graphql.print-data-fetcher-exception=true
+
+# Log query and variables for debugging
+quarkus.smallrye-graphql.log-payload=queryAndVariables
+----
+
+**Field visibility:**
+
+[source,properties]
+----
+# Field visibility: DEFAULT, NO_INTROSPECTION, or NO_INTROSPECTION_OR_QUERY
+quarkus.smallrye-graphql.field-visibility=DEFAULT
+----
+
+**Performance:**
+
+[source,properties]
+----
+# Enable query complexity limits (prevent DoS)
+quarkus.smallrye-graphql.enable-get=false
+
+# Maximum query depth
+quarkus.smallrye-graphql.max-depth=15
+----
+
+=== HTTP Server Configuration
+
+**Port:**
+
+[source,properties]
+----
+# HTTP port
+quarkus.http.port=8080
+
+# HTTPS port (if SSL enabled)
+quarkus.http.ssl-port=8443
+----
+
+**Compression:**
+
+[source,properties]
+----
+# Enable HTTP compression
+quarkus.http.enable-compression=true
+----
+
+**CORS** (for browser access):
+
+[source,properties]
+----
+# Enable CORS
+quarkus.http.cors=true
+
+# Allowed origins
+quarkus.http.cors.origins=http://localhost:3000,https://my-app.com
+
+# Allowed methods
+quarkus.http.cors.methods=GET,POST,PUT,DELETE
+
+# Allowed headers
+quarkus.http.cors.headers=Content-Type,Authorization
+----
+
+=== Health Checks
+
+**Endpoints:**
+
+[source,properties]
+----
+# Liveness probe: /q/health/live
+quarkus.smallrye-health.liveness.enabled=true
+
+# Readiness probe: /q/health/ready
+quarkus.smallrye-health.readiness.enabled=true
+----
+
+**Custom checks:**
+
+Health checks automatically include:
+
+* Database connectivity (PostgreSQL ping)
+* Flyway migration status
+* Disk space
+
+=== Metrics
+
+**Prometheus metrics:**
+
+[source,properties]
+----
+# Enable metrics endpoint: /q/metrics
+quarkus.micrometer.export.prometheus.enabled=true
+
+# Include JVM metrics
+quarkus.micrometer.binder.jvm=true
+
+# Include system metrics
+quarkus.micrometer.binder.system=true
+
+# Include HTTP server metrics
+quarkus.micrometer.binder.http-server.enabled=true
+----
+
+=== Logging
+
+**Log levels:**
+
+[source,properties]
+----
+# Root log level
+quarkus.log.level=INFO
+
+# Data Index service
+quarkus.log.category."org.kubesmarts.logic.dataindex".level=DEBUG
+
+# Hibernate SQL (development)
+%dev.quarkus.log.category."org.hibernate.SQL".level=DEBUG
+%dev.quarkus.log.category."org.hibernate.type.descriptor.sql.BasicBinder".level=TRACE
+
+# GraphQL
+quarkus.log.category."io.smallrye.graphql".level=INFO
+----
+
+**Log format:**
+
+[source,properties]
+----
+# Console log format
+quarkus.log.console.format=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n
+
+# JSON logging (for log aggregation)
+quarkus.log.console.json=false
+%prod.quarkus.log.console.json=true
+----
+
+**Log file** (optional):
+
+[source,properties]
+----
+# Enable file logging
+quarkus.log.file.enable=true
+
+# Log file path
+quarkus.log.file.path=/var/log/data-index/data-index.log
+
+# Log file rotation
+quarkus.log.file.rotation.max-file-size=10M
+quarkus.log.file.rotation.max-backup-index=5
+----
+
+=== Application Info
+
+**Metadata:**
+
+[source,properties]
+----
+# Application name
+quarkus.application.name=data-index
+
+# Version (from pom.xml)
+quarkus.application.version=${project.version}
+----
+
+=== Container Image
+
+**Build configuration:**
+
+[source,properties]
+----
+# Enable container image build
+quarkus.container-image.build=true
+
+# Image name
+quarkus.container-image.group=kubesmarts
+quarkus.container-image.name=data-index-service
+quarkus.container-image.tag=1.0.0
+
+# Use Jib (fast, efficient)
+quarkus.container-image.builder=jib
+
+# JVM arguments in container
+quarkus.jib.jvm-arguments=-Dquarkus.http.port=8080,-Xms512m,-Xmx1024m
+----
+
+== Quarkus Flow Application Configuration
+
+Configuration for applications that emit events to Data Index.
+
+=== Structured Logging
+
+**Enable structured logging:**
+
+[source,properties]
+----
+# Enable structured logging
+quarkus.flow.structured-logging.enabled=true
+
+# Events to capture (default: all workflow.* and task.*)
+quarkus.flow.structured-logging.events=workflow.*,task.*
+
+# Timestamp format: epoch-seconds (required for Data Index)
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+----
+
+**Console handler:**
+
+[source,properties]
+----
+# Create dedicated console handler for structured logging
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled=true
+
+# Output format: raw JSON (no formatting)
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
+
+# Route structured logging to this handler
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
+----
+
+[IMPORTANT]
+====
+The timestamp format MUST be `epoch-seconds` for Data Index compatibility.
+====
+
+=== File Handler (Optional)
+
+**For debugging:**
+
+[source,properties]
+----
+# File handler for events (development only)
+%dev.quarkus.log.handler.file."FLOW_EVENTS_FILE".enabled=true
+%dev.quarkus.log.handler.file."FLOW_EVENTS_FILE".path=/tmp/quarkus-flow-events.log
+%dev.quarkus.log.handler.file."FLOW_EVENTS_FILE".format=%s%n
+
+# Add to category handlers
+%dev.quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE,FLOW_EVENTS_FILE
+----
+
+[WARNING]
+====
+File handler should be disabled in Kubernetes. FluentBit tails container stdout, not files.
+====
+
+=== Kubernetes Deployment
+
+**Namespace:**
+
+[source,properties]
+----
+# Deploy to workflows namespace (FluentBit requirement)
+quarkus.kubernetes.namespace=workflows
+
+# Or configure FluentBit to watch your namespace
+----
+
+**Labels:**
+
+[source,properties]
+----
+# Add labels for FluentBit filtering
+quarkus.kubernetes.labels."app"=my-workflow-app
+quarkus.kubernetes.labels."version"=1.0.0
+----
+
+== Environment-Specific Configuration
+
+=== Development (`%dev`)
+
+[source,properties]
+----
+# Local PostgreSQL
+%dev.quarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/dataindex
+%dev.quarkus.datasource.username=postgres
+%dev.quarkus.datasource.password=postgres
+
+# Enable Flyway migrations
+%dev.quarkus.flyway.migrate-at-start=true
+
+# Enable SQL logging
+%dev.quarkus.hibernate-orm.log.sql=true
+%dev.quarkus.hibernate-orm.log.format-sql=true
+
+# CORS for local frontend
+%dev.quarkus.http.cors=true
+%dev.quarkus.http.cors.origins=http://localhost:3000
+----
+
+=== Testing (`%test`)
+
+[source,properties]
+----
+# Use test database or H2 in-memory
+%test.quarkus.datasource.jdbc.url=jdbc:h2:mem:testdb
+
+# Drop and create schema for each test
+%test.quarkus.hibernate-orm.database.generation=drop-and-create
+
+# Run Flyway migrations
+%test.quarkus.flyway.migrate-at-start=true
+%test.quarkus.flyway.clean-at-start=true
+----
+
+=== Production (`%prod`)
+
+[source,properties]
+----
+# Database from environment variables
+%prod.quarkus.datasource.jdbc.url=${QUARKUS_DATASOURCE_JDBC_URL}
+%prod.quarkus.datasource.username=${QUARKUS_DATASOURCE_USERNAME}
+%prod.quarkus.datasource.password=${QUARKUS_DATASOURCE_PASSWORD}
+
+# Disable Flyway (use init container)
+%prod.quarkus.flyway.migrate-at-start=false
+
+# JSON logging for log aggregation
+%prod.quarkus.log.console.json=true
+
+# No CORS (use API gateway/ingress)
+%prod.quarkus.http.cors=false
+
+# Production JVM settings
+%prod.quarkus.jib.jvm-arguments=-Xms512m,-Xmx1024m,-XX:+UseG1GC,-XX:MaxGCPauseMillis=200
+----
+
+== Configuration Profiles
+
+Activate profiles with:
+
+[source,bash]
+----
+# Development
+mvn quarkus:dev
+
+# Testing
+mvn test
+
+# Production build
+mvn package -Dquarkus.profile=prod
+
+# Kubernetes deployment (environment variable)
+QUARKUS_PROFILE=prod
+----
+
+== External Configuration
+
+=== Kubernetes ConfigMap
+
+Create ConfigMap:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-index-config
+  namespace: data-index
+data:
+  application.properties: |
+    quarkus.datasource.db-kind=postgresql
+    quarkus.smallrye-graphql.root-path=/graphql
+    # ... other properties
+----
+
+Mount in Deployment:
+
+[source,yaml]
+----
+volumeMounts:
+- name: config
+  mountPath: /deployments/config
+volumes:
+- name: config
+  configMap:
+    name: data-index-config
+----
+
+=== Kubernetes Secrets
+
+For sensitive data:
+
+[source,bash]
+----
+kubectl create secret generic data-index-secrets \
+  --from-literal=db-password='your-password' \
+  --namespace data-index
+----
+
+Reference in Deployment:
+
+[source,yaml]
+----
+env:
+- name: QUARKUS_DATASOURCE_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: data-index-secrets
+      key: db-password
+----
+
+== Complete Example
+
+**`application.properties`** for production Data Index:
+
+[source,properties]
+----
+# Application
+quarkus.application.name=data-index
+
+# Database
+quarkus.datasource.db-kind=postgresql
+quarkus.datasource.jdbc.url=${QUARKUS_DATASOURCE_JDBC_URL}
+quarkus.datasource.username=${QUARKUS_DATASOURCE_USERNAME}
+quarkus.datasource.password=${QUARKUS_DATASOURCE_PASSWORD}
+quarkus.datasource.jdbc.min-size=5
+quarkus.datasource.jdbc.max-size=20
+
+# Hibernate
+quarkus.hibernate-orm.jdbc.timezone=UTC
+quarkus.hibernate-orm.database.generation=none
+quarkus.hibernate-orm.physical-naming-strategy=org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+
+# Flyway (disabled, use init job)
+quarkus.flyway.migrate-at-start=false
+
+# GraphQL
+quarkus.smallrye-graphql.root-path=/graphql
+quarkus.smallrye-graphql.ui.always-include=true
+quarkus.smallrye-graphql.print-data-fetcher-exception=true
+
+# HTTP
+quarkus.http.port=8080
+quarkus.http.enable-compression=true
+
+# Health & Metrics
+quarkus.smallrye-health.liveness.enabled=true
+quarkus.smallrye-health.readiness.enabled=true
+quarkus.micrometer.export.prometheus.enabled=true
+
+# Logging
+quarkus.log.level=INFO
+quarkus.log.console.json=true
+quarkus.log.category."org.kubesmarts.logic.dataindex".level=DEBUG
+
+# Container image
+quarkus.container-image.group=kubesmarts
+quarkus.container-image.name=data-index-service
+quarkus.jib.jvm-arguments=-Dquarkus.http.port=8080,-Xms512m,-Xmx1024m
+----
+
+== Next Steps
+
+* xref:deployment/kind-local.adoc[Local Development] - Set up development environment
+* xref:deployment/postgresql.adoc[PostgreSQL Deployment] - Production deployment
+* xref:developers/troubleshooting.adoc[Troubleshooting] - Common configuration issues

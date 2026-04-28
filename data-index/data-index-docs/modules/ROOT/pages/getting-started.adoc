@@ -1,0 +1,123 @@
+= Getting Started with Data Index
+:page-aliases:
+
+This guide walks you through deploying Data Index and verifying it works.
+
+== Prerequisites
+
+Before you begin, ensure you have:
+
+* Kubernetes cluster running (or KIND for local development)
+* `kubectl` configured to access your cluster
+* `curl` and `jq` installed
+
+== Quick Install (KIND)
+
+For local development with KIND:
+
+[source,bash]
+----
+# 1. Setup KIND cluster and PostgreSQL
+cd data-index/scripts/kind
+./setup-cluster.sh
+MODE=postgresql ./install-dependencies.sh
+
+# 2. Deploy Data Index service
+./deploy-data-index.sh postgresql
+
+# 3. Deploy FluentBit DaemonSet (MODE 1)
+cd ../fluentbit/mode1-postgresql-triggers
+./generate-configmap.sh
+kubectl apply -f kubernetes/configmap.yaml
+kubectl apply -f kubernetes/daemonset.yaml
+----
+
+== Verify Installation
+
+=== Check Pods
+
+All components should be running:
+
+[source,bash]
+----
+# Data Index service
+kubectl get pods -n data-index
+
+# FluentBit
+kubectl get pods -n logging
+
+# PostgreSQL
+kubectl get pods -n postgresql
+----
+
+Expected output:
+
+[source,text]
+----
+NAMESPACE     NAME                                  READY   STATUS
+data-index    data-index-service-xxx                1/1     Running
+logging       workflows-fluent-bit-mode1-xxx        1/1     Running
+postgresql    postgresql-0                          1/1     Running
+----
+
+=== Test GraphQL API
+
+Query the API to verify it's responding:
+
+[source,bash]
+----
+# Port-forward to Data Index service
+kubectl port-forward -n data-index svc/data-index-service 8080:8080 &
+
+# Query GraphQL
+curl -s http://localhost:8080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ getWorkflowInstances { id name status } }"}' \
+  | jq .
+----
+
+Expected response (may be empty if no workflows executed yet):
+
+[source,json]
+----
+{
+  "data": {
+    "getWorkflowInstances": []
+  }
+}
+----
+
+=== Check Database
+
+Verify database tables exist:
+
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 \
+  psql -U dataindex -d dataindex \
+  -c "\dt"
+----
+
+Expected tables:
+
+[source,text]
+----
+ workflow_instances
+ task_instances
+ workflow_events_raw
+ task_events_raw
+ flyway_schema_history
+----
+
+== Next Steps
+
+Now that Data Index is running:
+
+* xref:developers/quarkus-flow-integration.adoc[Integrate your Quarkus Flow applications]
+* xref:api/graphql-overview.adoc[Learn the GraphQL API]
+* xref:deployment/postgresql.adoc[Deploy to production Kubernetes]
+
+== Troubleshooting
+
+See the xref:developers/troubleshooting.adoc[Troubleshooting Guide] for common issues.

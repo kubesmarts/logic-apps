@@ -40,8 +40,17 @@ jobs:
 
       - name: Build container images
         run: |
+          # Build data-index-service with PostgreSQL profile (production: no Flyway)
           mvn -B package -DskipTests \
-            -pl data-index/data-index-service,data-index/workflow-test-app \
+            -pl data-index/data-index-service \
+            -Dquarkus.profile=postgresql \
+            -DskipFlyway=true \
+            -Dquarkus.container-image.build=true \
+            --no-transfer-progress
+
+          # Build workflow-test-app
+          mvn -B package -DskipTests \
+            -pl data-index/workflow-test-app \
             -Dquarkus.container-image.build=true \
             --no-transfer-progress
 
@@ -102,7 +111,7 @@ jobs:
       - name: Deploy Data Index service
         run: |
           SKIP_IMAGE_BUILD=true SKIP_DB_INIT=true \
-            bash data-index/scripts/kind/deploy-data-index.sh postgresql-polling
+            bash data-index/scripts/kind/deploy-data-index.sh postgresql
 
       - name: Deploy FluentBit
         run: |

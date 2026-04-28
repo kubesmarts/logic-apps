@@ -1,0 +1,21 @@
+site:
+  title: Data Index Documentation
+  start_page: data-index:ROOT:index.adoc
+content:
+  sources:
+    - url: ../..
+      branches: HEAD
+      start_path: data-index/data-index-docs
+ui:
+  bundle:
+    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/master/raw/build/ui-bundle.zip?job=bundle-stable
+    snapshot: false
+
+asciidoc:
+  attributes:
+    page-pagination: ''
+    hide-uri-scheme: '@'
+    tabs-sync-option: '@'
+
+output:
+  dir: ./target/generated-docs

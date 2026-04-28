@@ -1,0 +1,148 @@
+= Quarkus Flow Applications
+:page-aliases:
+
+Learn how to structure and configure Quarkus Flow applications to work with Data Index.
+
+== Overview
+
+To integrate with Data Index, your Quarkus Flow application needs:
+
+1. **Structured logging enabled** - Emit JSON events to stdout
+2. **Kubernetes deployment** - Run in Kubernetes where FluentBit can collect logs
+3. **Proper configuration** - Property files for different environments
+
+== Application Structure
+
+A typical Quarkus Flow application has this structure:
+
+[source,text]
+----
+my-workflow-app/
+├── pom.xml
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/example/
+│   │   │       ├── workflows/
+│   │   │       │   └── MyWorkflow.java      # Java DSL workflows
+│   │   │       └── resources/
+│   │   │           └── WorkflowResource.java # JAX-RS endpoints
+│   │   └── resources/
+│   │       ├── application.properties         # Common config
+│   │       ├── application-kind.properties    # KIND local dev
+│   │       ├── application-prod.properties    # Production runtime
+│   │       └── workflows/                     # YAML workflows (optional)
+│   └── test/
+│       └── java/
+│           └── com/example/
+│               └── WorkflowTest.java
+----
+
+== Required Dependencies
+
+Add to your `pom.xml`:
+
+[source,xml]
+----
+<dependencies>
+    <!-- Quarkus Flow runtime -->
+    <dependency>
+        <groupId>io.quarkiverse.flow</groupId>
+        <artifactId>quarkus-flow</artifactId>
+    </dependency>
+
+    <!-- REST API -->
+    <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-rest-jackson</artifactId>
+    </dependency>
+
+    <!-- Health checks -->
+    <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-smallrye-health</artifactId>
+    </dependency>
+</dependencies>
+----
+
+== Structured Logging Configuration
+
+Data Index requires structured logging to capture workflow events. Add to `application.properties`:
+
+[source,properties]
+----
+# Application name
+quarkus.application.name=my-workflow-app
+
+# Structured logging (REQUIRED for Data Index)
+quarkus.flow.structured-logging.enabled=true
+quarkus.flow.structured-logging.events=workflow.*
+quarkus.flow.structured-logging.include-workflow-payloads=true
+quarkus.flow.structured-logging.include-task-payloads=false
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+quarkus.flow.structured-logging.log-level=INFO
+
+# Console handler for JSON events
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled=true
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
+
+# Route structured logging to console
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
+----
+
+[TIP]
+====
+See the https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html[Quarkus Flow Structured Logging documentation^] for detailed configuration options.
+====
+
+== Why Epoch Seconds?
+
+Data Index uses FluentBit to collect events, which expects Unix epoch timestamps for `TIMESTAMP WITH TIME ZONE` columns in PostgreSQL. Using `epoch-seconds` ensures proper timestamp parsing.
+
+== JAX-RS Endpoints (Required)
+
+Quarkus Flow does **NOT** provide default REST endpoints. You must create JAX-RS resources to trigger workflows:
+
+[source,java]
+----
+package com.example.resources;
+
+import com.example.workflows.MyWorkflow;
+import io.smallrye.mutiny.Uni;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import java.util.Map;
+
+@Path("/workflows")
+public class WorkflowResource {
+
+    @Inject
+    MyWorkflow myWorkflow;
+
+    @POST
+    @Path("/start")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Uni<Map<String, Object>> startWorkflow(Map<String, Object> input) {
+        return myWorkflow.startInstance(input)
+                .onItem().transform(result -> result.asMap().orElseThrow());
+    }
+}
+----
+
+== Next Steps
+
+Now that you understand the basics, choose your deployment target:
+
+* xref:deployment/kind-local.adoc[Local Development with KIND] - Test locally
+* xref:deployment/postgresql.adoc[Production Deployment] - Deploy to Kubernetes
+
+Both guides cover:
+
+* Kubernetes deployment dependencies
+* Environment-specific property files
+* Build and deployment commands
+* Verification steps

@@ -55,21 +55,34 @@ usage() {
     echo "Deploy Data Index to KIND cluster in specified mode"
     echo ""
     echo "Modes:"
-    echo "  postgresql-polling   - Mode 1: FluentBit → PostgreSQL staging → Triggers → Query tables"
-    echo "  kafka-postgresql     - Mode 3: FluentBit → Kafka → Consumer → PostgreSQL query tables"
+    echo "  postgresql           - Mode 1: FluentBit → PostgreSQL (triggers) → Query tables"
     echo "  elasticsearch        - Mode 2: FluentBit → Elasticsearch → Transform → Query indices"
     echo ""
+    echo "Legacy mode names (deprecated but still supported):"
+    echo "  postgresql-polling   - Alias for 'postgresql'"
+    echo ""
     echo "Examples:"
-    echo "  $0 postgresql-polling"
-    echo "  $0 kafka-postgresql"
+    echo "  $0 postgresql"
     echo "  IMAGE_TAG=1.0.0 $0 elasticsearch"
     exit 1
 }
 
 # Validate mode
 validate_mode() {
+    # Normalize legacy mode names
     case "$MODE" in
-        postgresql-polling|kafka-postgresql|elasticsearch)
+        postgresql-polling)
+            log_warn "Mode 'postgresql-polling' is deprecated, use 'postgresql'"
+            MODE="postgresql"
+            ;;
+        kafka-postgresql)
+            log_error "Mode 'kafka-postgresql' is no longer supported (MODE 3 removed)"
+            exit 1
+            ;;
+    esac
+
+    case "$MODE" in
+        postgresql|elasticsearch)
             log_info "Deployment mode: $MODE"
             ;;
         *)
@@ -105,15 +118,9 @@ check_prerequisites() {
 
     # Check if dependencies are installed based on mode
     case "$MODE" in
-        postgresql-polling)
+        postgresql)
             if ! kubectl get namespace postgresql &> /dev/null; then
                 log_error "PostgreSQL not installed. Run: MODE=postgresql ./install-dependencies.sh"
-                exit 1
-            fi
-            ;;
-        kafka-postgresql)
-            if ! kubectl get namespace postgresql &> /dev/null || ! kubectl get namespace kafka &> /dev/null; then
-                log_error "PostgreSQL and Kafka not installed. Run: MODE=kafka ./install-dependencies.sh"
                 exit 1
             fi
             ;;
@@ -134,22 +141,22 @@ build_image() {
 
     cd "${PROJECT_ROOT}"
 
-    # Build with Maven (Quarkus JVM mode)
-    log_info "Building with Maven..."
-    mvn clean package -pl data-index-service -am -DskipTests -q
+    # Build with Maven using profile-based approach
+    log_info "Building with Maven (profile: ${MODE})..."
+    mvn clean package -pl data-index-service -am \
+        -Dquarkus.profile=${MODE} \
+        -Dquarkus.container-image.build=true \
+        -DskipFlyway=true \
+        -DskipTests -q
 
-    # Build Docker image
-    log_info "Building Docker image..."
-    docker build -f data-index-service/src/main/docker/Dockerfile.jvm \
-        -t kubesmarts/data-index-service:${IMAGE_TAG} \
-        data-index-service/
+    log_info "✓ Container image built (without Flyway): kubesmarts/data-index-service:${IMAGE_TAG}"
 
     # Load image into KIND cluster
     log_info "Loading image into KIND cluster..."
     kind load docker-image kubesmarts/data-index-service:${IMAGE_TAG} \
         --name ${CLUSTER_NAME}
 
-    log_info "✓ Image built and loaded: kubesmarts/data-index-service:${IMAGE_TAG}"
+    log_info "✓ Image loaded to KIND cluster"
 }
 
 # Initialize database schema
@@ -354,12 +361,8 @@ print_info() {
     echo ""
 
     case "$MODE" in
-        postgresql-polling)
+        postgresql)
             echo "  - PostgreSQL:    postgresql://dataindex:dataindex123@localhost:30432/dataindex"
-            ;;
-        kafka-postgresql)
-            echo "  - PostgreSQL:    postgresql://dataindex:dataindex123@localhost:30432/dataindex"
-            echo "  - Kafka:         localhost:30092"
             ;;
         elasticsearch)
             echo "  - Elasticsearch: http://localhost:30920"
@@ -397,8 +400,8 @@ main() {
         log_info "Skipping image build (SKIP_IMAGE_BUILD=true)"
     fi
 
-    # Initialize database for PostgreSQL modes (skip if already initialized in CI)
-    if [[ "$MODE" == "postgresql-polling" ]] || [[ "$MODE" == "kafka-postgresql" ]]; then
+    # Initialize database for PostgreSQL mode (skip if already initialized in CI)
+    if [[ "$MODE" == "postgresql" ]]; then
         if [[ "${SKIP_DB_INIT:-false}" != "true" ]]; then
             init_database_schema
         else

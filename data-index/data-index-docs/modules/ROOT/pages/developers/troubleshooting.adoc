@@ -1,0 +1,350 @@
+= Troubleshooting Guide
+:page-aliases:
+
+Common issues and solutions when integrating Quarkus Flow apps with Data Index.
+
+== Build Issues
+
+=== Build fails: "At least one enabled entry must be active"
+
+**Symptom:**
+
+[source,text]
+----
+[ERROR] At least one enabled entry must be active, but none were (quarkus-kubernetes)
+----
+
+**Cause:** Using Maven profile but not activating it.
+
+**Solution:**
+
+Build with the profile:
+
+[source,bash]
+----
+mvn clean package -Pkind
+----
+
+Or if using `-Dquarkus.profile=kubernetes`, ensure your Maven profile is activated by this property.
+
+=== Build fails: "Cannot find quarkus-kind"
+
+**Symptom:**
+
+[source,text]
+----
+[ERROR] Unknown deployment target: kind
+----
+
+**Cause:** Missing `quarkus-kind` extension when using `deployment-target=kind`.
+
+**Solution:**
+
+Add to your Maven profile:
+
+[source,xml]
+----
+<dependency>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-kind</artifactId>
+</dependency>
+----
+
+== Deployment Issues
+
+=== Pods stuck in ImagePullBackOff
+
+**Symptom:**
+
+[source,bash]
+----
+$ kubectl get pods -n workflows
+NAME                            READY   STATUS             RESTARTS   AGE
+my-workflow-app-xxx             0/1     ImagePullBackOff   0          2m
+----
+
+**Cause:** Image not loaded to KIND cluster.
+
+**Solution:**
+
+Load the image manually:
+
+[source,bash]
+----
+# Check image name
+docker images | grep my-workflow-app
+
+# Load to KIND
+kind load docker-image local/my-workflow-app:1.0.0 --name data-index-test
+----
+
+[NOTE]
+====
+The `quarkus-kind` extension does NOT automatically load images for local KIND development. Manual loading is required.
+====
+
+=== Pods crash with Exit Code 137
+
+**Symptom:**
+
+[source,bash]
+----
+$ kubectl describe pod my-workflow-app-xxx
+...
+Exit Code:    137
+Reason:       Error
+----
+
+**Cause:** Out of memory (OOM) - container killed by Kubernetes.
+
+**Solution:**
+
+Increase memory limits in `application-kind.properties`:
+
+[source,properties]
+----
+# Increase from 256Mi to 512Mi
+quarkus.kubernetes.resources.requests.memory=256Mi
+quarkus.kubernetes.resources.limits.memory=512Mi
+----
+
+Quarkus Flow apps typically need at least 512Mi to start reliably.
+
+=== Pods crash: "Failed to set log file"
+
+**Symptom:**
+
+[source,text]
+----
+LogManager error of type OPEN_FAILURE: Failed to set log file
+java.io.FileNotFoundException: /var/log/quarkus-flow/events.log (No such file or directory)
+----
+
+**Cause:** Quarkus Flow auto-creates a file handler, but pods don't have write access to `/var/log/quarkus-flow/`.
+
+**Solution:**
+
+Disable the file handler in `application-prod.properties`:
+
+[source,properties]
+----
+quarkus.log.handler.file."FLOW_EVENTS".enabled=false
+----
+
+This is just a warning - the app may still start. But to avoid the error entirely, disable the file handler.
+
+== Logging Issues
+
+=== No JSON events in logs
+
+**Symptom:**
+
+[source,bash]
+----
+$ kubectl logs -n workflows my-workflow-app-xxx | grep eventType
+# (no output)
+----
+
+**Cause:** Structured logging not configured correctly.
+
+**Solution:**
+
+Verify `application.properties` has:
+
+[source,properties]
+----
+quarkus.flow.structured-logging.enabled=true
+quarkus.flow.structured-logging.events=workflow.*
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled=true
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
+
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
+----
+
+**Common mistake:** Using `io.quarkiverse.flow` instead of `io.quarkiverse.flow.structuredlogging`.
+
+=== Events in logs but not in Data Index
+
+**Symptom:**
+
+JSON events appear in pod logs, but GraphQL queries return empty.
+
+**Debug steps:**
+
+1. **Check FluentBit is collecting events:**
++
+[source,bash]
+----
+kubectl logs -n logging -l app=workflows-fluent-bit-mode1 | grep "your-workflow-name"
+----
++
+If empty, FluentBit is not capturing events. Check:
++
+* Pod is in `workflows` namespace (FluentBit filters by namespace)
+* FluentBit DaemonSet is running
+* FluentBit has correct log path filter
+
+2. **Check raw events in PostgreSQL:**
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT COUNT(*) FROM workflow_events_raw;"
+----
++
+If zero, FluentBit is not inserting to database. Check:
++
+* PostgreSQL connection from FluentBit pod
+* FluentBit output configuration
+* PostgreSQL credentials
+
+3. **Check normalized tables:**
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT id, name, status FROM workflow_instances;"
+----
++
+If raw tables have data but normalized tables are empty, triggers may have failed. Check:
++
+* PostgreSQL logs for trigger errors
+* Trigger functions exist: `\df normalize_workflow_event`
+* Triggers are attached: `\d workflow_events_raw`
+
+== Data Issues
+
+=== Duplicate task executions in GraphQL
+
+**Symptom:**
+
+GraphQL returns multiple TaskExecution objects for the same task position.
+
+**Cause:** Trigger normalization logic may not be handling task events correctly.
+
+**Workaround:**
+
+Filter by latest `endDate` or `status=COMPLETED` on client side.
+
+**Long-term fix:** Verify trigger uses UPDATE-first pattern with `"end" IS NULL` condition.
+
+=== Missing task executions
+
+**Symptom:**
+
+GraphQL returns workflow but `taskExecutions` is empty.
+
+**Cause:** Foreign key relationship or JPA mapping issue.
+
+**Debug:**
+
+1. Check raw data exists:
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT task_position, status FROM task_instances WHERE instance_id = 'YOUR_INSTANCE_ID';"
+----
+
+2. Check foreign key:
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "\d task_instances"
+----
++
+Verify `instance_id` has foreign key to `workflow_instances(id)`.
+
+== Configuration Issues
+
+=== Wrong namespace - FluentBit not collecting
+
+**Symptom:**
+
+Events in pod logs, but FluentBit not collecting.
+
+**Cause:** Pods not in `workflows` namespace, but FluentBit only watches `workflows`.
+
+**Solution:**
+
+Option A: Deploy to `workflows` namespace:
+
+[source,properties]
+----
+quarkus.kubernetes.namespace=workflows
+----
+
+Option B: Update FluentBit filter:
+
+[source,bash]
+----
+kubectl edit configmap -n logging workflows-fluent-bit-mode1-config
+# Change: Path /var/log/containers/*_workflows_*.log
+# To:     Path /var/log/containers/*_YOUR_NAMESPACE_*.log
+
+kubectl delete pods -n logging -l app=workflows-fluent-bit-mode1
+----
+
+=== Events delayed or not appearing
+
+**Symptom:**
+
+Workflow executes, but Data Index doesn't show it for 10+ seconds.
+
+**Cause:** Normal propagation delay.
+
+**Expected latency:**
+
+* FluentBit flush interval: 1 second
+* PostgreSQL insert + trigger: < 1ms
+* Total end-to-end: 5-10 seconds
+
+**If latency is higher:**
+
+* Check FluentBit flush interval in ConfigMap
+* Check PostgreSQL performance
+* Check network latency between components
+
+== Still Having Issues?
+
+If you're still experiencing problems:
+
+1. **Check component health:**
++
+[source,bash]
+----
+kubectl get pods -n data-index
+kubectl get pods -n logging
+kubectl get pods -n postgresql
+kubectl get pods -n workflows
+----
+
+2. **Review logs:**
++
+[source,bash]
+----
+kubectl logs -n data-index -l app=data-index-service
+kubectl logs -n logging -l app=workflows-fluent-bit-mode1
+kubectl logs -n workflows -l app.kubernetes.io/name=your-app
+----
+
+3. **Verify configuration:**
++
+* xref:developers/quarkus-flow-apps.adoc[Quarkus Flow structured logging setup]
+* xref:developers/configuration.adoc[Configuration reference]
+* xref:deployment/fluentbit-config.adoc[FluentBit configuration]
+
+4. **Check database state:**
++
+* Raw tables populated?
+* Normalized tables populated?
+* Triggers exist and working?

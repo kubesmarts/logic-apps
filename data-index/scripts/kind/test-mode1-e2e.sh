@@ -163,6 +163,29 @@ deploy_fluentbit() {
     log_info "✓ FluentBit deployed"
 }
 
+# Step 5.5: Build and deploy data-index service
+deploy_data_index() {
+    log_step "Building data-index-service..."
+
+    cd "${PROJECT_ROOT}"
+
+    # Build with Maven using PostgreSQL profile (production: no Flyway)
+    mvn package -pl data-index-service -am \
+        -Dquarkus.profile=postgresql \
+        -Dquarkus.container-image.build=true \
+        -DskipFlyway=true \
+        -DskipTests -q
+
+    # Load image to KIND
+    kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT --name "${CLUSTER_NAME}"
+
+    log_step "Deploying data-index-service..."
+    SKIP_IMAGE_BUILD=true SKIP_DB_INIT=true \
+      "${SCRIPT_DIR}/deploy-data-index.sh" postgresql
+
+    log_info "✓ Data Index deployed"
+}
+
 # Step 6: Build and deploy workflow test app
 deploy_workflow_app() {
     log_step "Building workflow test app..."
@@ -170,7 +193,7 @@ deploy_workflow_app() {
     cd "${PROJECT_ROOT}/workflow-test-app"
 
     # Build container image with Jib
-    mvn package -Dquarkus.container-image.build=true -DskipTests
+    mvn package -Dquarkus.container-image.build=true -DskipTests -q
 
     # Load image to KIND
     kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT --name "${CLUSTER_NAME}"
@@ -368,6 +391,7 @@ main() {
     install_postgresql
     run_migrations
     deploy_fluentbit
+    deploy_data_index
     deploy_workflow_app
     execute_workflows
     verify_events

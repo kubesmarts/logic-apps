@@ -1,0 +1,293 @@
+= GraphQL API Overview
+:page-aliases:
+
+Data Index provides a GraphQL API for querying workflow instances and task executions.
+
+== Accessing the API
+
+=== GraphQL Endpoint
+
+[source,text]
+----
+POST http://data-index-service:8080/graphql
+Content-Type: application/json
+
+{
+  "query": "{ ... }"
+}
+----
+
+=== GraphQL UI (Development)
+
+For interactive exploration:
+
+[source,text]
+----
+http://data-index-service:8080/graphql-ui
+----
+
+== Schema Overview
+
+=== WorkflowInstance
+
+Represents a workflow execution instance.
+
+[source,graphql]
+----
+type WorkflowInstance {
+  id: ID!
+  name: String!
+  namespace: String
+  status: WorkflowInstanceStatus!
+  startDate: String
+  endDate: String
+  inputData: String      # JSON as string
+  outputData: String     # JSON as string
+  lastUpdateTime: String
+  taskExecutions: [TaskExecution!]!
+}
+
+enum WorkflowInstanceStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  TERMINATED
+}
+----
+
+=== TaskExecution
+
+Represents a task execution within a workflow.
+
+[source,graphql]
+----
+type TaskExecution {
+  id: ID!
+  taskName: String!
+  taskPosition: String!
+  status: TaskExecutionStatus!
+  startDate: String
+  endDate: String
+  inputData: String      # JSON as string
+  outputData: String     # JSON as string
+}
+
+enum TaskExecutionStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+----
+
+[NOTE]
+====
+*Why String for JSON fields?*
+
+Input/output data is returned as JSON-encoded strings. Clients must parse the JSON themselves. This is a pragmatic solution - custom GraphQL scalars for JSON are complex with SmallRye GraphQL.
+====
+
+== Queries
+
+=== Get All Workflow Instances
+
+Retrieve all workflow instances (with optional limit):
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(limit: 10) {
+    id
+    name
+    namespace
+    status
+    startDate
+    endDate
+    taskExecutions {
+      taskName
+      taskPosition
+      status
+    }
+  }
+}
+----
+
+=== Get Workflow Instance by ID
+
+Retrieve a specific workflow instance:
+
+[source,graphql]
+----
+{
+  getWorkflowInstance(id: "01KQ7KGYQYHSG58PBSKTC2Y07Q") {
+    id
+    name
+    status
+    inputData
+    outputData
+    taskExecutions {
+      taskName
+      status
+      inputData
+      outputData
+    }
+  }
+}
+----
+
+=== Filter Workflow Instances
+
+Filter by status, name, namespace:
+
+[source,graphql]
+----
+{
+  getWorkflowInstancesByFilter(
+    filter: {
+      status: COMPLETED
+      name: "petstore"
+    }
+  ) {
+    id
+    name
+    status
+    endDate
+  }
+}
+----
+
+== Query Examples
+
+=== Example 1: List Recent Completions
+
+[source,bash]
+----
+curl -s http://localhost:8080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getWorkflowInstances(limit: 5) { id name status endDate } }"
+  }' | jq .
+----
+
+Response:
+
+[source,json]
+----
+{
+  "data": {
+    "getWorkflowInstances": [
+      {
+        "id": "01KQ7KGYQYHSG58PBSKTC2Y07Q",
+        "name": "simple-set",
+        "status": "COMPLETED",
+        "endDate": "2026-04-27T18:55:29.065Z"
+      }
+    ]
+  }
+}
+----
+
+=== Example 2: Get Workflow with Task Details
+
+[source,bash]
+----
+curl -s http://localhost:8080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getWorkflowInstance(id: \"01KQ7KGYQYHSG58PBSKTC2Y07Q\") { id name status taskExecutions { taskPosition status startDate endDate } } }"
+  }' | jq .
+----
+
+Response:
+
+[source,json]
+----
+{
+  "data": {
+    "getWorkflowInstance": {
+      "id": "01KQ7KGYQYHSG58PBSKTC2Y07Q",
+      "name": "simple-set",
+      "status": "COMPLETED",
+      "taskExecutions": [
+        {
+          "taskPosition": "do/0/set-0",
+          "status": "COMPLETED",
+          "startDate": "2026-04-27T18:55:29.057Z",
+          "endDate": "2026-04-27T18:55:29.061Z"
+        },
+        {
+          "taskPosition": "do/1/set-1",
+          "status": "COMPLETED",
+          "startDate": "2026-04-27T18:55:29.061Z",
+          "endDate": "2026-04-27T18:55:29.065Z"
+        }
+      ]
+    }
+  }
+}
+----
+
+=== Example 3: Parse JSON Input/Output
+
+[source,bash]
+----
+curl -s http://localhost:8080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getWorkflowInstance(id: \"01KQ7KGYQYHSG58PBSKTC2Y07Q\") { inputData outputData } }"
+  }' | jq -r '.data.getWorkflowInstance | {input: (.inputData | fromjson), output: (.outputData | fromjson)}'
+----
+
+Response:
+
+[source,json]
+----
+{
+  "input": {
+    "name": "E2E Test"
+  },
+  "output": {
+    "completed": true,
+    "mode": "Mode 1: PostgreSQL Polling"
+  }
+}
+----
+
+== Filtering
+
+The GraphQL API supports filtering on:
+
+* **status**: Filter by workflow status (RUNNING, COMPLETED, FAILED, TERMINATED)
+* **name**: Filter by workflow name (exact match)
+* **namespace**: Filter by workflow namespace (exact match)
+
+[TIP]
+====
+*Future enhancements:*
+
+* JSON path filtering (e.g., filter by `input.orderId`)
+* Time range filtering (e.g., startDate between X and Y)
+* Sorting options
+====
+
+== Error Handling
+
+GraphQL errors are returned in the `errors` field:
+
+[source,json]
+----
+{
+  "errors": [
+    {
+      "message": "Workflow instance not found: invalid-id",
+      "locations": [...],
+      "path": ["getWorkflowInstance"]
+    }
+  ]
+}
+----
+
+== Next Steps
+
+* xref:api/queries.adoc[Detailed query reference]
+* xref:developers/quarkus-flow-integration.adoc[Integrate your Quarkus Flow app]

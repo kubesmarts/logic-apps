@@ -2,7 +2,25 @@
 
 **Project:** Data Index v1.0.0 for Serverless Workflow 1.0.0  
 **Status:** Production Ready (MODE 1)  
-**Last Updated:** 2026-04-24
+**Last Updated:** 2026-04-27
+
+---
+
+## **CRITICAL: Documentation is the Source of Truth**
+
+**ALWAYS** consult and update documentation when making changes:
+
+1. **Read first:** Check `data-index/data-index-docs/modules/ROOT/pages/` for existing documentation
+2. **Update immediately:** After any code change, update relevant documentation in the `data-index-docs` module
+3. **Keep scripts synchronized:** Update `data-index/scripts/` README files to match code changes
+4. **Verify examples:** Ensure code examples in documentation match actual working code
+
+**Documentation locations:**
+- Main documentation: `data-index/data-index-docs/` (Antora/AsciiDoc)
+- Script docs: `data-index/scripts/*/README.md`
+- Architecture docs: `data-index/docs/ARCHITECTURE-*.md`
+
+**The documentation module (`data-index-docs`) is served at `/docs` in the running application and is the user-facing manual. It must always be accurate and complete.**
 
 ---
 
@@ -70,8 +88,64 @@ data-index/
 │   └── service/                   # JAX-RS resources
 │       └── RootResource.java      # Landing page
 ├── data-index-integration-tests/  # E2E tests
-└── docs/                          # Documentation
+├── data-index-docs/               # User-facing documentation (Antora)
+│   └── modules/ROOT/pages/        # AsciiDoc documentation pages
+├── docs/                          # Internal documentation
+└── scripts/                       # Deployment scripts
+    ├── kind/                      # KIND (Kubernetes in Docker) scripts
+    └── fluentbit/                 # FluentBit configurations
+        └── mode1-postgresql-triggers/ # MODE 1 FluentBit config
 ```
+
+---
+
+## Storage Backend Architecture (Maven + Quarkus Profiles)
+
+**Multi-backend support** via profile-based dependency isolation:
+
+### How it works:
+
+1. **Maven Profile** (pom.xml) - Controls which dependencies are included
+2. **Quarkus Profile** (application-*.properties) - Configures runtime behavior
+
+### Development:
+```bash
+# PostgreSQL backend (default, production-ready)
+mvn quarkus:dev -Dquarkus.profile=postgresql
+
+# Elasticsearch backend (future)
+mvn quarkus:dev -Dquarkus.profile=elasticsearch
+```
+
+### What happens:
+- `-Dquarkus.profile=postgresql` activates Maven profile `postgresql`
+- Maven includes only PostgreSQL dependencies (storage, JDBC, Flyway)
+- Quarkus loads `application-postgresql.properties`
+- Dev Services auto-starts `postgres:15` container
+- Flyway runs migrations automatically
+- Service starts with PostgreSQL backend
+
+### Configuration files:
+- `application.properties` - Common config (GraphQL, HTTP, metrics)
+- `application-postgresql.properties` - PostgreSQL-specific config
+- `application-elasticsearch.properties` - Elasticsearch-specific config (placeholder)
+
+### Maven profiles (in data-index-service/pom.xml):
+
+**`postgresql` profile (activeByDefault=true):**
+- data-index-storage-postgresql
+- data-index-storage-migrations (Flyway SQL)
+- quarkus-hibernate-orm
+- quarkus-jdbc-postgresql
+- quarkus-flyway
+
+**`elasticsearch` profile:**
+- data-index-storage-elasticsearch (future)
+- Elasticsearch Quarkus extensions (future)
+
+**Benefit:** Only one backend's dependencies are included in builds, keeping deployments lean.
+
+**See:** `data-index-docs/modules/ROOT/pages/developers/configuration.adoc`
 
 ---
 
@@ -269,21 +343,44 @@ public class WorkflowInstanceGraphQLApiTest {
 
 ## Build & Deployment
 
-### Local Build
+### Local Development
 
 ```bash
-# Full build
-mvn clean install -DskipTests
-
-# Data Index only
-cd data-index
-mvn clean install -DskipTests
-
-# Container image
+# Start development mode with PostgreSQL backend (default)
 cd data-index/data-index-service
-mvn clean package -DskipTests
-# Result: kubesmarts/data-index-service:999-SNAPSHOT
+mvn quarkus:dev -Dquarkus.profile=postgresql
+
+# What this does:
+# - Activates Maven postgresql profile → includes only PostgreSQL dependencies
+# - Loads application-postgresql.properties
+# - Starts postgres:15 container via Dev Services
+# - Runs Flyway migrations automatically
+# - Service available at http://localhost:8080
+# - Documentation at http://localhost:8080/docs
+# - Live coding enabled (code changes trigger auto-reload)
 ```
+
+### Production Build
+
+```bash
+# Build with PostgreSQL backend (excludes Flyway for production)
+cd data-index/data-index-service
+mvn clean package -Dquarkus.profile=postgresql -DskipFlyway=true -DskipTests
+
+# Result: target/quarkus-app/ contains:
+# - Optimized Quarkus app (JVM mode)
+# - PostgreSQL storage dependencies ONLY
+# - NO Flyway (schema managed externally in production)
+# - Container image: kubesmarts/data-index-service:999-SNAPSHOT
+
+# For Elasticsearch backend (future):
+mvn clean package -Dquarkus.profile=elasticsearch -DskipFlyway=true -DskipTests
+```
+
+**Why `-DskipFlyway=true`?**
+- Flyway & migrations only needed in dev (with Dev Services)
+- Production uses external schema management (init jobs, operators)
+- Reduces image size by excluding unnecessary dependencies
 
 ### KIND Deployment
 
@@ -295,10 +392,10 @@ cd data-index/scripts/kind
 MODE=postgresql ./install-dependencies.sh
 
 # 2. Deploy data-index service
-./deploy-data-index.sh postgresql-polling  # name is legacy, uses triggers
+./deploy-data-index.sh postgresql
 
 # 3. Deploy FluentBit (MODE 1)
-cd ../fluentbit/mode1-postgresql-polling
+cd ../fluentbit/mode1-postgresql-triggers
 ./generate-configmap.sh  # Generate from source files
 kubectl apply -f kubernetes/configmap.yaml
 kubectl apply -f kubernetes/daemonset.yaml
@@ -466,8 +563,9 @@ priority = (NEW.data->>'priority')::integer
 - `V1__initial_schema.sql` - Schema with triggers
 
 **Configuration:**
-- `data-index-service/src/main/resources/application.properties` - Quarkus config
-- `data-index/scripts/fluentbit/mode1-postgresql-polling/fluent-bit.conf` - FluentBit config
+- `data-index-service/src/main/resources/application.properties` - Common config
+- `data-index-service/src/main/resources/application-postgresql.properties` - PostgreSQL backend
+- `data-index/scripts/fluentbit/mode1-postgresql-triggers/fluent-bit.conf` - FluentBit config
 
 **Testing:**
 - `data-index-service/src/test/java/.../graphql/WorkflowInstanceGraphQLApiTest.java`

@@ -1,0 +1,555 @@
+= Local Development with KIND
+:page-aliases:
+
+Deploy Data Index to a local Kubernetes cluster using KIND (Kubernetes in Docker) for development and testing.
+
+== Prerequisites
+
+**Required tools:**
+
+* https://kind.sigs.k8s.io/docs/user/quick-start/#installation[KIND^] (Kubernetes in Docker)
+* https://kubernetes.io/docs/tasks/tools/[kubectl^] (Kubernetes CLI)
+* https://helm.sh/docs/intro/install/[Helm^] (Package manager)
+* https://www.docker.com/[Docker^] (Container runtime)
+* Java 17+
+* Maven 3.9+
+
+**Verify installation:**
+
+[source,bash]
+----
+kind version
+kubectl version --client
+helm version
+docker --version
+java -version
+mvn -version
+----
+
+== Quick Start
+
+[source,bash]
+----
+cd data-index/scripts/kind
+
+# 1. Create KIND cluster
+./setup-cluster.sh
+
+# 2. Install PostgreSQL
+MODE=postgresql ./install-dependencies.sh
+
+# 3. Deploy Data Index service
+./deploy-data-index.sh postgresql
+
+# 4. Deploy test workflow app
+./deploy-workflow-app.sh
+
+# 5. Test end-to-end
+./test-mode1-e2e.sh
+----
+
+== Detailed Setup
+
+=== Step 1: Create KIND Cluster
+
+[source,bash]
+----
+cd data-index/scripts/kind
+./setup-cluster.sh
+----
+
+**What this does:**
+
+* Creates a KIND cluster named `data-index-test`
+* Configures single control-plane node (can run workloads)
+* Sets up port mappings for local access:
+  - `30080` → GraphQL API
+  - `30432` → PostgreSQL
+  - `8080` → HTTP Ingress
+  - `8443` → HTTPS Ingress
+* Installs NGINX Ingress Controller
+
+**Configuration:**
+
+Override cluster name:
+
+[source,bash]
+----
+CLUSTER_NAME=my-cluster ./setup-cluster.sh
+----
+
+**Verify cluster:**
+
+[source,bash]
+----
+kubectl cluster-info --context kind-data-index-test
+kubectl get nodes
+----
+
+=== Step 2: Install Dependencies
+
+==== PostgreSQL Mode
+
+[source,bash]
+----
+MODE=postgresql ./install-dependencies.sh
+----
+
+**What this installs:**
+
+* PostgreSQL 16.x (Bitnami Helm chart)
+  - Namespace: `postgresql`
+  - Database: `dataindex`
+  - User: `dataindex`
+  - Password: `dataindex123`
+  - Service: `postgresql.postgresql.svc.cluster.local:5432`
+  - NodePort: `localhost:30432`
+
+**Verify PostgreSQL:**
+
+[source,bash]
+----
+kubectl get pods -n postgresql
+kubectl logs -n postgresql postgresql-0
+
+# Test connection
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c '\l'
+----
+
+==== Elasticsearch Mode (Future)
+
+[source,bash]
+----
+MODE=elasticsearch ./install-dependencies.sh
+----
+
+[NOTE]
+====
+Elasticsearch mode installation is available but the Data Index Elasticsearch backend is not yet fully implemented.
+====
+
+=== Step 3: Deploy Data Index Service
+
+[source,bash]
+----
+./deploy-data-index.sh postgresql
+----
+
+**What this does:**
+
+1. Builds Data Index container image
+2. Loads image to KIND cluster
+3. Initializes database schema (Flyway migrations)
+4. Deploys Data Index service to `data-index` namespace
+5. Creates NodePort service on port `30080`
+
+**Verify deployment:**
+
+[source,bash]
+----
+kubectl get pods -n data-index
+kubectl logs -n data-index -l app=data-index-service
+
+# Check GraphQL endpoint
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ __schema { types { name } } }"}'
+----
+
+**Deployment includes:**
+
+* Service: `data-index-service` (NodePort 30080)
+* ConfigMap: Database connection settings
+* Deployment: 1 replica, readiness/liveness probes
+* Environment:
+  - `QUARKUS_DATASOURCE_JDBC_URL`
+  - `QUARKUS_DATASOURCE_USERNAME`
+  - `QUARKUS_DATASOURCE_PASSWORD`
+
+=== Step 4: Deploy FluentBit
+
+[source,bash]
+----
+cd ../fluentbit
+./deploy-fluentbit.sh postgresql
+----
+
+**What this does:**
+
+1. Generates FluentBit ConfigMap from source files:
+   - `mode1-postgresql-triggers/fluent-bit.conf`
+   - `mode1-postgresql-triggers/parsers.conf`
+   - `mode1-postgresql-triggers/flatten-event.lua`
+2. Deploys FluentBit DaemonSet to `logging` namespace
+3. Configures to tail logs from `workflows` namespace
+4. Sets up PostgreSQL output plugin
+
+**FluentBit configuration highlights:**
+
+[source,conf]
+----
+[INPUT]
+    Name              tail
+    Path              /var/log/containers/*_workflows_*.log
+    Parser            cri
+    Tag               kube.*
+
+[OUTPUT]
+    Name              pgsql
+    Host              postgresql.postgresql.svc.cluster.local
+    Port              5432
+    Database          dataindex
+    Table             workflow_events_raw  # OR task_events_raw
+----
+
+**Verify FluentBit:**
+
+[source,bash]
+----
+kubectl get pods -n logging
+kubectl logs -n logging -l app=workflows-fluent-bit --tail=50
+
+# Check FluentBit is tailing workflow logs
+kubectl logs -n logging -l app=workflows-fluent-bit | grep "inotify_fs_add"
+----
+
+=== Step 5: Deploy Test Workflow Application
+
+[source,bash]
+----
+cd ../../kind
+./deploy-workflow-app.sh
+----
+
+**What this does:**
+
+1. Builds `workflow-test-app` container (Quarkus Flow app)
+2. Loads image to KIND cluster
+3. Deploys to `workflows` namespace
+4. Creates Service on port `8082`
+5. Configures structured logging to stdout
+
+**Test workflows included:**
+
+* `/test-workflows/simple-set` - Simple workflow with 2 set operations
+* `/test-workflows/hello-world` - Hello world workflow
+* `/test-workflows/hello-world-fail` - Intentional failure for testing
+
+**Verify deployment:**
+
+[source,bash]
+----
+kubectl get pods -n workflows
+kubectl logs -n workflows -l app=workflow-test-app
+
+# Port-forward to access locally
+kubectl port-forward -n workflows svc/workflow-test-app 8082:8080
+----
+
+== Testing
+
+=== Execute Test Workflow
+
+[source,bash]
+----
+# Port-forward workflow app
+kubectl port-forward -n workflows svc/workflow-test-app 8082:8080 &
+
+# Execute workflow
+curl -X POST http://localhost:8082/test-workflows/simple-set \
+  -H "Content-Type: application/json" \
+  -d '{"name": "test-execution"}'
+
+# Wait for events to propagate (5-10 seconds)
+sleep 10
+----
+
+=== Query GraphQL API
+
+[source,bash]
+----
+# Get all workflow instances
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getWorkflowInstances(limit: 10) { id name status startDate endDate } }"
+  }'
+
+# Get workflow with tasks
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getWorkflowInstances(limit: 5) { id name status taskExecutions { id taskName status } } }"
+  }'
+----
+
+**Expected response:**
+
+[source,json]
+----
+{
+  "data": {
+    "getWorkflowInstances": [
+      {
+        "id": "01KQ...",
+        "name": "simple-set",
+        "status": "COMPLETED",
+        "startDate": "2026-04-27T20:30:00Z",
+        "endDate": "2026-04-27T20:30:05Z"
+      }
+    ]
+  }
+}
+----
+
+=== Verify Database
+
+[source,bash]
+----
+# Check raw events
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT COUNT(*) FROM workflow_events_raw;"
+
+# Check normalized workflow instances
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT id, name, status FROM workflow_instances;"
+
+# Check task instances
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT task_execution_id, task_name, status FROM task_instances;"
+----
+
+=== End-to-End Test Script
+
+Run the complete test suite:
+
+[source,bash]
+----
+./test-mode1-e2e.sh
+----
+
+**What this tests:**
+
+1. Workflow execution triggers events
+2. FluentBit collects events from container logs
+3. PostgreSQL receives raw events
+4. Triggers normalize events to workflow_instances and task_instances
+5. GraphQL API returns normalized data
+
+**Test output example:**
+
+[source,text]
+----
+[INFO] Testing MODE 1 (PostgreSQL Triggers) end-to-end
+[STEP] Executing test workflow...
+[INFO] ✓ Workflow executed
+[STEP] Waiting for event propagation (10s)...
+[STEP] Checking FluentBit...
+[INFO] ✓ FluentBit is collecting events
+[STEP] Checking raw events in PostgreSQL...
+[INFO] ✓ Raw events: 8
+[STEP] Checking normalized workflows...
+[INFO] ✓ Workflows: 1
+[STEP] Checking normalized tasks...
+[INFO] ✓ Tasks: 2
+[STEP] Querying GraphQL API...
+[INFO] ✓ GraphQL returned workflow data
+[INFO] ========================================
+[INFO] MODE 1 End-to-End Test: PASSED
+[INFO] ========================================
+----
+
+== Development Workflow
+
+=== Building and Deploying Changes
+
+**After making code changes:**
+
+[source,bash]
+----
+# 1. Rebuild and redeploy Data Index service
+cd data-index/data-index-service
+mvn clean package -DskipTests
+cd ../../scripts/kind
+./deploy-data-index.sh postgresql
+
+# 2. Or rebuild just the workflow app
+cd data-index/data-index-integration-tests
+mvn clean package -DskipTests
+cd ../scripts/kind
+./deploy-workflow-app.sh
+----
+
+**After FluentBit config changes:**
+
+[source,bash]
+----
+cd data-index/scripts/fluentbit
+./deploy-fluentbit.sh postgresql
+----
+
+=== Accessing Services Locally
+
+**GraphQL API:**
+
+[source,bash]
+----
+# Already accessible via NodePort
+open http://localhost:30080/graphql
+----
+
+**PostgreSQL:**
+
+[source,bash]
+----
+# Already accessible via NodePort
+psql -h localhost -p 30432 -U dataindex -d dataindex
+# Password: dataindex123
+----
+
+**Workflow App:**
+
+[source,bash]
+----
+kubectl port-forward -n workflows svc/workflow-test-app 8082:8080
+open http://localhost:8082
+----
+
+**FluentBit Metrics:**
+
+[source,bash]
+----
+kubectl port-forward -n logging <fluentbit-pod> 2020:2020
+curl http://localhost:2020/api/v1/metrics
+----
+
+=== Logs
+
+**Data Index service:**
+
+[source,bash]
+----
+kubectl logs -n data-index -l app=data-index-service -f
+----
+
+**FluentBit:**
+
+[source,bash]
+----
+kubectl logs -n logging -l app=workflows-fluent-bit -f
+----
+
+**Workflow app:**
+
+[source,bash]
+----
+kubectl logs -n workflows -l app=workflow-test-app -f
+----
+
+**PostgreSQL:**
+
+[source,bash]
+----
+kubectl logs -n postgresql postgresql-0 -f
+----
+
+== Troubleshooting
+
+=== Cluster Won't Start
+
+**Check Docker:**
+
+[source,bash]
+----
+docker info
+# If error, start Docker Desktop
+----
+
+**Delete and recreate:**
+
+[source,bash]
+----
+kind delete cluster --name data-index-test
+./setup-cluster.sh
+----
+
+=== Pods Not Starting
+
+**Check images loaded:**
+
+[source,bash]
+----
+docker exec -it data-index-test-control-plane crictl images | grep data-index
+----
+
+**If missing, reload:**
+
+[source,bash]
+----
+kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT --name data-index-test
+kind load docker-image local/workflow-test-app:1.0.0 --name data-index-test
+----
+
+=== No Events in Database
+
+**Check FluentBit is running:**
+
+[source,bash]
+----
+kubectl get pods -n logging
+kubectl logs -n logging -l app=workflows-fluent-bit | grep -i error
+----
+
+**Check workflow app is in workflows namespace:**
+
+[source,bash]
+----
+kubectl get pods -n workflows
+----
+
+**Check FluentBit parser:**
+
+[source,bash]
+----
+# KIND uses containerd (CRI runtime) - verify parser is 'cri', not 'docker'
+kubectl get configmap -n logging workflows-fluent-bit-config -o yaml | grep Parser
+----
+
+See xref:developers/troubleshooting.adoc[Troubleshooting Guide] for more issues.
+
+== Cleanup
+
+=== Delete Specific Namespaces
+
+[source,bash]
+----
+kubectl delete namespace data-index
+kubectl delete namespace workflows
+kubectl delete namespace logging
+----
+
+=== Delete Cluster
+
+[source,bash]
+----
+kind delete cluster --name data-index-test
+----
+
+=== Clean Docker Images
+
+[source,bash]
+----
+docker rmi kubesmarts/data-index-service:999-SNAPSHOT
+docker rmi local/workflow-test-app:1.0.0
+----
+
+== Next Steps
+
+* xref:developers/configuration.adoc[Configuration Reference]
+* xref:developers/troubleshooting.adoc[Troubleshooting]
+* xref:deployment/postgresql.adoc[Production PostgreSQL Deployment]
+* xref:api/queries.adoc[GraphQL Query Examples]

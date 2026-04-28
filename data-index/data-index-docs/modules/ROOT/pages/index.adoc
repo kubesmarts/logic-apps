@@ -1,0 +1,84 @@
+= Data Index Documentation
+:page-aliases:
+
+== What is Data Index?
+
+Data Index is a *read-only query service* for Serverless Workflow 1.0.0 runtime execution data. It provides a GraphQL API for querying workflow instances and task executions from Quarkus Flow applications.
+
+[sidebar]
+****
+*Key Features:*
+
+* 📊 **GraphQL API** - Query workflow instances and task executions
+* 🚀 **Real-time Processing** - Events normalized immediately (< 1ms with PostgreSQL, ~1s with Elasticsearch)
+* 🔍 **Flexible Filtering** - Filter by status, name, namespace, time ranges
+* 🎯 **Production Ready** - Deployed and tested in Kubernetes environments
+* 📝 **Structured Logging** - Captures events from Quarkus Flow apps via FluentBit
+* 🔄 **Multiple Storage Backends** - PostgreSQL or Elasticsearch
+****
+
+== How It Works
+
+Data Index captures workflow execution events and makes them queryable via GraphQL:
+
+[source,text]
+----
+Quarkus Flow App
+    ↓ (structured logging to stdout)
+FluentBit DaemonSet
+    ↓ (tail container logs)
+Storage Backend (PostgreSQL or Elasticsearch)
+    ↓ (normalization)
+GraphQL API
+----
+
+== Storage Backends
+
+Data Index supports two storage backends:
+
+[cols="1,3,3"]
+|===
+|Backend |Best For |Status
+
+|**PostgreSQL**
+|Production deployments, ACID transactions, < 50K workflows/day
+|✅ Production Ready
+
+|**Elasticsearch**
+|Full-text search, high throughput (100K+ workflows/day), analytics
+|✅ Production Ready
+
+|===
+
+Choose based on your requirements - see xref:deployment/overview.adoc[Deployment Overview] for details.
+
+== Quick Links
+
+* xref:getting-started.adoc[Getting Started] - Install and verify Data Index
+* xref:developers/quarkus-flow-apps.adoc[Quarkus Flow Apps] - Structure and deploy your workflows
+* xref:api/graphql-overview.adoc[GraphQL API] - Query workflow data
+* xref:architecture/overview.adoc[Architecture] - Understand how it works
+
+== What Data Index Does NOT Do
+
+[WARNING]
+====
+Data Index is a *read-only* query service. It does **NOT**:
+
+* Execute workflows (that's Quarkus Flow's job)
+* Modify workflow state
+* Provide workflow management operations (start/stop/retry)
+====
+
+== System Requirements
+
+* Kubernetes cluster (or KIND for local development)
+* Storage backend: PostgreSQL 13+ OR Elasticsearch 7+
+* FluentBit 2.0+
+* Quarkus Flow applications with https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html[structured logging^] enabled
+
+== Next Steps
+
+Ready to get started? Check out the xref:getting-started.adoc[Getting Started Guide].
+
+Already have Data Index running? Learn how to xref:developers/quarkus-flow-apps.adoc[structure and deploy your Quarkus Flow applications].
