@@ -62,12 +62,10 @@ cd data-index/scripts/kind
 
 * Creates a KIND cluster named `data-index-test`
 * Configures single control-plane node (can run workloads)
-* Sets up port mappings for local access:
+* Sets up NodePort mappings for local access:
   - `30080` → GraphQL API
   - `30432` → PostgreSQL
-  - `8080` → HTTP Ingress
-  - `8443` → HTTPS Ingress
-* Installs NGINX Ingress Controller
+  - `30920` → Elasticsearch (future)
 
 **Configuration:**
 
