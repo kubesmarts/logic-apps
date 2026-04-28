@@ -257,7 +257,7 @@ Response:
 
 The GraphQL API supports filtering on:
 
-* **status**: Filter by workflow status (RUNNING, COMPLETED, FAILED, TERMINATED)
+* **status**: Filter by workflow status (RUNNING, COMPLETED, FAULTED, CANCELLED, SUSPENDED)
 * **name**: Filter by workflow name (exact match)
 * **namespace**: Filter by workflow namespace (exact match)
 

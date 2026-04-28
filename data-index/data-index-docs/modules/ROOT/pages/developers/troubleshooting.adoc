@@ -220,6 +220,50 @@ If raw tables have data but normalized tables are empty, triggers may have faile
 
 == Data Issues
 
+=== GraphQL schema empty or returns null
+
+**Symptom:**
+
+GraphQL UI loads but schema is empty, or queries return `{"data": null}`.
+
+**Cause:** Storage adapter not initialized or database connection failed.
+
+**Solution:**
+
+1. Check Data Index logs for database connection errors:
++
+[source,bash]
+----
+kubectl logs -n data-index -l app=data-index-service | grep -i "error\|exception"
+----
+
+2. Verify Flyway migrations completed successfully:
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT * FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;"
+----
+
+3. Check database is accessible from Data Index pod:
++
+[source,bash]
+----
+kubectl exec -n data-index deployment/data-index-service -- \
+  curl -v telnet://postgresql.postgresql.svc.cluster.local:5432
+----
+
+4. Verify Quarkus indexing for external modules (if using modular service):
++
+Check `application.properties` includes:
++
+[source,properties]
+----
+quarkus.index-dependency.data-index-model.group-id=org.kubesmarts.logic.apps
+quarkus.index-dependency.data-index-model.artifact-id=data-index-model
+----
+
 === Duplicate task executions in GraphQL
 
 **Symptom:**

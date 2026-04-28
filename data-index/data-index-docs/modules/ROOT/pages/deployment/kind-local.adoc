@@ -523,6 +523,32 @@ See xref:developers/troubleshooting.adoc[Troubleshooting Guide] for more issues.
 
 == Cleanup
 
+=== Reset Without Deleting Cluster
+
+To redeploy with fresh data (keeps cluster and PostgreSQL):
+
+[source,bash]
+----
+# Delete Data Index and FluentBit
+kubectl delete namespace data-index
+kubectl delete namespace logging
+
+# Clear PostgreSQL data
+kubectl delete -n postgresql pvc --all
+kubectl delete -n postgresql statefulset postgresql
+
+# Reinstall PostgreSQL
+cd data-index/scripts/kind
+MODE=postgresql ./install-dependencies.sh
+
+# Redeploy Data Index and FluentBit
+./deploy-data-index.sh postgresql
+cd ../fluentbit
+./deploy-fluentbit.sh mode1-postgresql-triggers
+----
+
+TIP: This is faster than recreating the entire cluster and useful for testing schema changes or FluentBit configuration.
+
 === Delete Specific Namespaces
 
 [source,bash]
