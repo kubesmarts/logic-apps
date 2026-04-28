@@ -7,38 +7,57 @@ Complete configuration reference for Data Index service and Quarkus Flow applica
 
 === Storage Backend Selection
 
-Data Index supports multiple storage backends selected via Quarkus profiles, which automatically activate corresponding Maven profiles to control dependencies.
+Data Index supports multiple storage backends via separate Maven modules. Each module includes only its backend-specific dependencies.
 
-**PostgreSQL (default, production-ready):**
+**Project structure:**
+
+[source,text]
+----
+data-index-service/               # Parent POM (aggregator only)
+├── data-index-service-core/      # Common code (GraphQL API, REST)
+├── data-index-service-postgresql/  # PostgreSQL backend module
+└── data-index-service-elasticsearch/  # Elasticsearch backend module (future)
+----
+
+**Backend selection:** Navigate to the module you want and build it directly.
+
+**PostgreSQL (production-ready):**
 [source,bash]
 ----
-mvn quarkus:dev -Dquarkus.profile=postgresql
+cd data-index/data-index-service/data-index-service-postgresql
+mvn quarkus:dev
 ----
 
 **Elasticsearch (future):**
 [source,bash]
 ----
-mvn quarkus:dev -Dquarkus.profile=elasticsearch
+cd data-index/data-index-service/data-index-service-elasticsearch
+mvn quarkus:dev
 ----
 
 **How it works:**
 
-1. **Maven Profile** (pom.xml) - Activated by `-Dquarkus.profile=<name>`, includes only relevant dependencies
-2. **Quarkus Configuration** - Separate property file per backend: `application-<profile>.properties`
+1. Each service module has its own `pom.xml` with backend-specific dependencies hardcoded
+2. Each service module has its own `application.properties` with backend-specific configuration
+3. Common configuration is in `data-index-service-core/src/main/resources/application.properties`
+4. No Maven or Quarkus profiles needed for backend selection
 
 **Configuration files:**
 
-* `application.properties` - Common configuration (GraphQL, HTTP, health, metrics)
-* `application-postgresql.properties` - PostgreSQL-specific configuration
-* `application-elasticsearch.properties` - Elasticsearch-specific configuration (placeholder)
+* `data-index-service-core/src/main/resources/application.properties` - Common config (GraphQL, HTTP, health, metrics)
+* `data-index-service-postgresql/src/main/resources/application.properties` - PostgreSQL-specific config
+* `data-index-service-elasticsearch/src/main/resources/application.properties` - Elasticsearch-specific config (placeholder)
 
-**Maven profiles in pom.xml:**
+**Maven profiles:**
 
-* `postgresql` profile - Includes: data-index-storage-postgresql, quarkus-hibernate-orm, quarkus-jdbc-postgresql
-* `dev-flyway` profile - Adds: data-index-storage-migrations, quarkus-flyway (development only, deactivated by `-DskipFlyway=true`)
-* `elasticsearch` profile - Includes: data-index-storage-elasticsearch (future)
+Only one Maven profile exists: `dev-flyway` in the PostgreSQL module.
 
-Only one storage backend's dependencies are included in the build, keeping the deployment size minimal.
+* `dev-flyway` profile - Adds: data-index-storage-migrations, quarkus-flyway
+* Activated by default (deactivated with `-DskipFlyway=true` for production)
+* Development and test builds include Flyway for automatic schema migrations
+* Production builds exclude Flyway to reduce image size
+
+Each module includes only its backend's dependencies, keeping deployment size minimal.
 
 === Development Mode
 
@@ -47,18 +66,17 @@ Only one storage backend's dependencies are included in the build, keeping the d
 **Start development with PostgreSQL:**
 [source,bash]
 ----
-cd data-index/data-index-service
-mvn quarkus:dev -Dquarkus.profile=postgresql
+cd data-index/data-index-service/data-index-service-postgresql
+mvn quarkus:dev
 ----
 
 **What happens automatically:**
 
-1. Maven `postgresql` profile activates → includes PostgreSQL dependencies
-2. Quarkus loads `application-postgresql.properties`
-3. Dev Services starts `postgres:15` container
-4. Flyway runs migrations from `data-index-storage-migrations`
-5. Service starts on http://localhost:8080
-6. Documentation available at http://localhost:8080/docs
+1. Quarkus loads `application.properties` from the postgresql module
+2. Dev Services starts `postgres:15` container
+3. Flyway runs migrations from `data-index-storage-migrations` module
+4. Service starts on http://localhost:8080
+5. Documentation available at http://localhost:8080/docs
 
 **Dev Services PostgreSQL configuration:**
 
@@ -71,23 +89,48 @@ mvn quarkus:dev -Dquarkus.profile=postgresql
 
 **Live coding enabled:** Code changes trigger automatic rebuild and restart.
 
+**Access points:**
+* Application: http://localhost:8080
+* GraphQL UI: http://localhost:8080/q/graphql-ui
+* Documentation: http://localhost:8080/docs
+* Health: http://localhost:8080/q/health
+* Metrics: http://localhost:8080/q/metrics
+
 === Production Mode
 
 **Build for production:**
 [source,bash]
 ----
-# Build with postgresql backend (excludes Flyway)
-mvn clean package -Dquarkus.profile=postgresql -DskipFlyway=true -DskipTests
+# Build PostgreSQL backend (excludes Flyway)
+cd data-index/data-index-service/data-index-service-postgresql
+mvn clean package -DskipFlyway=true -DskipTests
 
-# Result: target/quarkus-app/ (includes only PostgreSQL dependencies, no Flyway)
+# Result: target/quarkus-app/ (optimized Quarkus app)
+# Container image: kubesmarts/data-index-service-postgresql:999-SNAPSHOT
+----
+
+**Build Elasticsearch backend (future):**
+[source,bash]
+----
+cd data-index/data-index-service/data-index-service-elasticsearch
+mvn clean package -DskipFlyway=true -DskipTests
 ----
 
 **Why skip Flyway?**
 
 * Flyway and migration SQL files are only needed in development (Dev Services)
-* Production deployments initialize schema externally (init jobs, operators)
+* Production deployments initialize schema manually using SQL scripts
 * Skipping Flyway reduces container image size
-* Use `-DskipFlyway=true` to exclude from build
+* The `-DskipFlyway=true` flag deactivates the `dev-flyway` Maven profile
+
+**Container image build:**
+[source,bash]
+----
+cd data-index/data-index-service/data-index-service-postgresql
+mvn package -DskipFlyway=true \
+  -Dquarkus.container-image.build=true \
+  -DskipTests
+----
 
 **Runtime configuration** (via environment variables):
 
@@ -107,16 +150,15 @@ QUARKUS_DATASOURCE_JDBC_MIN_SIZE=5
 
 1. When `QUARKUS_DATASOURCE_JDBC_URL` is set, Dev Services is automatically disabled
 2. Application connects to the provided PostgreSQL instance
-3. Flyway migrations must be run externally (not by the application)
+3. Schema must be initialized manually using SQL migration scripts
 
 **Database schema management in production:**
 
-Flyway is **disabled** in production (`quarkus.flyway.migrate-at-start=true` only applies in dev mode).
+Flyway is **disabled** in production (`%prod.quarkus.flyway.migrate-at-start=false`).
 
-Use external tools:
-* Kubernetes init jobs
-* Database operators
-* Manual migration scripts
+Manual schema initialization required:
+* Execute SQL scripts from `data-index-storage-migrations/src/main/resources/db/migration/`
+* See: xref:deployment/postgresql.adoc#_step_2_initialize_database_schema[PostgreSQL Deployment Guide]
 
 See: xref:deployment/postgresql.adoc#_database_migrations[PostgreSQL Deployment - Database Migrations]
 
