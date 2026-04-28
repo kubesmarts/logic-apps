@@ -96,6 +96,23 @@
       <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- PostgreSQL storage for integration tests -->
+    <dependency>
+      <groupId>org.kubesmarts.logic.apps</groupId>
+      <artifactId>data-index-storage-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Quarkus PostgreSQL for integration tests -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-orm</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <profiles>
