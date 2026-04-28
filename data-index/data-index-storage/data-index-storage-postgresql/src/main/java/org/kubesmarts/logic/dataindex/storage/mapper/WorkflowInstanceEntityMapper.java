@@ -34,7 +34,7 @@ import org.mapstruct.MappingTarget;
  * </ul>
  */
 @Mapper(componentModel = "cdi",
-        uses = { WorkflowInstanceErrorEntityMapper.class, TaskInstanceEntityMapper.class },
+        uses = { ErrorEntityMapper.class, TaskInstanceEntityMapper.class },
         injectionStrategy = InjectionStrategy.CONSTRUCTOR)
 public interface WorkflowInstanceEntityMapper {
 
