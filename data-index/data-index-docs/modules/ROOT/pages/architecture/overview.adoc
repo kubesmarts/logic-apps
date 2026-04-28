@@ -80,8 +80,8 @@ FluentBit runs on each Kubernetes node and:
 
 ==== PostgreSQL Mode
 
-* **Raw tables** - Store complete events as JSONB
-* **Triggers** - Extract fields and UPSERT to normalized tables (< 1ms)
+* **Raw tables** - Store complete events in JSON format
+* **Real-time normalization** - Events normalized in less than 1ms
 * **Normalized tables** - Optimized for querying
 
 See xref:architecture/postgresql-mode.adoc[PostgreSQL Mode Architecture] for details.
@@ -89,8 +89,8 @@ See xref:architecture/postgresql-mode.adoc[PostgreSQL Mode Architecture] for det
 ==== Elasticsearch Mode
 
 * **Raw indices** - Store complete events
-* **ES Transforms** - Extract fields and write to normalized indices (~1s)
-* **Normalized indices** - Optimized for querying and search
+* **Automated transforms** - Extract fields and write to normalized indices (~1s)
+* **Normalized indices** - Optimized for querying and full-text search
 
 See xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode Architecture] for details.
 
@@ -109,9 +109,9 @@ Quarkus application providing:
 2. **Structured logging** writes JSON event to stdout
 3. **Kubernetes** captures stdout to `/var/log/containers/POD_NAME.log`
 4. **FluentBit** tails log file, extracts JSON events
-5. **Storage backend** receives events:
-   - **PostgreSQL**: INSERT triggers fire, normalize immediately
-   - **Elasticsearch**: ES Transform processes asynchronously
+5. **Storage backend** receives and normalizes events:
+   - **PostgreSQL**: Events normalized in real-time (< 1ms)
+   - **Elasticsearch**: Events normalized asynchronously (~1s)
 6. **Data Index** queries normalized data via storage adapter
 7. **GraphQL** returns data to user
 
@@ -122,56 +122,45 @@ Quarkus application providing:
 |Metric |PostgreSQL |Elasticsearch
 
 |**Normalization**
-|< 1ms (triggers)
-|~1s (ES Transform)
+|< 1ms
+|~1s
 
 |**End-to-end**
 |5-10 seconds
 |5-10 seconds
 
-|**FluentBit flush**
+|**Collection interval**
 |1 second
 |1 second
 
 |===
 
-== Design Decisions
+== Key Design Features
 
-=== Why FluentBit Forces Our Design
+=== Real-Time Processing
 
-FluentBit's direct-insert model drives our architecture:
+Events are normalized immediately as they arrive:
 
-1. **No intermediate processor** - FluentBit inserts directly to storage
-2. **Storage-side normalization** - Must use triggers (PostgreSQL) or transforms (Elasticsearch)
-3. **Real-time processing** - No queuing or batch processing
-4. **Idempotent operations** - Storage must handle duplicates and out-of-order events
+* No separate event processor service required
+* No polling or batch processing
+* Sub-second latency from event to query
+* Handles duplicates and out-of-order events automatically
 
-This is a **constraint**, not a choice - FluentBit doesn't support intermediate processors.
+=== Flexible Data Storage
 
-=== Why Trigger/Transform-Based?
+Workflow input and output data stored as JSON:
 
-**Previous approach:**
-- Separate Event Processor service
-- Polled raw tables every N seconds
-- Higher latency, more complex
+* **Flexible** - Any workflow schema supported
+* **Queryable** - Can filter by JSON fields when needed
+* **GraphQL** - Exposed as JSON strings for client parsing
 
-**Current approach:**
-- Storage-native normalization (triggers or transforms)
-- No polling, no separate service
-- Real-time processing, simpler architecture
+=== Two-Stage Storage
 
-=== Why JSONB/Object for Input/Output?
+Events stored in both raw and normalized formats:
 
-* **Flexible** - Workflow schemas vary by workflow
-* **Queryable** - Can filter by JSON fields if needed
-* **Compact** - Single column stores arbitrary JSON
-* **GraphQL** - Exposed as String (clients parse JSON)
-
-=== Why Separate Raw and Normalized Storage?
-
-* **Raw storage** - Preserve original events for debugging
-* **Normalized storage** - Optimized for querying
-* **Idempotency** - Can replay raw events if normalization logic changes
+* **Raw storage** - Preserve original events for debugging and audit
+* **Normalized storage** - Optimized for fast querying
+* **Replay capability** - Can reprocess raw events if needed
 
 == What Data Index Does NOT Do
 
@@ -183,7 +172,7 @@ Data Index is **read-only**. It does NOT:
 * ❌ Modify workflow state
 * ❌ Provide workflow management (start/stop/retry)
 * ❌ Store workflow definitions
-* ❌ Require an Event Processor service (uses real-time normalization)
+* ❌ Require a separate event processor service
 ====
 
 == Choosing a Storage Backend
@@ -197,8 +186,8 @@ Data Index is **read-only**. It does NOT:
 |❌ Eventual consistency
 
 |**Real-time (<1ms)**
-|✅ Yes (triggers)
-|⚠️ ~1s (transforms)
+|✅ Yes
+|⚠️ ~1s
 
 |**Full-text search**
 |⚠️ Limited
@@ -220,6 +209,6 @@ Data Index is **read-only**. It does NOT:
 
 == Next Steps
 
-* xref:architecture/postgresql-mode.adoc[PostgreSQL Mode Details] - Trigger-based normalization
-* xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode Details] - Transform-based normalization
+* xref:architecture/postgresql-mode.adoc[PostgreSQL Mode Details] - Real-time normalization
+* xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode Details] - High-throughput processing
 * xref:deployment/overview.adoc[Deployment Guide] - Choose and deploy

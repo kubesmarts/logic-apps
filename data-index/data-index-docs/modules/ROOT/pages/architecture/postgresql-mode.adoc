@@ -54,72 +54,55 @@ GraphQL API
 
 |===
 
-== Trigger-Based Normalization
+== Real-Time Normalization
 
-=== Why Triggers?
+Events are normalized in real-time as they arrive:
 
-FluentBit's https://docs.fluentbit.io/manual/data-pipeline/outputs/postgresql[PostgreSQL output plugin^] requires a pre-defined table schema. Since workflow events have dynamic structures, we use a two-stage approach:
-
-1. **FluentBit writes to raw tables** with fixed schema (`tag`, `time`, `data JSONB`)
-2. **PostgreSQL triggers normalize** by extracting fields from JSONB
+1. **FluentBit writes raw events** - Complete events stored as JSON for debugging
+2. **Events normalized automatically** - Fields extracted and stored in optimized tables
+3. **Immediate availability** - Data ready for querying in less than 1ms
 
 **Benefits:**
 
 - Real-time processing (<1ms latency)
 - No separate event processor service
 - ACID transaction guarantees
-- Idempotent (handles out-of-order events)
+- Handles duplicates and out-of-order events automatically
 
 **Trade-offs:**
 
-- PostgreSQL-specific SQL logic
-- Limited throughput vs. Elasticsearch mode
-- Schema changes require trigger updates
+- PostgreSQL-specific implementation
+- Limited throughput vs. Elasticsearch mode (< 50K workflows/day)
+- Schema changes require database updates
 
-== Raw Tables (JSONB Storage)
+== Raw Event Storage
 
-Raw tables use a **fixed schema** that satisfies FluentBit's output plugin requirements:
+Raw events are preserved in their original JSON format:
 
-[source,sql]
-----
-CREATE TABLE workflow_events_raw (
-  tag  TEXT,              -- Event type (e.g., "workflow.started")
-  time TIMESTAMP,         -- Event received timestamp
-  data JSONB              -- Complete event as JSON
-);
+- **workflow_events_raw** - All workflow-related events
+- **task_events_raw** - All task-related events
 
-CREATE TABLE task_events_raw (
-  tag  TEXT,
-  time TIMESTAMP,
-  data JSONB
-);
-----
+**Benefits:**
 
-**Why this schema?**
-
-- **FluentBit compatible** - Fixed 3-column structure that FluentBit PostgreSQL output can write to
-- **Flexible content** - JSONB column accepts any event structure
-- **Type-based routing** - Lua script routes workflow vs task events to correct table via `tag` field
-
-**Additional benefits:**
-
-- **Debugging** - Original events preserved
+- **Debugging** - Original events preserved for troubleshooting
 - **Replay** - Can reprocess if normalization logic changes
-- **Audit** - Complete event history
+- **Audit** - Complete event history maintained
+- **Flexibility** - Accepts any event structure without schema changes
 
 == Normalized Tables
 
-Triggers extract fields from JSONB and UPSERT to normalized tables:
+Events are automatically normalized to optimized tables for querying:
 
 - **workflow_instances** - One row per workflow execution
 - **task_instances** - One row per task execution
 
-**UPSERT logic** (via COALESCE):
-- **Immutable fields** - Keep first value (e.g., `start` time)
-- **Terminal fields** - Keep latest value (e.g., `end` time, `output`)
-- **Status** - Use timestamp to resolve conflicts
+**How it works:**
 
-This handles out-of-order events gracefully.
+- Fields extracted automatically from raw events
+- Duplicates handled transparently
+- Out-of-order events resolved correctly
+- Immutable fields (like start time) preserved from first event
+- Mutable fields (like status, output) updated from latest event
 
 == Configuration
 

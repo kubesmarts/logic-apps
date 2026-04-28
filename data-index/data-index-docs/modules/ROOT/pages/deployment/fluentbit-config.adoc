@@ -184,6 +184,50 @@ After the CRI/Docker parser extracts the `log` field, you need a second parser f
     Preserve_Key      Off
 ----
 
+== Lua Event Processing
+
+FluentBit uses a Lua script (`flatten-event.lua`) to route workflow and task events to the correct database tables.
+
+**What it does:**
+
+* Reads the `eventType` field from each JSON event
+* Routes workflow events (e.g., `io.serverlessworkflow.workflow.started.v1`) to tag `workflow.*`
+* Routes task events (e.g., `io.serverlessworkflow.task.started.v1`) to tag `task.*`
+* Flattens nested Kubernetes metadata for easier querying
+
+**FluentBit configuration:**
+
+[source,conf]
+----
+[FILTER]
+    Name    lua
+    Match   kube.*
+    script  flatten-event.lua
+    call    flatten_event
+----
+
+**When to modify the Lua script:**
+
+* Adding support for new event types
+* Changing table routing logic
+* Adding custom field extraction
+
+**Debugging Lua errors:**
+
+If FluentBit logs show Lua script errors:
+
+[source,bash]
+----
+# Check FluentBit logs
+kubectl logs -n logging -l app=workflows-fluent-bit-mode1 | grep -i lua
+
+# Common errors:
+# - "attempt to index nil value" → Missing field in event JSON
+# - "syntax error" → Invalid Lua syntax in script
+----
+
+TIP: The Lua script is embedded in the ConfigMap. After modifying `flatten-event.lua`, regenerate the ConfigMap using `generate-configmap.sh` and restart FluentBit pods.
+
 == Common Issues
 
 === Events Not Reaching Storage
