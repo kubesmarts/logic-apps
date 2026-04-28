@@ -144,8 +144,12 @@ quarkus.flow.structured-logging.timestamp-format=epoch-seconds
 quarkus.datasource.db-kind=postgresql
 quarkus.datasource.jdbc.url=jdbc:postgresql://postgresql:5432/dataindex
 quarkus.hibernate-orm.database.generation=none
-quarkus.flyway.migrate-at-start=true
 ----
+
+[NOTE]
+====
+Schema initialization is performed manually in production using SQL migration scripts from the `data-index-storage-migrations` module. Development mode can optionally use Flyway for automatic migrations.
+====
 
 == Scaling Considerations
 

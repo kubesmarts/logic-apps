@@ -34,7 +34,8 @@ mvn quarkus:dev -Dquarkus.profile=elasticsearch
 
 **Maven profiles in pom.xml:**
 
-* `postgresql` profile - Includes: data-index-storage-postgresql, quarkus-hibernate-orm, quarkus-jdbc-postgresql, quarkus-flyway
+* `postgresql` profile - Includes: data-index-storage-postgresql, quarkus-hibernate-orm, quarkus-jdbc-postgresql
+* `dev-flyway` profile - Adds: data-index-storage-migrations, quarkus-flyway (development only, deactivated by `-DskipFlyway=true`)
 * `elasticsearch` profile - Includes: data-index-storage-elasticsearch (future)
 
 Only one storage backend's dependencies are included in the build, keeping the deployment size minimal.
@@ -65,7 +66,7 @@ mvn quarkus:dev -Dquarkus.profile=postgresql
 * Database: `dataindex`
 * Username: `dataindex`
 * Password: `dataindex123`
-* Automatic schema creation via Flyway
+* Automatic schema creation via Flyway migrations (dev mode only)
 * Container auto-starts with dev mode, auto-stops on exit
 
 **Live coding enabled:** Code changes trigger automatic rebuild and restart.
@@ -289,7 +290,6 @@ quarkus.smallrye-health.readiness.enabled=true
 Health checks automatically include:
 
 * Database connectivity (PostgreSQL ping)
-* Flyway migration status
 * Disk space
 
 === Metrics

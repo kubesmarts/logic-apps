@@ -162,11 +162,11 @@ build_image() {
 init_database_schema() {
     log_step "Initializing PostgreSQL database schema..."
 
-    local SCHEMA_FILE="${PROJECT_ROOT}/scripts/schema.sql"
+    local SCHEMA_FILE="${PROJECT_ROOT}/data-index/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql"
 
     if [[ ! -f "$SCHEMA_FILE" ]]; then
-        log_warn "Schema file not found: $SCHEMA_FILE"
-        return
+        log_error "Schema file not found: $SCHEMA_FILE"
+        exit 1
     fi
 
     # Copy schema to PostgreSQL pod
@@ -174,7 +174,7 @@ init_database_schema() {
 
     # Execute schema
     kubectl exec -n postgresql postgresql-0 -- \
-        psql -U dataindex -d dataindex -f /tmp/schema.sql
+        env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -f /tmp/schema.sql
 
     log_info "✓ Database schema initialized"
 }

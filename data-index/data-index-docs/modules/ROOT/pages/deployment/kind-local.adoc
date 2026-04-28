@@ -138,7 +138,7 @@ Elasticsearch mode installation is available but the Data Index Elasticsearch ba
 
 1. Builds Data Index container image
 2. Loads image to KIND cluster
-3. Initializes database schema (Flyway migrations)
+3. Initializes database schema (executes SQL migration script)
 4. Deploys Data Index service to `data-index` namespace
 5. Creates NodePort service on port `30080`
 

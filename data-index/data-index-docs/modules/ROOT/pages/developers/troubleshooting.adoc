@@ -237,13 +237,19 @@ GraphQL UI loads but schema is empty, or queries return `{"data": null}`.
 kubectl logs -n data-index -l app=data-index-service | grep -i "error\|exception"
 ----
 
-2. Verify Flyway migrations completed successfully:
+2. Verify database schema is initialized:
 +
 [source,bash]
 ----
 kubectl exec -n postgresql postgresql-0 -- \
   env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
-  -c "SELECT * FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;"
+  -c "\dt"
+
+# Should show:
+# - workflow_events_raw
+# - task_events_raw
+# - workflow_instances
+# - task_instances
 ----
 
 3. Check database is accessible from Data Index pod:
