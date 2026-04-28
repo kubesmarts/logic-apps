@@ -20,15 +20,17 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Error information for failed workflow executions.
+ * Error information for failed workflow and task executions.
  *
  * <p>Represents a runtime error from Serverless Workflow 1.0.0 execution.
  * Aligns with the <a href="https://github.com/serverlessworkflow/specification/blob/main/dsl-reference.md#error">SW 1.0.0 Error spec</a>
  *
  * <p>This captures error details from Quarkus Flow structured logging events
  * (workflow.instance.faulted, workflow.task.faulted).
+ *
+ * <p>Used by both WorkflowInstance and TaskExecution.
  */
-public class WorkflowInstanceError {
+public class Error {
 
     /**
      * Error type classification (e.g., "system", "business", "timeout", "communication").
@@ -56,10 +58,10 @@ public class WorkflowInstanceError {
      */
     private String instance;
 
-    public WorkflowInstanceError() {
+    public Error() {
     }
 
-    public WorkflowInstanceError(String type, String title) {
+    public Error(String type, String title) {
         this.type = type;
         this.title = title;
     }
@@ -112,7 +114,7 @@ public class WorkflowInstanceError {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        WorkflowInstanceError that = (WorkflowInstanceError) o;
+        Error that = (Error) o;
         return Objects.equals(type, that.type) &&
                 Objects.equals(title, that.title) &&
                 Objects.equals(detail, that.detail) &&
@@ -127,7 +129,7 @@ public class WorkflowInstanceError {
 
     @Override
     public String toString() {
-        return "WorkflowInstanceError{" +
+        return "Error{" +
                 "type='" + type + '\'' +
                 ", title='" + title + '\'' +
                 ", detail='" + detail + '\'' +
