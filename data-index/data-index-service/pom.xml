@@ -3,8 +3,8 @@
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
+    regarding copyright ownership.  The ASF licenses this file to
+    you under the Apache License, Version 2.0 (the
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
@@ -29,126 +29,14 @@
   </parent>
 
   <artifactId>data-index-service</artifactId>
+  <packaging>pom</packaging>
   <name>KubeSmarts Logic Apps :: Data Index :: Service</name>
-  <description>Data Index Quarkus service with SmallRye GraphQL</description>
+  <description>Data Index Quarkus service - parent aggregator</description>
 
-  <properties>
-    <java.module.name>org.kubesmarts.logic.dataindex.service</java.module.name>
-  </properties>
+  <modules>
+    <module>data-index-service-core</module>
+    <module>data-index-service-postgresql</module>
+    <module>data-index-service-elasticsearch</module>
+  </modules>
 
-  <dependencies>
-    <!-- Domain models -->
-    <dependency>
-      <groupId>org.kubesmarts.logic.apps</groupId>
-      <artifactId>data-index-model</artifactId>
-    </dependency>
-
-    <!-- Storage -->
-    <dependency>
-      <groupId>org.kubesmarts.logic.apps</groupId>
-      <artifactId>data-index-storage-postgresql</artifactId>
-    </dependency>
-
-    <!-- Quarkus -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-arc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-hibernate-orm</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-jdbc-postgresql</artifactId>
-    </dependency>
-
-    <!-- SmallRye GraphQL -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-smallrye-graphql</artifactId>
-    </dependency>
-
-    <!-- REST (for JAX-RS resources like RootResource) -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-rest</artifactId>
-    </dependency>
-
-    <!-- Flyway - for schema migrations -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-flyway</artifactId>
-    </dependency>
-
-    <!-- Health checks -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-smallrye-health</artifactId>
-    </dependency>
-
-    <!-- Container image building -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-container-image-jib</artifactId>
-    </dependency>
-
-    <!-- Test dependencies -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-junit</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.rest-assured</groupId>
-      <artifactId>rest-assured</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>io.quarkus</groupId>
-        <artifactId>quarkus-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>build</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>pl.project13.maven</groupId>
-        <artifactId>git-commit-id-plugin</artifactId>
-        <version>${git-commit-id-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>get-the-git-infos</id>
-            <goals>
-              <goal>revision</goal>
-            </goals>
-            <phase>initialize</phase>
-          </execution>
-        </executions>
-        <configuration>
-          <generateGitPropertiesFile>true</generateGitPropertiesFile>
-          <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
-          <includeOnlyProperties>
-            <includeOnlyProperty>^git.build.*</includeOnlyProperty>
-            <includeOnlyProperty>^git.commit.id.abbrev</includeOnlyProperty>
-            <includeOnlyProperty>^git.commit.id.describe</includeOnlyProperty>
-            <includeOnlyProperty>^git.branch</includeOnlyProperty>
-          </includeOnlyProperties>
-          <commitIdGenerationMode>full</commitIdGenerationMode>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
 </project>

@@ -98,10 +98,10 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Data Index Service (for GraphQL queries) -->
+    <!-- Data Index Service PostgreSQL (for GraphQL queries) -->
     <dependency>
       <groupId>org.kubesmarts.logic.apps</groupId>
-      <artifactId>data-index-service</artifactId>
+      <artifactId>data-index-service-postgresql</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -125,6 +125,7 @@
       <plugin>
         <groupId>io.quarkus</groupId>
         <artifactId>quarkus-maven-plugin</artifactId>
+        <extensions>true</extensions>
         <executions>
           <execution>
             <goals>

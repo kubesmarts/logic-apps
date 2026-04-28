@@ -1,0 +1,689 @@
+= GraphQL Query Examples
+:page-aliases:
+
+Practical examples of querying workflow instances and task executions using the Data Index GraphQL API.
+
+== Basic Queries
+
+=== Get All Workflow Instances
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(limit: 10) {
+    id
+    namespace
+    name
+    status
+    startDate
+    endDate
+  }
+}
+----
+
+**cURL example:**
+
+[source,bash]
+----
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getWorkflowInstances(limit: 10) { id namespace name status startDate endDate } }"
+  }'
+----
+
+**Response:**
+
+[source,json]
+----
+{
+  "data": {
+    "getWorkflowInstances": [
+      {
+        "id": "01KQV3...",
+        "namespace": "workflows",
+        "name": "simple-set",
+        "status": "COMPLETED",
+        "startDate": "2026-04-27T20:30:00Z",
+        "endDate": "2026-04-27T20:30:05Z"
+      }
+    ]
+  }
+}
+----
+
+=== Get Single Workflow by ID
+
+[source,graphql]
+----
+{
+  getWorkflowInstance(id: "01KQV3...") {
+    id
+    namespace
+    name
+    version
+    status
+    startDate
+    endDate
+    inputData
+    outputData
+  }
+}
+----
+
+**cURL example:**
+
+[source,bash]
+----
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getWorkflowInstance(id: \"01KQV3...\") { id name status inputData outputData } }"
+  }'
+----
+
+**Response:**
+
+[source,json]
+----
+{
+  "data": {
+    "getWorkflowInstance": {
+      "id": "01KQV3...",
+      "name": "simple-set",
+      "status": "COMPLETED",
+      "inputData": "{\"name\":\"test\",\"value\":42}",
+      "outputData": "{\"result\":\"success\"}"
+    }
+  }
+}
+----
+
+[NOTE]
+====
+`inputData` and `outputData` are returned as JSON strings. Parse them client-side:
+
+[source,javascript]
+----
+const workflow = data.getWorkflowInstance;
+const input = JSON.parse(workflow.inputData);
+const output = JSON.parse(workflow.outputData);
+----
+====
+
+=== Get Workflows with Tasks
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(limit: 5) {
+    id
+    name
+    namespace
+    status
+    startDate
+    endDate
+    taskExecutions {
+      id
+      taskName
+      taskPosition
+      status
+      startDate
+      endDate
+    }
+  }
+}
+----
+
+**cURL example:**
+
+[source,bash]
+----
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getWorkflowInstances(limit: 5) { id name status taskExecutions { id taskName taskPosition status } } }"
+  }'
+----
+
+**Response:**
+
+[source,json]
+----
+{
+  "data": {
+    "getWorkflowInstances": [
+      {
+        "id": "01KQV3...",
+        "name": "simple-set",
+        "status": "COMPLETED",
+        "taskExecutions": [
+          {
+            "id": "task-1",
+            "taskName": "set",
+            "taskPosition": "/do/0",
+            "status": "COMPLETED"
+          },
+          {
+            "id": "task-2",
+            "taskName": "set",
+            "taskPosition": "/do/1",
+            "status": "COMPLETED"
+          }
+        ]
+      }
+    ]
+  }
+}
+----
+
+== Task Queries
+
+=== Get All Task Executions
+
+[source,graphql]
+----
+{
+  getTaskExecutions(limit: 10) {
+    id
+    taskName
+    taskPosition
+    status
+    startDate
+    endDate
+    errorMessage
+    inputData
+    outputData
+  }
+}
+----
+
+**cURL example:**
+
+[source,bash]
+----
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getTaskExecutions(limit: 10) { id taskName taskPosition status startDate endDate } }"
+  }'
+----
+
+=== Get Tasks for Specific Workflow
+
+[source,graphql]
+----
+{
+  getTaskExecutionsByWorkflowInstance(workflowInstanceId: "01KQV3...") {
+    id
+    taskName
+    taskPosition
+    status
+    startDate
+    endDate
+    inputData
+    outputData
+  }
+}
+----
+
+**cURL example:**
+
+[source,bash]
+----
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getTaskExecutionsByWorkflowInstance(workflowInstanceId: \"01KQV3...\") { id taskName status } }"
+  }'
+----
+
+== Advanced Queries
+
+=== Filter by Status
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      status: COMPLETED
+    }
+    limit: 20
+  ) {
+    id
+    name
+    status
+    startDate
+    endDate
+  }
+}
+----
+
+**Available statuses:**
+
+* `RUNNING`
+* `COMPLETED`
+* `FAULTED`
+
+=== Filter by Name
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      name: "simple-set"
+    }
+    limit: 10
+  ) {
+    id
+    name
+    namespace
+    status
+  }
+}
+----
+
+=== Filter by Namespace
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      namespace: "workflows"
+    }
+    limit: 10
+  ) {
+    id
+    name
+    namespace
+    status
+  }
+}
+----
+
+=== Sort by Start Date
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    sort: {
+      field: "startDate"
+      order: DESC
+    }
+    limit: 10
+  ) {
+    id
+    name
+    startDate
+    status
+  }
+}
+----
+
+**Sort orders:**
+
+* `ASC` - Ascending (oldest first)
+* `DESC` - Descending (newest first)
+
+=== Pagination
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    limit: 20
+    offset: 40
+  ) {
+    id
+    name
+    status
+  }
+}
+----
+
+This returns results 41-60 (skipping first 40).
+
+=== Combined: Filter, Sort, and Paginate
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      namespace: "workflows"
+      status: COMPLETED
+    }
+    sort: {
+      field: "startDate"
+      order: DESC
+    }
+    limit: 20
+    offset: 0
+  ) {
+    id
+    namespace
+    name
+    status
+    startDate
+    endDate
+    taskExecutions {
+      id
+      taskName
+      status
+    }
+  }
+}
+----
+
+**cURL example:**
+
+[source,bash]
+----
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getWorkflowInstances(filter: { namespace: \"workflows\", status: COMPLETED }, sort: { field: \"startDate\", order: DESC }, limit: 20) { id name status startDate taskExecutions { id taskName status } } }"
+  }'
+----
+
+== Introspection
+
+=== Get Schema Types
+
+[source,graphql]
+----
+{
+  __schema {
+    types {
+      name
+      kind
+    }
+  }
+}
+----
+
+=== Get Workflow Instance Fields
+
+[source,graphql]
+----
+{
+  __type(name: "WorkflowInstance") {
+    name
+    fields {
+      name
+      type {
+        name
+        kind
+      }
+    }
+  }
+}
+----
+
+=== Get Task Execution Fields
+
+[source,graphql]
+----
+{
+  __type(name: "TaskExecution") {
+    name
+    fields {
+      name
+      type {
+        name
+        kind
+      }
+    }
+  }
+}
+----
+
+== Common Patterns
+
+=== Find Failed Workflows
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      status: FAULTED
+    }
+    sort: {
+      field: "startDate"
+      order: DESC
+    }
+    limit: 10
+  ) {
+    id
+    name
+    namespace
+    startDate
+    endDate
+    taskExecutions {
+      id
+      taskName
+      status
+      errorMessage
+    }
+  }
+}
+----
+
+=== Monitor Running Workflows
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      status: RUNNING
+    }
+  ) {
+    id
+    name
+    namespace
+    startDate
+    taskExecutions {
+      id
+      taskName
+      taskPosition
+      status
+      startDate
+    }
+  }
+}
+----
+
+=== Find Long-Running Workflows
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      status: RUNNING
+    }
+    sort: {
+      field: "startDate"
+      order: ASC
+    }
+    limit: 10
+  ) {
+    id
+    name
+    namespace
+    startDate
+  }
+}
+----
+
+This returns oldest running workflows (longest running time).
+
+=== Workflow Audit Trail
+
+[source,graphql]
+----
+{
+  getWorkflowInstance(id: "01KQV3...") {
+    id
+    name
+    namespace
+    version
+    status
+    startDate
+    endDate
+    inputData
+    outputData
+    taskExecutions {
+      id
+      taskName
+      taskPosition
+      status
+      startDate
+      endDate
+      inputData
+      outputData
+      errorMessage
+    }
+  }
+}
+----
+
+This gives the complete execution history of a workflow.
+
+== Testing Queries
+
+=== Using GraphiQL (Browser)
+
+Open http://localhost:30080/graphql in your browser to access the GraphiQL interface:
+
+1. Type your query in the left panel
+2. Click "Execute Query" (play button)
+3. View results in the right panel
+4. Use Docs explorer (top right) to browse schema
+
+=== Using curl
+
+[source,bash]
+----
+# Store query in variable for readability
+QUERY='{ getWorkflowInstances(limit: 5) { id name status } }'
+
+# Execute query
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d "{\"query\": \"$QUERY\"}"
+----
+
+=== Using jq for Pretty Output
+
+[source,bash]
+----
+curl -s http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ getWorkflowInstances(limit: 5) { id name status } }"}' \
+  | jq .
+----
+
+== Client Libraries
+
+=== JavaScript/TypeScript
+
+[source,javascript]
+----
+const query = `
+  {
+    getWorkflowInstances(limit: 10) {
+      id
+      name
+      status
+      taskExecutions {
+        id
+        taskName
+        status
+      }
+    }
+  }
+`;
+
+const response = await fetch('http://localhost:30080/graphql', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ query })
+});
+
+const result = await response.json();
+console.log(result.data.getWorkflowInstances);
+----
+
+=== Python
+
+[source,python]
+----
+import requests
+import json
+
+query = """
+{
+  getWorkflowInstances(limit: 10) {
+    id
+    name
+    status
+  }
+}
+"""
+
+response = requests.post(
+    'http://localhost:30080/graphql',
+    headers={'Content-Type': 'application/json'},
+    json={'query': query}
+)
+
+data = response.json()
+workflows = data['data']['getWorkflowInstances']
+for wf in workflows:
+    print(f"{wf['id']}: {wf['name']} - {wf['status']}")
+----
+
+=== Java
+
+[source,java]
+----
+import java.net.http.*;
+import java.net.URI;
+
+String query = """
+{
+  getWorkflowInstances(limit: 10) {
+    id
+    name
+    status
+  }
+}
+""";
+
+String body = String.format("{\"query\": \"%s\"}",
+    query.replace("\n", " ").replace("\"", "\\\""));
+
+HttpClient client = HttpClient.newHttpClient();
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:30080/graphql"))
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(body))
+    .build();
+
+HttpResponse<String> response = client.send(request,
+    HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());
+----
+
+== Next Steps
+
+* xref:api/graphql-overview.adoc[GraphQL Overview] - Schema and types
+* xref:deployment/kind-local.adoc[KIND Deployment] - Set up local environment for testing
+* xref:developers/troubleshooting.adoc[Troubleshooting] - Common GraphQL issues

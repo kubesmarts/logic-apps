@@ -1,0 +1,289 @@
+= FluentBit Configuration
+:page-aliases:
+
+Configure FluentBit to collect workflow events from Quarkus Flow applications.
+
+== Container Runtime Detection
+
+FluentBit must use the **correct parser** based on your Kubernetes cluster's **container runtime**. Using the wrong parser causes FluentBit to fail silently - it will tail log files but won't parse any events.
+
+=== Check Your Cluster's Runtime
+
+[source,bash]
+----
+# For KIND clusters
+docker exec <cluster-name>-control-plane crictl version
+
+# For real Kubernetes clusters
+kubectl get nodes -o wide
+# Look at CONTAINER-RUNTIME column
+
+# Or quick test
+kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.containerRuntimeVersion}'
+----
+
+Output examples:
+
+* `containerd://1.7.2` → Use **CRI parser**
+* `cri-o://1.25.0` → Use **CRI parser**
+* `docker://20.10.21` → Use **Docker parser**
+
+== Parser Configuration
+
+=== CRI Runtime (Most Common)
+
+**Used by:** KIND, GKE, EKS (recent versions), AKS, most modern Kubernetes
+
+**Log format:**
+
+[source,text]
+----
+2026-04-23T23:07:15.123456789Z stdout F {"eventType":"io.serverlessworkflow.workflow.started.v1",...}
+└────────timestamp──────────┘  └stream┘ └logtag┘ └──────────────message──────────────────────────┘
+----
+
+**FluentBit configuration:**
+
+`fluent-bit.conf`:
+[source,conf]
+----
+[INPUT]
+    Name              tail
+    Path              /var/log/containers/*_workflows_*.log
+    Parser            cri     # Use CRI parser
+    Tag               kube.*
+----
+
+`parsers.conf`:
+[source,conf]
+----
+[PARSER]
+    Name   cri
+    Format regex
+    Regex  ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$
+    Time_Key time
+    Time_Format %Y-%m-%dT%H:%M:%S.%LZ
+    Time_Keep On
+----
+
+=== Docker Runtime (Legacy)
+
+**Used by:** Older Kubernetes clusters, Docker Desktop Kubernetes
+
+**Log format:**
+
+[source,json]
+----
+{"log":"{\"eventType\":\"io.serverlessworkflow.workflow.started.v1\",...}\n","stream":"stdout","time":"2026-04-23T23:07:15.123456789Z"}
+----
+
+**FluentBit configuration:**
+
+`fluent-bit.conf`:
+[source,conf]
+----
+[INPUT]
+    Name              tail
+    Path              /var/log/containers/*_workflows_*.log
+    Parser            docker  # Use Docker parser
+    Tag               kube.*
+----
+
+`parsers.conf`:
+[source,conf]
+----
+[PARSER]
+    Name   docker
+    Format json
+    Time_Key time
+    Time_Format %Y-%m-%dT%H:%M:%S.%LZ
+    Time_Keep On
+    Decode_Field_As escaped log
+----
+
+== Namespace Configuration
+
+FluentBit tails logs from specific namespaces using the pattern:
+
+[source,text]
+----
+/var/log/containers/*_${WORKFLOW_NAMESPACE}_*.log
+----
+
+**Example log file:**
+
+[source,text]
+----
+/var/log/containers/workflow-test-app-7d8f9c6b5-abc123_workflows_workflow-app-xyz789.log
+                     └──────pod-name──────────┘  └─namespace┘ └──container-name+id──┘
+----
+
+=== Single Namespace
+
+Set in DaemonSet:
+
+[source,yaml]
+----
+env:
+- name: WORKFLOW_NAMESPACE
+  value: "workflows"  # Change to match your deployment namespace
+----
+
+=== Multiple Namespaces
+
+**Option 1: Multiple Path entries**
+
+[source,conf]
+----
+[INPUT]
+    Name    tail
+    Path    /var/log/containers/*_workflows_*.log
+    Path    /var/log/containers/*_production_*.log
+    Path    /var/log/containers/*_staging_*.log
+    Parser  cri
+    Tag     kube.*
+----
+
+**Option 2: Wildcard + Filter** (for dynamic namespaces)
+
+[source,conf]
+----
+[INPUT]
+    Name    tail
+    Path    /var/log/containers/*.log
+    Parser  cri
+    Tag     kube.*
+
+[FILTER]
+    Name    kubernetes
+    Match   kube.*
+
+[FILTER]
+    Name    grep
+    Match   kube.*
+    Regex   kubernetes.namespace_name ^(workflows|production|staging)$
+----
+
+[TIP]
+====
+Use Option 1 if you know the namespaces (better performance). Use Option 2 for dynamic namespaces.
+====
+
+== Nested JSON Parsing
+
+After the CRI/Docker parser extracts the `log` field, you need a second parser for the JSON event:
+
+[source,conf]
+----
+[FILTER]
+    Name              parser
+    Match             kube.*
+    Key_Name          log        # Parse the 'log' field
+    Parser            json       # Use JSON parser
+    Reserve_Data      On
+    Preserve_Key      Off
+----
+
+== Common Issues
+
+=== Events Not Reaching Storage
+
+**Symptoms:**
+
+* FluentBit logs show no errors
+* FluentBit is tailing log files (inotify_fs_add messages)
+* No events appear in storage
+* No processing activity in FluentBit logs
+
+**Diagnosis:**
+
+[source,bash]
+----
+# Check FluentBit logs for parser errors
+kubectl logs -n logging -l app=workflows-fluent-bit | grep -i "parser\|error"
+
+# Expected error if using wrong parser:
+# [error] [input:tail:tail.0] parser 'docker' is not registered
+----
+
+**Solution:**
+
+1. Detect container runtime (see above)
+2. Update `fluent-bit.conf` INPUT section with correct parser
+3. Ensure matching parser exists in `parsers.conf`
+4. Regenerate ConfigMap and restart FluentBit pods
+
+=== Parser Not Registered
+
+**Error:**
+
+[source,text]
+----
+[error] [input:tail:tail.0] parser 'cri' is not registered
+----
+
+**Solution:**
+
+Add the parser definition to `parsers.conf`:
+
+[source,conf]
+----
+[PARSER]
+    Name   cri
+    Format regex
+    Regex  ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$
+    Time_Key time
+    Time_Format %Y-%m-%dT%H:%M:%S.%LZ
+    Time_Keep On
+----
+
+== Verification
+
+=== Verify Parser is Working
+
+[source,bash]
+----
+# Restart FluentBit
+kubectl delete pod -n logging -l app=workflows-fluent-bit
+
+# Trigger a workflow
+curl -X POST http://localhost:8082/test-workflows/simple-set \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Check FluentBit is processing events
+kubectl logs -n logging -l app=workflows-fluent-bit --tail=100 | grep -E "stdout|eventType"
+
+# Check storage received events (PostgreSQL example)
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c \
+  "SELECT COUNT(*) FROM workflow_events_raw;"
+----
+
+Expected: Count should increase after triggering workflows.
+
+== KIND-Specific Notes
+
+[IMPORTANT]
+====
+KIND always uses containerd (CRI runtime), even though KIND itself runs in Docker.
+
+For KIND clusters, always use the **CRI parser**.
+====
+
+== Production Checklist
+
+* [ ] Identified container runtime (CRI vs Docker)
+* [ ] Configured correct parser in fluent-bit.conf INPUT section
+* [ ] Added matching parser definition to parsers.conf
+* [ ] Regenerated FluentBit ConfigMap
+* [ ] Tested with real workflow execution
+* [ ] Verified events reaching storage
+* [ ] Documented runtime in deployment notes
+
+== References
+
+* https://docs.fluentbit.io/manual/pipeline/inputs/tail[FluentBit Tail Input^]
+* https://docs.fluentbit.io/manual/pipeline/parsers[FluentBit Parsers^]
+* https://kubernetes.io/docs/concepts/cluster-administration/logging/[Kubernetes Logging Architecture^]
+* https://github.com/kubernetes/design-proposals-archive/blob/main/node/kubelet-cri-logging.md[CRI Logging Format^]

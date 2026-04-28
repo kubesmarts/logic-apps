@@ -1,0 +1,684 @@
+= PostgreSQL Deployment
+:page-aliases:
+
+Deploy Data Index with PostgreSQL storage backend for production workloads.
+
+== Overview
+
+PostgreSQL mode uses trigger-based normalization for real-time event processing with ACID guarantees.
+
+**Architecture:**
+
+[source,text]
+----
+Quarkus Flow Apps → Container Logs → FluentBit DaemonSet
+                                           ↓
+                                    PostgreSQL (raw tables)
+                                           ↓ (triggers < 1ms)
+                                    PostgreSQL (normalized tables)
+                                           ↓
+                                    Data Index GraphQL API
+----
+
+**Characteristics:**
+
+* **Latency**: < 1ms normalization, 5-10s end-to-end
+* **Throughput**: < 50K workflows/day
+* **Consistency**: ACID transactions
+* **Complexity**: Medium (simpler than Elasticsearch)
+
+== Prerequisites
+
+**Infrastructure:**
+
+* Kubernetes cluster 1.24+
+* PostgreSQL 13+ server or managed service
+* Persistent storage for PostgreSQL data
+* Helm 3.x (optional, for PostgreSQL installation)
+
+**Namespaces:**
+
+[source,bash]
+----
+kubectl create namespace data-index
+kubectl create namespace logging
+kubectl create namespace workflows
+kubectl create namespace postgresql  # If deploying PostgreSQL to cluster
+----
+
+== Step 1: Deploy PostgreSQL
+
+Choose one of these options:
+
+=== Option A: Managed PostgreSQL (Recommended for Production)
+
+Use a managed PostgreSQL service:
+
+* **AWS**: RDS for PostgreSQL
+* **GCP**: Cloud SQL for PostgreSQL
+* **Azure**: Azure Database for PostgreSQL
+* **Other**: DigitalOcean, Heroku, Aiven, etc.
+
+**Requirements:**
+
+* PostgreSQL 13+
+* Database: `dataindex`
+* User with CREATE, INSERT, UPDATE, DELETE, SELECT permissions
+* Network accessible from Kubernetes cluster
+
+**Create database:**
+
+[source,sql]
+----
+CREATE DATABASE dataindex;
+CREATE USER dataindex WITH PASSWORD 'your-secure-password';
+GRANT ALL PRIVILEGES ON DATABASE dataindex TO dataindex;
+----
+
+**Connection details:**
+
+[source,text]
+----
+Host: your-postgres-host.region.provider.com
+Port: 5432
+Database: dataindex
+User: dataindex
+Password: your-secure-password
+----
+
+=== Option B: PostgreSQL in Kubernetes (Development/Testing)
+
+Deploy PostgreSQL using Bitnami Helm chart:
+
+[source,bash]
+----
+# Add Bitnami repository
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+
+# Install PostgreSQL
+helm upgrade --install postgresql bitnami/postgresql \
+  --namespace postgresql \
+  --set auth.username=dataindex \
+  --set auth.password=dataindex123 \
+  --set auth.database=dataindex \
+  --set primary.persistence.size=10Gi \
+  --set primary.service.type=NodePort \
+  --set primary.service.nodePorts.postgresql=30432 \
+  --wait
+----
+
+**Verify:**
+
+[source,bash]
+----
+kubectl get pods -n postgresql
+kubectl logs -n postgresql postgresql-0
+
+# Test connection
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c '\l'
+----
+
+**Connection details** (from within cluster):
+
+[source,text]
+----
+Host: postgresql.postgresql.svc.cluster.local
+Port: 5432
+Database: dataindex
+User: dataindex
+Password: dataindex123
+----
+
+== Step 2: Initialize Database Schema
+
+The Data Index service automatically applies Flyway migrations on startup. No manual schema initialization is required.
+
+**What gets created:**
+
+* Raw tables: `workflow_events_raw`, `task_events_raw`
+* Normalized tables: `workflow_instances`, `task_instances`
+* Trigger functions: `normalize_workflow_event()`, `normalize_task_event()`
+* Indexes for performance
+
+**Manual verification** (optional):
+
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c '\dt'
+
+# Should show:
+# - workflow_events_raw
+# - task_events_raw
+# - workflow_instances
+# - task_instances
+# - flyway_schema_history
+----
+
+== Step 3: Deploy Data Index Service
+
+=== Create Configuration Secret
+
+[source,bash]
+----
+kubectl create secret generic data-index-config \
+  --namespace data-index \
+  --from-literal=jdbc-url='jdbc:postgresql://postgresql.postgresql.svc.cluster.local:5432/dataindex' \
+  --from-literal=username='dataindex' \
+  --from-literal=password='dataindex123'
+----
+
+For managed PostgreSQL, replace the JDBC URL with your external host.
+
+=== Deploy Data Index
+
+Create `data-index-deployment.yaml`:
+
+[source,yaml]
+----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-index-service
+  namespace: data-index
+  labels:
+    app: data-index-service
+spec:
+  replicas: 2  # For high availability
+  selector:
+    matchLabels:
+      app: data-index-service
+  template:
+    metadata:
+      labels:
+        app: data-index-service
+    spec:
+      containers:
+      - name: data-index
+        image: kubesmarts/data-index-service:1.0.0  # Replace with your version
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: QUARKUS_DATASOURCE_JDBC_URL
+          valueFrom:
+            secretKeyRef:
+              name: data-index-config
+              key: jdbc-url
+        - name: QUARKUS_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: data-index-config
+              key: username
+        - name: QUARKUS_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: data-index-config
+              key: password
+        - name: QUARKUS_DATASOURCE_DB_KIND
+          value: "postgresql"
+        - name: QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION
+          value: "none"
+        - name: QUARKUS_FLYWAY_MIGRATE_AT_START
+          value: "true"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /q/health/live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /q/health/ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-index-service
+  namespace: data-index
+spec:
+  selector:
+    app: data-index-service
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: data-index
+  namespace: data-index
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: data-index.your-domain.com  # Replace with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: data-index-service
+            port:
+              number: 80
+----
+
+Apply:
+
+[source,bash]
+----
+kubectl apply -f data-index-deployment.yaml
+----
+
+**Verify:**
+
+[source,bash]
+----
+kubectl get pods -n data-index
+kubectl logs -n data-index -l app=data-index-service
+
+# Check Flyway migrations ran
+kubectl logs -n data-index -l app=data-index-service | grep Flyway
+
+# Test GraphQL endpoint
+kubectl port-forward -n data-index svc/data-index-service 8080:80
+curl http://localhost:8080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ __schema { types { name } } }"}'
+----
+
+== Step 4: Deploy FluentBit
+
+FluentBit collects workflow events from container logs and sends them to PostgreSQL.
+
+=== Generate ConfigMap
+
+Use the helper script:
+
+[source,bash]
+----
+cd data-index/scripts/fluentbit
+./generate-configmap.sh
+----
+
+This generates `mode1-postgresql-triggers/kubernetes/configmap.yaml` from source files:
+
+* `fluent-bit.conf`
+* `parsers.conf`
+* `flatten-event.lua`
+
+=== Create PostgreSQL Credentials Secret
+
+[source,bash]
+----
+kubectl create secret generic fluentbit-postgres \
+  --namespace logging \
+  --from-literal=host='postgresql.postgresql.svc.cluster.local' \
+  --from-literal=port='5432' \
+  --from-literal=database='dataindex' \
+  --from-literal=user='dataindex' \
+  --from-literal=password='dataindex123'
+----
+
+For managed PostgreSQL, use your external host.
+
+=== Deploy FluentBit
+
+[source,bash]
+----
+kubectl apply -f mode1-postgresql-triggers/kubernetes/configmap.yaml
+kubectl apply -f mode1-postgresql-triggers/kubernetes/daemonset.yaml
+----
+
+**Or use helper script:**
+
+[source,bash]
+----
+./deploy-fluentbit.sh postgresql
+----
+
+**Verify:**
+
+[source,bash]
+----
+kubectl get pods -n logging
+kubectl logs -n logging -l app=workflows-fluent-bit --tail=50
+
+# Check FluentBit is tailing logs
+kubectl logs -n logging -l app=workflows-fluent-bit | grep "inotify_fs_add"
+
+# Check for errors
+kubectl logs -n logging -l app=workflows-fluent-bit | grep -i error
+----
+
+== Step 5: Deploy Quarkus Flow Applications
+
+Deploy your Quarkus Flow applications with structured logging enabled.
+
+=== Application Configuration
+
+**`application.properties`:**
+
+[source,properties]
+----
+# Structured logging
+quarkus.flow.structured-logging.enabled=true
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+
+# Console handler for JSON output
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled=true
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
+
+# Route structured logging to console
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
+----
+
+=== Deploy to workflows Namespace
+
+[IMPORTANT]
+====
+FluentBit is configured to tail logs from the `workflows` namespace by default.
+
+Deploy your applications to this namespace or update FluentBit's `WORKFLOW_NAMESPACE` environment variable.
+====
+
+[source,yaml]
+----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-workflow-app
+  namespace: workflows  # Important: must match FluentBit config
+spec:
+  template:
+    spec:
+      containers:
+      - name: app
+        image: my-workflow-app:1.0.0
+        # ... rest of config
+----
+
+== Step 6: Testing
+
+=== Execute a Workflow
+
+[source,bash]
+----
+# Port-forward your workflow app
+kubectl port-forward -n workflows svc/my-workflow-app 8082:8080
+
+# Execute workflow
+curl -X POST http://localhost:8082/my-workflow \
+  -H "Content-Type: application/json" \
+  -d '{"input": "test"}'
+----
+
+=== Verify Event Flow
+
+**1. Check container logs have JSON events:**
+
+[source,bash]
+----
+kubectl logs -n workflows <workflow-pod> | grep eventType
+----
+
+**2. Check FluentBit collected events:**
+
+[source,bash]
+----
+kubectl logs -n logging -l app=workflows-fluent-bit | grep -i "workflow"
+----
+
+**3. Check raw events in PostgreSQL:**
+
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT COUNT(*) FROM workflow_events_raw;"
+----
+
+**4. Check normalized workflows:**
+
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT id, name, status FROM workflow_instances LIMIT 5;"
+----
+
+**5. Query GraphQL API:**
+
+[source,bash]
+----
+kubectl port-forward -n data-index svc/data-index-service 8080:80
+
+curl http://localhost:8080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ getWorkflowInstances(limit: 5) { id name status startDate } }"
+  }'
+----
+
+== Production Considerations
+
+=== High Availability
+
+**Data Index:**
+
+* Deploy multiple replicas (2-3)
+* Use Kubernetes HorizontalPodAutoscaler
+* All instances are stateless (query-only)
+
+[source,yaml]
+----
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+----
+
+**PostgreSQL:**
+
+* Use managed PostgreSQL with automatic failover
+* Or deploy PostgreSQL HA solution:
+  - Patroni
+  - Stolon
+  - CloudNativePG operator
+
+**FluentBit:**
+
+* Runs as DaemonSet (one pod per node)
+* Enable filesystem buffering for reliability
+
+=== Performance Tuning
+
+**PostgreSQL:**
+
+[source,sql]
+----
+-- Increase connection pool
+ALTER SYSTEM SET max_connections = 200;
+
+-- Tune for write performance
+ALTER SYSTEM SET shared_buffers = '2GB';
+ALTER SYSTEM SET effective_cache_size = '6GB';
+ALTER SYSTEM SET maintenance_work_mem = '512MB';
+ALTER SYSTEM SET checkpoint_completion_target = 0.9;
+ALTER SYSTEM SET wal_buffers = '16MB';
+ALTER SYSTEM SET default_statistics_target = 100;
+
+-- Reload configuration
+SELECT pg_reload_conf();
+----
+
+**Data Index:**
+
+Adjust JVM heap:
+
+[source,yaml]
+----
+env:
+- name: JAVA_OPTS
+  value: "-Xms512m -Xmx1024m"
+----
+
+**FluentBit:**
+
+Increase buffer for high throughput:
+
+[source,conf]
+----
+[INPUT]
+    Mem_Buf_Limit     50MB
+
+[SERVICE]
+    storage.max_chunks_up  512
+----
+
+=== Monitoring
+
+**Metrics to track:**
+
+* FluentBit input/output rates
+* PostgreSQL connection pool usage
+* Trigger execution time
+* Raw vs normalized event counts
+* GraphQL query latency
+
+**Prometheus metrics:**
+
+[source,yaml]
+----
+# Data Index service exposes /q/metrics
+servicemonitors.monitoring.coreos.com/data-index created
+
+# FluentBit exposes metrics on port 2020
+curl http://<fluentbit-pod>:2020/api/v1/metrics/prometheus
+----
+
+**Grafana dashboards:**
+
+* PostgreSQL dashboard (ID: 9628)
+* FluentBit dashboard (custom)
+* Data Index service (Quarkus metrics)
+
+=== Security
+
+**Database credentials:**
+
+* Use Kubernetes Secrets
+* Rotate credentials regularly
+* Use minimal permissions (no DROP, ALTER)
+
+**Network policies:**
+
+[source,yaml]
+----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: data-index-network-policy
+  namespace: data-index
+spec:
+  podSelector:
+    matchLabels:
+      app: data-index-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+----
+
+**TLS:**
+
+* Enable TLS for PostgreSQL connections
+* Use TLS for Ingress (HTTPS)
+
+=== Backup and Recovery
+
+**PostgreSQL backups:**
+
+[source,bash]
+----
+# Backup
+kubectl exec -n postgresql postgresql-0 -- \
+  pg_dump -U dataindex dataindex > dataindex-backup-$(date +%Y%m%d).sql
+
+# Restore
+kubectl exec -i -n postgresql postgresql-0 -- \
+  psql -U dataindex dataindex < dataindex-backup-20260427.sql
+----
+
+**Automated backups:**
+
+* Use managed PostgreSQL automated backups
+* Or use tools like pgBackRest, Barman, WAL-G
+
+== Troubleshooting
+
+See xref:developers/troubleshooting.adoc[Troubleshooting Guide] for common issues.
+
+**Quick checks:**
+
+[source,bash]
+----
+# All pods running?
+kubectl get pods -n data-index
+kubectl get pods -n logging
+kubectl get pods -n workflows
+
+# Database accessible?
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c 'SELECT 1;'
+
+# Events flowing?
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c 'SELECT COUNT(*), MAX(time) FROM workflow_events_raw;'
+
+# GraphQL working?
+curl http://localhost:8080/graphql -d '{"query":"{ __typename }"}'
+----
+
+== Next Steps
+
+* xref:deployment/fluentbit-config.adoc[FluentBit Configuration]
+* xref:operations/event-reliability.adoc[Event Reliability]
+* xref:api/queries.adoc[GraphQL Query Examples]
+* xref:developers/troubleshooting.adoc[Troubleshooting]

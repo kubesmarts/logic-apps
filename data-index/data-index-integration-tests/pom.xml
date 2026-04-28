@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.kubesmarts.logic.apps</groupId>
+    <artifactId>data-index</artifactId>
+    <version>999-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>data-index-integration-tests</artifactId>
+  <packaging>pom</packaging>
+  <name>KubeSmarts Logic Apps :: Data Index :: Integration Tests</name>
+  <description>Integration tests for Data Index with different storage backends</description>
+
+  <modules>
+    <module>data-index-integration-tests-postgresql</module>
+    <!-- Future: Elasticsearch integration tests -->
+    <!-- <module>data-index-integration-tests-elasticsearch</module> -->
+  </modules>
+</project>

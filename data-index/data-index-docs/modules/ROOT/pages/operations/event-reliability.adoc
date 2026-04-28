@@ -1,0 +1,575 @@
+= Event Reliability and Loss Prevention
+:page-aliases:
+
+Data Index uses stdout-based log collection with FluentBit. This guide describes potential event loss scenarios and mitigation strategies.
+
+== Event Flow and Guarantees
+
+[source,text]
+----
+Quarkus Flow App
+    ↓ (stdout write - OS buffer)
+Kernel Log Buffer
+    ↓ (flush to disk)
+/var/log/containers/<pod>_<namespace>_<container>.log
+    ↓ (FluentBit tail with position tracking)
+FluentBit Memory Buffer
+    ↓ (Storage output with retry)
+Storage Backend (PostgreSQL or Elasticsearch)
+    ↓ (Normalization: triggers or transforms)
+Normalized Data
+----
+
+**Critical points of failure:**
+
+1. App crash before stdout flush
+2. Node termination before log written to disk
+3. Log rotation before FluentBit reads
+4. FluentBit buffer overflow
+5. FluentBit crash before committing position
+6. Storage backend unavailability
+7. Parse/filter errors
+
+== Event Loss Scenarios
+
+=== 1. Application Crashes Before Stdout Flush
+
+**Scenario:**
+
+[source,text]
+----
+App: workflow.started event → stdout buffer
+App: CRASH (before buffer flush)
+Result: Event never written to /var/log/containers/
+----
+
+**Risk:** Low
+
+**Reason:** OS flushes stdout on newline for line-buffered output
+
+**Mitigation:**
+
+* Quarkus Flow events always end with `\n` (newline)
+* OS typically flushes immediately
+* If app crashes mid-workflow, workflow will be re-executed (idempotent)
+
+**Monitoring:**
+
+[source,bash]
+----
+kubectl get pods -n workflows --field-selector=status.phase=Failed
+----
+
+=== 2. Node Termination Before Disk Write
+
+**Scenario:**
+
+[source,text]
+----
+App: Event → stdout → OS buffer → kernel
+Node: SIGTERM (drain starts)
+Node: SIGKILL after 30s (grace period)
+Result: In-flight events lost if not flushed to /var/log/
+----
+
+**Risk:** Medium
+
+**Mitigation:**
+
+Set pod `terminationGracePeriodSeconds`:
+
+[source,yaml]
+----
+spec:
+  terminationGracePeriodSeconds: 60  # Allow more time
+  containers:
+  - name: workflow-app
+    lifecycle:
+      preStop:
+        exec:
+          command: ["/bin/sh", "-c", "sleep 5"]  # Let stdout flush
+----
+
+Monitor pod evictions:
+
+[source,bash]
+----
+kubectl get events --field-selector reason=Evicted
+----
+
+=== 3. Log Rotation Before FluentBit Reads
+
+**Scenario:**
+
+[source,text]
+----
+Kubernetes: Rotates /var/log/containers/pod.log (size > 10MB)
+  - pod.log → pod.log.1
+  - New pod.log created
+FluentBit: Still reading pod.log.1 (tracked in DB)
+Kubernetes: Deletes pod.log.6 (max 5 rotated files)
+Result: Events in pod.log.6 lost if FluentBit didn't read them
+----
+
+**Risk:** High if FluentBit falls behind
+
+**Kubernetes defaults:**
+
+* Max log file size: 10MB
+* Max backup files: 5
+* Total retention: ~50MB per container
+
+**Mitigation:**
+
+==== Increase Kubernetes Log Retention (node-level, requires cluster admin)
+
+[source,yaml]
+----
+# /var/lib/kubelet/config.yaml
+containerLogMaxSize: 100Mi    # Default: 10Mi
+containerLogMaxFiles: 10      # Default: 5
+----
+
+==== Increase FluentBit Processing Speed
+
+[source,conf]
+----
+[INPUT]
+    Refresh_Interval  1       # Check for new logs every 1s (default: 5s)
+    Mem_Buf_Limit     20MB    # Larger memory buffer
+
+[OUTPUT]
+    Workers           2       # Parallel writes
+----
+
+==== Monitor FluentBit Lag
+
+[source,bash]
+----
+# Check FluentBit position tracking
+kubectl exec -n logging <fluentbit-pod> -- \
+  cat /tail-db/fluent-bit-kube.db
+
+# Check metrics
+curl http://<fluentbit-pod>:2020/api/v1/metrics/prometheus | grep input_bytes
+----
+
+==== Alert on High Log Rate
+
+[source,promql]
+----
+rate(fluentd_input_bytes_total[5m]) > 1000000  # > 1MB/s
+----
+
+=== 4. FluentBit Buffer Overflow
+
+**Scenario:**
+
+[source,text]
+----
+FluentBit: Reading logs faster than storage can accept
+FluentBit: Memory buffer fills up (Mem_Buf_Limit: 5MB)
+FluentBit: Drops oldest records to make room
+Result: Events lost
+----
+
+**Risk:** High under load
+
+**Mitigation:**
+
+==== Increase Memory Buffer
+
+[source,conf]
+----
+[INPUT]
+    Mem_Buf_Limit     20MB    # Default: 5MB
+
+[SERVICE]
+    storage.metrics   on
+    storage.path      /tail-db/storage
+    storage.max_chunks_up  256
+----
+
+==== Enable Filesystem Buffering
+
+[source,conf]
+----
+[INPUT]
+    storage.type      filesystem  # Spill to disk if memory full
+----
+
+**DaemonSet configuration:**
+
+[source,yaml]
+----
+volumeMounts:
+- name: storage-buffer
+  mountPath: /tail-db/storage
+
+volumes:
+- name: storage-buffer
+  emptyDir:
+    sizeLimit: 1Gi  # Allow up to 1GB disk buffering
+----
+
+==== Monitor Buffer Usage
+
+[source,bash]
+----
+curl http://<fluentbit-pod>:2020/api/v1/metrics | grep buffer
+----
+
+=== 5. FluentBit Crash Before Position Commit
+
+**Scenario:**
+
+[source,text]
+----
+FluentBit: Reads events from pod.log
+FluentBit: Sends to storage successfully
+FluentBit: CRASH before updating position in /tail-db/fluent-bit-kube.db
+FluentBit: Restarts, re-reads from old position
+Result: Duplicate events (NOT loss, but duplication)
+----
+
+**Risk:** Low (duplicates handled by normalization)
+
+**Mitigation:**
+
+* PostgreSQL triggers use UPSERT: `ON CONFLICT (id) DO UPDATE`
+* Elasticsearch transforms use doc ID deduplication
+* Duplicate events update existing records (idempotent)
+
+Monitor for crash loop:
+
+[source,bash]
+----
+kubectl get pods -n logging -l app=workflows-fluent-bit \
+  --field-selector=status.phase=CrashLoopBackOff
+----
+
+=== 6. Storage Backend Unavailability
+
+**Scenario:**
+
+[source,text]
+----
+FluentBit: Tries to write event to storage
+Storage: Connection refused / timeout
+FluentBit: Retries up to Retry_Limit (5)
+FluentBit: Gives up after 5 retries
+Result: Event lost
+----
+
+**Risk:** High if storage down for extended period
+
+**Current configuration:**
+
+[source,conf]
+----
+[OUTPUT]
+    Async           Off         # Blocking mode (wait for storage)
+    Retry_Limit     5           # Retry 5 times before giving up
+----
+
+**Mitigation:**
+
+==== Increase Retry Limit
+
+[source,conf]
+----
+[OUTPUT]
+    Retry_Limit     False       # Infinite retries (wait forever)
+----
+
+[WARNING]
+====
+This blocks FluentBit input if storage is down long-term, causing buffer overflow.
+====
+
+==== Use Storage Buffer (Recommended)
+
+[source,conf]
+----
+[INPUT]
+    storage.type    filesystem   # Spill to disk during outages
+
+[SERVICE]
+    storage.max_chunks_up  512   # Large buffer
+----
+
+==== Storage High Availability
+
+* PostgreSQL: Use HA solution (Patroni, Stolon, CloudNativePG)
+* Elasticsearch: Use multi-node cluster with replicas
+* Connection pooling (PgBouncer for PostgreSQL)
+* Monitor storage health
+
+=== 7. JSON Parse Failures
+
+**Scenario:**
+
+[source,text]
+----
+App: Outputs truncated/malformed JSON
+FluentBit: Fails to parse as JSON
+FluentBit: Skips line
+Result: Event lost
+----
+
+**Risk:** Low (Quarkus Flow uses structured logging library)
+
+**Mitigation:**
+
+==== Monitor Parse Errors
+
+[source,bash]
+----
+kubectl logs -n logging -l app=workflows-fluent-bit | grep -i "parser\|json.*error"
+----
+
+==== Preserve Unparsed Records
+
+[source,conf]
+----
+[FILTER]
+    Name              parser
+    Key_Name          log
+    Parser            json
+    Reserve_Data      On
+    Preserve_Key      On      # Keep original if parse fails
+----
+
+== Reliability Guarantees
+
+=== What FluentBit Guarantees
+
+✅ **At-least-once delivery** with `Async Off` + position tracking
+
+✅ **Duplicate handling** via position DB
+
+✅ **Crash recovery** from last committed position
+
+✅ **Retry on transient failures** up to `Retry_Limit`
+
+=== What FluentBit Does NOT Guarantee
+
+❌ **Event ordering** - Events can arrive out of order (normalization handles this)
+
+❌ **Zero loss during node termination** - In-flight events may be lost
+
+❌ **Infinite buffering** - Buffer limits exist, overflow = loss
+
+❌ **Persistence across node loss** - Position DB is per-node
+
+== Production Recommendations
+
+=== Minimal Configuration (Acceptable Loss Risk)
+
+Default configuration:
+
+* `Mem_Buf_Limit: 5MB`
+* `Retry_Limit: 5`
+* `Async: Off`
+* Position tracking enabled
+
+**Expected Loss:** < 0.1% under normal conditions
+
+=== Recommended Configuration (Low Loss Risk)
+
+[source,conf]
+----
+[INPUT]
+    Mem_Buf_Limit     20MB
+    storage.type      filesystem
+    Refresh_Interval  1
+
+[OUTPUT]
+    Retry_Limit       False  # Infinite retries
+    Workers           2
+
+[SERVICE]
+    storage.path             /tail-db/storage
+    storage.max_chunks_up    512
+----
+
+**DaemonSet resources:**
+
+[source,yaml]
+----
+volumeMounts:
+- name: storage-buffer
+  mountPath: /tail-db/storage
+
+volumes:
+- name: storage-buffer
+  emptyDir:
+    sizeLimit: 2Gi
+
+resources:
+  requests:
+    memory: "256Mi"
+  limits:
+    memory: "1Gi"
+----
+
+**Expected Loss:** < 0.01% under normal conditions
+
+=== High Reliability (Near-Zero Loss)
+
+If event loss is unacceptable, consider:
+
+**Option 1: Dual Write (App-Level)**
+
+[source,text]
+----
+Quarkus Flow → stdout (for observability)
+            ↓
+            → Storage (direct insert via JDBC/ES Client)
+----
+
+**Pros:** No intermediary, guaranteed delivery
+
+**Cons:** App coupled to data-index, requires connection pool
+
+**Option 2: File-Based with Persistent Volumes**
+
+[source,text]
+----
+Quarkus Flow → /data/events.log (PersistentVolume)
+            ↓
+FluentBit → tail → Storage
+----
+
+**Pros:** Events survive pod/node restarts
+
+**Cons:** Requires PV provisioning, slower I/O
+
+== Monitoring and Alerting
+
+=== Key Metrics
+
+**1. FluentBit Health**
+
+[source,bash]
+----
+kubectl get pods -n logging -l app=workflows-fluent-bit
+----
+
+**2. Buffer Usage**
+
+[source,promql]
+----
+fluentbit_input_bytes_total - fluentbit_output_bytes_total
+----
+
+**3. Retry Rate**
+
+[source,promql]
+----
+rate(fluentbit_output_retries_total[5m]) > 0
+----
+
+**4. Event Count (PostgreSQL example)**
+
+[source,sql]
+----
+SELECT
+  (SELECT COUNT(*) FROM workflow_events_raw) as raw_events,
+  (SELECT COUNT(*) FROM workflow_instances) as workflows,
+  (SELECT COUNT(*) FROM task_events_raw) as task_events,
+  (SELECT COUNT(*) FROM task_instances) as tasks;
+----
+
+**5. Log Rotation Rate**
+
+[source,bash]
+----
+ls -lh /var/log/containers/*_workflows_*.log*
+----
+
+=== Recommended Alerts
+
+**Critical:**
+
+* FluentBit pod not running
+* Storage connection failures > 1 min
+* Buffer overflow detected
+
+**Warning:**
+
+* Retry rate > 10/min
+* Buffer usage > 80%
+* Log rotation faster than 1 file/min
+
+== Event Loss Detection
+
+=== Check for Incomplete Workflows
+
+[source,sql]
+----
+-- Workflows that started but never completed/faulted
+SELECT id, name, status, start, "end"
+FROM workflow_instances
+WHERE status = 'RUNNING'
+  AND start < NOW() - INTERVAL '1 hour';
+----
+
+=== Verify Task Count
+
+[source,sql]
+----
+-- Compare task count to expected count for workflow
+SELECT
+  wi.id,
+  wi.name,
+  COUNT(ti.task_execution_id) as task_count
+FROM workflow_instances wi
+LEFT JOIN task_instances ti ON wi.id = ti.instance_id
+WHERE wi.name = 'simple-set'
+GROUP BY wi.id, wi.name
+HAVING COUNT(ti.task_execution_id) != 2;  -- Expected: 2 tasks
+----
+
+== Disaster Recovery
+
+If events are lost:
+
+**1. Check FluentBit logs for errors**
+
+[source,bash]
+----
+kubectl logs -n logging -l app=workflows-fluent-bit --tail=1000 > fluentbit.log
+grep -i "error\|fail\|drop\|overflow" fluentbit.log
+----
+
+**2. Check if events exist in container logs**
+
+[source,bash]
+----
+kubectl exec -n logging <fluentbit-pod> -- \
+  grep "eventType" /var/log/containers/*_workflows_*.log | tail -100
+----
+
+**3. Manual replay from container logs** (if still available)
+
+[source,bash]
+----
+# Extract missed events
+kubectl exec -n logging <fluentbit-pod> -- \
+  grep "eventType.*workflow.started" /var/log/containers/pod.log.2 > missed_events.json
+
+# Insert manually (PostgreSQL example)
+while IFS= read -r event; do
+  echo "INSERT INTO workflow_events_raw (tag, time, data) VALUES ('workflow.started', NOW(), '${event}');" | \
+    kubectl exec -n postgresql postgresql-0 -- psql -U dataindex -d dataindex
+done < missed_events.json
+----
+
+== Summary
+
+Event loss is possible in stdout-based log collection, but can be minimized to < 0.01% with proper configuration and monitoring.
+
+For most use cases, the recommended FluentBit configuration provides sufficient reliability with good operational simplicity.
+
+For critical workflows where event loss is unacceptable, consider dual-write or file-based logging with persistent volumes.

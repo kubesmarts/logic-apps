@@ -86,6 +86,21 @@
       </dependency>
       <dependency>
         <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-service-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-service-postgresql</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-service-elasticsearch</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
         <artifactId>workflow-test-app</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -170,6 +185,8 @@
     <module>data-index-model</module>
     <module>data-index-storage</module>
     <module>data-index-service</module>
+    <module>data-index-integration-tests</module>
+    <module>data-index-docs</module>
     <module>workflow-test-app</module>
   </modules>
 

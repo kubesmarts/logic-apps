@@ -40,8 +40,17 @@ jobs:
 
       - name: Build container images
         run: |
+          # Build data-index-service-postgresql (production: no Flyway)
           mvn -B package -DskipTests \
-            -pl data-index/data-index-service,data-index/workflow-test-app \
+            -pl data-index/data-index-service/data-index-service-postgresql \
+            -am \
+            -DskipFlyway=true \
+            -Dquarkus.container-image.build=true \
+            --no-transfer-progress
+
+          # Build workflow-test-app
+          mvn -B package -DskipTests \
+            -pl data-index/workflow-test-app \
             -Dquarkus.container-image.build=true \
             --no-transfer-progress
 
@@ -53,7 +62,7 @@ jobs:
 
       - name: Load container images into KIND
         run: |
-          kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT \
+          kind load docker-image kubesmarts/data-index-service-postgresql:999-SNAPSHOT \
             --name data-index-test
           kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT \
             --name data-index-test
@@ -102,7 +111,7 @@ jobs:
       - name: Deploy Data Index service
         run: |
           SKIP_IMAGE_BUILD=true SKIP_DB_INIT=true \
-            bash data-index/scripts/kind/deploy-data-index.sh postgresql-polling
+            bash data-index/scripts/kind/deploy-data-index.sh postgresql
 
       - name: Deploy FluentBit
         run: |
@@ -127,7 +136,7 @@ jobs:
         run: |
           bash data-index/scripts/kind/deploy-workflow-app.sh
 
-      - name: Test workflow execution and GraphQL API
+      - name: Test E2E workflow execution and GraphQL API
         run: |
           # Port forward data-index service
           kubectl port-forward -n data-index svc/data-index-service 8080:8080 &
@@ -169,7 +178,7 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Integration tests passed!"
+          echo "✅ E2E integration tests passed!"
 
       - name: Collect logs on failure
         if: failure()

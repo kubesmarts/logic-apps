@@ -149,11 +149,18 @@ install_ingress() {
 
     kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
 
+    log_info "Waiting for ingress controller deployment to be created..."
+    sleep 5
+
     log_info "Waiting for ingress controller to be ready..."
+    kubectl wait --namespace ingress-nginx \
+      --for=condition=available deployment/ingress-nginx-controller \
+      --timeout=300s
+
     kubectl wait --namespace ingress-nginx \
       --for=condition=ready pod \
       --selector=app.kubernetes.io/component=controller \
-      --timeout=300s
+      --timeout=120s
 
     log_info "✓ Ingress controller installed"
 }

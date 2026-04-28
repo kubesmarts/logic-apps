@@ -1,0 +1,26 @@
+* xref:index.adoc[Introduction]
+* xref:getting-started.adoc[Getting Started]
+
+* Deployment
+** xref:deployment/overview.adoc[Overview]
+** xref:deployment/kind-local.adoc[Local Development (KIND)]
+** xref:deployment/postgresql.adoc[PostgreSQL Production]
+** xref:deployment/elasticsearch.adoc[Elasticsearch (Planned)]
+** xref:deployment/fluentbit-config.adoc[FluentBit Configuration]
+
+* Operations
+** xref:operations/event-reliability.adoc[Event Reliability]
+
+* Developers Guide
+** xref:developers/quarkus-flow-apps.adoc[Quarkus Flow Apps]
+** xref:developers/configuration.adoc[Configuration Reference]
+** xref:developers/troubleshooting.adoc[Troubleshooting]
+
+* API Reference
+** xref:api/graphql-overview.adoc[GraphQL Overview]
+** xref:api/queries.adoc[Query Examples]
+
+* Architecture
+** xref:architecture/overview.adoc[How Data Index Works]
+** xref:architecture/postgresql-mode.adoc[PostgreSQL Mode]
+** xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode]

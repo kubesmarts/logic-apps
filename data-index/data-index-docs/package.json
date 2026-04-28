@@ -1,0 +1,13 @@
+{
+  "name": "data-index-docs",
+  "version": "1.0.0",
+  "description": "Data Index Documentation",
+  "private": true,
+  "scripts": {
+    "build": "antora antora-playbook.yaml"
+  },
+  "dependencies": {
+    "@antora/cli": "^3.1.9",
+    "@antora/site-generator": "^3.1.9"
+  }
+}

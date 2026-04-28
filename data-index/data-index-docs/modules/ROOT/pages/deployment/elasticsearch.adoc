@@ -1,0 +1,90 @@
+= Elasticsearch Deployment
+:page-aliases:
+
+[NOTE]
+====
+**Status**: 📋 Planned - Not Yet Implemented
+
+The Elasticsearch storage backend is currently in the design/planning phase. The Data Index service does not yet include the Elasticsearch implementation.
+====
+
+== Overview
+
+Elasticsearch mode will use ES Transform-based normalization for high-throughput deployments with full-text search capabilities.
+
+**Planned architecture:**
+
+[source,text]
+----
+Quarkus Flow Apps → Container Logs → FluentBit DaemonSet
+                                           ↓
+                                    Elasticsearch (raw indices)
+                                           ↓ (ES Transform ~1s)
+                                    Elasticsearch (normalized indices)
+                                           ↓
+                                    Data Index GraphQL API
+----
+
+**Planned characteristics:**
+
+* **Latency**: ~1s normalization, 5-10s end-to-end
+* **Throughput**: 100K+ workflows/day
+* **Search**: Full-text search, aggregations, analytics
+* **Complexity**: Higher (ES cluster, transforms, Painless scripts)
+
+== Current Status
+
+**What exists:**
+
+* ✅ Architecture design documented in xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode Architecture]
+* ✅ FluentBit configuration in `scripts/fluentbit/mode2-elasticsearch/`
+* ✅ Implementation plan in `docs/deployment/MODE2_IMPLEMENTATION_PLAN.md`
+
+**What's missing:**
+
+* ❌ Data Index Elasticsearch storage adapter
+* ❌ GraphQL API Elasticsearch backend
+* ❌ ES Transform definitions (Painless scripts)
+* ❌ Index templates and mappings
+* ❌ Integration tests
+
+== Alternative: Use PostgreSQL Mode
+
+For production deployments today, use xref:deployment/postgresql.adoc[PostgreSQL Mode]:
+
+* ✅ Production ready
+* ✅ Real-time normalization (< 1ms)
+* ✅ ACID transactions
+* ✅ Supports up to 50K workflows/day
+
+PostgreSQL mode handles most use cases effectively. Consider Elasticsearch only if you specifically need:
+
+* Full-text search across workflow data
+* Very high throughput (> 50K workflows/day)
+* Advanced analytics and aggregations
+
+== Architecture Reference
+
+See xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode Architecture] for:
+
+* Detailed data flow
+* ES Transform design
+* Painless script patterns
+* Index structure
+* Search capabilities
+
+## Implementation Timeline
+
+The Elasticsearch backend is planned for a future release. No timeline is currently set.
+
+If you need Elasticsearch support urgently, please:
+
+1. Review the implementation plan: `docs/deployment/MODE2_IMPLEMENTATION_PLAN.md`
+2. Open an issue at https://github.com/kubesmarts/logic-apps/issues
+3. Consider contributing the implementation
+
+== Next Steps
+
+* xref:deployment/postgresql.adoc[Deploy PostgreSQL Mode] - Production ready alternative
+* xref:architecture/elasticsearch-mode.adoc[Elasticsearch Architecture] - Design documentation
+* xref:deployment/overview.adoc[Deployment Overview] - Compare storage backends
