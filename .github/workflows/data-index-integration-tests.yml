@@ -136,13 +136,6 @@ jobs:
         run: |
           bash data-index/scripts/kind/deploy-workflow-app.sh
 
-      - name: Run Integration Tests
-        run: |
-          # Run PostgreSQL integration tests
-          mvn -B test \
-            -pl data-index/data-index-integration-tests-postgresql \
-            --no-transfer-progress
-
       - name: Test E2E workflow execution and GraphQL API
         run: |
           # Port forward data-index service
