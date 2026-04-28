@@ -88,10 +88,6 @@
       <id>postgresql</id>
       <activation>
         <activeByDefault>true</activeByDefault>
-        <property>
-          <name>quarkus.profile</name>
-          <value>postgresql</value>
-        </property>
       </activation>
       <dependencies>
         <!-- PostgreSQL storage implementation -->
@@ -139,12 +135,6 @@
     <!-- Elasticsearch Backend - Not Implemented Yet (MODE 2) -->
     <profile>
       <id>elasticsearch</id>
-      <activation>
-        <property>
-          <name>quarkus.profile</name>
-          <value>elasticsearch</value>
-        </property>
-      </activation>
       <dependencies>
         <!-- Elasticsearch storage implementation (future) -->
         <dependency>
