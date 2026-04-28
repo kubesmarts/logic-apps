@@ -316,7 +316,7 @@ cd data-index/scripts/fluentbit
 ./generate-configmap.sh
 ----
 
-This generates `mode1-postgresql-triggers/kubernetes/configmap.yaml` from source files:
+This generates `postgresql/kubernetes/configmap.yaml` from source files:
 
 * `fluent-bit.conf`
 * `parsers.conf`
@@ -341,8 +341,8 @@ For managed PostgreSQL, use your external host.
 
 [source,bash]
 ----
-kubectl apply -f mode1-postgresql-triggers/kubernetes/configmap.yaml
-kubectl apply -f mode1-postgresql-triggers/kubernetes/daemonset.yaml
+kubectl apply -f postgresql/kubernetes/configmap.yaml
+kubectl apply -f postgresql/kubernetes/daemonset.yaml
 ----
 
 **Or use helper script:**

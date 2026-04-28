@@ -23,7 +23,7 @@ Data Index GraphQL API
 ## Deployment Modes
 
 ### PostgreSQL Mode (Production Ready)
-**Directory**: `mode1-postgresql-triggers/`
+**Directory**: `postgresql/`
 
 **Status**: ✅ Production Ready
 
@@ -56,7 +56,7 @@ Data Index GraphQL API
 ---
 
 ### Elasticsearch Mode (In Development)
-**Directory**: `mode2-elasticsearch/`
+**Directory**: `elasticsearch/`
 
 **Status**: 📋 Planned (backend not yet implemented)
 
@@ -87,10 +87,10 @@ Data Index GraphQL API
 # From data-index/scripts/fluentbit/
 
 # Deploy PostgreSQL mode
-./deploy-fluentbit.sh mode1-postgresql-triggers
+./deploy-fluentbit.sh postgresql
 
 # Deploy Elasticsearch mode (when available)
-./deploy-fluentbit.sh mode2-elasticsearch
+./deploy-fluentbit.sh elasticsearch
 ```
 
 The helper script:
@@ -104,11 +104,11 @@ The helper script:
 # From data-index/scripts/fluentbit/
 
 # 1. Generate ConfigMap from source files
-./generate-configmap.sh mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml
+./generate-configmap.sh postgresql postgresql/kubernetes/configmap.yaml
 
 # 2. Apply to Kubernetes
-kubectl apply -f mode1-postgresql-triggers/kubernetes/configmap.yaml
-kubectl apply -f mode1-postgresql-triggers/kubernetes/daemonset.yaml
+kubectl apply -f postgresql/kubernetes/configmap.yaml
+kubectl apply -f postgresql/kubernetes/daemonset.yaml
 
 # 3. Verify
 kubectl get pods -n logging

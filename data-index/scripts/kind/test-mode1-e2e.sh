@@ -142,7 +142,7 @@ deploy_fluentbit() {
     # Generate ConfigMap from source files to temp file
     TEMP_CONFIGMAP=$(mktemp)
     cd "${PROJECT_ROOT}/scripts/fluentbit"
-    ./generate-configmap.sh mode1-postgresql-triggers "${TEMP_CONFIGMAP}" 2>/dev/null
+    ./generate-configmap.sh postgresql "${TEMP_CONFIGMAP}" 2>/dev/null
 
     # Apply with name change
     sed 's/name: fluent-bit-config/name: workflows-fluent-bit-mode1-config/' "${TEMP_CONFIGMAP}" | \
@@ -151,7 +151,7 @@ deploy_fluentbit() {
     rm -f "${TEMP_CONFIGMAP}"
 
     # Deploy DaemonSet
-    kubectl apply -f mode1-postgresql-triggers/kubernetes/daemonset.yaml
+    kubectl apply -f postgresql/kubernetes/daemonset.yaml
 
     # Wait for pods
     log_info "Waiting for FluentBit pods..."

@@ -4,11 +4,11 @@
 
 ## Purpose
 
-This module contains Flyway migration scripts for Data Index MODE 1 (PostgreSQL Trigger-based Normalization) architecture:
+This module contains Flyway migration scripts for Data Index PostgreSQL storage backend:
 
-- **Raw Staging Tables**: `workflow_events_raw`, `task_events_raw` (FluentBit writes here - fixed schema: tag, time, data)
-- **Normalized Tables**: `workflow_instances`, `task_instances` (PostgreSQL triggers normalize here)
-- **No Event Processor needed**: Real-time normalization via PostgreSQL BEFORE INSERT triggers
+- **Raw Tables**: `workflow_events_raw`, `task_events_raw` (stores events from FluentBit)
+- **Normalized Tables**: `workflow_instances`, `task_instances` (optimized for querying)
+- **Real-time processing**: Events are normalized automatically as they arrive
 
 ## Architecture
 

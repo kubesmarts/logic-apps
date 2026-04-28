@@ -203,8 +203,8 @@ kubectl create namespace logging
 # 2. Generate and apply ConfigMap
 # From data-index/scripts/fluentbit/ directory:
 cd ../..
-./generate-configmap.sh mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml
-kubectl apply -f mode1-postgresql-triggers/kubernetes/configmap.yaml
+./generate-configmap.sh postgresql postgresql/kubernetes/configmap.yaml
+kubectl apply -f postgresql/kubernetes/configmap.yaml
 
 # Alternatively, create ConfigMap manually (must include ALL files):
 # kubectl create configmap workflows-fluent-bit-mode1-config \

@@ -9,7 +9,7 @@
 #   ./deploy-fluentbit.sh <mode>
 #
 # Example:
-#   ./deploy-fluentbit.sh mode1-postgresql-triggers
+#   ./deploy-fluentbit.sh postgresql
 #
 # ============================================================================
 
@@ -33,8 +33,8 @@ if [ $# -lt 1 ]; then
     error "Usage: $0 <mode>"
     error ""
     error "Available modes:"
-    error "  mode1-postgresql-triggers  - PostgreSQL mode (production ready)"
-    error "  mode2-elasticsearch        - Elasticsearch mode (planned)"
+    error "  postgresql  - PostgreSQL mode (production ready)"
+    error "  elasticsearch        - Elasticsearch mode (planned)"
     exit 1
 fi
 

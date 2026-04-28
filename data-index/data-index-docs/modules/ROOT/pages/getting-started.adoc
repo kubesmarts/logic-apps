@@ -27,9 +27,9 @@ MODE=postgresql ./install-dependencies.sh
 
 # 3. Deploy FluentBit DaemonSet (PostgreSQL mode)
 cd ../fluentbit
-./generate-configmap.sh mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml
-kubectl apply -f mode1-postgresql-triggers/kubernetes/configmap.yaml
-kubectl apply -f mode1-postgresql-triggers/kubernetes/daemonset.yaml
+./generate-configmap.sh postgresql postgresql/kubernetes/configmap.yaml
+kubectl apply -f postgresql/kubernetes/configmap.yaml
+kubectl apply -f postgresql/kubernetes/daemonset.yaml
 ----
 
 == Verify Installation

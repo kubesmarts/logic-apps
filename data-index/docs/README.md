@@ -25,7 +25,7 @@ open target/generated-docs/index.html
 
 ### Implementation Plans
 
-* **deployment/MODE2_IMPLEMENTATION_PLAN.md** - Elasticsearch mode implementation plan (in progress)
+* **deployment/MODE2_IMPLEMENTATION_PLAN.md** - Elasticsearch storage backend implementation plan (in progress)
 
 ## Migration Status
 
@@ -38,7 +38,7 @@ open target/generated-docs/index.html
 
 ❌ **Removed:**
 - All internal development phase references
-- All MODE 3 (Kafka) documentation
+- Kafka-based architecture documentation (deprecated)
 - Duplicate content from old documentation structure
 
 ## Contributing

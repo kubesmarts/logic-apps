@@ -9,8 +9,8 @@
 #   ./generate-configmap.sh <mode-directory> [output-file]
 #
 # Example:
-#   ./generate-configmap.sh mode1-postgresql-triggers
-#   ./generate-configmap.sh mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml
+#   ./generate-configmap.sh postgresql
+#   ./generate-configmap.sh postgresql postgresql/kubernetes/configmap.yaml
 #
 # ============================================================================
 
@@ -34,8 +34,8 @@ if [ $# -lt 1 ]; then
     error "Usage: $0 <mode-directory> [output-file]"
     error ""
     error "Examples:"
-    error "  $0 mode1-postgresql-triggers"
-    error "  $0 mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml"
+    error "  $0 postgresql"
+    error "  $0 postgresql postgresql/kubernetes/configmap.yaml"
     exit 1
 fi
 
@@ -78,7 +78,7 @@ generate_configmap() {
 
     # Determine ConfigMap name based on mode
     local configmap_name="fluent-bit-config"
-    if [[ "$mode_name" == "mode1-postgresql-triggers" ]]; then
+    if [[ "$mode_name" == "postgresql" ]]; then
         configmap_name="workflows-fluent-bit-mode1-config"
     fi
 

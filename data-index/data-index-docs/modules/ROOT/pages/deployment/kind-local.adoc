@@ -178,9 +178,9 @@ cd ../fluentbit
 **What this does:**
 
 1. Generates FluentBit ConfigMap from source files:
-   - `mode1-postgresql-triggers/fluent-bit.conf`
-   - `mode1-postgresql-triggers/parsers.conf`
-   - `mode1-postgresql-triggers/flatten-event.lua`
+   - `postgresql/fluent-bit.conf`
+   - `postgresql/parsers.conf`
+   - `postgresql/flatten-event.lua`
 2. Deploys FluentBit DaemonSet to `logging` namespace
 3. Configures to tail logs from `workflows` namespace
 4. Sets up PostgreSQL output plugin
@@ -544,7 +544,7 @@ MODE=postgresql ./install-dependencies.sh
 # Redeploy Data Index and FluentBit
 ./deploy-data-index.sh postgresql
 cd ../fluentbit
-./deploy-fluentbit.sh mode1-postgresql-triggers
+./deploy-fluentbit.sh postgresql
 ----
 
 TIP: This is faster than recreating the entire cluster and useful for testing schema changes or FluentBit configuration.
