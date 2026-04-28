@@ -1,9 +1,59 @@
 = Troubleshooting Guide
 :page-aliases:
 
-Common issues and solutions when integrating Quarkus Flow apps with Data Index.
+Common issues and solutions for Data Index deployment and Quarkus Flow integration.
 
-== Build Issues
+== Data Index Build Issues
+
+=== Build fails: "Cannot resolve dependencies"
+
+**Symptom:**
+
+[source,text]
+----
+[ERROR] Could not resolve dependencies for project org.kubesmarts.logic.apps:data-index-service-postgresql
+----
+
+**Cause:** Parent POM not installed.
+
+**Solution:**
+
+Install parent modules first:
+
+[source,bash]
+----
+cd data-index
+mvn install -pl . -am -DskipTests
+----
+
+=== Container image build fails
+
+**Symptom:**
+
+Jib container build fails during `mvn package`.
+
+**Cause:** Quarkus container image build enabled but Docker not running.
+
+**Solution:**
+
+Ensure Docker is running:
+
+[source,bash]
+----
+docker info
+# If error, start Docker Desktop
+----
+
+Or disable container build:
+
+[source,bash]
+----
+mvn package -Dquarkus.container-image.build=false
+----
+
+== Quarkus Flow App Issues
+
+These issues occur when building Quarkus Flow workflow applications that integrate with Data Index.
 
 === Build fails: "At least one enabled entry must be active"
 
@@ -14,18 +64,16 @@ Common issues and solutions when integrating Quarkus Flow apps with Data Index.
 [ERROR] At least one enabled entry must be active, but none were (quarkus-kubernetes)
 ----
 
-**Cause:** Using Maven profile but not activating it.
+**Cause:** Quarkus Flow app using Maven profile for KIND deployment but not activating it.
 
 **Solution:**
 
-Build with the profile:
+Activate the profile in your Quarkus Flow app:
 
 [source,bash]
 ----
 mvn clean package -Pkind
 ----
-
-Or if using `-Dquarkus.profile=kubernetes`, ensure your Maven profile is activated by this property.
 
 === Build fails: "Cannot find quarkus-kind"
 
@@ -36,11 +84,11 @@ Or if using `-Dquarkus.profile=kubernetes`, ensure your Maven profile is activat
 [ERROR] Unknown deployment target: kind
 ----
 
-**Cause:** Missing `quarkus-kind` extension when using `deployment-target=kind`.
+**Cause:** Quarkus Flow app missing `quarkus-kind` extension.
 
 **Solution:**
 
-Add to your Maven profile:
+Add to your Quarkus Flow app's Maven profile:
 
 [source,xml]
 ----
