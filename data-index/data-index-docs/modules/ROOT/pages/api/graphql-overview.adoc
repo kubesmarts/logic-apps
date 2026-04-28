@@ -38,26 +38,52 @@ type WorkflowInstance {
   id: ID!
   name: String!
   namespace: String
+  version: String
   status: WorkflowInstanceStatus!
   startDate: String
   endDate: String
+  lastUpdate: String
   inputData: String      # JSON as string
   outputData: String     # JSON as string
-  lastUpdateTime: String
   taskExecutions: [TaskExecution!]!
+  error: WorkflowInstanceError
 }
 
 enum WorkflowInstanceStatus {
   RUNNING
   COMPLETED
-  FAILED
-  TERMINATED
+  FAULTED
+  CANCELLED
+  SUSPENDED
+}
+
+type WorkflowInstanceError {
+  type: String
+  title: String
+  detail: String
+  status: Int
+  instance: String
 }
 ----
 
+**Field descriptions:**
+
+* `id` - Unique workflow instance identifier (from Quarkus Flow)
+* `name` - Workflow name
+* `namespace` - Workflow namespace (optional)
+* `version` - Workflow version
+* `status` - Current instance status
+* `startDate` - ISO 8601 timestamp when instance started
+* `endDate` - ISO 8601 timestamp when instance ended (completed/faulted)
+* `lastUpdate` - ISO 8601 timestamp of last status change
+* `inputData` - Workflow input as JSON string
+* `outputData` - Workflow output as JSON string
+* `taskExecutions` - List of task executions within this instance
+* `error` - Error details if status is FAULTED
+
 === TaskExecution
 
-Represents a task execution within a workflow.
+Represents a task execution within a workflow instance.
 
 [source,graphql]
 ----
@@ -65,20 +91,26 @@ type TaskExecution {
   id: ID!
   taskName: String!
   taskPosition: String!
-  status: TaskExecutionStatus!
+  status: String!
   startDate: String
   endDate: String
+  errorMessage: String
   inputData: String      # JSON as string
   outputData: String     # JSON as string
 }
-
-enum TaskExecutionStatus {
-  RUNNING
-  COMPLETED
-  FAILED
-  SKIPPED
-}
 ----
+
+**Field descriptions:**
+
+* `id` - Unique task execution identifier
+* `taskName` - Name of the task (optional)
+* `taskPosition` - JSONPointer identifying task location in workflow (e.g., "/do/0", "/do/1/then/0")
+* `status` - Task status: RUNNING, COMPLETED, FAULTED
+* `startDate` - ISO 8601 timestamp when task started
+* `endDate` - ISO 8601 timestamp when task ended
+* `errorMessage` - Error message if status is FAULTED
+* `inputData` - Task input as JSON string
+* `outputData` - Task output as JSON string
 
 [NOTE]
 ====
@@ -150,8 +182,41 @@ Filter by status, name, namespace:
   ) {
     id
     name
+    version
     status
+    startDate
     endDate
+    lastUpdate
+  }
+}
+----
+
+=== Get Failed Workflows with Error Details
+
+Retrieve failed workflows with complete error information:
+
+[source,graphql]
+----
+{
+  getWorkflowInstancesByFilter(filter: { status: FAULTED }) {
+    id
+    name
+    status
+    startDate
+    endDate
+    error {
+      type
+      title
+      detail
+      status
+      instance
+    }
+    taskExecutions {
+      taskPosition
+      taskName
+      status
+      errorMessage
+    }
   }
 }
 ----
