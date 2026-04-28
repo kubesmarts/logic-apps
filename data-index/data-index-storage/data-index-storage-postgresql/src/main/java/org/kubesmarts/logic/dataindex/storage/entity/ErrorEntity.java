@@ -21,22 +21,11 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 
 /**
- * JPA entity for workflow instance error information.
- *
- * <p><b>Design principle:</b> This entity stores data from the error object in
- * workflow.instance.faulted events. It aligns with the Serverless Workflow 1.0.0 Error spec.
- *
- * <p><b>Event source:</b>
- * <ul>
- *   <li>workflow.instance.faulted → error object with type, title, detail, status, instance
- * </ul>
- *
- * <p>Maps to WorkflowInstanceError domain model.
- *
- * <p>Embedded in WorkflowInstanceEntity (not a separate table).
+ * Embeddable error entity for workflow and task execution errors.
+ * <p>Used by both WorkflowInstanceEntity and TaskInstanceEntity.
  */
 @Embeddable
-public class WorkflowInstanceErrorEntity {
+public class ErrorEntity {
 
     /**
      * Error type classification.
@@ -122,7 +111,7 @@ public class WorkflowInstanceErrorEntity {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        WorkflowInstanceErrorEntity that = (WorkflowInstanceErrorEntity) o;
+        ErrorEntity that = (ErrorEntity) o;
         return Objects.equals(type, that.type) &&
                 Objects.equals(title, that.title) &&
                 Objects.equals(detail, that.detail) &&
@@ -137,7 +126,7 @@ public class WorkflowInstanceErrorEntity {
 
     @Override
     public String toString() {
-        return "WorkflowInstanceErrorEntity{" +
+        return "ErrorEntity{" +
                 "type='" + type + '\'' +
                 ", title='" + title + '\'' +
                 ", status=" + status +
