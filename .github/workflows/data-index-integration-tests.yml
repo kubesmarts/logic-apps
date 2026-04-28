@@ -33,6 +33,13 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Verify Maven profile activation
+        run: |
+          echo "Checking active profiles for data-index-service..."
+          mvn help:active-profiles -Ppostgresql -pl data-index/data-index-service
+          echo "Checking effective POM properties..."
+          mvn help:effective-pom -Ppostgresql -pl data-index/data-index-service | grep -A2 "quarkus.profile"
+
       - name: Build project
         run: |
           mvn -B clean install -Ppostgresql -DskipTests \

@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>data-index-docs</artifactId>
-    <name>Data Index :: Documentation</name>
+    <name>KubeSmarts Logic Apps :: Data Index :: Documentation</name>
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
