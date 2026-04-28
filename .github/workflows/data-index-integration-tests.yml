@@ -35,7 +35,7 @@ jobs:
 
       - name: Build project
         run: |
-          mvn -B clean install -Ppostgresql -DskipTests \
+          mvn -B clean install -Ppostgresql -Dquarkus.profile=postgresql -DskipTests \
             --no-transfer-progress
 
       - name: Build container images
@@ -44,6 +44,7 @@ jobs:
           mvn -B package -DskipTests \
             -pl data-index/data-index-service \
             -Ppostgresql \
+            -Dquarkus.profile=postgresql \
             -DskipFlyway=true \
             -Dquarkus.container-image.build=true \
             --no-transfer-progress
