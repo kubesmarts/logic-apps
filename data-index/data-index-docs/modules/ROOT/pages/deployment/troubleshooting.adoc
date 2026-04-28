@@ -1,0 +1,424 @@
+= Troubleshooting Guide - Deployment & Operations
+:page-aliases:
+
+Common deployment and runtime issues when running Quarkus Flow workflow applications with Data Index.
+
+[IMPORTANT]
+====
+This guide is for **operators and administrators** deploying and running Data Index with Quarkus Flow applications. For build and development issues, see xref:developers/troubleshooting.adoc[Developer Troubleshooting].
+====
+
+== Deployment Issues
+
+=== Pods stuck in ImagePullBackOff
+
+**Symptom:**
+
+[source,bash]
+----
+$ kubectl get pods -n workflows
+NAME                            READY   STATUS             RESTARTS   AGE
+my-workflow-app-xxx             0/1     ImagePullBackOff   0          2m
+----
+
+**Cause:** Container image not available in the cluster.
+
+**Solution:**
+
+For KIND clusters, load the image manually:
+
+[source,bash]
+----
+# Check image name
+docker images | grep my-workflow-app
+
+# Load to KIND
+kind load docker-image local/my-workflow-app:1.0.0 --name data-index-test
+----
+
+For production clusters, verify:
+- Image registry is accessible
+- Image pull secrets are configured
+- Image name and tag are correct
+
+[NOTE]
+====
+The `quarkus-kind` extension does NOT automatically load images for local KIND development. Manual loading is required.
+====
+
+=== Pods crash with Exit Code 137
+
+**Symptom:**
+
+[source,bash]
+----
+$ kubectl describe pod my-workflow-app-xxx
+...
+Exit Code:    137
+Reason:       Error
+----
+
+**Cause:** Out of memory (OOM) - container killed by Kubernetes.
+
+**Solution:**
+
+Increase memory limits in the deployment manifest:
+
+[source,yaml]
+----
+resources:
+  requests:
+    memory: "512Mi"
+  limits:
+    memory: "1Gi"
+----
+
+Quarkus Flow apps typically need at least 512Mi to start reliably.
+
+If using Quarkus Kubernetes extension, configure in `application.properties`:
+
+[source,properties]
+----
+quarkus.kubernetes.resources.requests.memory=512Mi
+quarkus.kubernetes.resources.limits.memory=1Gi
+----
+
+=== Data Index service not starting
+
+**Symptom:**
+
+Data Index pod in CrashLoopBackOff or failing readiness probes.
+
+**Solution:**
+
+1. Check logs for errors:
++
+[source,bash]
+----
+kubectl logs -n data-index -l app=data-index-service
+----
+
+2. Verify database connection:
++
+[source,bash]
+----
+# Check if database pod is running
+kubectl get pods -n postgresql
+
+# Test connection from Data Index pod
+kubectl exec -n data-index deployment/data-index-service -- \
+  curl -v telnet://postgresql.postgresql.svc.cluster.local:5432
+----
+
+3. Verify environment variables are set:
++
+[source,bash]
+----
+kubectl get deployment -n data-index data-index-service -o yaml | grep -A 10 env:
+----
+
+== Event Collection Issues
+
+=== Events in logs but not in Data Index
+
+**Symptom:**
+
+JSON events appear in workflow pod logs, but GraphQL queries return empty.
+
+**Debug steps:**
+
+1. **Check FluentBit is running:**
++
+[source,bash]
+----
+kubectl get pods -n logging
+kubectl logs -n logging -l app=fluent-bit --tail=50
+----
+
+2. **Check FluentBit is collecting events:**
++
+[source,bash]
+----
+kubectl logs -n logging -l app=fluent-bit | grep "your-workflow-name"
+----
++
+If empty, FluentBit is not capturing events. Check:
++
+* Workflow pod is in `workflows` namespace (FluentBit filters by namespace)
+* FluentBit has correct log path: `/var/log/containers/*_workflows_*.log`
+* FluentBit DaemonSet is running on the same node as workflow pods
+
+3. **Check raw events in PostgreSQL:**
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT COUNT(*) FROM workflow_events_raw;"
+----
++
+If zero, FluentBit is not inserting to database. Check:
++
+* PostgreSQL connection from FluentBit pod
+* FluentBit output configuration
+* PostgreSQL credentials in FluentBit ConfigMap
+
+4. **Check normalized tables:**
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT id, name, status FROM workflow_instances;"
+----
++
+If raw tables have data but normalized tables are empty, triggers may have failed. Check:
++
+* PostgreSQL logs for trigger errors: `kubectl logs -n postgresql postgresql-0`
+* Trigger functions exist: `\df normalize_workflow_event`
+* Triggers are attached: `\d workflow_events_raw`
+
+=== Wrong namespace - FluentBit not collecting
+
+**Symptom:**
+
+Events in pod logs, but FluentBit not collecting them.
+
+**Cause:** Workflow pods not in `workflows` namespace, but FluentBit only watches `workflows`.
+
+**Solution:**
+
+Option A: Deploy workflow app to `workflows` namespace:
+
+[source,bash]
+----
+kubectl create namespace workflows
+kubectl apply -f workflow-app.yaml -n workflows
+----
+
+Option B: Update FluentBit to watch your namespace:
+
+[source,bash]
+----
+# Edit FluentBit ConfigMap
+kubectl edit configmap -n logging fluent-bit-config
+
+# Change log path filter:
+# From: Path /var/log/containers/*_workflows_*.log
+# To:   Path /var/log/containers/*_YOUR_NAMESPACE_*.log
+
+# Restart FluentBit pods
+kubectl rollout restart daemonset/fluent-bit -n logging
+----
+
+=== Events delayed or not appearing
+
+**Symptom:**
+
+Workflow executes, but Data Index doesn't show it for 10+ seconds.
+
+**Cause:** Normal propagation delay.
+
+**Expected latency:**
+
+* FluentBit flush interval: 1 second
+* PostgreSQL insert + trigger: < 1ms
+* Total end-to-end: 5-10 seconds
+
+**If latency is higher:**
+
+1. Check FluentBit flush interval:
++
+[source,bash]
+----
+kubectl get configmap -n logging fluent-bit-config -o yaml | grep Flush
+----
+
+2. Check PostgreSQL performance:
++
+[source,bash]
+----
+kubectl top pod -n postgresql
+kubectl logs -n postgresql postgresql-0 | grep -i slow
+----
+
+3. Check network latency:
++
+[source,bash]
+----
+# From FluentBit pod to PostgreSQL
+kubectl exec -n logging <fluentbit-pod> -- \
+  time nc -zv postgresql.postgresql.svc.cluster.local 5432
+----
+
+== Data Query Issues
+
+=== GraphQL schema empty or returns null
+
+**Symptom:**
+
+GraphQL UI loads but schema is empty, or queries return `{"data": null}`.
+
+**Cause:** Storage adapter not initialized or database connection failed.
+
+**Solution:**
+
+1. Check Data Index logs:
++
+[source,bash]
+----
+kubectl logs -n data-index -l app=data-index-service | grep -i "error\|exception"
+----
+
+2. Verify database schema is initialized:
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "\dt"
+
+# Should show:
+# - workflow_events_raw
+# - task_events_raw
+# - workflow_instances
+# - task_instances
+----
++
+If tables are missing, run manual schema initialization:
++
+[source,bash]
+----
+# See deployment guide for schema initialization
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -f /path/to/V1__initial_schema.sql
+----
+
+3. Verify database connection:
++
+[source,bash]
+----
+kubectl exec -n data-index deployment/data-index-service -- \
+  env | grep QUARKUS_DATASOURCE
+----
+
+=== Duplicate task executions in GraphQL
+
+**Symptom:**
+
+GraphQL returns multiple TaskExecution objects for the same task position.
+
+**Cause:** Trigger normalization logic may not be handling task events correctly.
+
+**Workaround:**
+
+Filter by latest `endDate` or `status=COMPLETED` on client side:
+
+[source,graphql]
+----
+{
+  getWorkflowInstance(id: "xxx") {
+    taskExecutions(filter: {status: COMPLETED}) {
+      taskPosition
+      status
+    }
+  }
+}
+----
+
+**Long-term fix:**
+
+Verify database trigger uses UPDATE-first pattern with `"end" IS NULL` condition. See database schema documentation.
+
+=== Missing task executions
+
+**Symptom:**
+
+GraphQL returns workflow but `taskExecutions` is empty.
+
+**Cause:** Foreign key relationship or data issue.
+
+**Debug:**
+
+1. Check raw data exists:
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT task_position, status FROM task_instances WHERE instance_id = 'YOUR_INSTANCE_ID';"
+----
+
+2. Check foreign key relationship:
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "\d task_instances"
+----
++
+Verify `instance_id` has foreign key to `workflow_instances(id)`.
+
+3. Check for orphaned tasks:
++
+[source,bash]
+----
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT COUNT(*) FROM task_instances t WHERE NOT EXISTS (SELECT 1 FROM workflow_instances w WHERE w.id = t.instance_id);"
+----
+
+== Component Health Checks
+
+=== Check all components
+
+[source,bash]
+----
+# Data Index service
+kubectl get pods -n data-index
+kubectl logs -n data-index -l app=data-index-service --tail=50
+
+# FluentBit
+kubectl get pods -n logging
+kubectl logs -n logging -l app=fluent-bit --tail=50
+
+# PostgreSQL
+kubectl get pods -n postgresql
+kubectl logs -n postgresql postgresql-0 --tail=50
+
+# Workflow applications
+kubectl get pods -n workflows
+kubectl logs -n workflows -l app.kubernetes.io/name=<your-app> --tail=50
+----
+
+=== Check service connectivity
+
+[source,bash]
+----
+# GraphQL API
+kubectl port-forward -n data-index svc/data-index-service 8080:8080
+curl http://localhost:8080/q/health
+
+# PostgreSQL from Data Index
+kubectl exec -n data-index deployment/data-index-service -- \
+  nc -zv postgresql.postgresql.svc.cluster.local 5432
+
+# PostgreSQL from FluentBit
+kubectl exec -n logging <fluentbit-pod> -- \
+  nc -zv postgresql.postgresql.svc.cluster.local 5432
+----
+
+== Getting Help
+
+**For build and development issues:**
+- See: xref:developers/troubleshooting.adoc[Developer Troubleshooting]
+
+**For configuration:**
+- See: xref:developers/configuration.adoc[Configuration Reference]
+- See: xref:deployment/postgresql.adoc[PostgreSQL Deployment]
+- See: xref:deployment/kind-local.adoc[Local Development]
+
+**For architecture:**
+- See: xref:architecture/postgresql-mode.adoc[PostgreSQL Mode Architecture]
