@@ -29,7 +29,7 @@ CLUSTER_NAME="${CLUSTER_NAME:-data-index-test}"
 MODE="${1:-}"
 IMAGE_TAG="${IMAGE_TAG:-999-SNAPSHOT}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # Logging functions
 log_info() {

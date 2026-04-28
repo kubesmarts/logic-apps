@@ -25,7 +25,7 @@ NC='\033[0m'
 # Configuration
 CLUSTER_NAME="${CLUSTER_NAME:-data-index-test}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # Logging
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
@@ -116,7 +116,7 @@ run_migrations() {
     log_step "Running database migrations..."
 
     # Copy migration files to PostgreSQL pod
-    kubectl cp "${PROJECT_ROOT}/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql" \
+    kubectl cp "${PROJECT_ROOT}/data-index/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql" \
       postgresql/postgresql-0:/tmp/V1__initial_schema.sql
 
     # Execute migrations
@@ -141,7 +141,7 @@ deploy_fluentbit() {
 
     # Generate ConfigMap from source files to temp file
     TEMP_CONFIGMAP=$(mktemp)
-    cd "${PROJECT_ROOT}/scripts/fluentbit"
+    cd "${PROJECT_ROOT}/data-index/scripts/fluentbit"
     ./generate-configmap.sh postgresql "${TEMP_CONFIGMAP}" 2>/dev/null
 
     # Apply with name change
@@ -189,7 +189,7 @@ deploy_data_index() {
 deploy_workflow_app() {
     log_step "Building workflow test app..."
 
-    cd "${PROJECT_ROOT}/workflow-test-app"
+    cd "${PROJECT_ROOT}/data-index/workflow-test-app"
 
     # Build container image with Jib
     mvn package -Dquarkus.container-image.build=true -DskipTests -q
