@@ -142,18 +142,17 @@ build_image() {
     cd "${PROJECT_ROOT}"
 
     # Build with Maven using profile-based approach
-    log_info "Building with Maven (profile: ${MODE})..."
-    mvn clean package -pl data-index-service -am \
-        -Dquarkus.profile=${MODE} \
+    log_info "Building data-index-service-${MODE} module..."
+    mvn clean package -pl data-index-service/data-index-service-${MODE} -am \
         -Dquarkus.container-image.build=true \
         -DskipFlyway=true \
         -DskipTests -q
 
-    log_info "✓ Container image built (without Flyway): kubesmarts/data-index-service:${IMAGE_TAG}"
+    log_info "✓ Container image built (without Flyway): kubesmarts/data-index-service-${MODE}:${IMAGE_TAG}"
 
     # Load image into KIND cluster
     log_info "Loading image into KIND cluster..."
-    kind load docker-image kubesmarts/data-index-service:${IMAGE_TAG} \
+    kind load docker-image kubesmarts/data-index-service-${MODE}:${IMAGE_TAG} \
         --name ${CLUSTER_NAME}
 
     log_info "✓ Image loaded to KIND cluster"
@@ -247,7 +246,7 @@ spec:
     spec:
       containers:
       - name: data-index-service
-        image: kubesmarts/data-index-service:${IMAGE_TAG}
+        image: kubesmarts/data-index-service-${MODE}:${IMAGE_TAG}
         imagePullPolicy: Never
         ports:
         - containerPort: 8080
@@ -351,7 +350,7 @@ print_info() {
     log_info "=========================================="
     echo ""
     log_info "Mode: $MODE"
-    log_info "Image: kubesmarts/data-index-service:${IMAGE_TAG}"
+    log_info "Image: kubesmarts/data-index-service-${MODE}:${IMAGE_TAG}"
     echo ""
     log_info "Endpoints:"
     echo "  - GraphQL API:   http://localhost:30080/graphql"

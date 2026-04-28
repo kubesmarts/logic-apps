@@ -19,18 +19,10 @@
   </properties>
 
   <dependencies>
-    <!-- Data Index Service under test -->
+    <!-- Data Index Service with PostgreSQL backend (includes all dependencies) -->
     <dependency>
       <groupId>org.kubesmarts.logic.apps</groupId>
-      <artifactId>data-index-service</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- PostgreSQL Storage Implementation -->
-    <dependency>
-      <groupId>org.kubesmarts.logic.apps</groupId>
-      <artifactId>data-index-storage-postgresql</artifactId>
+      <artifactId>data-index-service-postgresql</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
@@ -43,17 +35,7 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Quarkus PostgreSQL -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-hibernate-orm</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-jdbc-postgresql</artifactId>
-      <scope>test</scope>
-    </dependency>
+    <!-- Flyway for test migrations -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-flyway</artifactId>

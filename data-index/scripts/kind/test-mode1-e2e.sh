@@ -177,7 +177,7 @@ deploy_data_index() {
         -DskipTests -q
 
     # Load image to KIND
-    kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT --name "${CLUSTER_NAME}"
+    kind load docker-image kubesmarts/data-index-service-postgresql:999-SNAPSHOT --name "${CLUSTER_NAME}"
 
     log_step "Deploying data-index-service..."
     SKIP_IMAGE_BUILD=true SKIP_DB_INIT=true \

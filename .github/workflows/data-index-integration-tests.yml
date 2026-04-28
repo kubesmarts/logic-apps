@@ -35,15 +35,15 @@ jobs:
 
       - name: Build project
         run: |
-          mvn -B clean install -Ppostgresql -DskipTests \
+          mvn -B clean install -DskipTests \
             --no-transfer-progress
 
       - name: Build container images
         run: |
-          # Build data-index-service with PostgreSQL profile (production: no Flyway)
+          # Build data-index-service-postgresql (production: no Flyway)
           mvn -B package -DskipTests \
-            -pl data-index/data-index-service \
-            -Ppostgresql \
+            -pl data-index/data-index-service/data-index-service-postgresql \
+            -am \
             -DskipFlyway=true \
             -Dquarkus.container-image.build=true \
             --no-transfer-progress
@@ -62,7 +62,7 @@ jobs:
 
       - name: Load container images into KIND
         run: |
-          kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT \
+          kind load docker-image kubesmarts/data-index-service-postgresql:999-SNAPSHOT \
             --name data-index-test
           kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT \
             --name data-index-test
