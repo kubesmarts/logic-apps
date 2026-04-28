@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# MODE 1 End-to-End Integration Test
+# PostgreSQL Mode End-to-End Integration Test
 #
 # Tests complete flow:
-#   Quarkus Flow → stdout → K8s logs → FluentBit → PostgreSQL (triggers) → GraphQL
+#   Quarkus Flow → stdout → K8s logs → FluentBit → PostgreSQL → GraphQL
 #
 # Verifies:
 #   - Event collection from stdout
 #   - CRI parser for containerd
-#   - PostgreSQL trigger normalization
-#   - Idempotency (V2 migration)
+#   - Real-time event normalization
+#   - Idempotency
 #   - Out-of-order event handling
 #
 
@@ -25,7 +25,7 @@ NC='\033[0m'
 # Configuration
 CLUSTER_NAME="${CLUSTER_NAME:-data-index-test}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # Logging
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
@@ -116,7 +116,7 @@ run_migrations() {
     log_step "Running database migrations..."
 
     # Copy migration files to PostgreSQL pod
-    kubectl cp "${PROJECT_ROOT}/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql" \
+    kubectl cp "${PROJECT_ROOT}/data-index/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql" \
       postgresql/postgresql-0:/tmp/V1__initial_schema.sql
 
     # Execute migrations
@@ -135,14 +135,14 @@ run_migrations() {
     log_info "✓ Migrations applied successfully"
 }
 
-# Step 5: Deploy FluentBit MODE 1
+# Step 5: Deploy FluentBit (PostgreSQL mode)
 deploy_fluentbit() {
-    log_step "Deploying FluentBit MODE 1..."
+    log_step "Deploying FluentBit (PostgreSQL mode)..."
 
     # Generate ConfigMap from source files to temp file
     TEMP_CONFIGMAP=$(mktemp)
-    cd "${PROJECT_ROOT}/scripts/fluentbit"
-    ./generate-configmap.sh mode1-postgresql-triggers "${TEMP_CONFIGMAP}" 2>/dev/null
+    cd "${PROJECT_ROOT}/data-index/scripts/fluentbit"
+    ./generate-configmap.sh postgresql "${TEMP_CONFIGMAP}" 2>/dev/null
 
     # Apply with name change
     sed 's/name: fluent-bit-config/name: workflows-fluent-bit-mode1-config/' "${TEMP_CONFIGMAP}" | \
@@ -151,7 +151,7 @@ deploy_fluentbit() {
     rm -f "${TEMP_CONFIGMAP}"
 
     # Deploy DaemonSet
-    kubectl apply -f mode1-postgresql-triggers/kubernetes/daemonset.yaml
+    kubectl apply -f postgresql/kubernetes/daemonset.yaml
 
     # Wait for pods
     log_info "Waiting for FluentBit pods..."
@@ -169,9 +169,8 @@ deploy_data_index() {
 
     cd "${PROJECT_ROOT}"
 
-    # Build with Maven using PostgreSQL profile (production: no Flyway)
-    mvn package -pl data-index-service -am \
-        -Dquarkus.profile=postgresql \
+    # Build with Maven (production: no Flyway)
+    mvn package -pl data-index/data-index-service/data-index-service-postgresql -am \
         -Dquarkus.container-image.build=true \
         -DskipFlyway=true \
         -DskipTests -q
@@ -190,7 +189,7 @@ deploy_data_index() {
 deploy_workflow_app() {
     log_step "Building workflow test app..."
 
-    cd "${PROJECT_ROOT}/workflow-test-app"
+    cd "${PROJECT_ROOT}/data-index/workflow-test-app"
 
     # Build container image with Jib
     mvn package -Dquarkus.container-image.build=true -DskipTests -q
@@ -337,7 +336,7 @@ test_idempotency() {
 print_summary() {
     echo ""
     log_info "=========================================="
-    log_info "MODE 1 E2E Test Results"
+    log_info "PostgreSQL Mode E2E Test Results"
     log_info "=========================================="
     echo ""
 
@@ -382,7 +381,7 @@ print_summary() {
 # Main execution
 main() {
     log_info "=========================================="
-    log_info "MODE 1 End-to-End Integration Test"
+    log_info "PostgreSQL Mode End-to-End Integration Test"
     log_info "=========================================="
     echo ""
 

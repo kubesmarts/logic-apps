@@ -119,12 +119,12 @@ jobs:
 
           # Generate ConfigMap from source files
           cd data-index/scripts/fluentbit
-          ./generate-configmap.sh mode1-postgresql-triggers mode1-postgresql-triggers/kubernetes/configmap.yaml
+          ./generate-configmap.sh postgresql postgresql/kubernetes/configmap.yaml
           cd -
 
           # Apply ConfigMap and DaemonSet
-          kubectl apply -f data-index/scripts/fluentbit/mode1-postgresql-triggers/kubernetes/configmap.yaml
-          kubectl apply -f data-index/scripts/fluentbit/mode1-postgresql-triggers/kubernetes/daemonset.yaml
+          kubectl apply -f data-index/scripts/fluentbit/postgresql/kubernetes/configmap.yaml
+          kubectl apply -f data-index/scripts/fluentbit/postgresql/kubernetes/daemonset.yaml
 
           # Wait for FluentBit to be ready
           kubectl wait --namespace logging \

@@ -29,7 +29,7 @@ CLUSTER_NAME="${CLUSTER_NAME:-data-index-test}"
 MODE="${1:-}"
 IMAGE_TAG="${IMAGE_TAG:-999-SNAPSHOT}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # Logging functions
 log_info() {
@@ -143,7 +143,7 @@ build_image() {
 
     # Build with Maven using profile-based approach
     log_info "Building data-index-service-${MODE} module..."
-    mvn clean package -pl data-index-service/data-index-service-${MODE} -am \
+    mvn clean package -pl data-index/data-index-service/data-index-service-${MODE} -am \
         -Dquarkus.container-image.build=true \
         -DskipFlyway=true \
         -DskipTests -q
@@ -162,11 +162,11 @@ build_image() {
 init_database_schema() {
     log_step "Initializing PostgreSQL database schema..."
 
-    local SCHEMA_FILE="${PROJECT_ROOT}/scripts/schema.sql"
+    local SCHEMA_FILE="${PROJECT_ROOT}/data-index/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql"
 
     if [[ ! -f "$SCHEMA_FILE" ]]; then
-        log_warn "Schema file not found: $SCHEMA_FILE"
-        return
+        log_error "Schema file not found: $SCHEMA_FILE"
+        exit 1
     fi
 
     # Copy schema to PostgreSQL pod
@@ -174,7 +174,7 @@ init_database_schema() {
 
     # Execute schema
     kubectl exec -n postgresql postgresql-0 -- \
-        psql -U dataindex -d dataindex -f /tmp/schema.sql
+        env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -f /tmp/schema.sql
 
     log_info "✓ Database schema initialized"
 }

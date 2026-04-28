@@ -25,11 +25,11 @@ MODE=postgresql ./install-dependencies.sh
 # 2. Deploy Data Index service
 ./deploy-data-index.sh postgresql
 
-# 3. Deploy FluentBit DaemonSet (MODE 1)
-cd ../fluentbit/mode1-postgresql-triggers
-./generate-configmap.sh
-kubectl apply -f kubernetes/configmap.yaml
-kubectl apply -f kubernetes/daemonset.yaml
+# 3. Deploy FluentBit DaemonSet (PostgreSQL mode)
+cd ../fluentbit
+./generate-configmap.sh postgresql postgresql/kubernetes/configmap.yaml
+kubectl apply -f postgresql/kubernetes/configmap.yaml
+kubectl apply -f postgresql/kubernetes/daemonset.yaml
 ----
 
 == Verify Installation
@@ -86,6 +86,28 @@ Expected response (may be empty if no workflows executed yet):
   }
 }
 ----
+
+=== Access GraphQL UI
+
+Open the interactive GraphQL playground in your browser:
+
+[source,bash]
+----
+# Port-forward to Data Index service (if not already running)
+kubectl port-forward -n data-index svc/data-index-service 8080:8080 &
+
+# Open GraphQL UI in browser
+open http://localhost:8080/q/graphql-ui/
+----
+
+The GraphQL UI provides:
+
+* **Interactive query builder** - Autocomplete and syntax highlighting
+* **Schema explorer** - Browse available queries and types
+* **Query history** - Saved queries for reuse
+* **Documentation** - Inline field descriptions
+
+TIP: Use `Ctrl+Space` in the query editor for autocomplete suggestions.
 
 === Check Database
 

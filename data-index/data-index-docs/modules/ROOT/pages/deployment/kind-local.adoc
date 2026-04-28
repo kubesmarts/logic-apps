@@ -62,12 +62,10 @@ cd data-index/scripts/kind
 
 * Creates a KIND cluster named `data-index-test`
 * Configures single control-plane node (can run workloads)
-* Sets up port mappings for local access:
+* Sets up NodePort mappings for local access:
   - `30080` → GraphQL API
   - `30432` → PostgreSQL
-  - `8080` → HTTP Ingress
-  - `8443` → HTTPS Ingress
-* Installs NGINX Ingress Controller
+  - `30920` → Elasticsearch (future)
 
 **Configuration:**
 
@@ -140,7 +138,7 @@ Elasticsearch mode installation is available but the Data Index Elasticsearch ba
 
 1. Builds Data Index container image
 2. Loads image to KIND cluster
-3. Initializes database schema (Flyway migrations)
+3. Initializes database schema (executes SQL migration script)
 4. Deploys Data Index service to `data-index` namespace
 5. Creates NodePort service on port `30080`
 
@@ -178,9 +176,9 @@ cd ../fluentbit
 **What this does:**
 
 1. Generates FluentBit ConfigMap from source files:
-   - `mode1-postgresql-triggers/fluent-bit.conf`
-   - `mode1-postgresql-triggers/parsers.conf`
-   - `mode1-postgresql-triggers/flatten-event.lua`
+   - `postgresql/fluent-bit.conf`
+   - `postgresql/parsers.conf`
+   - `postgresql/flatten-event.lua`
 2. Deploys FluentBit DaemonSet to `logging` namespace
 3. Configures to tail logs from `workflows` namespace
 4. Sets up PostgreSQL output plugin
@@ -337,14 +335,14 @@ Run the complete test suite:
 1. Workflow execution triggers events
 2. FluentBit collects events from container logs
 3. PostgreSQL receives raw events
-4. Triggers normalize events to workflow_instances and task_instances
+4. Events are normalized in real-time to workflow_instances and task_instances
 5. GraphQL API returns normalized data
 
 **Test output example:**
 
 [source,text]
 ----
-[INFO] Testing MODE 1 (PostgreSQL Triggers) end-to-end
+[INFO] Testing PostgreSQL mode end-to-end
 [STEP] Executing test workflow...
 [INFO] ✓ Workflow executed
 [STEP] Waiting for event propagation (10s)...
@@ -359,7 +357,7 @@ Run the complete test suite:
 [STEP] Querying GraphQL API...
 [INFO] ✓ GraphQL returned workflow data
 [INFO] ========================================
-[INFO] MODE 1 End-to-End Test: PASSED
+[INFO] PostgreSQL Mode End-to-End Test: PASSED
 [INFO] ========================================
 ----
 
@@ -522,6 +520,32 @@ kubectl get configmap -n logging workflows-fluent-bit-config -o yaml | grep Pars
 See xref:developers/troubleshooting.adoc[Troubleshooting Guide] for more issues.
 
 == Cleanup
+
+=== Reset Without Deleting Cluster
+
+To redeploy with fresh data (keeps cluster and PostgreSQL):
+
+[source,bash]
+----
+# Delete Data Index and FluentBit
+kubectl delete namespace data-index
+kubectl delete namespace logging
+
+# Clear PostgreSQL data
+kubectl delete -n postgresql pvc --all
+kubectl delete -n postgresql statefulset postgresql
+
+# Reinstall PostgreSQL
+cd data-index/scripts/kind
+MODE=postgresql ./install-dependencies.sh
+
+# Redeploy Data Index and FluentBit
+./deploy-data-index.sh postgresql
+cd ../fluentbit
+./deploy-fluentbit.sh postgresql
+----
+
+TIP: This is faster than recreating the entire cluster and useful for testing schema changes or FluentBit configuration.
 
 === Delete Specific Namespaces
 

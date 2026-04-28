@@ -37,7 +37,7 @@ Quarkus Flow Apps → Container Logs → FluentBit DaemonSet
 **What exists:**
 
 * ✅ Architecture design documented in xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode Architecture]
-* ✅ FluentBit configuration in `scripts/fluentbit/mode2-elasticsearch/`
+* ✅ FluentBit configuration in `scripts/fluentbit/elasticsearch/`
 * ✅ Implementation plan in `docs/deployment/MODE2_IMPLEMENTATION_PLAN.md`
 
 **What's missing:**

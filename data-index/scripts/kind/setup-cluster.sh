@@ -97,22 +97,8 @@ apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   # Single control-plane node (can run workloads)
   - role: control-plane
-    kubeadmConfigPatches:
-    - |
-      kind: InitConfiguration
-      nodeRegistration:
-        kubeletExtraArgs:
-          node-labels: "ingress-ready=true"
     extraPortMappings:
-    # HTTP ingress
-    - containerPort: 80
-      hostPort: 8080
-      protocol: TCP
-    # HTTPS ingress
-    - containerPort: 443
-      hostPort: 8443
-      protocol: TCP
-    # GraphQL API (data-index-service)
+    # GraphQL API (data-index-service NodePort)
     - containerPort: 30080
       hostPort: 30080
       protocol: TCP
@@ -120,11 +106,7 @@ nodes:
     - containerPort: 30432
       hostPort: 30432
       protocol: TCP
-    # Kafka (for local access)
-    - containerPort: 30092
-      hostPort: 30092
-      protocol: TCP
-    # Elasticsearch (for local access)
+    # Elasticsearch (for local access - future)
     - containerPort: 30920
       hostPort: 30920
       protocol: TCP
@@ -143,28 +125,6 @@ configure_kubectl() {
     log_info "✓ kubectl configured"
 }
 
-# Install NGINX Ingress Controller
-install_ingress() {
-    log_info "Installing NGINX Ingress Controller..."
-
-    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-
-    log_info "Waiting for ingress controller deployment to be created..."
-    sleep 5
-
-    log_info "Waiting for ingress controller to be ready..."
-    kubectl wait --namespace ingress-nginx \
-      --for=condition=available deployment/ingress-nginx-controller \
-      --timeout=300s
-
-    kubectl wait --namespace ingress-nginx \
-      --for=condition=ready pod \
-      --selector=app.kubernetes.io/component=controller \
-      --timeout=120s
-
-    log_info "✓ Ingress controller installed"
-}
-
 # Print cluster info
 print_cluster_info() {
     echo ""
@@ -178,13 +138,10 @@ print_cluster_info() {
     log_info "Nodes:"
     kubectl get nodes -o wide
     echo ""
-    log_info "Port Mappings:"
-    echo "  - HTTP Ingress:      http://localhost:8080"
-    echo "  - HTTPS Ingress:     https://localhost:8443"
+    log_info "Port Mappings (NodePort):"
     echo "  - GraphQL API:       http://localhost:30080/graphql"
     echo "  - PostgreSQL:        localhost:30432"
-    echo "  - Kafka:             localhost:30092"
-    echo "  - Elasticsearch:     http://localhost:30920"
+    echo "  - Elasticsearch:     http://localhost:30920 (future)"
     echo ""
     log_info "Next Steps:"
     echo "  1. Install dependencies: ./install-dependencies.sh"
@@ -217,7 +174,6 @@ main() {
 
     create_cluster
     configure_kubectl
-    install_ingress
     print_cluster_info
 
     log_info "✓ Setup complete!"

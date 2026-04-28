@@ -1,6 +1,6 @@
-# Mode 1: PostgreSQL Trigger-based Normalization
+# PostgreSQL Mode
 
-Real-time event normalization using PostgreSQL triggers - no Event Processor needed!
+Real-time event normalization - no Event Processor needed!
 
 ## Architecture
 
@@ -200,11 +200,18 @@ env:
 # 1. Create namespace
 kubectl create namespace logging
 
-# 2. Create ConfigMap with FluentBit configuration
-kubectl create configmap workflows-fluent-bit-mode1-config \
-  -n logging \
-  --from-file=fluent-bit.conf=fluent-bit.conf \
-  --from-file=parsers.conf=parsers.conf
+# 2. Generate and apply ConfigMap
+# From data-index/scripts/fluentbit/ directory:
+cd ../..
+./generate-configmap.sh postgresql postgresql/kubernetes/configmap.yaml
+kubectl apply -f postgresql/kubernetes/configmap.yaml
+
+# Alternatively, create ConfigMap manually (must include ALL files):
+# kubectl create configmap workflows-fluent-bit-mode1-config \
+#   -n logging \
+#   --from-file=fluent-bit.conf=fluent-bit.conf \
+#   --from-file=parsers.conf=parsers.conf \
+#   --from-file=flatten-event.lua=flatten-event.lua
 
 # 3. Deploy FluentBit DaemonSet
 kubectl apply -f kubernetes/daemonset.yaml

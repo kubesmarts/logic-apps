@@ -133,7 +133,31 @@ Password: dataindex123
 
 == Step 2: Initialize Database Schema
 
-The Data Index service automatically applies Flyway migrations on startup. No manual schema initialization is required.
+For production deployments, you must manually execute the database migration scripts.
+
+**Migration scripts location:**
+
+The SQL migration scripts are located in the `data-index-storage-migrations` module:
+
+[source,text]
+----
+data-index/data-index-storage-migrations/src/main/resources/db/migration/
+├── V1__initial_schema.sql
+└── (future migration scripts...)
+----
+
+**Execute migrations:**
+
+[source,bash]
+----
+# Download migration scripts from the repository
+# (or extract from data-index-storage-migrations JAR)
+
+# Execute each migration in order
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -f /path/to/V1__initial_schema.sql
+----
 
 **What gets created:**
 
@@ -142,7 +166,7 @@ The Data Index service automatically applies Flyway migrations on startup. No ma
 * Trigger functions: `normalize_workflow_event()`, `normalize_task_event()`
 * Indexes for performance
 
-**Manual verification** (optional):
+**Verify schema:**
 
 [source,bash]
 ----
@@ -154,8 +178,12 @@ kubectl exec -n postgresql postgresql-0 -- \
 # - task_events_raw
 # - workflow_instances
 # - task_instances
-# - flyway_schema_history
 ----
+
+[NOTE]
+====
+**Development mode only:** When running locally with `mvn quarkus:dev`, Flyway automatically applies migrations. Production builds exclude Flyway to allow external schema management.
+====
 
 == Step 3: Deploy Data Index Service
 
@@ -219,10 +247,6 @@ spec:
               key: password
         - name: QUARKUS_DATASOURCE_DB_KIND
           value: "postgresql"
-        - name: QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION
-          value: "none"
-        - name: QUARKUS_FLYWAY_MIGRATE_AT_START
-          value: "true"
         resources:
           requests:
             memory: "512Mi"
@@ -292,9 +316,6 @@ kubectl apply -f data-index-deployment.yaml
 kubectl get pods -n data-index
 kubectl logs -n data-index -l app=data-index-service
 
-# Check Flyway migrations ran
-kubectl logs -n data-index -l app=data-index-service | grep Flyway
-
 # Test GraphQL endpoint
 kubectl port-forward -n data-index svc/data-index-service 8080:80
 curl http://localhost:8080/graphql \
@@ -316,7 +337,7 @@ cd data-index/scripts/fluentbit
 ./generate-configmap.sh
 ----
 
-This generates `mode1-postgresql-triggers/kubernetes/configmap.yaml` from source files:
+This generates `postgresql/kubernetes/configmap.yaml` from source files:
 
 * `fluent-bit.conf`
 * `parsers.conf`
@@ -341,8 +362,8 @@ For managed PostgreSQL, use your external host.
 
 [source,bash]
 ----
-kubectl apply -f mode1-postgresql-triggers/kubernetes/configmap.yaml
-kubectl apply -f mode1-postgresql-triggers/kubernetes/daemonset.yaml
+kubectl apply -f postgresql/kubernetes/configmap.yaml
+kubectl apply -f postgresql/kubernetes/daemonset.yaml
 ----
 
 **Or use helper script:**

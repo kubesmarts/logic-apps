@@ -29,21 +29,38 @@ The Data Index service is a read-only query service that:
 └──────────────────┘
 ```
 
+## Module Structure
+
+This is a **parent aggregator** with three modules:
+
+- **data-index-service-core** - Common code (GraphQL API, REST resources)
+- **data-index-service-postgresql** - PostgreSQL backend module (production-ready)
+- **data-index-service-elasticsearch** - Elasticsearch backend module (future)
+
+Each backend module includes only its specific dependencies and configuration.
+
 ## Building
 
 ### Development Mode
 
-Start with PostgreSQL backend (default):
+**PostgreSQL backend:**
 
 ```bash
-mvn quarkus:dev -Dquarkus.profile=postgresql
+cd data-index-service-postgresql
+mvn quarkus:dev
+```
+
+**Elasticsearch backend (future):**
+
+```bash
+cd data-index-service-elasticsearch
+mvn quarkus:dev
 ```
 
 **What this does:**
-- Activates Maven `postgresql` profile → includes PostgreSQL dependencies
-- Loads `application-postgresql.properties` configuration
-- Starts PostgreSQL 15 container via Dev Services
-- Runs Flyway migrations automatically
+- Loads module-specific `application.properties`
+- Starts storage backend container via Dev Services (PostgreSQL 15)
+- Runs Flyway migrations automatically (dev mode only)
 - Enables live reload on code changes
 
 **Access points:**
@@ -55,39 +72,46 @@ mvn quarkus:dev -Dquarkus.profile=postgresql
 
 ### Production Build
 
-Build with PostgreSQL backend (excludes Flyway):
+**PostgreSQL backend:**
 
 ```bash
-mvn clean package -Dquarkus.profile=postgresql -DskipFlyway=true -DskipTests
+cd data-index-service-postgresql
+mvn clean package -DskipFlyway=true -DskipTests
 ```
 
 **Result:**
 - Optimized Quarkus app at `target/quarkus-app/`
-- Container image: `kubesmarts/data-index-service:999-SNAPSHOT`
-- PostgreSQL storage dependencies ONLY
-- No Flyway (production uses external schema management)
+- Container image: `kubesmarts/data-index-service-postgresql:999-SNAPSHOT`
+- PostgreSQL dependencies ONLY
+- No Flyway (production uses manual schema migration)
 
-Build with Elasticsearch backend (future):
+**Elasticsearch backend (future):**
 
 ```bash
-mvn clean package -Dquarkus.profile=elasticsearch -DskipFlyway=true -DskipTests
+cd data-index-service-elasticsearch
+mvn clean package -DskipFlyway=true -DskipTests
 ```
+
+**Result:**
+- Container image: `kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT`
 
 ### Container Image
 
 Build container image with Jib:
 
 ```bash
-mvn package -Dquarkus.profile=postgresql \
-  -DskipFlyway=true \
-  -Dquarkus.container-image.build=true
+cd data-index-service-postgresql
+mvn package -DskipFlyway=true \
+  -Dquarkus.container-image.build=true \
+  -DskipTests
 ```
 
 **Customization:**
 ```bash
-# Custom image name
-mvn package -Dquarkus.container-image.group=myorg \
-  -Dquarkus.container-image.name=data-index \
+cd data-index-service-postgresql
+mvn package -DskipFlyway=true \
+  -Dquarkus.container-image.group=myorg \
+  -Dquarkus.container-image.name=data-index-postgresql \
   -Dquarkus.container-image.tag=1.0.0 \
   -Dquarkus.container-image.build=true
 ```
@@ -96,29 +120,35 @@ mvn package -Dquarkus.container-image.group=myorg \
 
 ### Backend Selection
 
-Backend is selected via `-Dquarkus.profile=<backend>`:
+Backend is selected by navigating to the appropriate module:
 
-| Profile | Maven Profile Activated | Config File Loaded | Dependencies Included |
-|---------|------------------------|-------------------|---------------------|
-| `postgresql` | `postgresql` | `application-postgresql.properties` | PostgreSQL, JPA, Flyway (dev only) |
-| `elasticsearch` | `elasticsearch` | `application-elasticsearch.properties` | Elasticsearch (future) |
+| Module | Storage | Dependencies | Container Image |
+|--------|---------|--------------|----------------|
+| `data-index-service-postgresql` | PostgreSQL | JPA, JDBC, Flyway (dev only) | `kubesmarts/data-index-service-postgresql:999-SNAPSHOT` |
+| `data-index-service-elasticsearch` | Elasticsearch | Elasticsearch client (future) | `kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT` |
 
 ### Configuration Files
 
-**Common configuration** (`application.properties`):
+**Common configuration** (`data-index-service-core/src/main/resources/application.properties`):
 - GraphQL endpoint: `/graphql`
 - HTTP compression
 - Health checks: `/q/health`
 - Metrics: `/q/metrics`
 
-**PostgreSQL configuration** (`application-postgresql.properties`):
+**PostgreSQL configuration** (`data-index-service-postgresql/src/main/resources/application.properties`):
 - Dev Services: auto-starts PostgreSQL 15
 - Database: `dataindex`
 - Username: `dataindex`
 - Password: `dataindex123`
-- Flyway: enabled in `%dev` mode only
+- Flyway: enabled in `%dev` mode only, disabled in `%prod`
 
-**Production environment variables:**
+**Elasticsearch configuration** (`data-index-service-elasticsearch/src/main/resources/application.properties`):
+- Placeholder for future implementation
+
+### Production Environment Variables
+
+Override database connection:
+
 ```bash
 QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgresql:5432/dataindex
 QUARKUS_DATASOURCE_USERNAME=dataindex
@@ -132,21 +162,25 @@ See: [Configuration Reference](../data-index-docs/modules/ROOT/pages/developers/
 ### Project Structure
 
 ```
-data-index-service/
-├── src/main/java/.../service/
-│   └── RootResource.java           # Landing page (/, /docs redirect)
-├── src/main/java/.../graphql/
-│   ├── WorkflowInstanceGraphQLApi.java  # GraphQL queries
-│   └── filter/                     # GraphQL filter converters
-├── src/main/resources/
-│   ├── application.properties      # Common config
-│   ├── application-postgresql.properties
-│   ├── application-elasticsearch.properties
-│   └── templates/
-│       └── index.html              # Landing page template
-└── src/test/java/
-    └── .../graphql/
-        └── WorkflowInstanceGraphQLApiTest.java
+data-index-service/                      # Parent aggregator POM
+├── data-index-service-core/             # Common code
+│   ├── src/main/java/.../service/
+│   │   └── RootResource.java            # Landing page (/, /docs redirect)
+│   ├── src/main/java/.../graphql/
+│   │   ├── WorkflowInstanceGraphQLApi.java  # GraphQL queries
+│   │   └── filter/                      # GraphQL filter converters
+│   └── src/main/resources/
+│       ├── application.properties       # Common config
+│       └── templates/
+│           └── index.html               # Landing page template
+├── data-index-service-postgresql/       # PostgreSQL backend
+│   ├── pom.xml                          # PostgreSQL dependencies (JPA, JDBC, Flyway)
+│   └── src/main/resources/
+│       └── application.properties       # PostgreSQL-specific config
+└── data-index-service-elasticsearch/    # Elasticsearch backend (future)
+    ├── pom.xml                          # Elasticsearch dependencies
+    └── src/main/resources/
+        └── application.properties       # Elasticsearch-specific config
 ```
 
 ### Adding a GraphQL Query
@@ -184,14 +218,22 @@ public List<WorkflowInstance> getWorkflowsByStatus(
 Run integration tests:
 
 ```bash
-# PostgreSQL backend
-mvn test -Dquarkus.profile=postgresql
+# PostgreSQL backend tests
+cd data-index-service-postgresql
+mvn test
 
-# All tests
+# All modules
+cd ..
 mvn verify
 ```
 
 **Important:** Integration tests use `@QuarkusTest` with real PostgreSQL via Dev Services.
+
+**Test setup:**
+- Tests are in `data-index-service-core/src/test/java/`
+- Executed by backend modules via dependency
+- PostgreSQL container auto-starts for tests
+- Flyway migrations run automatically in test mode
 
 ## Exposed Endpoints
 

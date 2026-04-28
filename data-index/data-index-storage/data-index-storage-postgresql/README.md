@@ -11,7 +11,7 @@ Production-ready storage backend for Data Index that:
 - Implements storage interfaces from `data-index-model`
 - Provides MapStruct mappers for entity ↔ domain conversion
 
-**Status:** ✅ Production Ready (MODE 1)
+**Status:** ✅ Production Ready (PostgreSQL mode)
 
 ## Architecture
 
