@@ -1,59 +1,14 @@
 = Troubleshooting Guide
 :page-aliases:
 
-Common issues and solutions for Data Index deployment and Quarkus Flow integration.
+Common issues and solutions when integrating **Quarkus Flow workflow applications** with Data Index.
 
-== Data Index Build Issues
+[IMPORTANT]
+====
+This guide is for **Quarkus Flow app developers** integrating their workflow applications with Data Index. If you're developing Data Index itself, see the contributor documentation.
+====
 
-=== Build fails: "Cannot resolve dependencies"
-
-**Symptom:**
-
-[source,text]
-----
-[ERROR] Could not resolve dependencies for project org.kubesmarts.logic.apps:data-index-service-postgresql
-----
-
-**Cause:** Parent POM not installed.
-
-**Solution:**
-
-Install parent modules first:
-
-[source,bash]
-----
-cd data-index
-mvn install -pl . -am -DskipTests
-----
-
-=== Container image build fails
-
-**Symptom:**
-
-Jib container build fails during `mvn package`.
-
-**Cause:** Quarkus container image build enabled but Docker not running.
-
-**Solution:**
-
-Ensure Docker is running:
-
-[source,bash]
-----
-docker info
-# If error, start Docker Desktop
-----
-
-Or disable container build:
-
-[source,bash]
-----
-mvn package -Dquarkus.container-image.build=false
-----
-
-== Quarkus Flow App Issues
-
-These issues occur when building Quarkus Flow workflow applications that integrate with Data Index.
+== Build Issues
 
 === Build fails: "At least one enabled entry must be active"
 
