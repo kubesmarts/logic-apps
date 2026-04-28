@@ -56,7 +56,7 @@ public class TaskExecution {
     @JsonProperty("endDate")
     private ZonedDateTime end;
 
-    private String errorMessage;
+    private Error error;
 
     /**
      * Task input data (internal).
@@ -120,12 +120,12 @@ public class TaskExecution {
         this.end = end;
     }
 
-    public String getErrorMessage() {
-        return errorMessage;
+    public Error getError() {
+        return error;
     }
 
-    public void setErrorMessage(String errorMessage) {
-        this.errorMessage = errorMessage;
+    public void setError(Error error) {
+        this.error = error;
     }
 
     public JsonNode getInput() {
@@ -189,7 +189,7 @@ public class TaskExecution {
                 ", status='" + status + '\'' +
                 ", start=" + start +
                 ", end=" + end +
-                ", errorMessage='" + errorMessage + '\'' +
+                ", error=" + error +
                 '}';
     }
 }
