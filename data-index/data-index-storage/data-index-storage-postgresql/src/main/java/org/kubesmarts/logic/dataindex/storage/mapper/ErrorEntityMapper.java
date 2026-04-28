@@ -15,24 +15,25 @@
  */
 package org.kubesmarts.logic.dataindex.storage.mapper;
 
-import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceErrorEntity;
+import org.kubesmarts.logic.dataindex.storage.entity.ErrorEntity;
 import org.kubesmarts.logic.dataindex.model.Error;
 import org.mapstruct.InjectionStrategy;
 import org.mapstruct.Mapper;
 
 /**
- * MapStruct mapper for WorkflowInstanceError domain model and WorkflowInstanceErrorEntity JPA embeddable.
+ * Maps between Error (domain model) and ErrorEntity (JPA entity).
+ * <p>Used by both WorkflowInstanceEntityMapper and TaskInstanceEntityMapper.
  */
 @Mapper(componentModel = "cdi", injectionStrategy = InjectionStrategy.CONSTRUCTOR)
-public interface WorkflowInstanceErrorEntityMapper {
+public interface ErrorEntityMapper {
 
     /**
      * Convert JPA embeddable to domain model.
      */
-    Error toModel(WorkflowInstanceErrorEntity entity);
+    Error toModel(ErrorEntity entity);
 
     /**
      * Convert domain model to JPA embeddable.
      */
-    WorkflowInstanceErrorEntity toEntity(Error model);
+    ErrorEntity toEntity(Error model);
 }
