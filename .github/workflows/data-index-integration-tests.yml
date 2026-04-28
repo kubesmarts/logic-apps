@@ -35,7 +35,7 @@ jobs:
 
       - name: Build project
         run: |
-          mvn -B clean install -DskipTests \
+          mvn -B clean install -Dquarkus.profile=postgresql -DskipTests \
             --no-transfer-progress
 
       - name: Build container images
@@ -136,7 +136,14 @@ jobs:
         run: |
           bash data-index/scripts/kind/deploy-workflow-app.sh
 
-      - name: Test workflow execution and GraphQL API
+      - name: Run Integration Tests
+        run: |
+          # Run PostgreSQL integration tests
+          mvn -B test \
+            -pl data-index/data-index-integration-tests-postgresql \
+            --no-transfer-progress
+
+      - name: Test E2E workflow execution and GraphQL API
         run: |
           # Port forward data-index service
           kubectl port-forward -n data-index svc/data-index-service 8080:8080 &
@@ -178,7 +185,7 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Integration tests passed!"
+          echo "✅ E2E integration tests passed!"
 
       - name: Collect logs on failure
         if: failure()

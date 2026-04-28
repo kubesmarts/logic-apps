@@ -170,6 +170,7 @@
     <module>data-index-model</module>
     <module>data-index-storage</module>
     <module>data-index-service</module>
+    <module>data-index-integration-tests</module>
     <module>data-index-docs</module>
     <module>workflow-test-app</module>
   </modules>
