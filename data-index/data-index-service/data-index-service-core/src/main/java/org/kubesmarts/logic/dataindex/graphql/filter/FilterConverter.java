@@ -194,13 +194,13 @@ public class FilterConverter {
     /**
      * Add error field filters.
      *
-     * <p>Maps nested ErrorFilter fields to database column names:
+     * <p>Maps nested ErrorFilter fields to JPA entity paths:
      * <ul>
-     *   <li>error.type → error_type
-     *   <li>error.title → error_title
-     *   <li>error.detail → error_detail
-     *   <li>error.status → error_status
-     *   <li>error.instance → error_instance
+     *   <li>error.type → error.type (JPA path to ErrorEntity.type field)
+     *   <li>error.title → error.title
+     *   <li>error.detail → error.detail
+     *   <li>error.status → error.status
+     *   <li>error.instance → error.instance
      * </ul>
      */
     private static void addErrorFilters(List<AttributeFilter<?>> result, ErrorFilter filter) {
@@ -208,11 +208,11 @@ public class FilterConverter {
             return;
         }
 
-        addStringFilters(result, "error_type", filter.getType());
-        addStringFilters(result, "error_title", filter.getTitle());
-        addStringFilters(result, "error_detail", filter.getDetail());
-        addIntFilters(result, "error_status", filter.getStatus());
-        addStringFilters(result, "error_instance", filter.getInstance());
+        addStringFilters(result, "error.type", filter.getType());
+        addStringFilters(result, "error.title", filter.getTitle());
+        addStringFilters(result, "error.detail", filter.getDetail());
+        addIntFilters(result, "error.status", filter.getStatus());
+        addStringFilters(result, "error.instance", filter.getInstance());
     }
 
     /**

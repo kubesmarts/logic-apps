@@ -18,6 +18,7 @@ package org.kubesmarts.logic.dataindex.graphql;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +37,7 @@ import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceEntity;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.Matchers.greaterThan;
 
 /**
  * Integration tests for GraphQL API.
@@ -482,5 +484,56 @@ public class WorkflowInstanceGraphQLApiTest {
                 .body("data.getWorkflowInstance.taskExecutions[0].error.title", equalTo("Internal Server Error"))
                 .body("data.getWorkflowInstance.taskExecutions[0].error.instance", equalTo("/do/0/failingTask"))
                 .body("data.getWorkflowInstance.taskExecutions[0].error.detail", equalTo("{\"code\":500,\"message\":\"API call failed\"}"));
+    }
+
+    /**
+     * Test error filtering in GraphQL queries.
+     * Validates that ErrorFilter works correctly for both workflow instances and task executions.
+     */
+    @Test
+    void testErrorFiltering() {
+        String query = """
+            {
+              workflowsByError: getWorkflowInstances(
+                filter: {
+                  error: {
+                    type: { eq: "communication" }
+                    status: { gte: 500 }
+                  }
+                }
+              ) {
+                id
+                name
+                error { type, status, title }
+              }
+
+              tasksByError: getTaskExecutions(
+                filter: {
+                  error: {
+                    status: { eq: 500 }
+                    instance: { eq: "/do/0/failingTask" }
+                  }
+                }
+              ) {
+                id
+                taskPosition
+                error { status, instance, type }
+              }
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(Map.of("query", query))
+        .when()
+            .post("/graphql")
+        .then()
+            .statusCode(200)
+            .body("data.workflowsByError.size()", greaterThan(0))
+            .body("data.workflowsByError[0].error.type", equalTo("communication"))
+            .body("data.workflowsByError[0].error.status", equalTo(500))
+            .body("data.tasksByError.size()", greaterThan(0))
+            .body("data.tasksByError[0].error.status", equalTo(500))
+            .body("data.tasksByError[0].error.instance", equalTo("/do/0/failingTask"));
     }
 }
