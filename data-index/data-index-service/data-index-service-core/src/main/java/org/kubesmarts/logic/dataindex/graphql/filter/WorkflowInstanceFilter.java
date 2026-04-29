@@ -30,8 +30,9 @@ import org.eclipse.microprofile.graphql.Description;
  *       status: { eq: COMPLETED }
  *       namespace: { eq: "production" }
  *       startTime: { gte: "2026-01-01T00:00:00Z" }
- *       input: {
- *         eq: { customerId: "customer-123" }
+ *       error: {
+ *         type: { eq: "communication" }
+ *         status: { gte: 500 }
  *       }
  *     }
  *     limit: 50
@@ -74,6 +75,9 @@ public class WorkflowInstanceFilter {
 
     @Description("Filter by output data fields")
     private JsonFilter output;
+
+    @Description("Filter by error fields")
+    private ErrorFilter error;
 
     public StringFilter getId() {
         return id;
@@ -145,5 +149,13 @@ public class WorkflowInstanceFilter {
 
     public void setOutput(JsonFilter output) {
         this.output = output;
+    }
+
+    public ErrorFilter getError() {
+        return error;
+    }
+
+    public void setError(ErrorFilter error) {
+        this.error = error;
     }
 }
