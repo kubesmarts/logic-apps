@@ -298,7 +298,6 @@ public class WorkflowInstanceGraphQLApiTest {
                     status
                     startDate
                     endDate
-                    errorMessage
                   }
                 }
                 """;
@@ -402,5 +401,86 @@ public class WorkflowInstanceGraphQLApiTest {
                 .statusCode(200)
                 .body("data.__schema.types", notNullValue())
                 .body("data.__schema.types.name", hasItems("WorkflowInstance", "TaskExecution"));
+    }
+
+    /**
+     * Test workflow instance with error structure.
+     * Validates that Error object is correctly exposed in GraphQL API with all fields.
+     */
+    @Test
+    public void testWorkflowInstanceWithErrorStructure() {
+        String query = """
+                {
+                  getWorkflowInstance(id: "%s") {
+                    id
+                    name
+                    status
+                    error {
+                      type
+                      title
+                      detail
+                      status
+                      instance
+                    }
+                  }
+                }
+                """.formatted(TEST_WORKFLOW_ID_2);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"query\": \"" + query.replace("\n", " ").replace("\"", "\\\"") + "\"}")
+                .when()
+                .post("/graphql")
+                .then()
+                .statusCode(200)
+                .body("data.getWorkflowInstance.id", equalTo(TEST_WORKFLOW_ID_2))
+                .body("data.getWorkflowInstance.error.type", equalTo("communication"))
+                .body("data.getWorkflowInstance.error.status", equalTo(500))
+                .body("data.getWorkflowInstance.error.title", equalTo("Internal Server Error"))
+                .body("data.getWorkflowInstance.error.instance", equalTo("/do/0/failingTask"))
+                .body("data.getWorkflowInstance.error.detail", equalTo("{\"code\":500,\"message\":\"There was an error processing your request\"}"));
+    }
+
+    /**
+     * Test task execution with error structure.
+     * Validates that Error object is correctly exposed in TaskExecution GraphQL API.
+     */
+    @Test
+    public void testTaskExecutionWithErrorStructure() {
+        String query = """
+                {
+                  getWorkflowInstance(id: "%s") {
+                    id
+                    name
+                    status
+                    taskExecutions {
+                      id
+                      taskPosition
+                      status
+                      error {
+                        type
+                        title
+                        detail
+                        status
+                        instance
+                      }
+                    }
+                  }
+                }
+                """.formatted(TEST_WORKFLOW_ID_2);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"query\": \"" + query.replace("\n", " ").replace("\"", "\\\"") + "\"}")
+                .when()
+                .post("/graphql")
+                .then()
+                .statusCode(200)
+                .body("data.getWorkflowInstance.taskExecutions[0].id", equalTo("task-2-1"))
+                .body("data.getWorkflowInstance.taskExecutions[0].error.type", equalTo("communication"))
+                .body("data.getWorkflowInstance.taskExecutions[0].error.status", equalTo(500))
+                .body("data.getWorkflowInstance.taskExecutions[0].error.title", equalTo("Internal Server Error"))
+                .body("data.getWorkflowInstance.taskExecutions[0].error.instance", equalTo("/do/0/failingTask"))
+                .body("data.getWorkflowInstance.taskExecutions[0].error.detail", equalTo("{\"code\":500,\"message\":\"API call failed\"}"));
     }
 }
