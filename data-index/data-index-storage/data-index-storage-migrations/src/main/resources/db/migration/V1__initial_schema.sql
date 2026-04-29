@@ -74,6 +74,11 @@ CREATE TABLE IF NOT EXISTS task_instances (
   last_event_time TIMESTAMP WITH TIME ZONE,  -- Idempotency: track event timestamp
   input JSONB,
   output JSONB,
+  error_type VARCHAR(255),
+  error_title VARCHAR(255),
+  error_detail TEXT,
+  error_status INTEGER,
+  error_instance VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   CONSTRAINT fk_task_instance_workflow FOREIGN KEY (instance_id) REFERENCES workflow_instances(id) ON DELETE CASCADE
@@ -225,6 +230,11 @@ BEGIN
     -- Terminal fields: Keep latest non-null (preserve completion data)
     "end" = COALESCE(to_timestamp((NEW.data->>'endTime')::numeric), "end"),
     output = COALESCE(NEW.data->'output', output),
+    error_type = COALESCE(NEW.data->'error'->>'type', error_type),
+    error_title = COALESCE(NEW.data->'error'->>'title', error_title),
+    error_detail = COALESCE(NEW.data->'error'->>'detail', error_detail),
+    error_status = COALESCE((NEW.data->'error'->>'status')::integer, error_status),
+    error_instance = COALESCE(NEW.data->'error'->>'instance', error_instance),
 
     -- Timestamp tracking: Keep latest event timestamp
     last_event_time = GREATEST(event_timestamp, last_event_time),
@@ -248,6 +258,11 @@ BEGIN
       "end",
       input,
       output,
+      error_type,
+      error_title,
+      error_detail,
+      error_status,
+      error_instance,
       last_event_time,
       created_at,
       updated_at
@@ -261,6 +276,11 @@ BEGIN
       to_timestamp((NEW.data->>'endTime')::numeric),
       NEW.data->'input',
       NEW.data->'output',
+      NEW.data->'error'->>'type',
+      NEW.data->'error'->>'title',
+      NEW.data->'error'->>'detail',
+      (NEW.data->'error'->>'status')::integer,
+      NEW.data->'error'->>'instance',
       event_timestamp,
       NEW.time,
       NEW.time

@@ -21,6 +21,7 @@ import org.mapstruct.InjectionStrategy;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.kubesmarts.logic.dataindex.storage.mapper.ErrorEntityMapper;
 
 /**
  * MapStruct mapper for TaskExecution domain model and TaskInstanceEntity JPA entity.
@@ -31,7 +32,7 @@ import org.mapstruct.MappingTarget;
  *   <li>TaskInstanceEntity (JPA entity) - persisted in PostgreSQL via triggers
  * </ul>
  */
-@Mapper(componentModel = "cdi", injectionStrategy = InjectionStrategy.CONSTRUCTOR)
+@Mapper(componentModel = "cdi", injectionStrategy = InjectionStrategy.CONSTRUCTOR, uses = {ErrorEntityMapper.class})
 public interface TaskInstanceEntityMapper {
 
     /**

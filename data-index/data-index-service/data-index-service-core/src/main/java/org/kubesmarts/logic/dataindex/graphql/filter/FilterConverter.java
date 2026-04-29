@@ -81,6 +81,9 @@ public class FilterConverter {
         addJsonFilters(result, "input", filter.getInput());
         addJsonFilters(result, "output", filter.getOutput());
 
+        // Error filters
+        addErrorFilters(result, filter.getError());
+
         return result;
     }
 
@@ -101,7 +104,6 @@ public class FilterConverter {
         addStringFilters(result, "id", filter.getId());
         addStringFilters(result, "taskName", filter.getTaskName());
         addStringFilters(result, "taskPosition", filter.getTaskPosition());
-        addStringFilters(result, "errorMessage", filter.getErrorMessage());
 
         // DateTime filters
         addDateTimeFilters(result, "enter", filter.getEnter());
@@ -110,6 +112,9 @@ public class FilterConverter {
         // JSON filters
         addJsonFilters(result, "inputArgs", filter.getInputArgs());
         addJsonFilters(result, "outputArgs", filter.getOutputArgs());
+
+        // Error filters
+        addErrorFilters(result, filter.getError());
 
         return result;
     }
@@ -156,6 +161,58 @@ public class FilterConverter {
         if (filter.getLte() != null) {
             result.add(new DataIndexAttributeFilter<>(fieldName, FilterCondition.LTE, filter.getLte()));
         }
+    }
+
+    /**
+     * Add integer field filters.
+     */
+    private static void addIntFilters(List<AttributeFilter<?>> result, String fieldName, IntFilter filter) {
+        if (filter == null) {
+            return;
+        }
+
+        if (filter.getEq() != null) {
+            result.add(new DataIndexAttributeFilter<>(fieldName, FilterCondition.EQUAL, filter.getEq()));
+        }
+        if (filter.getGt() != null) {
+            result.add(new DataIndexAttributeFilter<>(fieldName, FilterCondition.GT, filter.getGt()));
+        }
+        if (filter.getGte() != null) {
+            result.add(new DataIndexAttributeFilter<>(fieldName, FilterCondition.GTE, filter.getGte()));
+        }
+        if (filter.getLt() != null) {
+            result.add(new DataIndexAttributeFilter<>(fieldName, FilterCondition.LT, filter.getLt()));
+        }
+        if (filter.getLte() != null) {
+            result.add(new DataIndexAttributeFilter<>(fieldName, FilterCondition.LTE, filter.getLte()));
+        }
+        if (filter.getIn() != null && !filter.getIn().isEmpty()) {
+            result.add(new DataIndexAttributeFilter<>(fieldName, FilterCondition.IN, filter.getIn()));
+        }
+    }
+
+    /**
+     * Add error field filters.
+     *
+     * <p>Maps nested ErrorFilter fields to JPA entity paths:
+     * <ul>
+     *   <li>error.type → error.type (JPA path to ErrorEntity.type field)
+     *   <li>error.title → error.title
+     *   <li>error.detail → error.detail
+     *   <li>error.status → error.status
+     *   <li>error.instance → error.instance
+     * </ul>
+     */
+    private static void addErrorFilters(List<AttributeFilter<?>> result, ErrorFilter filter) {
+        if (filter == null) {
+            return;
+        }
+
+        addStringFilters(result, "error.type", filter.getType());
+        addStringFilters(result, "error.title", filter.getTitle());
+        addStringFilters(result, "error.detail", filter.getDetail());
+        addIntFilters(result, "error.status", filter.getStatus());
+        addStringFilters(result, "error.instance", filter.getInstance());
     }
 
     /**

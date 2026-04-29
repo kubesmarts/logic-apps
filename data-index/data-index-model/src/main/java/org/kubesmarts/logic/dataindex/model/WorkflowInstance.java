@@ -120,7 +120,7 @@ public class WorkflowInstance {
      * Error information if instance failed.
      * <p>Source: error object from workflow.instance.faulted event
      */
-    private WorkflowInstanceError error;
+    private Error error;
 
     /**
      * Reference to workflow definition.
@@ -219,11 +219,11 @@ public class WorkflowInstance {
         this.taskExecutions = taskExecutions;
     }
 
-    public WorkflowInstanceError getError() {
+    public Error getError() {
         return error;
     }
 
-    public void setError(WorkflowInstanceError error) {
+    public void setError(Error error) {
         this.error = error;
     }
 

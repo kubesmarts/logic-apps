@@ -138,7 +138,7 @@ public class WorkflowInstanceEntity extends AbstractEntity {
      * <p>Source: error object from workflow.instance.faulted event
      */
     @Embedded
-    private WorkflowInstanceErrorEntity error;
+    private ErrorEntity error;
 
     /**
      * Record creation timestamp.
@@ -240,11 +240,11 @@ public class WorkflowInstanceEntity extends AbstractEntity {
         this.taskExecutions = taskExecutions;
     }
 
-    public WorkflowInstanceErrorEntity getError() {
+    public ErrorEntity getError() {
         return error;
     }
 
-    public void setError(WorkflowInstanceErrorEntity error) {
+    public void setError(ErrorEntity error) {
         this.error = error;
     }
 

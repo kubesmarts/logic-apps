@@ -16,6 +16,7 @@
 package org.kubesmarts.logic.dataindex.graphql.filter;
 
 import org.eclipse.microprofile.graphql.Description;
+import org.kubesmarts.logic.dataindex.graphql.filter.ErrorFilter;
 
 /**
  * TaskExecution filter for GraphQL queries.
@@ -64,8 +65,8 @@ public class TaskExecutionFilter {
     @Description("Filter by exit time")
     private DateTimeFilter exit;
 
-    @Description("Filter by error message")
-    private StringFilter errorMessage;
+    @Description("Filter by error fields")
+    private ErrorFilter error;
 
     @Description("Filter by input arguments fields")
     private JsonFilter inputArgs;
@@ -113,12 +114,12 @@ public class TaskExecutionFilter {
         this.exit = exit;
     }
 
-    public StringFilter getErrorMessage() {
-        return errorMessage;
+    public ErrorFilter getError() {
+        return error;
     }
 
-    public void setErrorMessage(StringFilter errorMessage) {
-        this.errorMessage = errorMessage;
+    public void setError(ErrorFilter error) {
+        this.error = error;
     }
 
     public JsonFilter getInputArgs() {
