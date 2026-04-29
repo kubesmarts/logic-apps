@@ -1,0 +1,68 @@
+name: Deploy Docs to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'data-index/**'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # ==============================================================================
+      # FUTURE MULTI-MODULE ARCHITECTURE NOTE:
+      # Currently, this pipeline builds the docs exclusively for 'data-index'.
+      # GitHub Pages deployments via Actions overwrite the entire site on each run.
+      # If another module is added (e.g., 'core/docs'), building them in separate 
+      # pipelines will overwrite each other's documentation.
+      # 
+      # To support multiple modules in the future:
+      # 1. Create a root-level 'docs-build' module.
+      # 2. Create a unified 'antora-playbook.yaml' in that root module that 
+      #    aggregates the 'antora.yml' files from all submodules.
+      # 3. Update the Maven command below to build that root aggregator module 
+      #    instead of just 'data-index/data-index-docs'.
+      # 4. Update the 'upload-pages-artifact' path to point to the new root target dir.
+      # ==============================================================================
+      
+      - name: Build Docs with Maven
+        # -am ensures parent POMs are processed if necessary
+        run: mvn clean package -pl data-index/data-index-docs -am
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload the entire Antora output directory
+          path: './data-index/data-index-docs/target/generated-docs'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
