@@ -1,0 +1,54 @@
+{
+  "index_patterns": ["workflow-events-*"],
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "data-index-events-retention",
+      "number_of_shards": 3,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "event_id": {
+          "type": "keyword"
+        },
+        "event_type": {
+          "type": "keyword"
+        },
+        "event_time": {
+          "type": "date"
+        },
+        "instance_id": {
+          "type": "keyword"
+        },
+        "workflow_name": {
+          "type": "keyword"
+        },
+        "workflow_version": {
+          "type": "keyword"
+        },
+        "workflow_namespace": {
+          "type": "keyword"
+        },
+        "status": {
+          "type": "keyword"
+        },
+        "start_time": {
+          "type": "date"
+        },
+        "end_time": {
+          "type": "date"
+        },
+        "input_data": {
+          "type": "flattened"
+        },
+        "output_data": {
+          "type": "flattened"
+        },
+        "error": {
+          "type": "object",
+          "enabled": false
+        }
+      }
+    }
+  }
+}
