@@ -30,6 +30,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstanceStatus;
+import org.kubesmarts.logic.dataindex.storage.entity.ErrorEntity;
 import org.kubesmarts.logic.dataindex.storage.entity.TaskInstanceEntity;
 import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceEntity;
 
@@ -130,6 +131,14 @@ public class WorkflowInstanceGraphQLApiTest {
         workflow2.setEnd(ZonedDateTime.now());
         workflow2.setInput(MAPPER.readTree("{\"name\":\"Jane\"}"));
 
+        ErrorEntity wfError = new ErrorEntity();
+        wfError.setType("communication");
+        wfError.setStatus(500);
+        wfError.setTitle("Internal Server Error");
+        wfError.setInstance("/do/0/failingTask");
+        wfError.setDetail("{\"code\":500,\"message\":\"There was an error processing your request\"}");
+        workflow2.setError(wfError);
+
         List<TaskInstanceEntity> tasks2 = new ArrayList<>();
 
         TaskInstanceEntity task3 = new TaskInstanceEntity();
@@ -141,6 +150,15 @@ public class WorkflowInstanceGraphQLApiTest {
         task3.setStart(ZonedDateTime.now().minusMinutes(5));
         task3.setEnd(ZonedDateTime.now());
         task3.setInput(MAPPER.readTree("{\"action\":\"fail\"}"));
+
+        ErrorEntity taskError = new ErrorEntity();
+        taskError.setType("communication");
+        taskError.setStatus(500);
+        taskError.setTitle("Internal Server Error");
+        taskError.setDetail("{\"code\":500,\"message\":\"API call failed\"}");
+        taskError.setInstance("/do/0/failingTask");
+        task3.setError(taskError);
+
         task3.setWorkflowInstance(workflow2);
         tasks2.add(task3);
 
