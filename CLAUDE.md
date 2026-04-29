@@ -202,6 +202,31 @@ task_instances.input             → TaskInstanceEntity.input          → TaskE
 - GraphQL uses `startDate`/`endDate` (via `@JsonProperty`)
 - Never use old names: `enter`/`exit`, `triggerTime`/`leaveTime`
 
+### Error Handling
+
+**Error structure (unified for workflows and tasks):**
+```
+Database columns → JPA Entity → GraphQL:
+error_type       → ErrorEntity.type     → Error.type
+error_title      → ErrorEntity.title    → Error.title
+error_detail     → ErrorEntity.detail   → Error.detail
+error_status     → ErrorEntity.status   → Error.status
+error_instance   → ErrorEntity.instance → Error.instance
+```
+
+**Domain model:**
+- `Error` - Generic error type used by both WorkflowInstance and TaskExecution
+- Previously `WorkflowInstanceError` (renamed for reuse)
+
+**JPA entities:**
+- `ErrorEntity` - Embeddable entity used by WorkflowInstanceEntity and TaskInstanceEntity
+- Previously `WorkflowInstanceErrorEntity` (renamed for reuse)
+
+**GraphQL filtering:**
+- `ErrorFilter` - Nested filter for error fields
+- `IntFilter` - Integer field filter (used by error.status)
+- Available for both workflow instances and task executions
+
 ### 4. Entity Naming - Only Two Entities
 
 **DO:**
@@ -505,6 +530,8 @@ priority = (NEW.data->>'priority')::integer
 - Don't use old field names: inputArgs/outputArgs, enter/exit, triggerTime/leaveTime
 - Don't expose JsonNode directly in GraphQL (use String getters)
 - Don't try to implement custom GraphQL scalar for JsonNode (tried, doesn't work well)
+- Don't use `WorkflowInstanceError` or `WorkflowInstanceErrorEntity` (renamed to `Error` and `ErrorEntity`)
+- Don't use `TaskExecution.errorMessage` (replaced with `error: Error`)
 
 ### ❌ Testing
 
