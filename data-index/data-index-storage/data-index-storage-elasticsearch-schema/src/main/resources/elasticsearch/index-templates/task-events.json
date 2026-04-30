@@ -1,5 +1,5 @@
 {
-  "index_patterns": ["workflow-events-*"],
+  "index_patterns": ["task-events-*"],
   "template": {
     "settings": {
       "index.lifecycle.name": "data-index-events-retention",
@@ -27,13 +27,13 @@
         "instance_id": {
           "type": "keyword"
         },
-        "workflow_name": {
+        "task_execution_id": {
           "type": "keyword"
         },
-        "workflow_version": {
+        "task_position": {
           "type": "keyword"
         },
-        "workflow_namespace": {
+        "task_name": {
           "type": "keyword"
         },
         "status": {

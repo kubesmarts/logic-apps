@@ -1,39 +1,19 @@
 {
-  "index_patterns": ["workflow-events-*"],
+  "index_patterns": ["task-executions"],
   "template": {
     "settings": {
-      "index.lifecycle.name": "data-index-events-retention",
       "number_of_shards": 3,
       "number_of_replicas": 1
     },
     "mappings": {
       "properties": {
-        "@timestamp": {
-          "type": "date",
-          "doc_values": true
-        },
-        "tag": {
+        "id": {
           "type": "keyword"
         },
-        "event_id": {
+        "task_name": {
           "type": "keyword"
         },
-        "event_type": {
-          "type": "keyword"
-        },
-        "event_time": {
-          "type": "date"
-        },
-        "instance_id": {
-          "type": "keyword"
-        },
-        "workflow_name": {
-          "type": "keyword"
-        },
-        "workflow_version": {
-          "type": "keyword"
-        },
-        "workflow_namespace": {
+        "task_position": {
           "type": "keyword"
         },
         "status": {
@@ -69,6 +49,9 @@
               "type": "keyword"
             }
           }
+        },
+        "last_update": {
+          "type": "date"
         }
       }
     }
