@@ -130,7 +130,7 @@ spec:
         - name: elasticsearch
           resources:
             requests:
-              memory: 1Gi
+              memory: 2Gi
               cpu: 500m
             limits:
               memory: 2Gi
