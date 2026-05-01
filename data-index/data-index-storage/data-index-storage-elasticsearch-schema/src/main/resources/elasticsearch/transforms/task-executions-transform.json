@@ -1,0 +1,130 @@
+{
+  "source": {
+    "index": "task-events-*",
+    "query": {
+      "bool": {
+        "should": [
+          {
+            "range": {
+              "event_time": {
+                "gte": "now-1h"
+              }
+            }
+          },
+          {
+            "bool": {
+              "filter": [
+                {
+                  "range": {
+                    "event_time": {
+                      "lt": "now-1h"
+                    }
+                  }
+                }
+              ],
+              "must_not": [
+                {
+                  "term": {
+                    "event_type": "task.execution.completed"
+                  }
+                },
+                {
+                  "term": {
+                    "event_type": "task.execution.faulted"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "minimum_should_match": 1
+      }
+    }
+  },
+  "dest": {
+    "index": "task-executions"
+  },
+  "frequency": "1s",
+  "sync": {
+    "time": {
+      "field": "event_time",
+      "delay": "5m"
+    }
+  },
+  "pivot": {
+    "group_by": {
+      "id": {
+        "terms": {
+          "script": {
+            "source": "doc['instance_id'].value + ':' + doc['task_position'].value"
+          }
+        }
+      }
+    },
+    "aggregations": {
+      "instance_id": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (state.value == null && doc['instance_id'].size() > 0) { state.value = doc['instance_id'].value }",
+          "combine_script": "return state.value",
+          "reduce_script": "return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+        }
+      },
+      "task_position": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (state.value == null && doc['task_position'].size() > 0) { state.value = doc['task_position'].value }",
+          "combine_script": "return state.value",
+          "reduce_script": "return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+        }
+      },
+      "task_name": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (state.value == null && doc['task_name'].size() > 0) { state.value = doc['task_name'].value }",
+          "combine_script": "return state.value",
+          "reduce_script": "return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+        }
+      },
+      "start": {
+        "min": {
+          "field": "start"
+        }
+      },
+      "end": {
+        "max": {
+          "field": "end"
+        }
+      },
+      "input": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (state.value == null && params._source.containsKey('input')) { state.value = params._source.input }",
+          "combine_script": "return state.value",
+          "reduce_script": "return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+        }
+      },
+      "output": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.containsKey('output') && params._source.output != null) { def eventTime = doc['event_time'].value.toInstant().toEpochMilli(); if (state.value == null || eventTime > state.value.time) { state.value = ['data': params._source.output, 'time': eventTime] } }",
+          "combine_script": "return state.value",
+          "reduce_script": "def latest = params._aggs.stream().filter(v -> v != null).max(Comparator.comparing(v -> v.time)); return latest.isPresent() ? latest.get().data : null"
+        }
+      },
+      "error": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.containsKey('error') && params._source.error != null) { def eventTime = doc['event_time'].value.toInstant().toEpochMilli(); if (state.value == null || eventTime > state.value.time) { state.value = ['data': params._source.error, 'time': eventTime] } }",
+          "combine_script": "return state.value",
+          "reduce_script": "def latest = params._aggs.stream().filter(v -> v != null).max(Comparator.comparing(v -> v.time)); return latest.isPresent() ? latest.get().data : null"
+        }
+      },
+      "last_update": {
+        "max": {
+          "field": "event_time"
+        }
+      }
+    }
+  }
+}

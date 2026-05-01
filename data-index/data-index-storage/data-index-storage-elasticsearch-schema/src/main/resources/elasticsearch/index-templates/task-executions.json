@@ -1,0 +1,59 @@
+{
+  "index_patterns": ["task-executions"],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "id": {
+          "type": "keyword"
+        },
+        "task_name": {
+          "type": "keyword"
+        },
+        "task_position": {
+          "type": "keyword"
+        },
+        "status": {
+          "type": "keyword"
+        },
+        "start": {
+          "type": "date"
+        },
+        "end": {
+          "type": "date"
+        },
+        "input": {
+          "type": "flattened"
+        },
+        "output": {
+          "type": "flattened"
+        },
+        "error": {
+          "properties": {
+            "type": {
+              "type": "keyword"
+            },
+            "title": {
+              "type": "text"
+            },
+            "detail": {
+              "type": "text"
+            },
+            "status": {
+              "type": "integer"
+            },
+            "instance": {
+              "type": "keyword"
+            }
+          }
+        },
+        "last_update": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

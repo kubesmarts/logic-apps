@@ -5,7 +5,7 @@ Common build and development issues when creating **Quarkus Flow workflow applic
 
 [IMPORTANT]
 ====
-This guide is for **developers** building and testing Quarkus Flow applications locally. For deployment and runtime issues, see xref:operations/troubleshooting.adoc[Operations Troubleshooting].
+This guide is for **developers** building and testing Quarkus Flow applications locally. For deployment and runtime issues, see xref:deployment/troubleshooting.adoc[Deployment Troubleshooting].
 ====
 
 == Build Issues
@@ -167,7 +167,7 @@ Or add to `application.properties`:
 == Getting Help
 
 **For deployment and runtime issues:**
-- See: xref:operations/troubleshooting.adoc[Operations Troubleshooting]
+- See: xref:deployment/troubleshooting.adoc[Deployment Troubleshooting]
 
 **For configuration:**
 - See: xref:developers/quarkus-flow-apps.adoc[Quarkus Flow Integration]

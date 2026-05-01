@@ -167,7 +167,8 @@ public class ElasticsearchWorkflowInstanceStorage implements WorkflowInstanceSto
         try {
             client.deleteByQuery(d -> d
                     .index(indexName)
-                    .query(q -> q.matchAll(m -> m)));
+                    .query(q -> q.matchAll(m -> m))
+                    .conflicts(co.elastic.clients.elasticsearch._types.Conflicts.Proceed));
 
             LOGGER.info("Cleared all workflow instances from index: {}", indexName);
 

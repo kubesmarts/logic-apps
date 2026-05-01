@@ -21,14 +21,14 @@ data-index-service/               # Parent POM (aggregator only)
 
 **Backend selection:** Navigate to the module you want and build it directly.
 
-**PostgreSQL (production-ready):**
+**PostgreSQL (MODE 1 - production-ready):**
 [source,bash]
 ----
 cd data-index/data-index-service/data-index-service-postgresql
 mvn quarkus:dev
 ----
 
-**Elasticsearch (future):**
+**Elasticsearch (MODE 2 - production-ready):**
 [source,bash]
 ----
 cd data-index/data-index-service/data-index-service-elasticsearch
@@ -46,7 +46,7 @@ mvn quarkus:dev
 
 * `data-index-service-core/src/main/resources/application.properties` - Common config (GraphQL, HTTP, health, metrics)
 * `data-index-service-postgresql/src/main/resources/application.properties` - PostgreSQL-specific config
-* `data-index-service-elasticsearch/src/main/resources/application.properties` - Elasticsearch-specific config (placeholder)
+* `data-index-service-elasticsearch/src/main/resources/application.properties` - Elasticsearch-specific config
 
 **Maven profiles:**
 
@@ -78,13 +78,21 @@ mvn quarkus:dev
 4. Service starts on http://localhost:8080
 5. Documentation available at http://localhost:8080/docs
 
-**Dev Services PostgreSQL configuration:**
+**Dev Services PostgreSQL configuration (MODE 1):**
 
 * Container: `postgres:15`
 * Database: `dataindex`
 * Username: `dataindex`
 * Password: `dataindex123`
 * Automatic schema creation via Flyway migrations (dev mode only)
+* Container auto-starts with dev mode, auto-stops on exit
+
+**Dev Services Elasticsearch configuration (MODE 2):**
+
+* Container: `docker.elastic.co/elasticsearch/elasticsearch:8.11.1`
+* Port: `9200`
+* Protocol: `http`
+* Automatic schema creation (ILM policies, index templates, transforms) on startup
 * Container auto-starts with dev mode, auto-stops on exit
 
 **Live coding enabled:** Code changes trigger automatic rebuild and restart.
@@ -95,6 +103,7 @@ mvn quarkus:dev
 * Documentation: http://localhost:8080/docs
 * Health: http://localhost:8080/q/health
 * Metrics: http://localhost:8080/q/metrics
+* Elasticsearch (MODE 2): http://localhost:9200
 
 === Production Mode
 
@@ -109,19 +118,23 @@ mvn clean package -DskipFlyway=true -DskipTests
 # Container image: kubesmarts/data-index-service-postgresql:999-SNAPSHOT
 ----
 
-**Build Elasticsearch backend (future):**
+**Build Elasticsearch backend:**
 [source,bash]
 ----
 cd data-index/data-index-service/data-index-service-elasticsearch
-mvn clean package -DskipFlyway=true -DskipTests
+mvn clean package -DskipTests
+
+# Result: target/quarkus-app/ (optimized Quarkus app)
+# Container image: kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT
 ----
 
-**Why skip Flyway?**
+**Why skip Flyway (PostgreSQL only)?**
 
 * Flyway and migration SQL files are only needed in development (Dev Services)
-* Production deployments initialize schema manually using SQL scripts
+* Production deployments initialize schema manually using SQL scripts or init jobs
 * Skipping Flyway reduces container image size
 * The `-DskipFlyway=true` flag deactivates the `dev-flyway` Maven profile
+* Elasticsearch builds don't use Flyway (not applicable)
 
 **Container image build:**
 [source,bash]
@@ -133,6 +146,8 @@ mvn package -DskipFlyway=true \
 ----
 
 **Runtime configuration** (via environment variables):
+
+**PostgreSQL backend:**
 
 [source,bash]
 ----
@@ -146,11 +161,28 @@ QUARKUS_DATASOURCE_JDBC_MAX_SIZE=20
 QUARKUS_DATASOURCE_JDBC_MIN_SIZE=5
 ----
 
+**Elasticsearch backend:**
+
+[source,bash]
+----
+# Required - overrides Dev Services
+ELASTICSEARCH_HOST=elasticsearch.elasticsearch.svc.cluster.local
+ELASTICSEARCH_PORT=9200
+ELASTICSEARCH_PROTOCOL=http
+
+# Optional - authentication
+ELASTICSEARCH_USERNAME=elastic
+ELASTICSEARCH_PASSWORD=***
+
+# Schema initialization control
+DATA_INDEX_ELASTICSEARCH_SCHEMA_INIT_ENABLED=false
+----
+
 **How it works:**
 
-1. When `QUARKUS_DATASOURCE_JDBC_URL` is set, Dev Services is automatically disabled
-2. Application connects to the provided PostgreSQL instance
-3. Schema must be initialized manually using SQL migration scripts
+1. When connection properties are set, Dev Services is automatically disabled
+2. Application connects to the provided storage backend
+3. Schema must be initialized manually (PostgreSQL: SQL scripts, Elasticsearch: init job or manual API calls)
 
 **Database schema management in production:**
 
@@ -162,7 +194,89 @@ Manual schema initialization required:
 
 See: xref:deployment/postgresql.adoc#_database_migrations[PostgreSQL Deployment - Database Migrations]
 
-=== Hibernate Configuration
+=== Elasticsearch Configuration (MODE 2)
+
+**Connection settings:**
+
+[source,properties]
+----
+# Elasticsearch host and port
+quarkus.elasticsearch.hosts=elasticsearch.elasticsearch.svc.cluster.local:9200
+
+# Protocol (http or https)
+quarkus.elasticsearch.protocol=http
+
+# Authentication (optional)
+quarkus.elasticsearch.username=elastic
+quarkus.elasticsearch.password=${ELASTICSEARCH_PASSWORD}
+----
+
+**Dev Services (development mode):**
+
+[source,properties]
+----
+# Enable automatic Elasticsearch container
+%dev.quarkus.elasticsearch.devservices.enabled=true
+
+# Elasticsearch version
+%dev.quarkus.elasticsearch.devservices.image-name=docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+
+# Port
+%dev.quarkus.elasticsearch.devservices.port=9200
+----
+
+**Schema initialization:**
+
+[source,properties]
+----
+# Enable automatic schema setup (ILM, templates, transforms)
+data-index.elasticsearch.schema.init.enabled=true
+
+# Disable in production (use init job)
+%prod.data-index.elasticsearch.schema.init.enabled=false
+
+# Universal control (all backends)
+# data-index.storage.skip-init-schema=false
+----
+
+**What schema initialization creates:**
+
+* **ILM Policy** - `data-index-events-policy` (deletes raw events after 7 days)
+* **Index Templates** - `workflow-instance-events-raw-template`, `task-execution-events-raw-template`
+* **Transforms** - `workflow-instance-transform`, `task-execution-transform`
+* **Normalized Indices** - `workflow-instances`, `task-executions`
+
+**Production configuration:**
+
+Schema initialization is disabled by default in production. Initialize schema manually or via init job:
+
+[source,bash]
+----
+# Port-forward to Elasticsearch
+kubectl port-forward -n elasticsearch svc/elasticsearch 9200:9200 &
+
+# Create ILM policy
+curl -X PUT http://localhost:9200/_ilm/policy/data-index-events-policy \
+  -H "Content-Type: application/json" \
+  -d @data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/ilm-policy.json
+
+# Create index templates (workflow and task)
+curl -X PUT http://localhost:9200/_index_template/workflow-instance-events-raw-template \
+  -H "Content-Type: application/json" \
+  -d @data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/workflow-index-template.json
+
+# Create transforms (workflow and task)
+curl -X PUT http://localhost:9200/_transform/workflow-instance-transform \
+  -H "Content-Type: application/json" \
+  -d @data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/workflow-transform.json
+
+# Start transforms
+curl -X POST http://localhost:9200/_transform/workflow-instance-transform/_start
+----
+
+See: xref:deployment/elasticsearch.adoc#_step_2_initialize_elasticsearch_schema[Elasticsearch Deployment - Schema Initialization]
+
+=== Hibernate Configuration (PostgreSQL MODE 1 only)
 
 **Timezone:**
 

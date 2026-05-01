@@ -55,27 +55,39 @@ Data Index GraphQL API
 
 ---
 
-### Elasticsearch Mode (In Development)
+### Elasticsearch Mode (Ready for Testing)
 **Directory**: `elasticsearch/`
 
-**Status**: 📋 Planned (backend not yet implemented)
+**Status**: ✅ Configuration Complete - Backend Ready for Testing
 
-**Pipeline**: FluentBit → Elasticsearch raw indices → Normalization → GraphQL API
+**Pipeline**: FluentBit → Elasticsearch raw indices → Transform normalization → GraphQL API
 
 **How it works:**
-1. FluentBit tails Kubernetes container logs
+1. FluentBit tails Kubernetes container logs (`/var/log/containers/*_workflows_*.log`)
 2. Parses structured JSON events from Quarkus Flow
-3. Sends events to Elasticsearch raw indices
-4. Events are normalized asynchronously (~1s latency)
-5. Data Index GraphQL API serves normalized data
+3. Routes events to Elasticsearch daily indices:
+   - `workflow-instance-events-raw-YYYY.MM.DD`
+   - `task-execution-events-raw-YYYY.MM.DD`
+4. Elasticsearch Transform aggregates events into normalized indices (continuous, ~5-60s latency)
+5. Data Index GraphQL API queries normalized indices via Elasticsearch Java Client
 
 **Benefits:**
 - ✅ Full-text search capabilities
 - ✅ High throughput (100K+ workflows/day)
 - ✅ Horizontal scalability
-- ✅ Event history preserved
+- ✅ ILM-managed event retention
+- ✅ Out-of-order event handling via Transform
+- ✅ Analytics and visualization (Kibana)
 
-**Use case**: Production deployments requiring full-text search or high throughput
+**Use case**: Production deployments requiring full-text search, analytics, or high throughput
+
+**Configuration files**:
+- `fluent-bit.conf` - Input (tail), filters (routing), output (Elasticsearch)
+- `parsers.conf` - CRI and JSON parsers
+- `kubernetes/configmap.yaml` - Generated from source files
+- `kubernetes/daemonset.yaml` - FluentBit deployment
+- `deploy.sh` - Deployment helper script
+- `validate.sh` - Configuration validation script
 
 ---
 
