@@ -1,8 +1,8 @@
 # Claude AI Assistant Guidelines - KubeSmarts Logic Apps
 
 **Project:** Data Index v1.0.0 for Serverless Workflow 1.0.0  
-**Status:** Production Ready (MODE 1)  
-**Last Updated:** 2026-04-27
+**Status:** Production Ready (MODE 1 & MODE 2)  
+**Last Updated:** 2026-04-29
 
 ---
 
@@ -30,14 +30,14 @@ This is a **read-only query service** for Serverless Workflow (SW 1.0.0) runtime
 
 **What it does:**
 - Captures Quarkus Flow structured logging events via FluentBit
-- Stores raw events in PostgreSQL JSONB columns
-- Normalizes events using PostgreSQL BEFORE INSERT triggers (real-time)
+- Stores raw events in PostgreSQL (MODE 1) or Elasticsearch (MODE 2)
+- Normalizes events using PostgreSQL triggers (MODE 1) or Elasticsearch Transforms (MODE 2)
 - Exposes normalized data via GraphQL API (SmallRye GraphQL)
 
 **What it does NOT do:**
 - Does NOT execute workflows (that's Quarkus Flow's job)
 - Does NOT modify workflow state (read-only)
-- Does NOT use polling/Event Processor (trigger-based since Phase 1)
+- Does NOT use polling/Event Processor (removed in Phase 1)
 
 ---
 
@@ -66,6 +66,77 @@ Quarkus Flow → /tmp/quarkus-flow-events.log (JSON)
 
 ---
 
+## Architecture (MODE 2 - Elasticsearch)
+
+```
+Quarkus Flow → /tmp/quarkus-flow-events.log (JSON)
+                      ↓ (FluentBit tail)
+              Elasticsearch raw indices (workflow-events, task-events)
+                      ↓ (ES Transform, continuous, 1s)
+              Elasticsearch normalized indices (workflow-instances, task-executions)
+                      ↓ (Elasticsearch Java Client)
+              GraphQL API (SmallRye GraphQL)
+```
+
+**Key Components:**
+- **FluentBit DaemonSet** - Tails log files, sends to Elasticsearch
+- **Elasticsearch Transforms** - Normalize events continuously (1s frequency)
+- **ILM Policies** - Auto-delete raw events after 7 days
+- **Index Templates** - Define mappings and settings for all indices
+- **Data Index Service** - Quarkus app with GraphQL API
+- **Elasticsearch Java Client** - Official elasticsearch-java library
+
+**NOT used in MODE 2:**
+- ❌ Event Processor service (ES Transform handles normalization)
+- ❌ PostgreSQL triggers
+- ❌ Flyway migrations
+- ❌ JPA/Hibernate
+
+**Transform-Based Normalization:**
+- Continuous processing (1s frequency)
+- Field-level idempotency (COALESCE equivalent)
+- Smart filtering (recent events + active workflows only)
+- Constant performance as data grows
+
+**Field-Level Idempotency Rules:**
+- **Immutable fields** (first value wins): start, input, name, version, namespace
+- **Terminal fields** (last non-null wins): end, output, error
+- **Status**: Terminal state precedence (COMPLETED/FAULTED/CANCELLED > RUNNING > CREATED)
+
+**When to use MODE 2:**
+- Need full-text search capabilities
+- Need complex aggregations
+- Prefer Elasticsearch ecosystem
+- Want auto-scaling storage (ILM)
+- Need multi-tenancy with index-per-tenant
+
+---
+
+## Choosing Between MODE 1 and MODE 2
+
+**Use MODE 1 (PostgreSQL) when:**
+- Standard relational queries are sufficient
+- ACID guarantees are important
+- Existing PostgreSQL infrastructure
+- Simpler operations (triggers, backups)
+- Smaller deployment footprint
+
+**Use MODE 2 (Elasticsearch) when:**
+- Need full-text search on workflow data
+- Complex aggregations required
+- Large-scale deployments (1M+ workflows)
+- Auto-scaling storage needed
+- Multi-tenancy requirements
+
+**Both modes share:**
+- Identical GraphQL API
+- Same domain model
+- FluentBit ingestion
+- Idempotent event processing
+- No Event Processor service
+
+---
+
 ## Code Structure
 
 ```
@@ -77,9 +148,16 @@ data-index/
 │   └── api/                       # Storage interfaces
 ├── data-index-storage/
 │   ├── data-index-storage-common/ # Abstract storage layer
-│   ├── data-index-storage-migrations/ # Flyway SQL migrations
-│   ├── data-index-storage-postgresql/ # JPA implementation
-│   └── data-index-storage-elasticsearch/ # ES implementation (unused)
+│   ├── data-index-storage-migrations/ # Flyway SQL migrations (MODE 1)
+│   ├── data-index-storage-postgresql/ # JPA implementation (MODE 1)
+│   ├── data-index-storage-elasticsearch/ # ES implementation (MODE 2)
+│   │   ├── WorkflowInstanceElasticsearchStorage.java
+│   │   ├── TaskExecutionElasticsearchStorage.java
+│   │   ├── mapper/                # Domain ↔ ES mappers
+│   │   └── QueryBuilder.java     # Filter/sort translation
+│   └── data-index-elasticsearch-schema/ # ES schema (MODE 2)
+│       ├── schema-initializer/    # ILM, templates, transforms
+│       └── resources/schema/      # JSON schema files
 ├── data-index-service/            # Quarkus GraphQL service
 │   ├── graphql/                   # GraphQL API
 │   │   ├── WorkflowInstanceGraphQLApi.java
@@ -87,14 +165,17 @@ data-index/
 │   │   └── GraphQLConfiguration.java
 │   └── service/                   # JAX-RS resources
 │       └── RootResource.java      # Landing page
-├── data-index-integration-tests/  # E2E tests
+├── data-index-integration-tests/  # E2E tests (MODE 1 & MODE 2)
+│   ├── WorkflowInstanceGraphQLApiTest.java (PostgreSQL)
+│   └── WorkflowInstanceElasticsearchTest.java (Elasticsearch)
 ├── data-index-docs/               # User-facing documentation (Antora)
 │   └── modules/ROOT/pages/        # AsciiDoc documentation pages
 ├── docs/                          # Internal documentation
 └── scripts/                       # Deployment scripts
     ├── kind/                      # KIND (Kubernetes in Docker) scripts
     └── fluentbit/                 # FluentBit configurations
-        └── mode1-postgresql-triggers/ # MODE 1 FluentBit config
+        ├── mode1-postgresql-triggers/ # MODE 1 FluentBit config
+        └── mode2-elasticsearch-transforms/ # MODE 2 FluentBit config
 ```
 
 ---
@@ -113,17 +194,25 @@ data-index/
 # PostgreSQL backend (default, production-ready)
 mvn quarkus:dev -Dquarkus.profile=postgresql
 
-# Elasticsearch backend (future)
+# Elasticsearch backend (production-ready)
 mvn quarkus:dev -Dquarkus.profile=elasticsearch
 ```
 
-### What happens:
+### What happens (PostgreSQL):
 - `-Dquarkus.profile=postgresql` activates Maven profile `postgresql`
 - Maven includes only PostgreSQL dependencies (storage, JDBC, Flyway)
 - Quarkus loads `application-postgresql.properties`
 - Dev Services auto-starts `postgres:15` container
 - Flyway runs migrations automatically
 - Service starts with PostgreSQL backend
+
+### What happens (Elasticsearch):
+- `-Dquarkus.profile=elasticsearch` activates Maven profile `elasticsearch`
+- Maven includes only Elasticsearch dependencies (storage, java client, schema)
+- Quarkus loads `application-elasticsearch.properties`
+- Dev Services auto-starts `elasticsearch:8.11.1` container
+- Schema initializer creates ILM policies, index templates, transforms
+- Service starts with Elasticsearch backend
 
 ### Configuration files:
 - `application.properties` - Common config (GraphQL, HTTP, metrics)
@@ -140,10 +229,35 @@ mvn quarkus:dev -Dquarkus.profile=elasticsearch
 - quarkus-flyway
 
 **`elasticsearch` profile:**
-- data-index-storage-elasticsearch (future)
-- Elasticsearch Quarkus extensions (future)
+- data-index-storage-elasticsearch
+- data-index-elasticsearch-schema
+- quarkus-elasticsearch-java-client
+- quarkus-elasticsearch-rest-client
 
 **Benefit:** Only one backend's dependencies are included in builds, keeping deployments lean.
+
+### Elasticsearch Schema Management
+
+**Schema initialization (MODE 2 only):**
+- Auto-applied on startup via `ElasticsearchSchemaInitializer`
+- Creates ILM policies, index templates, transforms
+- Controlled by `data-index.storage.skip-init-schema` property
+- Skip in production: `-Ddata-index.storage.skip-init-schema=true`
+
+**Schema components:**
+1. **ILM Policy** (`data-index-events-retention`) - 7-day retention for raw events
+2. **Index Templates** - Mappings for all 4 indices
+3. **Transforms** - Continuous normalization (workflow-instances, task-executions)
+
+**Schema files location:**
+- `data-index-elasticsearch-schema/src/main/resources/schema/`
+- `ilm-policy.json` - ILM configuration
+- `workflow-events-template.json` - Raw workflow events
+- `task-events-template.json` - Raw task events
+- `workflow-instances-template.json` - Normalized workflows
+- `task-executions-template.json` - Normalized tasks
+- `workflow-instances-transform.json` - Workflow normalization transform
+- `task-executions-transform.json` - Task normalization transform
 
 **See:** `data-index-docs/modules/ROOT/pages/developers/configuration.adoc`
 
@@ -165,6 +279,34 @@ mvn quarkus:dev -Dquarkus.profile=elasticsearch
 - ❌ Don't reference "staging tables" (we use raw tables + triggers)
 
 **See:** `data-index/docs/deployment/MODE1_HANDOFF.md`
+
+### 1b. Transform-Based Normalization (MODE 2 - Elasticsearch)
+
+**DO:**
+- ✅ Raw events stored in `workflow-events` and `task-events` indices
+- ✅ Transforms extract fields and aggregate into normalized indices
+- ✅ Continuous processing (1s frequency)
+- ✅ Field-level idempotency (COALESCE equivalent in Painless)
+- ✅ Smart filtering (recent events + active workflows only)
+
+**DON'T:**
+- ❌ Don't add Event Processor service (ES Transform handles it)
+- ❌ Don't use polling architecture
+- ❌ Don't use PostgreSQL triggers for Elasticsearch
+
+**Field-Level Idempotency:**
+```
+Immutable (first wins):  start, input, name, version, namespace
+Terminal (last non-null): end, output, error
+Status: COMPLETED/FAULTED/CANCELLED > RUNNING > CREATED
+```
+
+**Smart Filtering:**
+- Processes events from last 1 hour + workflows still active
+- Reduces processing as data grows
+- Constant performance regardless of total workflow count
+
+**See:** `data-index/docs/deployment/MODE2_HANDOFF.md`
 
 ### 2. JSON Field Exposure (String Getters)
 
@@ -227,7 +369,7 @@ error_instance   → ErrorEntity.instance → Error.instance
 - `IntFilter` - Integer field filter (used by error.status)
 - Available for both workflow instances and task executions
 
-### 4. Entity Naming - Only Two Entities
+### 4. Entity Naming (MODE 1 - PostgreSQL)
 
 **DO:**
 - ✅ `WorkflowInstanceEntity` → `workflow_instances` table
@@ -240,6 +382,24 @@ error_instance   → ErrorEntity.instance → Error.instance
 **Mappers:**
 - `WorkflowInstanceEntityMapper` - Domain ↔ JPA for workflows
 - `TaskInstanceEntityMapper` - Domain ↔ JPA for tasks
+
+### 5. Document Mapping (MODE 2 - Elasticsearch)
+
+**Indices:**
+- `workflow-events` - Raw workflow events
+- `task-events` - Raw task events
+- `workflow-instances` - Normalized workflow instances
+- `task-executions` - Normalized task executions
+
+**Mappers:**
+- `WorkflowInstanceMapper` - Domain ↔ ES Map for workflows
+- `TaskExecutionMapper` - Domain ↔ ES Map for tasks
+
+**Storage Implementation:**
+- `WorkflowInstanceElasticsearchStorage` - CRUD operations
+- `TaskExecutionElasticsearchStorage` - CRUD operations
+- Uses Elasticsearch Java Client (not REST client)
+- No JPA, no entities - direct Map<String, Object> manipulation
 
 ---
 
@@ -293,7 +453,7 @@ error_instance   → ErrorEntity.instance → Error.instance
 - ❌ Don't add features beyond requirements (YAGNI)
 - ❌ Don't add error handling for impossible scenarios
 
-### Database
+### Database (MODE 1 - PostgreSQL)
 
 **DO:**
 - ✅ Use Flyway migrations in `data-index-storage-migrations`
@@ -304,6 +464,21 @@ error_instance   → ErrorEntity.instance → Error.instance
 **DON'T:**
 - ❌ Don't manually create tables (use Flyway)
 - ❌ Don't add staging tables (we use raw → triggers → normalized)
+
+### Elasticsearch (MODE 2)
+
+**DO:**
+- ✅ Use schema initializer for ILM, templates, transforms
+- ✅ Use transforms for normalization
+- ✅ Use Painless scripts for field-level idempotency
+- ✅ Use ILM for auto-deleting old raw events
+- ✅ Store JSON as nested objects (not strings)
+
+**DON'T:**
+- ❌ Don't manually create indices (use templates)
+- ❌ Don't use Flyway with Elasticsearch
+- ❌ Don't disable schema initialization in dev mode
+- ❌ Don't use REST client (use Java client)
 
 ### GraphQL
 
@@ -321,7 +496,7 @@ error_instance   → ErrorEntity.instance → Error.instance
 
 ## Testing Approach
 
-### Integration Tests
+### Integration Tests (MODE 1 - PostgreSQL)
 
 **DO:**
 - ✅ Write `@QuarkusTest` integration tests
@@ -333,6 +508,7 @@ error_instance   → ErrorEntity.instance → Error.instance
 **Example:**
 ```java
 @QuarkusTest
+@TestProfile(PostgresqlTestProfile.class)
 public class WorkflowInstanceGraphQLApiTest {
     @Inject EntityManager em;
     
@@ -364,6 +540,54 @@ public class WorkflowInstanceGraphQLApiTest {
 - ❌ Don't mock the database (use real PostgreSQL via Quarkus dev services)
 - ❌ Don't assume data exists (create it in @BeforeEach)
 
+### Integration Tests (MODE 2 - Elasticsearch)
+
+**DO:**
+- ✅ Write `@QuarkusTest` integration tests with `ElasticsearchTestProfile`
+- ✅ Use Testcontainers for Elasticsearch 8.11.1
+- ✅ Index raw events, wait for transform, verify normalized data
+- ✅ Test out-of-order events (terminal state wins)
+- ✅ Test field-level idempotency
+
+**Example:**
+```java
+@QuarkusTest
+@TestProfile(ElasticsearchTestProfile.class)
+public class WorkflowInstanceElasticsearchTest {
+    @Inject ElasticsearchClient client;
+    
+    @BeforeEach
+    public void setup() throws IOException {
+        // Create raw event
+        Map<String, Object> event = Map.of(
+            "id", "test-123",
+            "status", "RUNNING",
+            "start", Instant.now().toString()
+        );
+        client.index(i -> i
+            .index("workflow-events")
+            .id(UUID.randomUUID().toString())
+            .document(event));
+        
+        // Wait for transform
+        Thread.sleep(2000);
+    }
+    
+    @Test
+    public void testTransformNormalization() throws IOException {
+        GetResponse<Map> response = client.get(g -> g
+            .index("workflow-instances")
+            .id("test-123"), Map.class);
+        assertTrue(response.found());
+    }
+}
+```
+
+**DON'T:**
+- ❌ Don't mock Elasticsearch (use Testcontainers)
+- ❌ Don't test without waiting for transform (1s frequency + buffer)
+- ❌ Don't test against different ES version (must be 8.11.1)
+
 ---
 
 ## Build & Deployment
@@ -371,7 +595,7 @@ public class WorkflowInstanceGraphQLApiTest {
 ### Local Development
 
 ```bash
-# Start development mode with PostgreSQL backend (default)
+# PostgreSQL backend (default)
 cd data-index/data-index-service
 mvn quarkus:dev -Dquarkus.profile=postgresql
 
@@ -382,6 +606,19 @@ mvn quarkus:dev -Dquarkus.profile=postgresql
 # - Runs Flyway migrations automatically
 # - Service available at http://localhost:8080
 # - Documentation at http://localhost:8080/docs
+# - Live coding enabled (code changes trigger auto-reload)
+
+# Elasticsearch backend
+cd data-index/data-index-service
+mvn quarkus:dev -Dquarkus.profile=elasticsearch
+
+# What this does:
+# - Activates Maven elasticsearch profile → includes only ES dependencies
+# - Loads application-elasticsearch.properties
+# - Starts elasticsearch:8.11.1 container via Dev Services
+# - Runs schema initialization (ILM, templates, transforms)
+# - Service available at http://localhost:8080
+# - Elasticsearch at http://localhost:9200
 # - Live coding enabled (code changes trigger auto-reload)
 ```
 
@@ -398,14 +635,25 @@ mvn clean package -Dquarkus.profile=postgresql -DskipFlyway=true -DskipTests
 # - NO Flyway (schema managed externally in production)
 # - Container image: kubesmarts/data-index-service:999-SNAPSHOT
 
-# For Elasticsearch backend (future):
-mvn clean package -Dquarkus.profile=elasticsearch -DskipFlyway=true -DskipTests
+# Elasticsearch backend
+mvn clean package -Dquarkus.profile=elasticsearch -DskipTests
+
+# Result: target/quarkus-app/ contains:
+# - Optimized Quarkus app (JVM mode)
+# - Elasticsearch storage dependencies ONLY
+# - Schema initialization (controlled by skipInitSchema flag)
+# - Container image: kubesmarts/data-index-service:999-SNAPSHOT-elasticsearch
 ```
 
-**Why `-DskipFlyway=true`?**
+**Why `-DskipFlyway=true` for PostgreSQL?**
 - Flyway & migrations only needed in dev (with Dev Services)
 - Production uses external schema management (init jobs, operators)
 - Reduces image size by excluding unnecessary dependencies
+
+**Elasticsearch schema in production:**
+- Include schema module by default
+- Control initialization via runtime flag: `-Ddata-index.storage.skip-init-schema=true`
+- Or use init job to pre-create schema before starting service
 
 ### KIND Deployment
 
@@ -435,6 +683,43 @@ curl http://localhost:30080/graphql -d '{"query":"..."}'
 
 **See:** `data-index/docs/deployment/MODE1_E2E_TESTING.md`
 
+### Elasticsearch Deployment
+
+```bash
+cd data-index/scripts/kind
+
+# 1. Setup cluster and Elasticsearch
+./setup-cluster.sh
+MODE=elasticsearch ./install-dependencies.sh
+
+# 2. Deploy data-index service
+./deploy-data-index.sh elasticsearch
+
+# 3. Deploy FluentBit (MODE 2)
+cd ../fluentbit/mode2-elasticsearch-transforms
+./generate-configmap.sh  # Generate from source files
+kubectl apply -f kubernetes/configmap.yaml
+kubectl apply -f kubernetes/daemonset.yaml
+
+# 4. Deploy test workflow app
+cd ../../kind
+./deploy-workflow-app.sh
+
+# 5. Verify schema created
+kubectl port-forward -n data-index svc/elasticsearch 9200:9200
+curl http://localhost:9200/_cat/indices?v
+# Should see: workflow-events, task-events, workflow-instances, task-executions
+
+# 6. Verify transforms running
+curl http://localhost:9200/_transform/workflow-instances-transform
+curl http://localhost:9200/_transform/task-executions-transform
+
+# 7. Test GraphQL API
+curl http://localhost:30080/graphql -d '{"query":"..."}'
+```
+
+**See:** `data-index/docs/deployment/MODE2_E2E_TESTING.md`
+
 ---
 
 ## Common Tasks
@@ -461,7 +746,7 @@ public List<WorkflowInstance> getWorkflowsByStatus(
 
 3. **Add integration test** in `WorkflowInstanceGraphQLApiTest`
 
-### Adding a Database Field
+### Adding a Database Field (MODE 1 - PostgreSQL)
 
 1. **Create Flyway migration** in `data-index-storage-migrations`:
 ```sql
@@ -491,6 +776,40 @@ private Integer priority;
 priority = (NEW.data->>'priority')::integer
 ```
 
+### Adding an Elasticsearch Field (MODE 2)
+
+1. **Update index template** in `data-index-elasticsearch-schema/resources/schema/`:
+```json
+// workflow-instances-template.json
+"properties": {
+  "priority": { "type": "integer" }
+}
+```
+
+2. **Update transform** if field comes from events:
+```json
+// workflow-instances-transform.json
+"script": {
+  "source": "ctx.priority = ctx._source.priority"
+}
+```
+
+3. **Update domain model:**
+```java
+// WorkflowInstance.java
+private Integer priority;
+// + getters/setters
+```
+
+4. **Update mapper:**
+```java
+// WorkflowInstanceMapper.java
+@Mapping(target = "priority", source = "priority")
+WorkflowInstance fromDocument(Map<String, Object> document);
+```
+
+5. **Recreate template** (dev mode auto-applies on restart)
+
 ### Updating Documentation
 
 **When to update:**
@@ -506,17 +825,86 @@ priority = (NEW.data->>'priority')::integer
 - Development guides: `data-index/docs/development/`
 - Operations guides: `data-index/docs/operations/`
 
+### Testing with Elasticsearch
+
+**Start Elasticsearch in dev mode:**
+```bash
+cd data-index/data-index-service
+mvn quarkus:dev -Dquarkus.profile=elasticsearch
+```
+
+**Verify schema created:**
+```bash
+# Check indices
+curl http://localhost:9200/_cat/indices?v
+
+# Check transform status
+curl http://localhost:9200/_transform/workflow-instances-transform
+curl http://localhost:9200/_transform/task-executions-transform
+
+# Check ILM policy
+curl http://localhost:9200/_ilm/policy/data-index-events-retention
+```
+
+**Index test events:**
+```bash
+# Workflow event
+curl -X POST http://localhost:9200/workflow-events/_doc -H 'Content-Type: application/json' -d '{
+  "id": "test-wf-1",
+  "status": "RUNNING",
+  "start": "2026-04-29T12:00:00Z",
+  "name": "test-workflow",
+  "version": "1.0"
+}'
+
+# Wait 2 seconds for transform
+sleep 2
+
+# Check normalized data
+curl http://localhost:9200/workflow-instances/_doc/test-wf-1
+```
+
+**Run integration tests:**
+```bash
+mvn test -Dquarkus.profile=elasticsearch -Dtest=WorkflowInstanceElasticsearchTest
+```
+
+### Querying Elasticsearch Directly
+
+**Search normalized workflows:**
+```bash
+curl -X POST http://localhost:9200/workflow-instances/_search -H 'Content-Type: application/json' -d '{
+  "query": {
+    "match": { "status": "COMPLETED" }
+  }
+}'
+```
+
+**Check raw events:**
+```bash
+curl -X POST http://localhost:9200/workflow-events/_search -H 'Content-Type: application/json' -d '{
+  "query": { "match_all": {} },
+  "sort": [{ "@timestamp": "desc" }],
+  "size": 10
+}'
+```
+
+**Transform stats:**
+```bash
+curl http://localhost:9200/_transform/workflow-instances-transform/_stats
+```
+
 ---
 
 ## What NOT to Do
 
 ### ❌ Architecture
 
-- Don't add Event Processor service (we use triggers)
+- Don't add Event Processor service (MODE 1 uses triggers, MODE 2 uses transforms)
 - Don't use polling architecture
-- Don't create staging tables
+- Don't create staging tables (MODE 1) or separate processing indices (MODE 2)
 - Don't add Kafka (MODE 3 not implemented)
-- Don't add MODE 2 Elasticsearch (not implemented yet)
+- Don't mix PostgreSQL and Elasticsearch in same deployment
 
 ### ❌ Dependencies
 
@@ -538,6 +926,18 @@ priority = (NEW.data->>'priority')::integer
 - Don't skip test data setup (use @BeforeEach)
 - Don't leave test data behind (use @AfterEach)
 - Don't test against empty database
+- Don't test Elasticsearch without waiting for transforms (need 1-2s buffer)
+- Don't use different Elasticsearch versions in tests (must be 8.11.1)
+
+### ❌ Elasticsearch Specific
+
+- Don't use Elasticsearch REST client (use Java client)
+- Don't disable schema initialization in dev mode
+- Don't manually create indices (use templates)
+- Don't modify transforms while running (stop, modify, start)
+- Don't use different field types in templates vs transforms
+- Don't forget ILM policy for raw event indices
+- Don't use short retention periods in production (7 days minimum)
 
 ---
 
@@ -554,7 +954,7 @@ priority = (NEW.data->>'priority')::integer
 **"GraphQL schema error: JsonNode not found"**
 - Don't expose JsonNode directly. Use `@Ignore` and provide String getters
 
-### Deployment Issues
+### Deployment Issues (MODE 1 - PostgreSQL)
 
 **"Events not in database"**
 - Check FluentBit logs: `kubectl logs -n logging -l app=workflows-fluent-bit-mode1`
@@ -571,41 +971,83 @@ priority = (NEW.data->>'priority')::integer
 - Check mapper sets bidirectional relationship
 - Check JPA entities have `@OneToMany` / `@ManyToOne`
 
+### Deployment Issues (MODE 2 - Elasticsearch)
+
+**"Events not in Elasticsearch"**
+- Check FluentBit logs: `kubectl logs -n logging -l app=workflows-fluent-bit-mode2`
+- Check Elasticsearch connection from FluentBit pod
+- Verify log file exists: `/tmp/quarkus-flow-events.log`
+- Check indices exist: `curl http://localhost:9200/_cat/indices`
+
+**"Raw indices populated but normalized indices empty"**
+- Check transforms running: `curl http://localhost:9200/_transform/workflow-instances-transform/_stats`
+- Check transform errors: `curl http://localhost:9200/_transform/workflow-instances-transform` (look for failures)
+- Start transform if stopped: `curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_start`
+- Check transform filter matches events (smart filtering may exclude old data)
+
+**"Schema not created on startup"**
+- Check `data-index.storage.skip-init-schema` is false
+- Check service logs for schema initialization errors
+- Verify Elasticsearch is reachable before service starts
+- Check Elasticsearch version compatibility (must be 8.11.1)
+
+**"Transform processing slow"**
+- Check transform frequency setting (default 1s)
+- Check smart filter performance (may need to adjust time window)
+- Check Elasticsearch cluster health
+- Review transform stats for processing time
+
+**"Old events not deleted"**
+- Check ILM policy attached to indices: `curl http://localhost:9200/workflow-events/_settings`
+- Check ILM policy execution: `curl http://localhost:9200/_ilm/policy/data-index-events-retention`
+- Verify retention period (default 7 days)
+
 ---
 
 ## Key Files Reference
 
 **Architecture:**
 - `data-index/docs/ARCHITECTURE-SUMMARY.md` - All deployment modes
-- `data-index/docs/deployment/MODE1_HANDOFF.md` - MODE 1 details
+- `data-index/docs/deployment/MODE1_HANDOFF.md` - MODE 1 (PostgreSQL) details
+- `data-index/docs/deployment/MODE2_HANDOFF.md` - MODE 2 (Elasticsearch) details
 
-**Code:**
+**Code (Common):**
 - `data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/` - Domain model
-- `data-index-storage-postgresql/src/main/java/.../entity/` - JPA entities
-- `data-index-storage-postgresql/src/main/java/.../mapper/` - MapStruct mappers
 - `data-index-service/src/main/java/.../graphql/WorkflowInstanceGraphQLApi.java` - GraphQL API
 
-**Database:**
+**Code (MODE 1 - PostgreSQL):**
+- `data-index-storage-postgresql/src/main/java/.../entity/` - JPA entities
+- `data-index-storage-postgresql/src/main/java/.../mapper/` - MapStruct mappers
 - `data-index-storage-migrations/src/main/resources/db/migration/` - Flyway migrations
 - `V1__initial_schema.sql` - Schema with triggers
+
+**Code (MODE 2 - Elasticsearch):**
+- `data-index-storage-elasticsearch/src/main/java/.../` - Storage implementation
+- `data-index-storage-elasticsearch/src/main/java/.../mapper/` - Document mappers
+- `data-index-elasticsearch-schema/src/main/java/.../` - Schema initializer
+- `data-index-elasticsearch-schema/src/main/resources/schema/` - ILM, templates, transforms
 
 **Configuration:**
 - `data-index-service/src/main/resources/application.properties` - Common config
 - `data-index-service/src/main/resources/application-postgresql.properties` - PostgreSQL backend
-- `data-index/scripts/fluentbit/mode1-postgresql-triggers/fluent-bit.conf` - FluentBit config
+- `data-index-service/src/main/resources/application-elasticsearch.properties` - Elasticsearch backend
+- `data-index/scripts/fluentbit/mode1-postgresql-triggers/fluent-bit.conf` - MODE 1 FluentBit
+- `data-index/scripts/fluentbit/mode2-elasticsearch-transforms/fluent-bit.conf` - MODE 2 FluentBit
 
 **Testing:**
-- `data-index-service/src/test/java/.../graphql/WorkflowInstanceGraphQLApiTest.java`
+- `data-index-service/src/test/java/.../graphql/WorkflowInstanceGraphQLApiTest.java` - PostgreSQL
+- `data-index-integration-tests/src/test/java/.../WorkflowInstanceElasticsearchTest.java` - Elasticsearch
 
 **Build:**
 - `pom.xml` (root) - Generic dependencies, plugin versions
 - `data-index/pom.xml` - Data Index specific dependencies
+- `data-index-service/pom.xml` - Profile-based dependencies (postgresql/elasticsearch)
 
 ---
 
 ## Current Status & Next Steps
 
-### ✅ Complete (Phase 1)
+### ✅ Complete (Phase 1 - MODE 1)
 
 - Trigger-based MODE 1 architecture
 - GraphQL API with input/output JSON exposure (String getters)
@@ -614,6 +1056,17 @@ priority = (NEW.data->>'priority')::integer
 - Kogito dependencies minimized (7 → 1)
 - Documentation updated
 
+### ✅ Complete (Phase 2 - MODE 2)
+
+- Transform-based MODE 2 architecture
+- Elasticsearch storage implementation
+- Schema module (ILM, templates, transforms)
+- Field-level idempotency in transforms
+- Smart filtering for constant performance
+- Integration tests with Testcontainers
+- Dev Services support
+- Profile-based dependency isolation
+
 ### 🔄 Optional Future Work
 
 **Low Priority:**
@@ -621,9 +1074,10 @@ priority = (NEW.data->>'priority')::integer
 2. Implement proper GraphQL JSON scalar (industry standard)
 3. Add JSON path filtering in GraphQL API (e.g., filter by `input.orderId`)
 4. Reorganize root-level docs into subdirectories
+5. Add Elasticsearch aggregations API
+6. Add full-text search capabilities
 
 **Not Planned:**
-- MODE 2 (Elasticsearch) - design documented, not implemented
 - MODE 3 (Kafka) - design documented, not implemented
 
 ---
@@ -631,32 +1085,52 @@ priority = (NEW.data->>'priority')::integer
 ## Questions? Check These First
 
 **"How do I expose a new field in GraphQL?"**
-→ Add to JPA entity → Add to domain model → MapStruct auto-maps
+→ MODE 1: Add to JPA entity → Add to domain model → MapStruct auto-maps
+→ MODE 2: Add to index template → Add to transform → Add to domain model → Mapper maps
 
 **"How do I query JSON content?"**
 → GraphQL: Can't query into JSON (opaque String)
-→ Storage layer: Use `AttributeFilter` with `setJson(true)` for JSONB queries
+→ MODE 1: Use `AttributeFilter` with `setJson(true)` for JSONB queries
+→ MODE 2: JSON stored as nested object, queryable via Elasticsearch
 
 **"Why aren't my GraphQL changes showing up?"**
 → Rebuild and redeploy container image to KIND
 
 **"How do I test my changes?"**
-→ Write `@QuarkusTest` integration test with proper setup/cleanup
+→ MODE 1: Write `@QuarkusTest` integration test with PostgreSQL profile
+→ MODE 2: Write `@QuarkusTest` integration test with Elasticsearch profile + wait for transforms
 
 **"Where are the database triggers?"**
-→ `data-index-storage-migrations/.../V1__initial_schema.sql`
+→ MODE 1: `data-index-storage-migrations/.../V1__initial_schema.sql`
+→ MODE 2: Not applicable (uses Elasticsearch transforms)
+
+**"Where are the Elasticsearch transforms?"**
+→ `data-index-elasticsearch-schema/resources/schema/workflow-instances-transform.json`
+→ `data-index-elasticsearch-schema/resources/schema/task-executions-transform.json`
 
 **"How does data flow from Quarkus Flow to GraphQL?"**
-→ Quarkus Flow → log file → FluentBit → PostgreSQL raw → triggers → normalized → JPA → GraphQL
+→ MODE 1: Quarkus Flow → log file → FluentBit → PostgreSQL raw → triggers → normalized → JPA → GraphQL
+→ MODE 2: Quarkus Flow → log file → FluentBit → ES raw indices → transforms → normalized indices → ES client → GraphQL
+
+**"Which mode should I use?"**
+→ MODE 1 for standard use cases, smaller deployments, simpler operations
+→ MODE 2 for full-text search, aggregations, large scale, multi-tenancy
+
+**"Can I switch modes later?"**
+→ Yes, same GraphQL API, just different storage backend
+→ Need to redeploy with different profile and reconfigure FluentBit
 
 ---
 
 ## Remember
 
 - **Read-only** - We don't modify workflow state
-- **Trigger-based** - No Event Processor, no polling
+- **Two modes** - PostgreSQL (triggers) or Elasticsearch (transforms)
+- **No Event Processor** - MODE 1 uses triggers, MODE 2 uses transforms
 - **Minimal dependencies** - Only persistence-commons-api from Kogito
-- **String for JSON** - Pragmatic, not ideal, but works
+- **String for JSON** - Pragmatic, not ideal, but works (both modes)
 - **Test with data** - Always setup/cleanup in tests
+- **Profile-based** - Only one backend's dependencies included per build
+- **Same GraphQL API** - Identical interface regardless of storage backend
 
 For detailed information, see `data-index/docs/README.md`
