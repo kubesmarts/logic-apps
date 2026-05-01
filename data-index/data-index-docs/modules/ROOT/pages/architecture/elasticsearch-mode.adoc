@@ -1,189 +1,92 @@
-= Elasticsearch Mode Architecture
+= Elasticsearch Mode Architecture (MODE 2)
 :page-aliases:
 
-Data Index with Elasticsearch storage uses ES Transforms for normalization, enabling full-text search and high throughput.
+Data Index with Elasticsearch storage uses ES Transforms for continuous normalization, enabling full-text search, complex aggregations, and horizontal scaling.
+
+[NOTE]
+====
+*Status:* Production Ready
+
+MODE 2 provides the same GraphQL API as MODE 1 (PostgreSQL), but with Elasticsearch as the storage backend.
+====
+
+== Overview
+
+Elasticsearch MODE 2 uses **Elasticsearch Transforms** for real-time event normalization. Raw events from FluentBit are continuously aggregated into normalized indices, providing sub-second query performance with full-text search capabilities.
+
+**Key advantages:**
+
+* Full-text search on workflow and task data
+* Complex aggregations and analytics
+* Horizontal scaling (shard-based distribution)
+* Auto-lifecycle management (ILM policies)
+* Multi-tenancy via index-per-tenant pattern
+
+**When to use:**
+
+* Need full-text search capabilities
+* Require complex aggregations or analytics
+* Large-scale deployments (1M+ workflows)
+* Prefer Elasticsearch ecosystem
+* Want auto-scaling storage with ILM
 
 == Architecture Diagram
 
 [source,text]
 ----
 Quarkus Flow App
-    ↓ (structured logging → stdout)
+    ↓ (structured logging → /tmp/quarkus-flow-events.log)
 FluentBit DaemonSet
-    ↓ (tail /var/log/containers/)
+    ↓ (tail log files, filter JSON events)
 Elasticsearch Raw Indices
-    ↓ (ES Transform, ~1s)
+    ↓ (ES Transform - continuous, 1s frequency)
 Elasticsearch Normalized Indices
     ↓ (Elasticsearch Java Client)
-GraphQL API
+GraphQL API (SmallRye GraphQL)
 ----
 
 == Data Flow
 
-1. **Quarkus Flow emits events** - JSON to stdout
-2. **Kubernetes captures logs** - `/var/log/containers/POD_NAME.log`
-3. **FluentBit collects** - Tails log files, filters JSON events
-4. **INSERT to raw indices** - `workflow-events`, `task-events`
-5. **ES Transform processes** - Painless scripts extract and normalize
-6. **Write to normalized indices** - `workflow-instances`, `task-executions`
+1. **Quarkus Flow emits events** - Structured JSON logs to `/tmp/quarkus-flow-events.log`
+2. **FluentBit collects** - Tails log files, filters events by `eventType` field
+3. **Routes by event type** - Workflow events vs task events
+4. **INSERT to raw indices** - Date-based indices with ILM policies
+   * `workflow-events-2026.04.27`
+   * `task-events-2026.04.27`
+5. **ES Transform processes** - Continuous aggregation (1s frequency)
+   * Groups events by instance ID
+   * Applies field-level idempotency rules
+   * Filters recent events + active workflows only
+6. **Write to normalized indices** - Single document per workflow/task
+   * `workflow-instances`
+   * `task-executions`
 7. **GraphQL queries** - Via Elasticsearch Java Client
-
-== Key Characteristics
-
-[cols="1,3"]
-|===
-|Characteristic |Details
-
-|**Latency**
-|~1s for normalization (ES Transform), 5-10s end-to-end
-
-|**Consistency**
-|Eventual consistency (no ACID)
-
-|**Throughput**
-|100K+ workflows/day (horizontal scaling)
-
-|**Complexity**
-|Moderate - Painless scripts, ES Transform configuration
-
-|**Search**
-|Excellent - full-text search, aggregations, analytics
-
-|**Status**
-|✅ Production Ready
-
-|===
 
 == ES Transform-Based Normalization
 
-FluentBit design forces us to use ES Transforms because:
+Elasticsearch Transforms provide **continuous aggregation** of raw events into normalized documents. This replaces the need for a separate Event Processor service.
 
-1. **FluentBit inserts directly to Elasticsearch** - No intermediate processor
-2. **ES Transforms are built-in** - No separate service needed
-3. **Painless scripts** - Transform logic runs inside Elasticsearch
-4. **Continuous processing** - Transforms run automatically
+=== Why ES Transforms?
 
-### Why ES Transforms?
+FluentBit's architecture (direct Elasticsearch output) makes ES Transforms the natural choice:
 
-**Advantages:**
-- ✅ No Java event processor code on our side
-- ✅ Built-in Elasticsearch feature
-- ✅ Horizontal scaling (ES cluster scales)
-- ✅ Full-text search and analytics
+* **Built-in Elasticsearch feature** - No additional services needed
+* **Continuous processing** - Runs automatically every 1 second
+* **Painless scripting** - Transform logic inside Elasticsearch
+* **Horizontal scaling** - Scales with Elasticsearch cluster
+* **Fault-tolerant** - Built-in checkpointing and retry
 
-**Trade-offs:**
-- ⚠️ ~1s latency (transform polling interval)
-- ⚠️ Eventual consistency
-- ⚠️ Painless script complexity
-- ⚠️ Elasticsearch-specific (not portable)
+=== Transform Configuration
 
-== Raw Indices
+Transforms are defined in JSON and applied via `ElasticsearchSchemaInitializer`:
 
-Raw indices store complete events for:
-
-- **Debugging** - Original events preserved
-- **Replay** - Can reprocess if transform logic changes
-- **Audit** - Complete event history
-
-Index approach:
-- `workflow-events` - Workflow lifecycle events
-- `task-events` - Task execution events
-- Time-series indices (optional) - e.g., `workflow-events-2026.04`
-
-== Normalized Indices
-
-ES Transforms extract fields and write to normalized indices:
-
-- **workflow-instances** - One document per workflow execution
-- **task-executions** - One document per task execution
-
-**Transform logic** (Painless scripts):
-- Extract fields from nested JSON
-- Correlate events by instance ID
-- Handle out-of-order events
-- COALESCE-like logic for updates
-
-== Configuration
-
-=== Quarkus Flow Application
-
-[source,properties]
+**Workflow instances transform:**
+[source,json]
 ----
-# Structured logging (same as PostgreSQL mode)
-quarkus.flow.structured-logging.enabled=true
-quarkus.flow.structured-logging.timestamp-format=epoch-seconds
-----
-
-=== FluentBit
-
-[source,conf]
-----
-[INPUT]
-    Name              tail
-    Path              /var/log/containers/*_workflows_*.log
-    Parser            docker
-
-[FILTER]
-    Name              grep
-    Match             *
-    Regex             log {".*eventType.*}
-
-[OUTPUT]
-    Name              es
-    Match             *
-    Host              elasticsearch
-    Port              9200
-    Index             workflow-events
-    Type              _doc
-----
-
-=== Data Index Service
-
-[source,properties]
-----
-# Elasticsearch backend
-data-index.storage.backend=elasticsearch
-quarkus.elasticsearch.hosts=elasticsearch:9200
-
-# No event processor needed (ES Transform handles it)
-data-index.event-processor.enabled=false
-----
-
-=== ES Transform Setup
-
-Create raw indices:
-
-[source,bash]
-----
-PUT /workflow-events
-{
-  "mappings": {
-    "properties": {
-      "data": { "type": "object", "enabled": true },
-      "timestamp": { "type": "date" }
-    }
-  }
-}
-
-PUT /task-events
-{
-  "mappings": {
-    "properties": {
-      "data": { "type": "object", "enabled": true },
-      "timestamp": { "type": "date" }
-    }
-  }
-}
-----
-
-Create and start transforms:
-
-[source,bash]
-----
-PUT _transform/workflow-instances-transform
 {
   "source": {
-    "index": ["workflow-events"]
+    "index": "workflow-events-*",
+    "query": { /* smart filtering */ }
   },
   "dest": {
     "index": "workflow-instances"
@@ -191,87 +94,595 @@ PUT _transform/workflow-instances-transform
   "frequency": "1s",
   "sync": {
     "time": {
-      "field": "timestamp",
-      "delay": "60s"
+      "field": "event_time",
+      "delay": "5m"
     }
   },
   "pivot": {
     "group_by": {
-      "instanceId": {
-        "terms": {
-          "field": "data.instanceId.keyword"
-        }
-      }
+      "id": { "terms": { "field": "instance_id" } }
     },
-    "aggregations": {
-      "name": { "terms": { "field": "data.workflowName.keyword" } },
-      "status": { "terms": { "field": "data.status.keyword" } },
-      "startTime": { "min": { "field": "data.startTime" } },
-      "endTime": { "max": { "field": "data.endTime" } }
+    "aggregations": { /* field-level idempotency */ }
+  }
+}
+----
+
+Location: `data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/transforms/workflow-instances-transform.json`
+
+== Field-Level Idempotency
+
+ES Transforms use **scripted metrics** to handle out-of-order events with field-specific rules:
+
+=== Immutable Fields (First Value Wins)
+
+These fields never change after initial creation:
+
+* `name`, `version`, `namespace` - Workflow metadata
+* `start` - First event timestamp
+* `input` - Initial workflow/task input data
+
+**Implementation:**
+[source,javascript]
+----
+{
+  "name": {
+    "scripted_metric": {
+      "init_script": "state.value = null",
+      "map_script": "if (state.value == null && doc['workflow_name'].size() > 0) { state.value = doc['workflow_name'].value }",
+      "combine_script": "return state.value",
+      "reduce_script": "return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
     }
   }
 }
-
-POST _transform/workflow-instances-transform/_start
 ----
+
+=== Terminal Fields (Latest Non-Null Wins)
+
+These fields update with the most recent event:
+
+* `end` - Latest completion timestamp
+* `output` - Latest output data (tracks event timestamp)
+* `error` - Latest error (tracks event timestamp)
+
+**Implementation:**
+[source,javascript]
+----
+{
+  "output": {
+    "scripted_metric": {
+      "init_script": "state.value = null",
+      "map_script": "if (params._source.containsKey('output') && params._source.output != null) { def eventTime = doc['event_time'].value.toInstant().toEpochMilli(); if (state.value == null || eventTime > state.value.time) { state.value = ['data': params._source.output, 'time': eventTime] } }",
+      "combine_script": "return state.value",
+      "reduce_script": "def latest = params._aggs.stream().filter(v -> v != null).max(Comparator.comparing(v -> v.time)); return latest.isPresent() ? latest.get().data : null"
+    }
+  }
+}
+----
+
+=== Status Field (Terminal State Precedence)
+
+Status prioritizes terminal states over transient ones:
+
+**Priority order:**
+
+1. Terminal states: `COMPLETED`, `FAULTED`, `CANCELLED` (highest priority)
+2. Transient states: `RUNNING`, `CREATED` (by latest timestamp)
+
+**Implementation:**
+[source,javascript]
+----
+{
+  "status": {
+    "scripted_metric": {
+      "reduce_script": "def all = params._aggs.stream().flatMap(e -> e.stream()).collect(Collectors.toList()); if (all.isEmpty()) { return null; } def terminal = all.stream().filter(e -> e.status == 'COMPLETED' || e.status == 'FAULTED' || e.status == 'CANCELLED').findFirst(); if (terminal.isPresent()) { return terminal.get().status; } def latest = all.stream().max(Comparator.comparing(e -> e.event_time)); return latest.isPresent() ? latest.get().status : null;"
+    }
+  }
+}
+----
+
+This ensures that once a workflow reaches a terminal state, late-arriving `RUNNING` events won't overwrite it.
+
+== Smart Filtering Optimization
+
+Transforms use **smart queries** to process only relevant events, optimizing performance as data grows:
+
+[source,json]
+----
+{
+  "query": {
+    "bool": {
+      "should": [
+        {
+          "range": {
+            "event_time": { "gte": "now-1h" }
+          }
+        },
+        {
+          "bool": {
+            "filter": [
+              {
+                "range": {
+                  "event_time": { "lt": "now-1h" }
+                }
+              }
+            ],
+            "must_not": [
+              { "term": { "event_type": "workflow.instance.completed" } },
+              { "term": { "event_type": "workflow.instance.faulted" } },
+              { "term": { "event_type": "workflow.instance.cancelled" } }
+            ]
+          }
+        }
+      ],
+      "minimum_should_match": 1
+    }
+  }
+}
+----
+
+**What this does:**
+
+* **Recent events** - All events from last 1 hour (regardless of status)
+* **Active workflows** - Older events ONLY if not in terminal state
+
+**Benefits:**
+
+* Constant performance as data grows
+* No need to reprocess old completed workflows
+* Handles late-arriving events within 1-hour window
+* Reduces transform checkpoint size
+
+== Index Structure
+
+=== Raw Event Indices
+
+Date-based indices store complete events with ILM lifecycle:
+
+**workflow-events-YYYY.MM.DD:**
+
+* Contains all workflow lifecycle events
+* Flattened `input`/`output` fields (queryable JSON)
+* ILM policy: 7-day retention, auto-delete
+* Template: `workflow-events.json`
+
+**task-events-YYYY.MM.DD:**
+
+* Contains all task execution events
+* Same structure as workflow events
+* ILM policy: 7-day retention
+* Template: `task-events.json`
+
+**Index template structure:**
+[source,json]
+----
+{
+  "index_patterns": ["workflow-events-*"],
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "data-index-events-retention",
+      "number_of_shards": 3,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "event_type": { "type": "keyword" },
+        "event_time": { "type": "date" },
+        "instance_id": { "type": "keyword" },
+        "workflow_name": { "type": "keyword" },
+        "status": { "type": "keyword" },
+        "start": { "type": "date" },
+        "end": { "type": "date" },
+        "input": { "type": "flattened" },
+        "output": { "type": "flattened" },
+        "error": {
+          "properties": {
+            "type": { "type": "keyword" },
+            "title": { "type": "text" },
+            "detail": { "type": "text" },
+            "status": { "type": "integer" },
+            "instance": { "type": "keyword" }
+          }
+        }
+      }
+    }
+  }
+}
+----
+
+Location: `data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/index-templates/`
+
+=== Normalized Indices
+
+Single-document indices for GraphQL queries:
+
+**workflow-instances:**
+
+* One document per workflow execution
+* Updated by transform every 1 second
+* No ILM policy (keep forever)
+* Template: `workflow-instances.json`
+
+**task-executions:**
+
+* One document per task execution
+* Composite ID: `instance_id:task_position`
+* No ILM policy
+* Template: `task-executions.json`
+
+**Normalized index template:**
+[source,json]
+----
+{
+  "index_patterns": ["workflow-instances"],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "id": { "type": "keyword" },
+        "name": { "type": "keyword" },
+        "version": { "type": "keyword" },
+        "namespace": { "type": "keyword" },
+        "status": { "type": "keyword" },
+        "start": { "type": "date" },
+        "end": { "type": "date" },
+        "input": { "type": "flattened" },
+        "output": { "type": "flattened" },
+        "error": { /* nested object */ },
+        "last_update": { "type": "date" }
+      }
+    }
+  }
+}
+----
+
+== ILM Policies
+
+**data-index-events-retention:**
+
+Automatically manages raw event lifecycle:
+
+[source,json]
+----
+{
+  "policy": {
+    "phases": {
+      "hot": {
+        "actions": {
+          "rollover": {
+            "max_age": "1d",
+            "max_primary_shard_size": "50GB"
+          }
+        }
+      },
+      "delete": {
+        "min_age": "7d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}
+----
+
+**What this means:**
+
+* Raw events automatically deleted after 7 days
+* Daily index rollover (or when shard reaches 50GB)
+* Normalized indices kept forever (no ILM policy)
+* Reduces storage costs for high-volume deployments
+
+Location: `data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/ilm/data-index-events-retention.json`
+
+== Flattened Field Type
+
+Input and output data use Elasticsearch's **flattened** field type:
+
+[source,json]
+----
+{
+  "input": { "type": "flattened" },
+  "output": { "type": "flattened" }
+}
+----
+
+**Benefits:**
+
+* Supports arbitrary nested JSON structures
+* Queryable via dot notation: `input.orderId`
+* No schema explosion from dynamic fields
+* Efficient storage for heterogeneous data
+
+**GraphQL exposure:**
+
+* Returned as JSON strings via `getInputData()` / `getOutputData()` methods
+* Client-side JSON parsing required
+* Same approach as PostgreSQL MODE 1
+
+== Schema Initialization
+
+`ElasticsearchSchemaInitializer` applies all schema resources at startup:
+
+**What it does:**
+
+1. Creates ILM policies (if not exists)
+2. Creates index templates (if not exists)
+3. Creates transforms (if not exists)
+4. Logs success/skip for each resource
+
+**Configuration flags:**
+[source,properties]
+----
+# Universal flag (both PostgreSQL and Elasticsearch)
+data-index.storage.skip-init-schema=false
+
+# Backend-specific flag
+data-index.elasticsearch.schema.init.enabled=true
+----
+
+**Schema resources location:**
+----
+data-index-storage-elasticsearch-schema/
+└── src/main/resources/elasticsearch/
+    ├── ilm/
+    │   └── data-index-events-retention.json
+    ├── index-templates/
+    │   ├── workflow-events.json
+    │   ├── workflow-instances.json
+    │   ├── task-events.json
+    │   └── task-executions.json
+    └── transforms/
+        ├── workflow-instances-transform.json
+        └── task-executions-transform.json
+----
+
+**Manual schema creation:**
+
+Set `data-index.storage.skip-init-schema=true` for production environments where schema is managed externally (operators, GitOps, etc.).
+
+== Configuration
+
+=== Quarkus Flow Application
+
+Same configuration as PostgreSQL MODE 1:
+
+[source,properties]
+----
+# Structured logging (emits JSON events to log file)
+quarkus.flow.structured-logging.enabled=true
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+----
+
+=== Data Index Service
+
+Elasticsearch backend configuration:
+
+[source,properties]
+----
+# Elasticsearch connection
+quarkus.elasticsearch.hosts=elasticsearch:9200
+
+# Optional TLS configuration
+quarkus.elasticsearch.username=elastic
+quarkus.elasticsearch.password=changeme
+quarkus.elasticsearch.protocol=https
+
+# Schema initialization (disable in production)
+data-index.storage.skip-init-schema=false
+data-index.elasticsearch.schema.init.enabled=true
+
+# Dev Services (auto-starts Elasticsearch in dev mode)
+%dev.quarkus.elasticsearch.devservices.enabled=true
+%dev.quarkus.elasticsearch.devservices.image-name=docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+----
+
+=== FluentBit DaemonSet
+
+FluentBit configuration for Elasticsearch output:
+
+[source,conf]
+----
+[INPUT]
+    Name              tail
+    Path              /var/log/containers/*_${WORKFLOW_NAMESPACE}_*.log
+    Parser            cri
+    Tag               kube.*
+    Refresh_Interval  5
+    Mem_Buf_Limit     5MB
+
+[FILTER]
+    Name              parser
+    Match             kube.*
+    Key_Name          log
+    Parser            json
+    Reserve_Data      On
+
+[FILTER]
+    Name              grep
+    Match             kube.*
+    Regex             eventType ^io\.serverlessworkflow\.
+
+[FILTER]
+    Name          rewrite_tag
+    Match         kube.*
+    Rule          $eventType ^io\.serverlessworkflow\.workflow\. workflow.instance false
+
+[FILTER]
+    Name          rewrite_tag
+    Match         kube.*
+    Rule          $eventType ^io\.serverlessworkflow\.task\. workflow.task false
+
+[OUTPUT]
+    Name            es
+    Match           workflow.instance
+    Host            ${ELASTICSEARCH_HOST}
+    Port            ${ELASTICSEARCH_PORT}
+    Index           workflow-instance-events-raw
+    Logstash_Format On
+    Logstash_Prefix workflow-instance-events-raw
+    Logstash_DateFormat %Y.%m.%d
+    Retry_Limit     5
+
+[OUTPUT]
+    Name            es
+    Match           workflow.task
+    Host            ${ELASTICSEARCH_HOST}
+    Port            ${ELASTICSEARCH_PORT}
+    Index           task-execution-events-raw
+    Logstash_Format On
+    Logstash_Prefix task-execution-events-raw
+    Logstash_DateFormat %Y.%m.%d
+    Retry_Limit     5
+----
+
+Location: `data-index/scripts/fluentbit/elasticsearch/fluent-bit.conf`
 
 == Scaling Considerations
 
-Elasticsearch mode scales horizontally:
+Elasticsearch MODE 2 scales horizontally by design:
 
-**Horizontal scaling:**
-- Add Elasticsearch nodes to cluster
-- Shard indices across nodes
-- Replica shards for read scaling
-- Multiple Data Index instances (stateless)
+=== Horizontal Scaling
 
-**Performance tuning:**
-- Adjust transform frequency (1s default)
-- Tune index refresh interval
-- Use time-series indices with ILM
-- Optimize Painless scripts
+**Add Elasticsearch nodes:**
 
-**Advantages over PostgreSQL:**
-- Scales to 100K+ workflows/day
-- Distributed processing
-- Full-text search capabilities
-- Better for analytics workloads
+* Distribute shards across nodes
+* Use replica shards for read scaling
+* Transform processing distributed automatically
 
-== Search Capabilities
+**Shard configuration:**
 
-Elasticsearch mode enables advanced queries:
+* Raw indices: 3 primary shards (configurable in templates)
+* Normalized indices: 3 primary shards
+* 1 replica shard per primary (high availability)
 
-**Full-text search:**
-[source,graphql]
-----
-{
-  searchWorkflows(query: "payment failed") {
-    id
-    name
-    status
-  }
-}
-----
+**Data Index service:**
 
-**Aggregations:**
-[source,graphql]
-----
-{
-  workflowStats {
-    totalByStatus
-    avgDuration
-    failureRate
-  }
-}
-----
+* Stateless service (scale horizontally)
+* Multiple instances share same Elasticsearch cluster
+* No coordination needed between instances
 
-**Time-series analytics:**
-- Workflow execution trends
-- Task duration percentiles
-- Error rate over time
+=== Performance Tuning
+
+**Transform frequency:**
+
+* Default: 1 second (sub-second latency)
+* Reduce frequency if higher latency acceptable
+* Trade-off: latency vs Elasticsearch load
+
+**Index refresh interval:**
+
+* Default: 1 second
+* Increase for write-heavy workloads
+* Trade-off: query visibility vs write throughput
+
+**Time-series optimization:**
+
+* Daily index rollover (automatic via ILM)
+* Compress old indices
+* Force merge before ILM delete phase
+
+**Painless script optimization:**
+
+* Scripts run inside Elasticsearch JVM
+* Minimal external calls
+* Cache compiled scripts automatically
+
+=== Capacity Planning
+
+**Raw events retention:**
+
+* 7-day retention (configurable in ILM policy)
+* Estimate: ~1KB per event
+* 1M workflows/day × 5 events/workflow × 7 days = ~35GB
+
+**Normalized indices:**
+
+* No auto-delete (keep forever)
+* Estimate: ~2KB per workflow document
+* 1M workflows × 2KB = ~2GB
+
+**Recommended cluster size:**
+
+* Small (< 100K workflows/day): 3-node cluster
+* Medium (100K-1M workflows/day): 5-7 node cluster
+* Large (> 1M workflows/day): 10+ node cluster
+
+== Comparison with PostgreSQL Mode
+
+[cols="1,2,2"]
+|===
+|Aspect |MODE 1 (PostgreSQL) |MODE 2 (Elasticsearch)
+
+|*Normalization*
+|PostgreSQL triggers (< 1ms)
+|ES Transforms (~1s frequency)
+
+|*Consistency*
+|ACID guarantees
+|Eventual consistency
+
+|*Latency*
+|< 1ms (real-time)
+|~1s (near real-time)
+
+|*Search*
+|Basic SQL queries
+|Full-text search, aggregations
+
+|*Scaling*
+|Vertical (larger instance)
+|Horizontal (add nodes)
+
+|*Throughput*
+|~10K workflows/day
+|100K+ workflows/day
+
+|*Complexity*
+|Simple (triggers, backups)
+|Moderate (transforms, ILM)
+
+|*Dependencies*
+|PostgreSQL, Flyway
+|Elasticsearch cluster
+
+|*Storage Model*
+|Relational tables
+|Document indices
+
+|*Lifecycle Management*
+|Manual archival
+|Automatic (ILM policies)
+
+|*Multi-tenancy*
+|Schema-per-tenant
+|Index-per-tenant
+
+|*GraphQL API*
+|✅ Identical
+|✅ Identical
+|===
+
+**Choose MODE 1 when:**
+
+* Standard SQL queries are sufficient
+* ACID guarantees required
+* Existing PostgreSQL infrastructure
+* Simpler operations preferred
+
+**Choose MODE 2 when:**
+
+* Full-text search needed
+* Complex aggregations required
+* Large-scale deployments (1M+ workflows)
+* Auto-scaling storage desired
+* Multi-tenancy requirements
 
 == Next Steps
 
 * xref:deployment/elasticsearch.adoc[Deploy Elasticsearch Mode]
+* xref:developers/configuration.adoc[Configuration Guide]
 * xref:architecture/postgresql-mode.adoc[Compare with PostgreSQL Mode]
 * xref:architecture/overview.adoc[Architecture Overview]
