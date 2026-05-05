@@ -66,51 +66,38 @@
     },
     "aggregations": {
       "name": {
-        "scripted_metric": {
-          "init_script": "state.value = null",
-          "map_script": "if (state.value == null && params._source.containsKey('workflowName')) { state.value = params._source.workflowName }",
-          "combine_script": "return state.value",
-          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+        "terms": {
+          "field": "workflowName.keyword",
+          "size": 1
         }
       },
       "version": {
-        "scripted_metric": {
-          "init_script": "state.value = null",
-          "map_script": "if (state.value == null && params._source.containsKey('workflowVersion')) { state.value = params._source.workflowVersion }",
-          "combine_script": "return state.value",
-          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+        "terms": {
+          "field": "workflowVersion.keyword",
+          "size": 1
         }
       },
       "namespace": {
-        "scripted_metric": {
-          "init_script": "state.value = null",
-          "map_script": "if (state.value == null && params._source.containsKey('workflowNamespace')) { state.value = params._source.workflowNamespace }",
-          "combine_script": "return state.value",
-          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+        "terms": {
+          "field": "workflowNamespace.keyword",
+          "size": 1
         }
       },
       "status": {
-        "scripted_metric": {
-          "init_script": "state.events = []",
-          "map_script": "if (params._source.containsKey('status') && doc['@timestamp'].size() > 0) { state.events.add(['status': params._source.status, 'timestamp': doc['@timestamp'].value.toInstant().toEpochMilli()]) }",
-          "combine_script": "return state.events",
-          "reduce_script": "if (params._aggs == null) { return null; } def all = params._aggs.stream().flatMap(e -> e.stream()).collect(Collectors.toList()); if (all.isEmpty()) { return null; } def terminal = all.stream().filter(e -> e.status == 'COMPLETED' || e.status == 'FAULTED' || e.status == 'CANCELLED').max(Comparator.comparing(e -> e.timestamp)); if (terminal.isPresent()) { return terminal.get().status; } def latest = all.stream().max(Comparator.comparing(e -> e.timestamp)); return latest.isPresent() ? latest.get().status : null;"
+        "terms": {
+          "field": "status.keyword",
+          "size": 1,
+          "order": {"_key": "desc"}
         }
       },
       "start": {
-        "scripted_metric": {
-          "init_script": "state.min = null",
-          "map_script": "if (params._source.containsKey('startTime') && params._source.startTime != null) { double seconds = params._source.startTime; long millis = Math.round(seconds * 1000.0); if (state.min == null || millis < state.min) { state.min = millis } }",
-          "combine_script": "return state.min",
-          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).min(Long::compare).orElse(null)"
+        "min": {
+          "script": "doc['startTime'].size() > 0 ? doc['startTime'].value.toInstant().toEpochMilli() * 1000 : Long.MAX_VALUE"
         }
       },
       "end": {
-        "scripted_metric": {
-          "init_script": "state.max = null",
-          "map_script": "if (params._source.containsKey('endTime') && params._source.endTime != null) { double seconds = params._source.endTime; long millis = Math.round(seconds * 1000.0); if (state.max == null || millis > state.max) { state.max = millis } }",
-          "combine_script": "return state.max",
-          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).max(Long::compare).orElse(null)"
+        "max": {
+          "script": "doc['endTime'].size() > 0 ? doc['endTime'].value.toInstant().toEpochMilli() * 1000 : 0L"
         }
       },
       "input": {
