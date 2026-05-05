@@ -514,6 +514,78 @@ class ElasticsearchTaskExecutionStorageIT {
         assertThat(allResults).hasSizeGreaterThanOrEqualTo(3);
     }
 
+    @Test
+    void testFindByWorkflowInstanceId() throws Exception {
+        // Given: Task executions for multiple workflow instances
+        String instanceId1 = TEST_INSTANCE_ID_1;
+        String instanceId2 = TEST_INSTANCE_ID_2;
+
+        // Instance 1 has 3 task executions
+        TaskExecution exec1 = createTestExecution(instanceId1 + ":/do/0", instanceId1, "/do/0", "task-1", "COMPLETED");
+        TaskExecution exec2 = createTestExecution(instanceId1 + ":/do/1", instanceId1, "/do/1", "task-2", "RUNNING");
+        TaskExecution exec3 = createTestExecution(instanceId1 + ":/do/2", instanceId1, "/do/2", "task-3", "RUNNING");
+
+        // Instance 2 has 2 task executions
+        TaskExecution exec4 = createTestExecution(instanceId2 + ":/do/0", instanceId2, "/do/0", "task-1", "RUNNING");
+        TaskExecution exec5 = createTestExecution(instanceId2 + ":/do/1", instanceId2, "/do/1", "task-2", "COMPLETED");
+
+        storage.put(exec1.getId(), exec1);
+        storage.put(exec2.getId(), exec2);
+        storage.put(exec3.getId(), exec3);
+        storage.put(exec4.getId(), exec4);
+        storage.put(exec5.getId(), exec5);
+        waitForRefresh();
+
+        // When: Find task executions by workflow instance ID
+        List<TaskExecution> instance1Tasks = storage.findByWorkflowInstanceId(instanceId1);
+        List<TaskExecution> instance2Tasks = storage.findByWorkflowInstanceId(instanceId2);
+
+        // Then: Returns only task executions for the specified instance
+        assertThat(instance1Tasks).hasSize(3);
+        assertThat(instance1Tasks).extracting(TaskExecution::getId)
+            .containsExactlyInAnyOrder(exec1.getId(), exec2.getId(), exec3.getId());
+
+        assertThat(instance2Tasks).hasSize(2);
+        assertThat(instance2Tasks).extracting(TaskExecution::getId)
+            .containsExactlyInAnyOrder(exec4.getId(), exec5.getId());
+    }
+
+    @Test
+    void testFindByWorkflowInstanceIdWithNoResults() throws Exception {
+        // Given: Task executions for one workflow instance
+        String instanceId = TEST_INSTANCE_ID_1;
+        TaskExecution exec = createTestExecution(instanceId + ":/do/0", instanceId, "/do/0", "task-1", "RUNNING");
+        storage.put(exec.getId(), exec);
+        waitForRefresh();
+
+        // When: Find task executions for non-existent workflow instance
+        List<TaskExecution> results = storage.findByWorkflowInstanceId("non-existent-workflow-id");
+
+        // Then: Returns empty list
+        assertThat(results).isEmpty();
+    }
+
+    @Test
+    void testFindByWorkflowInstanceIdWithSpecialCharacters() throws Exception {
+        // Given: Workflow instance ID with special characters
+        String instanceId = "wf:special/chars\\test";
+
+        TaskExecution exec1 = createTestExecution(instanceId + ":/do/0", instanceId, "/do/0", "task-1", "RUNNING");
+        TaskExecution exec2 = createTestExecution(instanceId + ":/do/1", instanceId, "/do/1", "task-2", "COMPLETED");
+
+        storage.put(exec1.getId(), exec1);
+        storage.put(exec2.getId(), exec2);
+        waitForRefresh();
+
+        // When: Find task executions
+        List<TaskExecution> results = storage.findByWorkflowInstanceId(instanceId);
+
+        // Then: Correctly finds tasks despite special characters in ID
+        assertThat(results).hasSize(2);
+        assertThat(results).extracting(TaskExecution::getId)
+            .containsExactlyInAnyOrder(exec1.getId(), exec2.getId());
+    }
+
     /**
      * Create a test task execution with minimal required fields.
      */
