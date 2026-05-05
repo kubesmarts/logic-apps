@@ -66,10 +66,13 @@ public class ElasticsearchSchemaInitializer {
     private final Map<String, String> indexTemplateResources = new HashMap<>() {{
         put("workflow-events", "/elasticsearch/index-templates/workflow-events.json");
         put("workflow-instances", "/elasticsearch/index-templates/workflow-instances.json");
+        put("task-events", "/elasticsearch/index-templates/task-events.json");
+        put("task-executions", "/elasticsearch/index-templates/task-executions.json");
     }};
 
     private final Map<String, String> transformResources = new HashMap<>() {{
         put("workflow-instances-transform", "/elasticsearch/transforms/workflow-instances-transform.json");
+        put("task-executions-transform", "/elasticsearch/transforms/task-executions-transform.json");
     }};
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -163,7 +166,8 @@ public class ElasticsearchSchemaInitializer {
 
     private void applyTransform(String name, String resourcePath) throws IOException {
         if (transformExists(name)) {
-            LOGGER.info("Transform '{}' already exists, skipping", name);
+            LOGGER.info("Transform '{}' already exists, checking if started...", name);
+            startTransformIfStopped(name);
             return;
         }
 
@@ -177,6 +181,35 @@ public class ElasticsearchSchemaInitializer {
 
             client.transform().putTransform(request);
             LOGGER.info("Transform '{}' applied successfully", name);
+
+            // Start the transform automatically
+            startTransform(name);
+        }
+    }
+
+    private void startTransform(String name) throws IOException {
+        LOGGER.info("Starting transform '{}'...", name);
+        client.transform().startTransform(r -> r.transformId(name));
+        LOGGER.info("Transform '{}' started successfully", name);
+    }
+
+    private void startTransformIfStopped(String name) throws IOException {
+        try {
+            var stats = client.transform().getTransformStats(r -> r.transformId(name));
+            if (stats.transforms().size() > 0) {
+                var transformStats = stats.transforms().get(0);
+                String stateValue = transformStats.state();
+                if (stateValue != null) {
+                    if ("stopped".equals(stateValue)) {
+                        LOGGER.info("Transform '{}' is stopped, starting it...", name);
+                        startTransform(name);
+                    } else {
+                        LOGGER.info("Transform '{}' is already in state: {}", name, stateValue);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to check/start transform '{}': {}", name, e.getMessage());
         }
     }
 

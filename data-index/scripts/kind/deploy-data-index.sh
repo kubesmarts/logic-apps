@@ -284,6 +284,10 @@ spec:
           value: "INFO"
         - name: QUARKUS_LOG_CATEGORY_ORG_KUBESMARTS_LOGIC_LEVEL
           value: "DEBUG"
+        - name: ELASTICSEARCH_HOST
+          value: "data-index-es-http.elasticsearch.svc.cluster.local"
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
         resources:
           requests:
             memory: "512Mi"

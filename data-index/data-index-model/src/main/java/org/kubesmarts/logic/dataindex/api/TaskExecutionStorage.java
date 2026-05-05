@@ -15,6 +15,8 @@
  */
 package org.kubesmarts.logic.dataindex.api;
 
+import java.util.List;
+
 import org.kubesmarts.logic.dataindex.model.TaskExecution;
 import org.kie.kogito.persistence.api.Storage;
 
@@ -32,5 +34,11 @@ public interface TaskExecutionStorage extends Storage<String, TaskExecution> {
     // - boolean containsKey(String id)
     // - Storage query operations via StorageQuery interface
 
-    // Additional methods can be added here for v1.0.0-specific queries
+    /**
+     * Find all task executions for a specific workflow instance.
+     *
+     * @param workflowInstanceId Workflow instance ID
+     * @return List of task executions for this workflow instance, empty list if none found
+     */
+    List<TaskExecution> findByWorkflowInstanceId(String workflowInstanceId);
 }

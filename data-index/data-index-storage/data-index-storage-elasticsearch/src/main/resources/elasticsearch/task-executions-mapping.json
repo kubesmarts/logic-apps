@@ -8,13 +8,16 @@
         "type": "keyword"
       },
       "taskName": {
-        "type": "keyword"
+        "type": "object",
+        "enabled": false
       },
       "taskPosition": {
-        "type": "integer"
+        "type": "object",
+        "enabled": false
       },
       "status": {
-        "type": "keyword"
+        "type": "object",
+        "enabled": false
       },
       "startTime": {
         "type": "date",

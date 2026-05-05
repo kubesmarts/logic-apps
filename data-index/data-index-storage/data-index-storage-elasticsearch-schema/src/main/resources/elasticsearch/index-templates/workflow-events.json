@@ -2,7 +2,6 @@
   "index_patterns": ["workflow-events-*"],
   "template": {
     "settings": {
-      "index.lifecycle.name": "data-index-events-retention",
       "number_of_shards": 3,
       "number_of_replicas": 1
     },
@@ -12,37 +11,62 @@
           "type": "date",
           "doc_values": true
         },
-        "tag": {
-          "type": "keyword"
+        "timestamp": {
+          "type": "date",
+          "doc_values": true
         },
-        "event_id": {
-          "type": "keyword"
+        "eventType": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
-        "event_type": {
-          "type": "keyword"
+        "instanceId": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
-        "event_time": {
-          "type": "date"
+        "workflowName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
-        "instance_id": {
-          "type": "keyword"
+        "workflowVersion": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
-        "workflow_name": {
-          "type": "keyword"
-        },
-        "workflow_version": {
-          "type": "keyword"
-        },
-        "workflow_namespace": {
-          "type": "keyword"
+        "workflowNamespace": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
         "status": {
-          "type": "keyword"
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
-        "start": {
+        "startTime": {
           "type": "date"
         },
-        "end": {
+        "endTime": {
           "type": "date"
         },
         "input": {

@@ -87,87 +87,31 @@ create_namespaces() {
 
 # Step 3: Install Elasticsearch
 install_elasticsearch() {
-    log_step "Installing Elasticsearch (via ECK operator)..."
+    log_step "Installing Elasticsearch (direct StatefulSet)..."
 
-    # Install ECK operator
-    if ! kubectl get namespace elastic-system &>/dev/null; then
-        log_info "Installing ECK operator..."
-        kubectl create -f https://download.elastic.co/downloads/eck/2.12.1/crds.yaml
-        kubectl apply -f https://download.elastic.co/downloads/eck/2.12.1/operator.yaml
-
-        log_info "Waiting for ECK operator..."
-        kubectl wait --namespace elastic-system \
-            --for=condition=ready pod \
-            --selector=control-plane=elastic-operator \
-            --timeout=300s
+    # Deploy Elasticsearch StatefulSet (no ECK operator - security fully disabled)
+    if kubectl get statefulset -n elasticsearch elasticsearch &>/dev/null; then
+        log_info "Elasticsearch already deployed, skipping"
     else
-        log_info "ECK operator already installed"
+        log_info "Creating Elasticsearch StatefulSet..."
+        kubectl apply -f "${SCRIPT_DIR}/elasticsearch-statefulset.yaml"
     fi
 
-    # Install Elasticsearch cluster
-    if kubectl get elasticsearch -n elasticsearch data-index-es &>/dev/null; then
-        log_info "Elasticsearch cluster already exists, skipping"
-    else
-        log_info "Creating Elasticsearch cluster..."
-        kubectl apply -f - <<EOF
-apiVersion: elasticsearch.k8s.elastic.co/v1
-kind: Elasticsearch
-metadata:
-  name: data-index-es
-  namespace: elasticsearch
-spec:
-  version: 8.11.1
-  nodeSets:
-  - name: default
-    count: 1
-    config:
-      node.store.allow_mmap: false
-      xpack.security.enabled: false
-      xpack.security.http.ssl.enabled: false
-    podTemplate:
-      spec:
-        containers:
-        - name: elasticsearch
-          resources:
-            requests:
-              memory: 2Gi
-              cpu: 500m
-            limits:
-              memory: 2Gi
-              cpu: 2000m
-    volumeClaimTemplates:
-    - metadata:
-        name: elasticsearch-data
-      spec:
-        accessModes:
-        - ReadWriteOnce
-        resources:
-          requests:
-            storage: 2Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: data-index-es-http-nodeport
-  namespace: elasticsearch
-spec:
-  type: NodePort
-  selector:
-    elasticsearch.k8s.elastic.co/cluster-name: data-index-es
-  ports:
-  - port: 9200
-    targetPort: 9200
-    nodePort: 30920
-    protocol: TCP
-    name: http
-EOF
-    fi
-
-    log_info "Waiting for Elasticsearch to be ready (this may take several minutes)..."
+    log_info "Waiting for Elasticsearch to be ready..."
     kubectl wait --namespace elasticsearch \
-        --for=jsonpath='{.status.health}'=green \
-        elasticsearch/data-index-es \
-        --timeout=600s
+        --for=condition=ready pod/elasticsearch-0 \
+        --timeout=300s
+
+    # Wait for Elasticsearch HTTP endpoint
+    log_info "Waiting for Elasticsearch HTTP endpoint..."
+    for i in {1..30}; do
+        if curl -s http://localhost:30920 | grep -q "You Know, for Search"; then
+            log_info "✓ Elasticsearch HTTP endpoint ready"
+            break
+        fi
+        log_info "Attempt $i/30: Elasticsearch not ready yet..."
+        sleep 2
+    done
 
     log_info "✓ Elasticsearch ready"
 }
@@ -263,14 +207,29 @@ deploy_workflow_app() {
 wait_for_events() {
     log_step "Waiting for events to flow through the pipeline..."
 
+    # Set up port-forward for workflow app (NodePort 30082 not mapped in KIND cluster)
+    log_info "Setting up port-forward for workflow app..."
+    kubectl port-forward -n workflows svc/workflow-test-app 8082:8080 &>/dev/null &
+    local PF_PID=$!
+    sleep 2
+
+    # Trigger workflow execution
+    log_info "Triggering workflow execution..."
+    curl -s -X POST http://localhost:8082/test-workflows/simple-set \
+        -H "Content-Type: application/json" \
+        -d '{"name":"test-execution"}' > /dev/null || true
+
     log_info "Waiting 30 seconds for workflow execution and event collection..."
     sleep 30
+
+    # Clean up port-forward
+    kill $PF_PID 2>/dev/null || true
 
     # Check raw events in Elasticsearch
     log_info "Checking raw events in Elasticsearch..."
     local raw_count=0
     for i in {1..30}; do
-        raw_count=$(curl -s -X GET "http://localhost:30920/workflow-events/_count" | jq -r '.count' || echo "0")
+        raw_count=$(curl -s -X GET "http://localhost:30920/workflow-events/_count" 2>/dev/null | jq -r '.count // 0')
         if [[ "$raw_count" -gt 0 ]]; then
             log_info "✓ Found $raw_count raw events"
             break
@@ -292,7 +251,7 @@ wait_for_events() {
     log_info "Checking normalized workflow instances..."
     local instance_count=0
     for i in {1..30}; do
-        instance_count=$(curl -s -X GET "http://localhost:30920/workflow-instances/_count" | jq -r '.count' || echo "0")
+        instance_count=$(curl -s -X GET "http://localhost:30920/workflow-instances/_count" 2>/dev/null | jq -r '.count // 0')
         if [[ "$instance_count" -gt 0 ]]; then
             log_info "✓ Found $instance_count normalized workflow instances"
             break

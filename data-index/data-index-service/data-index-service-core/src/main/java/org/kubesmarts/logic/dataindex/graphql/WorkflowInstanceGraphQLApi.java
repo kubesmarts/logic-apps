@@ -58,7 +58,11 @@ public class WorkflowInstanceGraphQLApi {
     @Query("getWorkflowInstance")
     @Description("Get a single workflow instance by ID. Returns null if not found.")
     public WorkflowInstance getWorkflowInstance(@Name("id") String id) {
-        return workflowInstanceStorage.get(id);
+        WorkflowInstance instance = workflowInstanceStorage.get(id);
+        if (instance != null) {
+            loadTaskExecutions(instance);
+        }
+        return instance;
     }
 
     /**
@@ -98,7 +102,12 @@ public class WorkflowInstanceGraphQLApi {
             query.offset(offset);
         }
 
-        return query.execute();
+        List<WorkflowInstance> instances = query.execute();
+
+        // Load task executions for each workflow instance
+        instances.forEach(this::loadTaskExecutions);
+
+        return instances;
     }
 
     /**
@@ -166,6 +175,30 @@ public class WorkflowInstanceGraphQLApi {
         if (instance == null) {
             return List.of();
         }
+        loadTaskExecutions(instance);
         return instance.getTaskExecutions() != null ? instance.getTaskExecutions() : List.of();
+    }
+
+    /**
+     * Load task executions for a workflow instance.
+     *
+     * In Elasticsearch MODE 2, task executions are stored in a separate index
+     * and must be loaded explicitly (unlike PostgreSQL MODE 1 where JPA may have
+     * already loaded the relationship).
+     *
+     * This method uses the TaskExecutionStorage API to find task executions by
+     * workflow instance ID and populates the taskExecutions field.
+     *
+     * @param instance Workflow instance to load task executions for
+     */
+    private void loadTaskExecutions(WorkflowInstance instance) {
+        // Skip if already loaded (PostgreSQL MODE 1 with eager loading)
+        if (instance.getTaskExecutions() != null && !instance.getTaskExecutions().isEmpty()) {
+            return;
+        }
+
+        // Load task executions using storage API
+        List<TaskExecution> taskExecutions = taskExecutionStorage.findByWorkflowInstanceId(instance.getId());
+        instance.setTaskExecutions(taskExecutions);
     }
 }

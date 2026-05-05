@@ -111,7 +111,7 @@ spec:
           value: "workflows"
         # Elasticsearch connection (Mode 2: Transform-based normalization)
         - name: ELASTICSEARCH_HOST
-          value: "elasticsearch.elasticsearch.svc.cluster.local"
+          value: "data-index-es-http.elasticsearch.svc.cluster.local"
         - name: ELASTICSEARCH_PORT
           value: "9200"
         - name: ELASTICSEARCH_TLS

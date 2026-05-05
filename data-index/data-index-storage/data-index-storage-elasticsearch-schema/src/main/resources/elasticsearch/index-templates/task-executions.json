@@ -11,13 +11,16 @@
           "type": "keyword"
         },
         "task_name": {
-          "type": "keyword"
+          "type": "object",
+          "enabled": false
         },
         "task_position": {
-          "type": "keyword"
+          "type": "object",
+          "enabled": false
         },
         "status": {
-          "type": "keyword"
+          "type": "object",
+          "enabled": false
         },
         "start": {
           "type": "date"

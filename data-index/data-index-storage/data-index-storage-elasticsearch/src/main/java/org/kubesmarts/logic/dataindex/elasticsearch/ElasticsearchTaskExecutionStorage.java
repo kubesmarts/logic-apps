@@ -16,8 +16,10 @@
 package org.kubesmarts.logic.dataindex.elasticsearch;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.kubesmarts.logic.dataindex.api.TaskExecutionStorage;
 import org.kubesmarts.logic.dataindex.elasticsearch.config.ElasticsearchConfiguration;
@@ -34,6 +36,8 @@ import co.elastic.clients.elasticsearch.core.GetRequest;
 import co.elastic.clients.elasticsearch.core.GetResponse;
 import co.elastic.clients.elasticsearch.core.IndexRequest;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
+import co.elastic.clients.elasticsearch.core.SearchRequest;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
 import io.smallrye.mutiny.Multi;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -84,6 +88,52 @@ public class ElasticsearchTaskExecutionStorage implements TaskExecutionStorage {
     @Override
     public Query<TaskExecution> query() {
         return new ElasticsearchQuery<>(client, indexName, TaskExecution.class);
+    }
+
+    /**
+     * Find all task executions for a specific workflow instance.
+     *
+     * In Elasticsearch MODE 2, the id field is a composite key: "workflowInstanceId:taskPosition".
+     * We use a prefix query to find all task executions that start with the workflow instance ID.
+     *
+     * @param workflowInstanceId Workflow instance ID
+     * @return List of task executions for this workflow instance
+     */
+    public List<TaskExecution> findByWorkflowInstanceId(String workflowInstanceId) {
+        try {
+            SearchRequest request = SearchRequest.of(s -> s
+                    .index(indexName)
+                    .query(q -> q
+                            .prefix(p -> p
+                                    .field("id")
+                                    .value(workflowInstanceId + ":")))
+                    .size(1000)); // Max task executions per workflow
+
+            SearchResponse<TaskExecution> response = client.search(request, TaskExecution.class);
+
+            LOGGER.info("Found {} task executions for workflow instance: {}", response.hits().hits().size(), workflowInstanceId);
+
+            List<TaskExecution> results = response.hits().hits().stream()
+                    .map(hit -> {
+                        TaskExecution source = hit.source();
+                        if (source == null) {
+                            LOGGER.warn("Null source for task execution hit with id: {}", hit.id());
+                        } else {
+                            LOGGER.info("Successfully deserialized task execution: id={}, taskName={}, status={}",
+                                source.getId(), source.getTaskName(), source.getStatus());
+                        }
+                        return source;
+                    })
+                    .filter(source -> source != null)
+                    .collect(Collectors.toList());
+
+            LOGGER.info("Returning {} task executions after filtering nulls", results.size());
+            return results;
+
+        } catch (IOException e) {
+            LOGGER.error("Failed to find task executions for workflow instance: {}", workflowInstanceId, e);
+            return List.of();
+        }
     }
 
     @Override

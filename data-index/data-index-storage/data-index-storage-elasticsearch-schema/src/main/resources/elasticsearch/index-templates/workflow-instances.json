@@ -11,16 +11,20 @@
           "type": "keyword"
         },
         "name": {
-          "type": "keyword"
+          "type": "object",
+          "enabled": false
         },
         "version": {
-          "type": "keyword"
+          "type": "object",
+          "enabled": false
         },
         "namespace": {
-          "type": "keyword"
+          "type": "object",
+          "enabled": false
         },
         "status": {
-          "type": "keyword"
+          "type": "object",
+          "enabled": false
         },
         "start": {
           "type": "date"

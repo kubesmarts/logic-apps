@@ -15,7 +15,9 @@
  */
 package org.kubesmarts.logic.dataindex.storage;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.kubesmarts.logic.dataindex.storage.AbstractStorage;
 import org.kubesmarts.logic.dataindex.storage.JsonPredicateBuilder;
@@ -61,5 +63,17 @@ public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskInstanc
     // Default constructor for CDI proxying
     protected TaskExecutionJPAStorage() {
         super();
+    }
+
+    @Override
+    public List<TaskExecution> findByWorkflowInstanceId(String workflowInstanceId) {
+        List<TaskInstanceEntity> entities = em
+                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.instance.id = :instanceId", TaskInstanceEntity.class)
+                .setParameter("instanceId", workflowInstanceId)
+                .getResultList();
+
+        return entities.stream()
+                .map(mapToModel)
+                .collect(Collectors.toList());
     }
 }
