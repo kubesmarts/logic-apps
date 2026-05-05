@@ -21,6 +21,7 @@ import java.util.List;
 import org.eclipse.microprofile.graphql.Description;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Name;
+import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.graphql.Query;
 import org.kubesmarts.logic.dataindex.api.TaskExecutionStorage;
 import org.kubesmarts.logic.dataindex.api.WorkflowInstanceStorage;
@@ -57,7 +58,10 @@ public class WorkflowInstanceGraphQLApi {
      */
     @Query("getWorkflowInstance")
     @Description("Get a single workflow instance by ID. Returns null if not found.")
-    public WorkflowInstance getWorkflowInstance(@Name("id") String id) {
+    public WorkflowInstance getWorkflowInstance(@Name("id") @NonNull String id) {
+        if (id == null || id.isEmpty()) {
+            throw new IllegalArgumentException("Workflow instance ID is required");
+        }
         WorkflowInstance instance = workflowInstanceStorage.get(id);
         if (instance != null) {
             loadTaskExecutions(instance);
@@ -118,7 +122,10 @@ public class WorkflowInstanceGraphQLApi {
      */
     @Query("getTaskExecution")
     @Description("Get a single task execution by ID. Returns null if not found.")
-    public TaskExecution getTaskExecution(@Name("id") String id) {
+    public TaskExecution getTaskExecution(@Name("id") @NonNull String id) {
+        if (id == null || id.isEmpty()) {
+            throw new IllegalArgumentException("Task execution ID is required");
+        }
         return taskExecutionStorage.get(id);
     }
 
