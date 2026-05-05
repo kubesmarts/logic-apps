@@ -53,7 +53,7 @@
   "sync": {
     "time": {
       "field": "@timestamp",
-      "delay": "5m"
+      "delay": "0s"
     }
   },
   "pivot": {
