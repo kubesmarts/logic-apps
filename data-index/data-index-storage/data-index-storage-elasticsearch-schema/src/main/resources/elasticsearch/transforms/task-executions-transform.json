@@ -63,34 +63,41 @@
     },
     "aggregations": {
       "instance_id": {
-        "terms": {
-          "field": "instanceId.keyword",
-          "size": 1
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (state.value == null && params._source.containsKey('instanceId')) { state.value = params._source.instanceId }",
+          "combine_script": "return state.value",
+          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
         }
       },
       "taskPosition": {
-        "terms": {
-          "field": "taskPosition.keyword",
-          "size": 1
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (state.value == null && params._source.containsKey('taskPosition')) { state.value = params._source.taskPosition }",
+          "combine_script": "return state.value",
+          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
         }
       },
       "taskName": {
-        "terms": {
-          "field": "taskName.keyword",
-          "size": 1
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (state.value == null && params._source.containsKey('taskName')) { state.value = params._source.taskName }",
+          "combine_script": "return state.value",
+          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
         }
       },
       "status": {
-        "terms": {
-          "field": "status.keyword",
-          "size": 1,
-          "order": {"_key": "desc"}
+        "scripted_metric": {
+          "init_script": "state.events = []",
+          "map_script": "if (params._source.containsKey('status') && doc['@timestamp'].size() > 0) { state.events.add(['status': params._source.status, 'timestamp': doc['@timestamp'].value.toInstant().toEpochMilli()]) }",
+          "combine_script": "return state.events",
+          "reduce_script": "if (params._aggs == null) { return null; } def all = params._aggs.stream().flatMap(e -> e.stream()).collect(Collectors.toList()); if (all.isEmpty()) { return null; } def terminal = all.stream().filter(e -> e.status == 'COMPLETED' || e.status == 'FAULTED').max(Comparator.comparing(e -> e.timestamp)); if (terminal.isPresent()) { return terminal.get().status; } def latest = all.stream().max(Comparator.comparing(e -> e.timestamp)); return latest.isPresent() ? latest.get().status : null;"
         }
       },
       "start": {
         "scripted_metric": {
           "init_script": "state.min = null",
-          "map_script": "if (params._source.containsKey('startTime') && params._source.startTime != null) { long timeMs = Math.round(params._source.startTime * 1000.0); if (state.min == null || timeMs < state.min) { state.min = Long.valueOf(timeMs) } }",
+          "map_script": "if (params._source.containsKey('startTime') && params._source.startTime != null) { double seconds = params._source.startTime; long millis = Math.round(seconds * 1000.0); if (state.min == null || millis < state.min) { state.min = millis } }",
           "combine_script": "return state.min",
           "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).min(Long::compare).orElse(null)"
         }
@@ -98,9 +105,33 @@
       "end": {
         "scripted_metric": {
           "init_script": "state.max = null",
-          "map_script": "if (params._source.containsKey('endTime') && params._source.endTime != null) { long timeMs = Math.round(params._source.endTime * 1000.0); if (state.max == null || timeMs > state.max) { state.max = Long.valueOf(timeMs) } }",
+          "map_script": "if (params._source.containsKey('endTime') && params._source.endTime != null) { double seconds = params._source.endTime; long millis = Math.round(seconds * 1000.0); if (state.max == null || millis > state.max) { state.max = millis } }",
           "combine_script": "return state.max",
           "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).max(Long::compare).orElse(null)"
+        }
+      },
+      "input": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (state.value == null && params._source.containsKey('input')) { state.value = params._source.input }",
+          "combine_script": "return state.value",
+          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+        }
+      },
+      "output": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.containsKey('output') && params._source.output != null) { def eventTime = doc['@timestamp'].value.toInstant().toEpochMilli(); if (state.value == null || eventTime > state.value.time) { state.value = ['data': params._source.output, 'time': eventTime] } }",
+          "combine_script": "return state.value",
+          "reduce_script": "if (params._aggs == null) { return null; } def latest = params._aggs.stream().filter(v -> v != null).max(Comparator.comparing(v -> v.time)); return latest.isPresent() ? latest.get().data : null"
+        }
+      },
+      "error": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.containsKey('error') && params._source.error != null) { def eventTime = doc['@timestamp'].value.toInstant().toEpochMilli(); if (state.value == null || eventTime > state.value.time) { state.value = ['data': params._source.error, 'time': eventTime] } }",
+          "combine_script": "return state.value",
+          "reduce_script": "if (params._aggs == null) { return null; } def latest = params._aggs.stream().filter(v -> v != null).max(Comparator.comparing(v -> v.time)); return latest.isPresent() ? latest.get().data : null"
         }
       },
       "last_update": {
