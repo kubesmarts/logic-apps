@@ -27,9 +27,10 @@ import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 /**
  * Jackson deserializer that extracts enum values from Elasticsearch terms aggregation bucket format.
  *
- * <p>Handles three formats:
+ * <p>Handles four formats:
  * <ul>
  *   <li>Simple enum string: {@code "RUNNING"} → returns WorkflowInstanceStatus.RUNNING
+ *   <li>Terms aggregation: {@code {"buckets": [{"key": "RUNNING", "doc_count": 1}]}} → returns WorkflowInstanceStatus.RUNNING
  *   <li>Nested bucket: {@code {"value": {"RUNNING": 1}}} → returns WorkflowInstanceStatus.RUNNING
  *   <li>Direct bucket: {@code {"RUNNING": 1}} → returns WorkflowInstanceStatus.RUNNING
  * </ul>
@@ -61,8 +62,18 @@ public class BucketEnumDeserializer extends JsonDeserializer<Enum<?>> implements
         }
         // Bucket format: extract first key
         else if (node.isObject()) {
+            // Terms aggregation format: {"buckets": [{"key": "VALUE", "doc_count": N}]}
+            if (node.has("buckets")) {
+                JsonNode bucketsNode = node.get("buckets");
+                if (bucketsNode.isArray() && bucketsNode.size() > 0) {
+                    JsonNode firstBucket = bucketsNode.get(0);
+                    if (firstBucket.has("key")) {
+                        enumValue = firstBucket.get("key").asText();
+                    }
+                }
+            }
             // Check for nested bucket: {"value": {"KEY": count}}
-            if (node.has("value")) {
+            else if (node.has("value")) {
                 JsonNode valueNode = node.get("value");
                 if (valueNode.isObject() && valueNode.fields().hasNext()) {
                     enumValue = valueNode.fields().next().getKey();

@@ -98,6 +98,61 @@ class BucketEnumDeserializerTest {
     }
 
     @Test
+    void testDeserializeTermsAggregationFormat() throws JsonProcessingException {
+        // Given: JSON with terms aggregation format (Elasticsearch transform with terms agg)
+        String json = """
+            {
+              "status": {"buckets": [{"key": "RUNNING", "doc_count": 2}]},
+              "previousStatus": {"buckets": [{"key": "SUSPENDED", "doc_count": 1}]}
+            }
+            """;
+
+        // When: Deserialize
+        TestModel result = mapper.readValue(json, TestModel.class);
+
+        // Then: Extracts key from first bucket and converts to enum
+        assertThat(result.getStatus()).isEqualTo(WorkflowInstanceStatus.RUNNING);
+        assertThat(result.getPreviousStatus()).isEqualTo(WorkflowInstanceStatus.SUSPENDED);
+    }
+
+    @Test
+    void testDeserializeTermsAggregationMultipleBuckets() throws JsonProcessingException {
+        // Given: JSON with multiple buckets (terms aggregation with ordering)
+        String json = """
+            {
+              "status": {"buckets": [
+                {"key": "COMPLETED", "doc_count": 3},
+                {"key": "RUNNING", "doc_count": 2}
+              ]}
+            }
+            """;
+
+        // When: Deserialize
+        TestModel result = mapper.readValue(json, TestModel.class);
+
+        // Then: Extracts key from first bucket (order by desc for terminal states)
+        assertThat(result.getStatus()).isEqualTo(WorkflowInstanceStatus.COMPLETED);
+    }
+
+    @Test
+    void testDeserializeTermsAggregationEmptyBuckets() throws JsonProcessingException {
+        // Given: JSON with empty buckets array
+        String json = """
+            {
+              "status": {"buckets": []},
+              "previousStatus": "RUNNING"
+            }
+            """;
+
+        // When: Deserialize
+        TestModel result = mapper.readValue(json, TestModel.class);
+
+        // Then: Empty buckets returns null
+        assertThat(result.getStatus()).isNull();
+        assertThat(result.getPreviousStatus()).isEqualTo(WorkflowInstanceStatus.RUNNING);
+    }
+
+    @Test
     void testDeserializePlainString() throws JsonProcessingException {
         // Given: JSON with plain string value
         String json = """

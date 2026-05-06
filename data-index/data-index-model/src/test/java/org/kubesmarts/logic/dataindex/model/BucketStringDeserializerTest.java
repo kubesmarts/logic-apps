@@ -89,6 +89,61 @@ class BucketStringDeserializerTest {
     }
 
     @Test
+    void testDeserializeTermsAggregationFormat() throws JsonProcessingException {
+        // Given: JSON with terms aggregation format (Elasticsearch transform with terms agg)
+        String json = """
+            {
+              "name": {"buckets": [{"key": "simple-set", "doc_count": 1}]},
+              "description": {"buckets": [{"key": "workflow description", "doc_count": 2}]}
+            }
+            """;
+
+        // When: Deserialize
+        TestModel result = mapper.readValue(json, TestModel.class);
+
+        // Then: Extracts key from first bucket
+        assertThat(result.getName()).isEqualTo("simple-set");
+        assertThat(result.getDescription()).isEqualTo("workflow description");
+    }
+
+    @Test
+    void testDeserializeTermsAggregationMultipleBuckets() throws JsonProcessingException {
+        // Given: JSON with multiple buckets (terms aggregation)
+        String json = """
+            {
+              "name": {"buckets": [
+                {"key": "workflow-v2", "doc_count": 5},
+                {"key": "workflow-v1", "doc_count": 3}
+              ]}
+            }
+            """;
+
+        // When: Deserialize
+        TestModel result = mapper.readValue(json, TestModel.class);
+
+        // Then: Extracts key from first bucket (highest doc_count if ordered by default)
+        assertThat(result.getName()).isEqualTo("workflow-v2");
+    }
+
+    @Test
+    void testDeserializeTermsAggregationEmptyBuckets() throws JsonProcessingException {
+        // Given: JSON with empty buckets array
+        String json = """
+            {
+              "name": {"buckets": []},
+              "description": "test"
+            }
+            """;
+
+        // When: Deserialize
+        TestModel result = mapper.readValue(json, TestModel.class);
+
+        // Then: Empty buckets returns null
+        assertThat(result.getName()).isNull();
+        assertThat(result.getDescription()).isEqualTo("test");
+    }
+
+    @Test
     void testDeserializePlainString() throws JsonProcessingException {
         // Given: JSON with plain string value
         String json = """

@@ -26,9 +26,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 /**
  * Jackson deserializer that extracts string values from Elasticsearch terms aggregation bucket format.
  *
- * <p>Handles three formats:
+ * <p>Handles four formats:
  * <ul>
  *   <li>Simple string: {@code "simple-set"} → returns "simple-set"
+ *   <li>Terms aggregation: {@code {"buckets": [{"key": "simple-set", "doc_count": 1}]}} → returns "simple-set"
  *   <li>Nested bucket (filter+terms): {@code {"value": {"simple-set": 1}}} → returns "simple-set"
  *   <li>Direct bucket (terms): {@code {"simple-set": 1}} → returns "simple-set"
  * </ul>
@@ -52,6 +53,18 @@ public class BucketStringDeserializer extends JsonDeserializer<String> {
 
         // Bucket format: extract first key
         if (node.isObject()) {
+            // Terms aggregation format: {"buckets": [{"key": "value", "doc_count": N}]}
+            if (node.has("buckets")) {
+                JsonNode bucketsNode = node.get("buckets");
+                if (bucketsNode.isArray() && bucketsNode.size() > 0) {
+                    JsonNode firstBucket = bucketsNode.get(0);
+                    if (firstBucket.has("key")) {
+                        return firstBucket.get("key").asText();
+                    }
+                }
+                return null;
+            }
+
             // Check for nested bucket: {"value": {"key": count}}
             if (node.has("value")) {
                 JsonNode valueNode = node.get("value");

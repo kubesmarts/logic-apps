@@ -22,10 +22,10 @@
           "type": "object",
           "enabled": false
         },
-        "start": {
+        "startDate": {
           "type": "date"
         },
-        "end": {
+        "endDate": {
           "type": "date"
         },
         "input": {
