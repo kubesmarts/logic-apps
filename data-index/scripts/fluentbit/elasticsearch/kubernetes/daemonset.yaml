@@ -110,8 +110,9 @@ spec:
         - name: WORKFLOW_NAMESPACE
           value: "workflows"
         # Elasticsearch connection (Mode 2: Transform-based normalization)
+        # NOTE: Using pod DNS instead of service due to ECK readiness probe TLS issue in KIND
         - name: ELASTICSEARCH_HOST
-          value: "data-index-es-http.elasticsearch.svc.cluster.local"
+          value: "data-index-es-es-default-0.data-index-es-es-default.elasticsearch.svc.cluster.local"
         - name: ELASTICSEARCH_PORT
           value: "9200"
         - name: ELASTICSEARCH_TLS

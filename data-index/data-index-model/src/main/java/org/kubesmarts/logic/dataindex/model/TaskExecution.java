@@ -63,9 +63,11 @@ public class TaskExecution {
     private String status;
 
     @JsonProperty("startDate")
+    @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
     private ZonedDateTime start;
 
     @JsonProperty("endDate")
+    @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
     private ZonedDateTime end;
 
     private Error error;

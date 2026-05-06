@@ -87,17 +87,21 @@
         "terms": {
           "field": "status.keyword",
           "size": 1,
-          "order": {"_key": "desc"}
+          "order": {"_count": "desc"}
         }
       },
-      "start": {
+      "startDate": {
         "min": {
-          "script": "doc['startTime'].size() > 0 ? doc['startTime'].value.toInstant().toEpochMilli() * 1000 : Long.MAX_VALUE"
+          "script": {
+            "source": "if (params._source.containsKey('startTime') && params._source.startTime != null) { return (long)(params._source.startTime * 1000) } else { return null }"
+          }
         }
       },
-      "end": {
+      "endDate": {
         "max": {
-          "script": "doc['endTime'].size() > 0 ? doc['endTime'].value.toInstant().toEpochMilli() * 1000 : 0L"
+          "script": {
+            "source": "if (params._source.containsKey('endTime') && params._source.endTime != null) { return (long)(params._source.endTime * 1000) } else { return null }"
+          }
         }
       },
       "input": {
@@ -124,7 +128,7 @@
           "reduce_script": "if (params._aggs == null) { return null; } def latest = params._aggs.stream().filter(v -> v != null).max(Comparator.comparing(v -> v.time)); return latest.isPresent() ? latest.get().data : null"
         }
       },
-      "last_update": {
+      "lastUpdate": {
         "max": {
           "field": "@timestamp"
         }

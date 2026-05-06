@@ -89,6 +89,7 @@ public class WorkflowInstance {
      * <p>Source: startTime from workflow.instance.started event
      */
     @JsonProperty("startDate")
+    @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
     private ZonedDateTime start;
 
     /**
@@ -96,12 +97,14 @@ public class WorkflowInstance {
      * <p>Source: endTime from workflow.instance.completed or workflow.instance.faulted events
      */
     @JsonProperty("endDate")
+    @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
     private ZonedDateTime end;
 
     /**
      * Last update timestamp.
      * <p>Source: lastUpdateTime from workflow.instance.status.changed event
      */
+    @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
     private ZonedDateTime lastUpdate;
 
     /**

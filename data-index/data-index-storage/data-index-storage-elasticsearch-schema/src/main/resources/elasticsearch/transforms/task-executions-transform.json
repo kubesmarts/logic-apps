@@ -81,20 +81,25 @@
         }
       },
       "status": {
-        "terms": {
-          "field": "status.keyword",
-          "size": 1,
-          "order": {"_key": "desc"}
+        "scripted_metric": {
+          "init_script": "state.status = null; state.priority = 0",
+          "map_script": "String s = params._source.status; int p = (s == 'COMPLETED' || s == 'FAULTED') ? 2 : (s == 'RUNNING' ? 1 : 0); if (p > state.priority) { state.status = s; state.priority = p }",
+          "combine_script": "return state.status",
+          "reduce_script": "if (params._aggs == null) return null; return params._aggs.stream().filter(v -> v != null).max(Comparator.naturalOrder()).orElse(null)"
         }
       },
-      "start": {
+      "startDate": {
         "min": {
-          "script": "doc['startTime'].size() > 0 ? doc['startTime'].value.toInstant().toEpochMilli() * 1000 : Long.MAX_VALUE"
+          "script": {
+            "source": "if (params._source.containsKey('startTime') && params._source.startTime != null) { return (long)(params._source.startTime * 1000) } else { return null }"
+          }
         }
       },
-      "end": {
+      "endDate": {
         "max": {
-          "script": "doc['endTime'].size() > 0 ? doc['endTime'].value.toInstant().toEpochMilli() * 1000 : 0L"
+          "script": {
+            "source": "if (params._source.containsKey('endTime') && params._source.endTime != null) { return (long)(params._source.endTime * 1000) } else { return null }"
+          }
         }
       },
       "input": {
