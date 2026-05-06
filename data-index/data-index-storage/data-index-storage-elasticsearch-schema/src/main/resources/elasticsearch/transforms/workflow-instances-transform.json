@@ -84,10 +84,11 @@
         }
       },
       "status": {
-        "terms": {
-          "field": "status.keyword",
-          "size": 1,
-          "order": {"_count": "desc"}
+        "scripted_metric": {
+          "init_script": "state.status = null; state.priority = 0",
+          "map_script": "String s = params._source.status; int p = (s == 'COMPLETED' || s == 'FAULTED' || s == 'CANCELLED') ? 2 : (s == 'RUNNING' || s == 'SUSPENDED') ? 1 : 0; if (p > state.priority) { state.status = s; state.priority = p }",
+          "combine_script": "return state.status",
+          "reduce_script": "if (params._aggs == null) return null; def maxStatus = null; int maxPriority = 0; for (status in params._aggs) { if (status != null) { int p = (status == 'COMPLETED' || status == 'FAULTED' || status == 'CANCELLED') ? 2 : (status == 'RUNNING' || status == 'SUSPENDED') ? 1 : 0; if (p > maxPriority) { maxStatus = status; maxPriority = p } } } return maxStatus"
         }
       },
       "startDate": {
