@@ -168,8 +168,22 @@ class ElasticsearchTransformNormalizationIT {
         try {
             client.indices().refresh(r -> r.index(RAW_INDEX));
             System.out.println("Refreshed raw index");
+
+            // Check raw events to verify they have status field
+            var rawEventsResponse = client.search(s -> s
+                .index(RAW_INDEX)
+                .query(q -> q
+                    .term(t -> t
+                        .field("instanceId.keyword")
+                        .value(instanceId)))
+                .size(10), Map.class);
+            System.out.println("Raw events for this instance: " + rawEventsResponse.hits().total().value());
+            rawEventsResponse.hits().hits().forEach(hit -> {
+                Map<String, Object> source = hit.source();
+                System.out.println("  Event status: " + source.get("status") + ", eventType: " + source.get("eventType"));
+            });
         } catch (Exception e) {
-            System.out.println("Failed to refresh: " + e.getMessage());
+            System.out.println("Failed to refresh/check raw events: " + e.getMessage());
         }
 
         // Check transform stats before waiting
@@ -206,7 +220,11 @@ class ElasticsearchTransformNormalizationIT {
                 .query(q -> q.matchAll(m -> m)), Map.class);
             System.out.println("Normalized index total docs: " + allDocsResponse.hits().total().value());
             allDocsResponse.hits().hits().forEach(hit -> {
-                System.out.println("  Doc ID: " + hit.id() + ", Source: " + hit.source());
+                Map<String, Object> source = hit.source();
+                System.out.println("  Doc ID: " + hit.id());
+                System.out.println("    Full source: " + source);
+                System.out.println("    status field value: " + source.get("status"));
+                System.out.println("    status field class: " + (source.get("status") != null ? source.get("status").getClass() : "null"));
             });
         } catch (Exception e) {
             System.out.println("Error checking normalized index: " + e.getMessage());
