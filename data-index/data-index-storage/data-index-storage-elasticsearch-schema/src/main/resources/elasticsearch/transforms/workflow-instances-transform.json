@@ -86,9 +86,9 @@
       "status": {
         "scripted_metric": {
           "init_script": "state.status = null; state.priority = 0",
-          "map_script": "String s = params._source.status; int p = (s == 'COMPLETED' || s == 'FAULTED' || s == 'CANCELLED') ? 2 : (s == 'RUNNING' || s == 'SUSPENDED') ? 1 : 0; if (p > state.priority) { state.status = s; state.priority = p }",
+          "map_script": "def s = params._source.status; def p = (s == 'COMPLETED' || s == 'FAULTED' || s == 'CANCELLED') ? 2 : (s == 'RUNNING' || s == 'SUSPENDED') ? 1 : 0; if (p > state.priority) { state.status = s; state.priority = p }",
           "combine_script": "return state.status",
-          "reduce_script": "if (params._aggs == null) return null; def maxStatus = null; int maxPriority = 0; for (status in params._aggs) { if (status != null) { int p = (status == 'COMPLETED' || status == 'FAULTED' || status == 'CANCELLED') ? 2 : (status == 'RUNNING' || status == 'SUSPENDED') ? 1 : 0; if (p > maxPriority) { maxStatus = status; maxPriority = p } } } return maxStatus"
+          "reduce_script": "if (params._aggs == null) return null; for (s in params._aggs) { if (s == 'COMPLETED' || s == 'FAULTED' || s == 'CANCELLED') return s } for (s in params._aggs) { if (s != null) return s } return null"
         }
       },
       "startDate": {
