@@ -181,6 +181,10 @@ class ElasticsearchTransformNormalizationIT {
             client.indices().refresh(r -> r.index(RAW_INDEX));
             System.out.println("Refreshed raw index");
 
+            // Check raw index mapping
+            var mappingResponse = client.indices().getMapping(m -> m.index(RAW_INDEX));
+            System.out.println("Raw index mapping: " + mappingResponse);
+
             // Check raw events to verify they have status field
             var rawEventsResponse = client.search(s -> s
                 .index(RAW_INDEX)
@@ -192,10 +196,12 @@ class ElasticsearchTransformNormalizationIT {
             System.out.println("Raw events for this instance: " + rawEventsResponse.hits().total().value());
             rawEventsResponse.hits().hits().forEach(hit -> {
                 Map<String, Object> source = hit.source();
-                System.out.println("  Event status: " + source.get("status") + ", eventType: " + source.get("eventType"));
+                System.out.println("  Event instanceStatus: " + source.get("instanceStatus") + ", eventType: " + source.get("eventType"));
+                System.out.println("  Full event: " + source);
             });
         } catch (Exception e) {
             System.out.println("Failed to refresh/check raw events: " + e.getMessage());
+            e.printStackTrace();
         }
 
         // Check transform stats before waiting
@@ -383,7 +389,7 @@ class ElasticsearchTransformNormalizationIT {
         event.put("workflowName", "test-workflow");
         event.put("workflowVersion", "1.0");
         event.put("workflowNamespace", "test");
-        event.put("status", extractStatusFromEventType(eventType));
+        event.put("instanceStatus", extractStatusFromEventType(eventType));
 
         if (input != null) {
             event.put("input", input);
@@ -415,7 +421,7 @@ class ElasticsearchTransformNormalizationIT {
         event.put("workflowName", "test-workflow");
         event.put("workflowVersion", "1.0");
         event.put("workflowNamespace", "test");
-        event.put("status", extractStatusFromEventType(eventType));
+        event.put("instanceStatus", extractStatusFromEventType(eventType));
 
         if (start != null) {
             event.put("startTime", start.getEpochSecond());

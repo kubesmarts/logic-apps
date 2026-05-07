@@ -85,7 +85,7 @@
       },
       "status": {
         "terms": {
-          "field": "status.keyword",
+          "field": "instanceStatus.keyword",
           "size": 1
         }
       },
