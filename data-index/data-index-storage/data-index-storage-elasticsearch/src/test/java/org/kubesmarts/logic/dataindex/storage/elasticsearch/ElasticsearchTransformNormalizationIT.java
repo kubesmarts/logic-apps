@@ -78,6 +78,18 @@ class ElasticsearchTransformNormalizationIT {
 
     @BeforeEach
     void setUp() throws Exception {
+        // Delete existing transform to force recreation with latest config
+        try {
+            client.transform().stopTransform(s -> s.transformId(TRANSFORM_ID).force(true).waitForCompletion(true));
+            client.transform().deleteTransform(d -> d.transformId(TRANSFORM_ID).force(true));
+            System.out.println("Deleted existing transform: " + TRANSFORM_ID);
+        } catch (Exception e) {
+            System.out.println("No existing transform to delete (or delete failed): " + e.getMessage());
+        }
+
+        // Wait a bit for deletion to complete
+        Thread.sleep(1000);
+
         ensureTransformStarted();
     }
 
