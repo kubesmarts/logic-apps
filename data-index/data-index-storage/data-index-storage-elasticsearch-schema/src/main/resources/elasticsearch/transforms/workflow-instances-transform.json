@@ -2,48 +2,7 @@
   "source": {
     "index": "workflow-events-*",
     "query": {
-      "bool": {
-        "should": [
-          {
-            "range": {
-              "@timestamp": {
-                "gte": "now-1h"
-              }
-            }
-          },
-          {
-            "bool": {
-              "filter": [
-                {
-                  "range": {
-                    "@timestamp": {
-                      "lt": "now-1h"
-                    }
-                  }
-                }
-              ],
-              "must_not": [
-                {
-                  "term": {
-                    "eventType.keyword": "io.serverlessworkflow.workflow.completed.v1"
-                  }
-                },
-                {
-                  "term": {
-                    "eventType.keyword": "io.serverlessworkflow.workflow.faulted.v1"
-                  }
-                },
-                {
-                  "term": {
-                    "eventType.keyword": "io.serverlessworkflow.workflow.cancelled.v1"
-                  }
-                }
-              ]
-            }
-          }
-        ],
-        "minimum_should_match": 1
-      }
+      "match_all": {}
     }
   },
   "dest": {
@@ -85,46 +44,65 @@
       },
       "status": {
         "terms": {
-          "field": "instanceStatus.keyword",
-          "size": 1
+          "field": "status.keyword",
+          "size": 1,
+          "order": {
+            "priority": "desc"
+          }
+        },
+        "aggs": {
+          "priority": {
+            "max": {
+              "script": {
+                "source": "String s = doc['status.keyword'].value; if (s == 'COMPLETED' || s == 'FAULTED' || s == 'CANCELLED') { return 3; } else if (s == 'RUNNING' || s == 'SUSPENDED') { return 2; } else { return 1; }"
+              }
+            }
+          }
+        }
+      },
+      "statusCount": {
+        "value_count": {
+          "field": "instanceStatus.keyword"
         }
       },
       "startDate": {
-        "min": {
-          "script": {
-            "source": "if (params._source.containsKey('startTime') && params._source.startTime != null) { return (long)(params._source.startTime * 1000) } else { return null }"
-          }
+        "scripted_metric": {
+          "init_script": "state.val = null",
+          "map_script": "long ts = 0; if (params._source.startTime != null) { ts = ((Number)params._source.startTime).longValue() * 1000L; } else if (params._source.instanceStatus == 'STARTED' && params._source.eventTime != null) { ts = ZonedDateTime.parse(params._source.eventTime).toInstant().toEpochMilli(); } if (ts > 0 && (state.val == null || ts < state.val)) { state.val = ts; }",
+          "combine_script": "return state.val",
+          "reduce_script": "def min = null; for (s in states) { if (s != null && (min == null || s < min)) { min = s } } return min"
         }
       },
       "endDate": {
-        "max": {
-          "script": {
-            "source": "if (params._source.containsKey('endTime') && params._source.endTime != null) { return (long)(params._source.endTime * 1000) } else { return null }"
-          }
+        "scripted_metric": {
+          "init_script": "state.val = null",
+          "map_script": "long ts = 0; if (params._source.endTime != null) { ts = ((Number)params._source.endTime).longValue() * 1000L; } else if ((params._source.instanceStatus == 'COMPLETED' || params._source.instanceStatus == 'FAULTED' || params._source.instanceStatus == 'CANCELLED') && params._source.eventTime != null) { ts = ZonedDateTime.parse(params._source.eventTime).toInstant().toEpochMilli(); } if (ts > 0 && (state.val == null || ts > state.val)) { state.val = ts; }",
+          "combine_script": "return state.val",
+          "reduce_script": "def max = null; for (s in states) { if (s != null && (max == null || s > max)) { max = s } } return max"
         }
       },
       "input": {
         "scripted_metric": {
-          "init_script": "state.value = null",
-          "map_script": "if (state.value == null && params._source.containsKey('input')) { state.value = params._source.input }",
-          "combine_script": "return state.value",
-          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+          "init_script": "state.data = null; state.ts = 'ZZZZ'",
+          "map_script": "if (params._source.input != null) { String ts = params._source.eventTime != null ? params._source.eventTime : String.valueOf(params._source.timestamp); if (ts != null && ts.compareTo(state.ts) < 0) { state.data = params._source.input; state.ts = ts } }",
+          "combine_script": "return state",
+          "reduce_script": "def earliest = ['data': null, 'ts': 'ZZZZ']; for (s in states) { if (s != null && s.get('ts') != null && s.ts.compareTo(earliest.ts) < 0) { earliest = s } } return earliest.data"
         }
       },
       "output": {
         "scripted_metric": {
-          "init_script": "state.value = null",
-          "map_script": "if (params._source.containsKey('output') && params._source.output != null) { def eventTime = doc['@timestamp'].value.toInstant().toEpochMilli(); if (state.value == null || eventTime > state.value.time) { state.value = ['data': params._source.output, 'time': eventTime] } }",
-          "combine_script": "return state.value",
-          "reduce_script": "if (params._aggs == null) { return null; } def latest = params._aggs.stream().filter(v -> v != null).max(Comparator.comparing(v -> v.time)); return latest.isPresent() ? latest.get().data : null"
+          "init_script": "state.data = null; state.ts = ''",
+          "map_script": "if (params._source.output != null) { String ts = params._source.eventTime != null ? params._source.eventTime : String.valueOf(params._source.timestamp); if (ts != null && ts.compareTo(state.ts) > 0) { state.data = params._source.output; state.ts = ts } }",
+          "combine_script": "return state",
+          "reduce_script": "def latest = ['data': null, 'ts': '']; for (s in states) { if (s != null && s.get('ts') != null && s.ts.compareTo(latest.ts) > 0) { latest = s } } return latest.data"
         }
       },
       "error": {
         "scripted_metric": {
-          "init_script": "state.value = null",
-          "map_script": "if (params._source.containsKey('error') && params._source.error != null) { def eventTime = doc['@timestamp'].value.toInstant().toEpochMilli(); if (state.value == null || eventTime > state.value.time) { state.value = ['data': params._source.error, 'time': eventTime] } }",
-          "combine_script": "return state.value",
-          "reduce_script": "if (params._aggs == null) { return null; } def latest = params._aggs.stream().filter(v -> v != null).max(Comparator.comparing(v -> v.time)); return latest.isPresent() ? latest.get().data : null"
+          "init_script": "state.data = null; state.ts = ''",
+          "map_script": "if (params._source.error != null) { String ts = params._source.eventTime != null ? params._source.eventTime : String.valueOf(params._source.timestamp); if (ts != null && ts.compareTo(state.ts) > 0) { state.data = params._source.error; state.ts = ts } }",
+          "combine_script": "return state",
+          "reduce_script": "def latest = ['data': null, 'ts': '']; for (s in states) { if (s != null && s.get('ts') != null && s.ts.compareTo(latest.ts) > 0) { latest = s } } return latest.data"
         }
       },
       "lastUpdate": {
