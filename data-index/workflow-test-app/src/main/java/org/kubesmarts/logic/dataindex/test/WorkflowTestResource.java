@@ -26,6 +26,9 @@ public class WorkflowTestResource {
     @Inject
     HelloWorldWorkflow helloWorld;
 
+    @Inject
+    FailingWorkflow failingWorkflow;
+
     @POST
     @Path("/simple-set")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -43,6 +46,16 @@ public class WorkflowTestResource {
     public CompletableFuture<Map<String, Object>> executeHelloWorld(Map<String, Object> input) {
         Log.info("Executing hello-world workflow with input: " + input);
         return helloWorld.instance(input).start()
+                .thenApply(model -> model.asMap().orElseThrow());
+    }
+
+    @POST
+    @Path("/failing-workflow")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public CompletableFuture<Map<String, Object>> executeFailingWorkflow(Map<String, Object> input) {
+        Log.info("Executing failing-workflow with input: " + input);
+        return failingWorkflow.instance(input).start()
                 .thenApply(model -> model.asMap().orElseThrow());
     }
 }
