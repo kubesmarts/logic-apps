@@ -410,6 +410,167 @@ kubectl exec -n logging <fluentbit-pod> -- \
   nc -zv postgresql.postgresql.svc.cluster.local 5432
 ----
 
+== Elasticsearch-Specific Issues
+
+=== Transform in failed state
+
+**Symptom:**
+
+[source,bash]
+----
+$ kubectl exec -n elasticsearch elasticsearch-0 -- \
+  curl -s 'http://localhost:9200/_transform/workflow-instances-transform/_stats' | jq '.transforms[0].state'
+"failed"
+----
+
+**Cause:** Transform script error, usually due to null field values or incorrect field references.
+
+**Solution:**
+
+1. Check transform error details:
++
+[source,bash]
+----
+kubectl exec -n elasticsearch elasticsearch-0 -- \
+  curl -s 'http://localhost:9200/_transform/workflow-instances-transform' | \
+  jq '.transforms[0].reason'
+----
+
+2. Check Elasticsearch logs:
++
+[source,bash]
+----
+kubectl logs -n elasticsearch elasticsearch-0 | grep -i "transform.*failed"
+----
+
+3. Stop and delete failed transform:
++
+[source,bash]
+----
+kubectl exec -n elasticsearch elasticsearch-0 -- \
+  curl -X POST 'http://localhost:9200/_transform/workflow-instances-transform/_stop?force=true'
+
+kubectl exec -n elasticsearch elasticsearch-0 -- \
+  curl -X DELETE 'http://localhost:9200/_transform/workflow-instances-transform'
+----
+
+4. Restart Data Index service to recreate transform:
++
+[source,bash]
+----
+kubectl rollout restart deployment/data-index-service -n data-index
+----
+
+=== Events in Elasticsearch but normalized indices empty
+
+**Symptom:**
+
+Raw indices (`workflow-events-*`, `task-events-*`) have events, but normalized indices (`workflow-instances`, `task-executions`) are empty.
+
+**Debug steps:**
+
+1. Check raw events exist:
++
+[source,bash]
+----
+kubectl exec -n elasticsearch elasticsearch-0 -- \
+  curl -s 'http://localhost:9200/workflow-events-*/_count'
+----
+
+2. Check transform status:
++
+[source,bash]
+----
+kubectl exec -n elasticsearch elasticsearch-0 -- \
+  curl -s 'http://localhost:9200/_transform/workflow-instances-transform/_stats' | \
+  jq '{state: .transforms[0].state, docs_processed: .transforms[0].stats.documents_processed}'
+----
+
+3. If transform stopped, start it:
++
+[source,bash]
+----
+kubectl exec -n elasticsearch elasticsearch-0 -- \
+  curl -X POST 'http://localhost:9200/_transform/workflow-instances-transform/_start'
+----
+
+4. If transform failed, see "Transform in failed state" above.
+
+=== FluentBit cannot connect to Elasticsearch
+
+**Symptom:**
+
+FluentBit logs show connection errors:
+
+[source,text]
+----
+[warn] [net] getaddrinfo(host='...', err=4): Domain name not found
+[error] [output:es:es.0] HTTP status=0 - No response from server
+----
+
+**Cause:** Incorrect Elasticsearch hostname or port configuration.
+
+**Solution:**
+
+1. Verify Elasticsearch service:
++
+[source,bash]
+----
+kubectl get svc -n elasticsearch
+----
+
+2. Update FluentBit DaemonSet environment variables:
++
+[source,bash]
+----
+# For ECK (Elastic Cloud on Kubernetes)
+kubectl set env daemonset/fluent-bit -n logging \
+  ELASTICSEARCH_HOST=<elasticsearch-service-name>.<namespace>.svc.cluster.local
+
+# For plain StatefulSet
+kubectl set env daemonset/fluent-bit -n logging \
+  ELASTICSEARCH_HOST=elasticsearch-0.elasticsearch-es-http.elasticsearch.svc.cluster.local
+----
+
+3. Restart FluentBit:
++
+[source,bash]
+----
+kubectl rollout restart daemonset/fluent-bit -n logging
+----
+
+=== Workflow status showing null
+
+**Symptom:**
+
+GraphQL returns `status: null` for workflows or tasks that should have status.
+
+**Cause:** Transform using wrong field name for status aggregation.
+
+**Expected behavior:** Status should show `COMPLETED`, `RUNNING`, `FAULTED`, `FAILED`, etc.
+
+**Debug:**
+
+1. Check raw event status field:
++
+[source,bash]
+----
+kubectl exec -n elasticsearch elasticsearch-0 -- \
+  curl -s 'http://localhost:9200/workflow-events-*/_search?size=1' | \
+  jq '.hits.hits[0]._source.status'
+----
+
+2. Check normalized instance status:
++
+[source,bash]
+----
+kubectl exec -n elasticsearch elasticsearch-0 -- \
+  curl -s 'http://localhost:9200/workflow-instances/_search?size=1' | \
+  jq '.hits.hits[0]._source.status'
+----
+
+3. If normalized status is an object instead of string, the transform needs updating. Redeploy Data Index service with latest schema.
+
 == Getting Help
 
 **For build and development issues:**
@@ -418,7 +579,9 @@ kubectl exec -n logging <fluentbit-pod> -- \
 **For configuration:**
 - See: xref:developers/configuration.adoc[Configuration Reference]
 - See: xref:deployment/postgresql.adoc[PostgreSQL Deployment]
+- See: xref:deployment/elasticsearch.adoc[Elasticsearch Deployment]
 - See: xref:deployment/kind-local.adoc[Local Development]
 
 **For architecture:**
 - See: xref:architecture/postgresql-mode.adoc[PostgreSQL Mode Architecture]
+- See: xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode Architecture]

@@ -94,13 +94,13 @@ Transforms are defined in JSON and applied via `ElasticsearchSchemaInitializer`:
   "frequency": "1s",
   "sync": {
     "time": {
-      "field": "event_time",
-      "delay": "5m"
+      "field": "@timestamp",
+      "delay": "0s"
     }
   },
   "pivot": {
     "group_by": {
-      "id": { "terms": { "field": "instance_id" } }
+      "id": { "terms": { "field": "instanceId.keyword" } }
     },
     "aggregations": { /* field-level idempotency */ }
   }
@@ -121,16 +121,29 @@ These fields never change after initial creation:
 * `start` - First event timestamp
 * `input` - Initial workflow/task input data
 
-**Implementation:**
+**Implementation (name example):**
 [source,javascript]
 ----
 {
   "name": {
+    "terms": {
+      "field": "workflowName.keyword",
+      "size": 1
+    }
+  }
+}
+----
+
+**Implementation (input - first-wins with event timestamp):**
+[source,javascript]
+----
+{
+  "input": {
     "scripted_metric": {
-      "init_script": "state.value = null",
-      "map_script": "if (state.value == null && doc['workflow_name'].size() > 0) { state.value = doc['workflow_name'].value }",
-      "combine_script": "return state.value",
-      "reduce_script": "return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+      "init_script": "state.data = null; state.ts = 'ZZZZ'",
+      "map_script": "if (params._source.input != null) { String ts = params._source.eventTime != null ? params._source.eventTime : String.valueOf(params._source.timestamp); if (ts != null && ts.compareTo(state.ts) < 0) { state.data = params._source.input; state.ts = ts } }",
+      "combine_script": "return state",
+      "reduce_script": "def earliest = ['data': null, 'ts': 'ZZZZ']; for (s in states) { if (s != null && s.get('ts') != null && s.ts.compareTo(earliest.ts) < 0) { earliest = s } } return earliest.data"
     }
   }
 }
@@ -144,16 +157,31 @@ These fields update with the most recent event:
 * `output` - Latest output data (tracks event timestamp)
 * `error` - Latest error (tracks event timestamp)
 
-**Implementation:**
+**Implementation (output - last-wins with event timestamp):**
 [source,javascript]
 ----
 {
   "output": {
     "scripted_metric": {
-      "init_script": "state.value = null",
-      "map_script": "if (params._source.containsKey('output') && params._source.output != null) { def eventTime = doc['event_time'].value.toInstant().toEpochMilli(); if (state.value == null || eventTime > state.value.time) { state.value = ['data': params._source.output, 'time': eventTime] } }",
-      "combine_script": "return state.value",
-      "reduce_script": "def latest = params._aggs.stream().filter(v -> v != null).max(Comparator.comparing(v -> v.time)); return latest.isPresent() ? latest.get().data : null"
+      "init_script": "state.data = null; state.ts = ''",
+      "map_script": "if (params._source.output != null) { String ts = params._source.eventTime != null ? params._source.eventTime : String.valueOf(params._source.timestamp); if (ts != null && ts.compareTo(state.ts) > 0) { state.data = params._source.output; state.ts = ts } }",
+      "combine_script": "return state",
+      "reduce_script": "def latest = ['data': null, 'ts': '']; for (s in states) { if (s != null && s.get('ts') != null && s.ts.compareTo(latest.ts) > 0) { latest = s } } return latest.data"
+    }
+  }
+}
+----
+
+**Implementation (error - last-wins with event timestamp):**
+[source,javascript]
+----
+{
+  "error": {
+    "scripted_metric": {
+      "init_script": "state.data = null; state.ts = ''",
+      "map_script": "if (params._source.error != null) { String ts = params._source.eventTime != null ? params._source.eventTime : String.valueOf(params._source.timestamp); if (ts != null && ts.compareTo(state.ts) > 0) { state.data = params._source.error; state.ts = ts } }",
+      "combine_script": "return state",
+      "reduce_script": "def latest = ['data': null, 'ts': '']; for (s in states) { if (s != null && s.get('ts') != null && s.ts.compareTo(latest.ts) > 0) { latest = s } } return latest.data"
     }
   }
 }
@@ -161,76 +189,89 @@ These fields update with the most recent event:
 
 === Status Field (Terminal State Precedence)
 
-Status prioritizes terminal states over transient ones:
+Status prioritizes terminal states over transient ones using a priority-based aggregation:
 
 **Priority order:**
 
-1. Terminal states: `COMPLETED`, `FAULTED`, `CANCELLED` (highest priority)
-2. Transient states: `RUNNING`, `CREATED` (by latest timestamp)
+1. Terminal states: `COMPLETED`, `FAULTED`, `CANCELLED`, `FAILED` (priority 3)
+2. Transient states: `RUNNING`, `SUSPENDED` (priority 2)
+3. Initial states: Others (priority 1)
 
-**Implementation:**
+**Implementation (workflows):**
+[source,javascript]
+----
+{
+  "status": {
+    "terms": {
+      "field": "status.keyword",
+      "size": 1,
+      "order": {
+        "priority": "desc"
+      }
+    },
+    "aggs": {
+      "priority": {
+        "max": {
+          "script": {
+            "source": "String s = doc['status.keyword'].value; if (s == 'COMPLETED' || s == 'FAULTED' || s == 'CANCELLED') { return 3; } else if (s == 'RUNNING' || s == 'SUSPENDED') { return 2; } else { return 1; }"
+          }
+        }
+      }
+    }
+  }
+}
+----
+
+**Implementation (tasks):**
 [source,javascript]
 ----
 {
   "status": {
     "scripted_metric": {
-      "reduce_script": "def all = params._aggs.stream().flatMap(e -> e.stream()).collect(Collectors.toList()); if (all.isEmpty()) { return null; } def terminal = all.stream().filter(e -> e.status == 'COMPLETED' || e.status == 'FAULTED' || e.status == 'CANCELLED').findFirst(); if (terminal.isPresent()) { return terminal.get().status; } def latest = all.stream().max(Comparator.comparing(e -> e.event_time)); return latest.isPresent() ? latest.get().status : null;"
+      "init_script": "state.status = null; state.priority = 0",
+      "map_script": "String s = params._source.status; int p = (s == 'COMPLETED' || s == 'FAULTED' || s == 'FAILED') ? 2 : (s == 'RUNNING' ? 1 : 0); if (p > state.priority) { state.status = s; state.priority = p }",
+      "combine_script": "return state",
+      "reduce_script": "def max = ['status': null, 'priority': 0]; for (s in states) { if (s != null && s.priority > max.priority) { max = s } } return max.status"
     }
   }
 }
 ----
 
-This ensures that once a workflow reaches a terminal state, late-arriving `RUNNING` events won't overwrite it.
+This ensures that:
 
-== Smart Filtering Optimization
+* Once a workflow/task reaches a terminal state, late-arriving `RUNNING` events won't overwrite it
+* Original status values from events are preserved (e.g., `FAILED` stays `FAILED`, not converted)
+* Out-of-order event processing doesn't affect final state correctness
 
-Transforms use **smart queries** to process only relevant events, optimizing performance as data grows:
+== Transform Processing
+
+Transforms use a **match_all** query to process all events, with continuous sync:
 
 [source,json]
 ----
 {
-  "query": {
-    "bool": {
-      "should": [
-        {
-          "range": {
-            "event_time": { "gte": "now-1h" }
-          }
-        },
-        {
-          "bool": {
-            "filter": [
-              {
-                "range": {
-                  "event_time": { "lt": "now-1h" }
-                }
-              }
-            ],
-            "must_not": [
-              { "term": { "event_type": "workflow.instance.completed" } },
-              { "term": { "event_type": "workflow.instance.faulted" } },
-              { "term": { "event_type": "workflow.instance.cancelled" } }
-            ]
-          }
-        }
-      ],
-      "minimum_should_match": 1
+  "source": {
+    "index": "workflow-events-*",
+    "query": {
+      "match_all": {}
     }
   }
 }
 ----
 
-**What this does:**
+**Processing characteristics:**
 
-* **Recent events** - All events from last 1 hour (regardless of status)
-* **Active workflows** - Older events ONLY if not in terminal state
+* **Continuous sync** - Processes all new events within 1 second
+* **Incremental** - Only processes events since last checkpoint
+* **Idempotent** - Field-level idempotency ensures correctness
+* **Fault-tolerant** - Automatic checkpointing and retry
 
 **Benefits:**
 
-* Constant performance as data grows
-* No need to reprocess old completed workflows
-* Handles late-arriving events within 1-hour window
-* Reduces transform checkpoint size
+* Simpler configuration - no complex filtering logic
+* Handles all edge cases correctly (late-arriving events, out-of-order delivery)
+* Built-in Elasticsearch fault tolerance
+* Transparent performance as data grows (checkpointing mechanism)
 
 == Index Structure
 
@@ -252,7 +293,7 @@ Date-based indices store complete events with ILM lifecycle:
 * ILM policy: 7-day retention
 * Template: `task-events.json`
 
-**Index template structure:**
+**Index template structure (workflow-events):**
 [source,json]
 ----
 {
@@ -265,13 +306,17 @@ Date-based indices store complete events with ILM lifecycle:
     },
     "mappings": {
       "properties": {
-        "event_type": { "type": "keyword" },
-        "event_time": { "type": "date" },
-        "instance_id": { "type": "keyword" },
-        "workflow_name": { "type": "keyword" },
+        "eventType": { "type": "keyword" },
+        "instanceId": { "type": "keyword" },
+        "workflowName": { "type": "keyword" },
+        "workflowNamespace": { "type": "keyword" },
+        "workflowVersion": { "type": "keyword" },
         "status": { "type": "keyword" },
-        "start": { "type": "date" },
-        "end": { "type": "date" },
+        "startTime": { "type": "long" },
+        "endTime": { "type": "long" },
+        "eventTime": { "type": "keyword" },
+        "timestamp": { "type": "double" },
+        "@timestamp": { "type": "date" },
         "input": { "type": "flattened" },
         "output": { "type": "flattened" },
         "error": {
@@ -520,25 +565,31 @@ FluentBit configuration for Elasticsearch output:
     Match           workflow.instance
     Host            ${ELASTICSEARCH_HOST}
     Port            ${ELASTICSEARCH_PORT}
-    Index           workflow-instance-events-raw
+    Index           workflow-events
     Logstash_Format On
-    Logstash_Prefix workflow-instance-events-raw
+    Logstash_Prefix workflow-events
     Logstash_DateFormat %Y.%m.%d
     Retry_Limit     5
+    Suppress_Type_Name On
+    tls             ${ELASTICSEARCH_TLS}
+    tls.verify      ${ELASTICSEARCH_TLS_VERIFY}
 
 [OUTPUT]
     Name            es
     Match           workflow.task
     Host            ${ELASTICSEARCH_HOST}
     Port            ${ELASTICSEARCH_PORT}
-    Index           task-execution-events-raw
+    Index           task-events
     Logstash_Format On
-    Logstash_Prefix task-execution-events-raw
+    Logstash_Prefix task-events
     Logstash_DateFormat %Y.%m.%d
     Retry_Limit     5
+    Suppress_Type_Name On
+    tls             ${ELASTICSEARCH_TLS}
+    tls.verify      ${ELASTICSEARCH_TLS_VERIFY}
 ----
 
-Location: `data-index/scripts/fluentbit/elasticsearch/fluent-bit.conf`
+Location: `data-index/scripts/fluentbit/mode2-elasticsearch-transforms/fluent-bit.conf`
 
 == Scaling Considerations
 
