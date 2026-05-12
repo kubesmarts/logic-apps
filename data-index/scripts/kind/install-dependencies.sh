@@ -153,19 +153,17 @@ spec:
     count: 1
     config:
       node.store.allow_mmap: false
-      xpack.security.enabled: false
-      xpack.security.http.ssl.enabled: false
     podTemplate:
       spec:
         containers:
         - name: elasticsearch
           resources:
             requests:
-              memory: 1Gi
+              memory: 2Gi
               cpu: 500m
             limits:
               memory: 2Gi
-              cpu: 2000m
+              cpu: "2"
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
