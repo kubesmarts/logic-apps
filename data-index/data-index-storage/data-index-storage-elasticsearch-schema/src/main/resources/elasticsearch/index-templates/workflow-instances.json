@@ -11,20 +11,36 @@
           "type": "keyword"
         },
         "name": {
-          "type": "object",
-          "enabled": false
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
         "version": {
-          "type": "object",
-          "enabled": false
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
         "namespace": {
-          "type": "object",
-          "enabled": false
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
         "status": {
-          "type": "object",
-          "enabled": false
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
         "startDate": {
           "type": "date"

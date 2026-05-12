@@ -474,7 +474,7 @@ class ElasticsearchTransformNormalizationIT {
     }
 
     private void waitForTransform() throws InterruptedException {
-        Thread.sleep(3000);
+        Thread.sleep(5000);
     }
 
     private void ensureTransformStarted() throws IOException {

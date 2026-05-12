@@ -11,16 +11,28 @@
           "type": "keyword"
         },
         "task_name": {
-          "type": "object",
-          "enabled": false
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
         "task_position": {
-          "type": "object",
-          "enabled": false
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
         "status": {
-          "type": "object",
-          "enabled": false
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
         "startDate": {
           "type": "date"

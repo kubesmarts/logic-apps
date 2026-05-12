@@ -25,39 +25,35 @@
     },
     "aggregations": {
       "name": {
-        "terms": {
-          "field": "workflowName.keyword",
-          "size": 1
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.workflowName != null) { state.value = params._source.workflowName }",
+          "combine_script": "return state.value",
+          "reduce_script": "for (s in states) { if (s != null) { return s } } return null"
         }
       },
       "version": {
-        "terms": {
-          "field": "workflowVersion.keyword",
-          "size": 1
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.workflowVersion != null) { state.value = params._source.workflowVersion }",
+          "combine_script": "return state.value",
+          "reduce_script": "for (s in states) { if (s != null) { return s } } return null"
         }
       },
       "namespace": {
-        "terms": {
-          "field": "workflowNamespace.keyword",
-          "size": 1
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.workflowNamespace != null) { state.value = params._source.workflowNamespace }",
+          "combine_script": "return state.value",
+          "reduce_script": "for (s in states) { if (s != null) { return s } } return null"
         }
       },
       "status": {
-        "terms": {
-          "field": "status.keyword",
-          "size": 1,
-          "order": {
-            "priority": "desc"
-          }
-        },
-        "aggs": {
-          "priority": {
-            "max": {
-              "script": {
-                "source": "String s = doc['status.keyword'].value; if (s == 'COMPLETED' || s == 'FAULTED' || s == 'CANCELLED') { return 3; } else if (s == 'RUNNING' || s == 'SUSPENDED') { return 2; } else { return 1; }"
-              }
-            }
-          }
+        "scripted_metric": {
+          "init_script": "state.status = null; state.priority = 0",
+          "map_script": "String s = params._source.instanceStatus; if (s != null) { int p = (s == 'COMPLETED' || s == 'FAULTED' || s == 'CANCELLED') ? 3 : (s == 'RUNNING' || s == 'SUSPENDED') ? 2 : 1; if (p > state.priority) { state.status = s; state.priority = p; } }",
+          "combine_script": "return state",
+          "reduce_script": "def max = null; int maxP = 0; for (s in states) { if (s != null && s.priority > maxP) { max = s.status; maxP = s.priority; } } return max"
         }
       },
       "statusCount": {
