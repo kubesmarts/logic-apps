@@ -101,8 +101,8 @@ class ElasticsearchSchemaInitializerTest {
         initializer.onStart(mock(StartupEvent.class));
 
         verify(ilmClient, times(1)).putLifecycle(any(PutLifecycleRequest.class));
-        verify(indicesClient, times(2)).putIndexTemplate(any(PutIndexTemplateRequest.class));
-        verify(transformClient, times(1)).putTransform(any(PutTransformRequest.class));
+        verify(indicesClient, times(4)).putIndexTemplate(any(PutIndexTemplateRequest.class));
+        verify(transformClient, times(2)).putTransform(any(PutTransformRequest.class));
     }
 
     @Test
