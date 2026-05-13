@@ -117,85 +117,101 @@ install_postgresql() {
     log_info "  Connection: postgresql://dataindex:dataindex123@localhost:30432/dataindex"
 }
 
-# Install Elasticsearch (ECK Operator)
-install_elasticsearch_operator() {
-    log_step "Installing Elastic Cloud on Kubernetes (ECK) Operator..."
-
-    kubectl create -f https://download.elastic.co/downloads/eck/2.12.1/crds.yaml || true
-    kubectl apply -f https://download.elastic.co/downloads/eck/2.12.1/operator.yaml
-
-    log_info "Waiting for ECK operator to be ready..."
-    kubectl wait --namespace elastic-system \
-      --for=condition=ready pod \
-      --selector=control-plane=elastic-operator \
-      --timeout=300s
-
-    log_info "✓ ECK operator installed"
-}
-
-# Install Elasticsearch cluster
+# Install Elasticsearch (simple deployment without SSL)
 install_elasticsearch() {
-    install_elasticsearch_operator
-
     log_step "Installing Elasticsearch cluster..."
 
-    # Create Elasticsearch cluster
+    # Create Elasticsearch deployment (no SSL for simplicity)
     kubectl apply -f - <<EOF
-apiVersion: elasticsearch.k8s.elastic.co/v1
-kind: Elasticsearch
+apiVersion: apps/v1
+kind: StatefulSet
 metadata:
-  name: data-index-es
+  name: elasticsearch
   namespace: elasticsearch
 spec:
-  version: 8.12.2
-  nodeSets:
-  - name: default
-    count: 1
-    config:
-      node.store.allow_mmap: false
-      xpack.security.enabled: false
-      xpack.security.http.ssl.enabled: false
-    podTemplate:
-      spec:
-        containers:
-        - name: elasticsearch
-          resources:
-            requests:
-              memory: 1Gi
-              cpu: 500m
-            limits:
-              memory: 2Gi
-              cpu: 2000m
-    volumeClaimTemplates:
-    - metadata:
-        name: elasticsearch-data
-      spec:
-        accessModes:
-        - ReadWriteOnce
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+        env:
+        - name: discovery.type
+          value: single-node
+        - name: ES_JAVA_OPTS
+          value: "-Xms1g -Xmx1g"
+        - name: xpack.security.enabled
+          value: "false"
+        - name: xpack.security.http.ssl.enabled
+          value: "false"
+        ports:
+        - containerPort: 9200
+          name: http
+        - containerPort: 9300
+          name: transport
         resources:
           requests:
-            storage: 2Gi
+            memory: 2Gi
+            cpu: 500m
+          limits:
+            memory: 2Gi
+            cpu: "2"
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 2Gi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: data-index-es-http-nodeport
+  name: elasticsearch
+  namespace: elasticsearch
+spec:
+  type: ClusterIP
+  selector:
+    app: elasticsearch
+  ports:
+  - port: 9200
+    targetPort: 9200
+    name: http
+  - port: 9300
+    targetPort: 9300
+    name: transport
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-nodeport
   namespace: elasticsearch
 spec:
   type: NodePort
   selector:
-    elasticsearch.k8s.elastic.co/cluster-name: data-index-es
+    app: elasticsearch
   ports:
   - port: 9200
     targetPort: 9200
     nodePort: 30920
-    protocol: TCP
     name: http
 EOF
 
     log_info "Waiting for Elasticsearch to be ready (this may take several minutes)..."
     kubectl wait --namespace elasticsearch \
-      --for=condition=ready elasticsearch/data-index-es \
+      --for=condition=ready pod \
+      --selector=app=elasticsearch \
       --timeout=600s
 
     log_info "✓ Elasticsearch installed"

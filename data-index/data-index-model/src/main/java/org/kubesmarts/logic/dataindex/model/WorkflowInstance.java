@@ -23,6 +23,7 @@ import org.eclipse.microprofile.graphql.Ignore;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * Workflow instance execution.
@@ -53,26 +54,34 @@ public class WorkflowInstance {
     /**
      * Workflow namespace.
      * <p>Source: workflowNamespace from Quarkus Flow events
+     * <p>Deserialized from Elasticsearch bucket format via BucketStringDeserializer
      */
+    @JsonDeserialize(using = BucketStringDeserializer.class)
     private String namespace;
 
     /**
      * Workflow name.
      * <p>Source: workflowName from Quarkus Flow events
+     * <p>Deserialized from Elasticsearch bucket format via BucketStringDeserializer
      */
+    @JsonDeserialize(using = BucketStringDeserializer.class)
     private String name;
 
     /**
      * Workflow version.
      * <p>Source: workflowVersion from Quarkus Flow events
+     * <p>Deserialized from Elasticsearch bucket format via BucketStringDeserializer
      */
+    @JsonDeserialize(using = BucketStringDeserializer.class)
     private String version;
 
     /**
      * Workflow instance status.
      * <p>Source: status from Quarkus Flow events
      * <p>Values: RUNNING, COMPLETED, FAULTED, CANCELLED, SUSPENDED
+     * <p>Deserialized from Elasticsearch bucket format via BucketEnumDeserializer
      */
+    @JsonDeserialize(using = BucketEnumDeserializer.class)
     private WorkflowInstanceStatus status;
 
     /**
@@ -80,6 +89,7 @@ public class WorkflowInstance {
      * <p>Source: startTime from workflow.instance.started event
      */
     @JsonProperty("startDate")
+    @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
     private ZonedDateTime start;
 
     /**
@@ -87,12 +97,14 @@ public class WorkflowInstance {
      * <p>Source: endTime from workflow.instance.completed or workflow.instance.faulted events
      */
     @JsonProperty("endDate")
+    @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
     private ZonedDateTime end;
 
     /**
      * Last update timestamp.
      * <p>Source: lastUpdateTime from workflow.instance.status.changed event
      */
+    @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
     private ZonedDateTime lastUpdate;
 
     /**

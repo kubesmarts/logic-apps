@@ -19,9 +19,11 @@ import java.time.ZonedDateTime;
 import java.util.Objects;
 
 import org.eclipse.microprofile.graphql.Ignore;
+import org.eclipse.microprofile.graphql.Name;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * Runtime execution of a workflow task.
@@ -35,25 +37,37 @@ import com.fasterxml.jackson.databind.JsonNode;
 public class TaskExecution {
 
     private String id;
+
+    /**
+     * Task name.
+     * <p>Deserialized from Elasticsearch bucket format via BucketStringDeserializer
+     */
+    @JsonDeserialize(using = BucketStringDeserializer.class)
     private String taskName;
 
     /**
      * JSONPointer identifying the task's position in the workflow definition.
      * Example: "/do/0", "/do/1/then/0", etc.
      * This is the unique identifier for the task within the workflow document.
+     * <p>Deserialized from Elasticsearch bucket format via BucketStringDeserializer
      */
+    @JsonDeserialize(using = BucketStringDeserializer.class)
     private String taskPosition;
 
     /**
      * Task execution status.
      * Values: RUNNING, COMPLETED, FAULTED
+     * <p>Deserialized from Elasticsearch bucket format via BucketStringDeserializer
      */
+    @JsonDeserialize(using = BucketStringDeserializer.class)
     private String status;
 
     @JsonProperty("startDate")
+    @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
     private ZonedDateTime start;
 
     @JsonProperty("endDate")
+    @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
     private ZonedDateTime end;
 
     private Error error;

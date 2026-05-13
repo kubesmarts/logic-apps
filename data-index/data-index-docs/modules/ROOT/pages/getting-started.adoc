@@ -11,9 +11,51 @@ Before you begin, ensure you have:
 * `kubectl` configured to access your cluster
 * `curl` and `jq` installed
 
+== Quick Start (Development Mode)
+
+The fastest way to start Data Index locally without Kubernetes:
+
+=== PostgreSQL Backend
+
+[source,bash]
+----
+cd data-index/data-index-service/data-index-service-postgresql
+mvn quarkus:dev
+----
+
+**What happens:**
+
+* Quarkus Dev Services auto-starts PostgreSQL container
+* Flyway runs schema migrations automatically
+* Service starts at http://localhost:8080
+* GraphQL UI available at http://localhost:8080/q/graphql-ui
+
+=== Elasticsearch Backend
+
+[source,bash]
+----
+cd data-index/data-index-service/data-index-service-elasticsearch
+mvn quarkus:dev
+----
+
+**What happens:**
+
+* Quarkus Dev Services auto-starts Elasticsearch container
+* Schema initialization (ILM, templates, transforms) runs automatically
+* Service starts at http://localhost:8080
+* GraphQL UI available at http://localhost:8080/q/graphql-ui
+* Elasticsearch available at http://localhost:9200
+
+**Note:** Development mode doesn't include FluentBit. To test with real workflow events, use the KIND installation below.
+
 == Quick Install (KIND)
 
-For local development with KIND:
+Data Index supports two storage backends. Choose one based on your needs:
+
+* **PostgreSQL (MODE 1)** - Recommended for most users, simpler deployment
+* **Elasticsearch (MODE 2)** - For high throughput or full-text search requirements
+
+=== Option 1: PostgreSQL Backend (Recommended)
 
 [source,bash]
 ----
@@ -30,6 +72,25 @@ cd ../fluentbit
 ./generate-configmap.sh postgresql postgresql/kubernetes/configmap.yaml
 kubectl apply -f postgresql/kubernetes/configmap.yaml
 kubectl apply -f postgresql/kubernetes/daemonset.yaml
+----
+
+=== Option 2: Elasticsearch Backend
+
+[source,bash]
+----
+# 1. Setup KIND cluster and Elasticsearch
+cd data-index/scripts/kind
+./setup-cluster.sh
+MODE=elasticsearch ./install-dependencies.sh
+
+# 2. Deploy Data Index service
+./deploy-data-index.sh elasticsearch
+
+# 3. Deploy FluentBit DaemonSet (Elasticsearch mode)
+cd ../fluentbit
+./generate-configmap.sh elasticsearch elasticsearch/kubernetes/configmap.yaml
+kubectl apply -f elasticsearch/kubernetes/configmap.yaml
+kubectl apply -f elasticsearch/kubernetes/daemonset.yaml
 ----
 
 == Verify Installation
@@ -109,9 +170,9 @@ The GraphQL UI provides:
 
 TIP: Use `Ctrl+Space` in the query editor for autocomplete suggestions.
 
-=== Check Database
+=== Check Storage Backend
 
-Verify database tables exist:
+**PostgreSQL:**
 
 [source,bash]
 ----
@@ -130,6 +191,38 @@ Expected tables:
  workflow_events_raw
  task_events_raw
  flyway_schema_history
+----
+
+**Elasticsearch:**
+
+[source,bash]
+----
+# Port-forward to Elasticsearch
+kubectl port-forward -n elasticsearch svc/elasticsearch 9200:9200 &
+
+# List all indices
+curl -s http://localhost:9200/_cat/indices?v
+
+# Check transforms
+curl -s http://localhost:9200/_transform?pretty
+----
+
+Expected indices:
+
+[source,text]
+----
+workflow-instance-events-raw-YYYY.MM.DD
+task-execution-events-raw-YYYY.MM.DD
+workflow-instances
+task-executions
+----
+
+Expected transforms:
+
+[source,text]
+----
+workflow-instance-transform (started)
+task-execution-transform (started)
 ----
 
 == Next Steps

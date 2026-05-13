@@ -5,7 +5,7 @@
 ** xref:deployment/overview.adoc[Overview]
 ** xref:deployment/kind-local.adoc[Local Development (KIND)]
 ** xref:deployment/postgresql.adoc[PostgreSQL Production]
-** xref:deployment/elasticsearch.adoc[Elasticsearch (Planned)]
+** xref:deployment/elasticsearch.adoc[Elasticsearch Production]
 ** xref:deployment/fluentbit-config.adoc[FluentBit Configuration]
 
 * Operations

@@ -33,8 +33,8 @@ if [ $# -lt 1 ]; then
     error "Usage: $0 <mode>"
     error ""
     error "Available modes:"
-    error "  postgresql  - PostgreSQL mode (production ready)"
-    error "  elasticsearch        - Elasticsearch mode (planned)"
+    error "  postgresql     - PostgreSQL mode (production ready)"
+    error "  elasticsearch  - Elasticsearch mode (ready for testing)"
     exit 1
 fi
 
@@ -72,9 +72,21 @@ if [ ! -f "${MODE_DIR}/kubernetes/daemonset.yaml" ]; then
 fi
 kubectl apply -f "${MODE_DIR}/kubernetes/daemonset.yaml"
 
+# Determine DaemonSet and app label based on mode
+if [[ "$MODE" == "postgresql" ]]; then
+    DAEMONSET_NAME="workflows-fluent-bit-mode1"
+    APP_LABEL="workflows-fluent-bit-mode1"
+elif [[ "$MODE" == "elasticsearch" ]]; then
+    DAEMONSET_NAME="workflows-fluent-bit-mode2"
+    APP_LABEL="workflows-fluent-bit-mode2"
+else
+    error "Unknown mode: $MODE"
+    exit 1
+fi
+
 # Wait for DaemonSet to be ready
 step "Waiting for FluentBit DaemonSet to be ready..."
-kubectl rollout status daemonset/fluent-bit -n logging --timeout=90s
+kubectl rollout status daemonset/${DAEMONSET_NAME} -n logging --timeout=90s
 
 # Get pod status
 info ""
@@ -83,17 +95,19 @@ info "FluentBit Deployment Complete!"
 info "=========================================="
 info ""
 info "Pod status:"
-kubectl get pods -n logging -l app=fluent-bit
+kubectl get pods -n logging -l app=${APP_LABEL}
 
 info ""
 info "View logs:"
-echo "  kubectl logs -n logging -l app=fluent-bit -f"
+echo "  kubectl logs -n logging -l app=${APP_LABEL} -f"
 
 info ""
 info "Check FluentBit metrics:"
-FLUENT_BIT_POD=$(kubectl get pods -n logging -l app=fluent-bit -o jsonpath='{.items[0].metadata.name}')
-echo "  kubectl port-forward -n logging ${FLUENT_BIT_POD} 2020:2020"
-echo "  curl http://localhost:2020/api/v1/metrics"
+FLUENT_BIT_POD=$(kubectl get pods -n logging -l app=${APP_LABEL} -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+if [ -n "$FLUENT_BIT_POD" ]; then
+    echo "  kubectl port-forward -n logging ${FLUENT_BIT_POD} 2020:2020"
+    echo "  curl http://localhost:2020/api/v1/metrics"
+fi
 
 info ""
 info "✓ Deployment complete"

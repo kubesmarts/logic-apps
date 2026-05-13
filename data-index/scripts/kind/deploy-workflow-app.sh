@@ -32,8 +32,26 @@ log_step() {
 
 IMAGE_TAG="${IMAGE_TAG:-999-SNAPSHOT}"
 CLUSTER_NAME="${CLUSTER_NAME:-data-index-test}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 log_info "Deploying workflow test application to KIND"
+
+# Build workflow-test-app image
+log_step "Building workflow-test-app image..."
+cd "${PROJECT_ROOT}"
+mvn clean package -pl data-index/workflow-test-app -am \
+    -Dquarkus.container-image.build=true \
+    -DskipTests -q
+
+log_info "✓ Container image built: kubesmarts/workflow-test-app:${IMAGE_TAG}"
+
+# Load image into KIND cluster
+log_info "Loading image into KIND cluster..."
+kind load docker-image kubesmarts/workflow-test-app:${IMAGE_TAG} \
+    --name ${CLUSTER_NAME}
+
+log_info "✓ Image loaded to KIND cluster"
 
 # Create namespace
 log_step "Creating workflows namespace..."

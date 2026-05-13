@@ -1,0 +1,140 @@
+{
+  "source": {
+    "index": "task-events-*",
+    "query": {
+      "bool": {
+        "should": [
+          {
+            "range": {
+              "@timestamp": {
+                "gte": "now-1h"
+              }
+            }
+          },
+          {
+            "bool": {
+              "filter": [
+                {
+                  "range": {
+                    "@timestamp": {
+                      "lt": "now-1h"
+                    }
+                  }
+                }
+              ],
+              "must_not": [
+                {
+                  "term": {
+                    "eventType.keyword": "io.serverlessworkflow.task.completed.v1"
+                  }
+                },
+                {
+                  "term": {
+                    "eventType.keyword": "io.serverlessworkflow.task.faulted.v1"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "minimum_should_match": 1
+      }
+    }
+  },
+  "dest": {
+    "index": "task-executions"
+  },
+  "frequency": "1s",
+  "sync": {
+    "time": {
+      "field": "@timestamp",
+      "delay": "0s"
+    }
+  },
+  "pivot": {
+    "group_by": {
+      "id": {
+        "terms": {
+          "script": {
+            "source": "doc['instanceId.keyword'].value + ':' + doc['taskPosition.keyword'].value"
+          }
+        }
+      }
+    },
+    "aggregations": {
+      "instance_id": {
+        "terms": {
+          "field": "instanceId.keyword",
+          "size": 1
+        }
+      },
+      "taskPosition": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.taskPosition != null) { state.value = params._source.taskPosition }",
+          "combine_script": "return state.value",
+          "reduce_script": "for (s in states) { if (s != null) { return s } } return null"
+        }
+      },
+      "taskName": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.taskName != null) { state.value = params._source.taskName }",
+          "combine_script": "return state.value",
+          "reduce_script": "for (s in states) { if (s != null) { return s } } return null"
+        }
+      },
+      "status": {
+        "scripted_metric": {
+          "init_script": "state.status = null; state.priority = 0",
+          "map_script": "String s = params._source.status; int p = (s == 'COMPLETED' || s == 'FAULTED' || s == 'FAILED') ? 2 : (s == 'RUNNING' ? 1 : 0); if (p > state.priority) { state.status = s; state.priority = p }",
+          "combine_script": "return state",
+          "reduce_script": "def max = ['status': null, 'priority': 0]; for (s in states) { if (s != null && s.priority > max.priority) { max = s } } return max.status"
+        }
+      },
+      "startDate": {
+        "min": {
+          "script": {
+            "source": "if (params._source.containsKey('startTime') && params._source.startTime != null) { return (long)(params._source.startTime * 1000) } else { return null }"
+          }
+        }
+      },
+      "endDate": {
+        "max": {
+          "script": {
+            "source": "if (params._source.containsKey('endTime') && params._source.endTime != null) { return (long)(params._source.endTime * 1000) } else { return null }"
+          }
+        }
+      },
+      "input": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (state.value == null && params._source.containsKey('input')) { state.value = params._source.input }",
+          "combine_script": "return state.value",
+          "reduce_script": "if (params._aggs == null) { return null; } return params._aggs.stream().filter(v -> v != null).findFirst().orElse(null)"
+        }
+      },
+      "output": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.containsKey('output') && params._source.output != null) { def eventTime = doc['@timestamp'].value.toInstant().toEpochMilli(); if (state.value == null || eventTime > state.value.time) { state.value = ['data': params._source.output, 'time': eventTime] } }",
+          "combine_script": "return state.value",
+          "reduce_script": "if (params._aggs == null) { return null; } def latest = params._aggs.stream().filter(v -> v != null).max(Comparator.comparing(v -> v.time)); return latest.isPresent() ? latest.get().data : null"
+        }
+      },
+      "error": {
+        "scripted_metric": {
+          "init_script": "state.data = null; state.ts = ''",
+          "map_script": "if (params._source.error != null) { String ts = params._source.eventTime != null ? params._source.eventTime : String.valueOf(params._source.timestamp); if (ts != null && ts.compareTo(state.ts) > 0) { state.data = params._source.error; state.ts = ts } }",
+          "combine_script": "return state",
+          "reduce_script": "def latest = ['data': null, 'ts': '']; for (s in states) { if (s != null && s.get('ts') != null && s.ts.compareTo(latest.ts) > 0) { latest = s } } return latest.data"
+        }
+      },
+      "last_update": {
+        "max": {
+          "field": "@timestamp"
+        }
+      }
+    }
+  }
+}

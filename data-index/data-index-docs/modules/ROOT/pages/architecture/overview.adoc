@@ -24,25 +24,73 @@ GraphQL API
 
 Data Index provides two production-ready storage options:
 
-[cols="1,2,2"]
+[cols="1,2,2,1"]
 |===
-|Backend |Best For |Architecture
+|Backend |Best For |Architecture |Status
 
-|**PostgreSQL**
+|**PostgreSQL** (MODE 1)
 |< 50K workflows/day, ACID transactions, simple deployment
 |xref:architecture/postgresql-mode.adoc[PostgreSQL Mode Details]
+|✅ Production Ready
 
-|**Elasticsearch**
+|**Elasticsearch** (MODE 2)
 |100K+ workflows/day, full-text search, analytics
 |xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode Details]
+|✅ Production Ready
 
 |===
 
+=== Decision Matrix
+
 Choose based on your requirements:
-- **Need ACID transactions?** → PostgreSQL
-- **Need full-text search?** → Elasticsearch
-- **High throughput (>50K/day)?** → Elasticsearch
-- **Simple deployment?** → PostgreSQL
+
+[cols="2,1,1"]
+|===
+|Requirement |PostgreSQL |Elasticsearch
+
+|**ACID transactions**
+|✅ Yes
+|❌ Eventual consistency
+
+|**Real-time normalization**
+|✅ < 1ms
+|⚠️ ~1s
+
+|**Full-text search**
+|⚠️ Limited (LIKE queries)
+|✅ Advanced
+
+|**Throughput**
+|< 50K workflows/day
+|100K+ workflows/day
+
+|**Deployment complexity**
+|⭐⭐ Medium
+|⭐⭐⭐ Higher
+
+|**Horizontal scaling**
+|❌ Vertical only
+|✅ Yes
+
+|**JSON field queries**
+|✅ JSONB operators
+|✅ Nested field queries
+
+|**Analytics**
+|⚠️ Basic aggregations
+|✅ Elasticsearch aggregations
+
+|**Operational familiarity**
+|✅ Common skill set
+|⚠️ Requires ES expertise
+
+|===
+
+**Quick recommendations:**
+
+* **Start with PostgreSQL** if you're unsure - easier to operate and sufficient for most use cases
+* **Choose Elasticsearch** if you need full-text search, advanced analytics, or high throughput (>50K workflows/day)
+* **Both backends** provide the same GraphQL API - you can switch later if needed
 
 == Key Components
 
@@ -119,21 +167,27 @@ Quarkus application providing:
 
 [cols="1,2,2"]
 |===
-|Metric |PostgreSQL |Elasticsearch
+|Metric |PostgreSQL (MODE 1) |Elasticsearch (MODE 2)
 
 |**Normalization**
-|< 1ms
-|~1s
+|< 1ms (database triggers)
+|~1s (transforms)
 
-|**End-to-end**
+|**End-to-end latency**
 |5-10 seconds
 |5-10 seconds
 
-|**Collection interval**
-|1 second
-|1 second
+|**FluentBit collection interval**
+|5 seconds
+|5 seconds
+
+|**Data consistency**
+|Immediate (ACID)
+|Eventual (~1s delay)
 
 |===
+
+**Note:** End-to-end latency includes FluentBit collection interval (5s), log parsing, network transit, and storage processing. The primary difference is normalization speed: PostgreSQL triggers are synchronous (< 1ms), while Elasticsearch transforms run asynchronously (~1s).
 
 == Key Design Features
 
@@ -175,37 +229,48 @@ Data Index is **read-only**. It does NOT:
 * ❌ Require a separate event processor service
 ====
 
-== Choosing a Storage Backend
+== Architecture Differences
 
-[cols="2,3,3"]
-|===
-|Requirement |PostgreSQL |Elasticsearch
+=== PostgreSQL (MODE 1) - Trigger-Based Normalization
 
-|**ACID transactions**
-|✅ Yes
-|❌ Eventual consistency
+**Data Flow:**
 
-|**Real-time (<1ms)**
-|✅ Yes
-|⚠️ ~1s
+[source,text]
+----
+FluentBit → PostgreSQL raw tables (workflow_events_raw, task_events_raw)
+                ↓ (BEFORE INSERT triggers, < 1ms)
+            Normalized tables (workflow_instances, task_instances)
+                ↓ (JPA/Hibernate)
+            GraphQL API
+----
 
-|**Full-text search**
-|⚠️ Limited
-|✅ Excellent
+**Key characteristics:**
 
-|**Throughput**
-|< 50K workflows/day
-|100K+ workflows/day
+* **Synchronous normalization** - Triggers execute during INSERT (< 1ms)
+* **ACID guarantees** - Transactions ensure consistency
+* **Upsert logic** - COALESCE handles out-of-order events
+* **Single writer** - Vertical scaling only
 
-|**Complexity**
-|⭐⭐ Medium
-|⭐⭐⭐ Higher
+=== Elasticsearch (MODE 2) - Transform-Based Normalization
 
-|**Scaling**
-|Vertical (single writer)
-|Horizontal (distributed)
+**Data Flow:**
 
-|===
+[source,text]
+----
+FluentBit → Elasticsearch raw indices (workflow-instance-events-raw-*, task-execution-events-raw-*)
+                ↓ (Continuous transforms, ~1s)
+            Normalized indices (workflow-instances, task-executions)
+                ↓ (Elasticsearch Java Client)
+            GraphQL API
+----
+
+**Key characteristics:**
+
+* **Asynchronous normalization** - Transforms run independently (~1s delay)
+* **Eventual consistency** - Raw events appear before normalized documents
+* **Aggregation logic** - scripted_metric handles out-of-order events
+* **Horizontal scaling** - Distributed across Elasticsearch cluster
+* **ILM retention** - Automatic deletion of raw events after 7 days
 
 == Next Steps
 

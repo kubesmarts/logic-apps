@@ -76,6 +76,11 @@
       </dependency>
       <dependency>
         <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-storage-elasticsearch-schema</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
         <artifactId>data-index-storage-migrations</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -122,6 +127,24 @@
         <groupId>org.kie.kogito</groupId>
         <artifactId>persistence-commons-api</artifactId>
         <version>${kogito.version}</version>
+      </dependency>
+
+      <!-- Override Elasticsearch Java Client version to match server (8.11.1) -->
+      <!-- Quarkus 3.34.5 uses 9.2.3 by default, which has compatibility issues with ES 8.x -->
+      <dependency>
+        <groupId>co.elastic.clients</groupId>
+        <artifactId>elasticsearch-java</artifactId>
+        <version>8.11.1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.client</groupId>
+        <artifactId>elasticsearch-rest-client</artifactId>
+        <version>8.11.1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.client</groupId>
+        <artifactId>elasticsearch-rest-client-sniffer</artifactId>
+        <version>8.11.1</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

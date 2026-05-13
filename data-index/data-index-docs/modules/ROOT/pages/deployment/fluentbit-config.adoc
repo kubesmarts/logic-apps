@@ -184,18 +184,31 @@ After the CRI/Docker parser extracts the `log` field, you need a second parser f
     Preserve_Key      Off
 ----
 
-== Lua Event Processing
+== Output Configuration by Storage Backend
 
-FluentBit uses a Lua script (`flatten-event.lua`) to route workflow and task events to the correct database tables.
+FluentBit output configuration depends on your storage backend choice.
 
-**What it does:**
+=== PostgreSQL Output (MODE 1)
 
-* Reads the `eventType` field from each JSON event
-* Routes workflow events (e.g., `io.serverlessworkflow.workflow.started.v1`) to tag `workflow.*`
-* Routes task events (e.g., `io.serverlessworkflow.task.started.v1`) to tag `task.*`
-* Flattens nested Kubernetes metadata for easier querying
+FluentBit uses Lua script (`flatten-event.lua`) to route events and PostgreSQL output plugin.
 
-**FluentBit configuration:**
+**PostgreSQL output configuration:**
+
+[source,conf]
+----
+[OUTPUT]
+    Name         pgsql
+    Match        workflow.*
+    Host         ${POSTGRESQL_HOST}
+    Port         ${POSTGRESQL_PORT}
+    User         ${POSTGRESQL_USER}
+    Password     ${POSTGRESQL_PASSWORD}
+    Database     ${POSTGRESQL_DATABASE}
+    Table        workflow_events_raw
+    Timestamp_Key time
+----
+
+**Lua script routing:**
 
 [source,conf]
 ----
@@ -206,27 +219,138 @@ FluentBit uses a Lua script (`flatten-event.lua`) to route workflow and task eve
     call    flatten_event
 ----
 
-**When to modify the Lua script:**
+**What the Lua script does:**
 
-* Adding support for new event types
-* Changing table routing logic
-* Adding custom field extraction
+* Reads the `eventType` field from each JSON event
+* Routes workflow events (e.g., `io.serverlessworkflow.workflow.started.v1`) to tag `workflow.*`
+* Routes task events (e.g., `io.serverlessworkflow.task.started.v1`) to tag `task.*`
+* Flattens nested Kubernetes metadata for easier querying
 
-**Debugging Lua errors:**
+See: `scripts/fluentbit/postgresql/` for complete PostgreSQL mode configuration.
 
-If FluentBit logs show Lua script errors:
+=== Elasticsearch Output (MODE 2)
+
+FluentBit uses rewrite_tag filters for routing and Elasticsearch output plugin.
+
+**Elasticsearch output configuration:**
+
+[source,conf]
+----
+[OUTPUT]
+    Name            es
+    Match           workflow.instance
+    Host            ${ELASTICSEARCH_HOST}
+    Port            ${ELASTICSEARCH_PORT}
+    Index           workflow-instance-events-raw
+    Type            _doc
+    Logstash_Format On
+    Logstag_Prefix workflow-instance-events-raw
+    Logstash_DateFormat %Y.%m.%d
+    Retry_Limit     5
+    Suppress_Type_Name On
+    tls             ${ELASTICSEARCH_TLS}
+    tls.verify      ${ELASTICSEARCH_TLS_VERIFY}
+
+[OUTPUT]
+    Name            es
+    Match           workflow.task
+    Host            ${ELASTICSEARCH_HOST}
+    Port            ${ELASTICSEARCH_PORT}
+    Index           task-execution-events-raw
+    Type            _doc
+    Logstash_Format On
+    Logstash_Prefix task-execution-events-raw
+    Logstash_DateFormat %Y.%m.%d
+    Retry_Limit     5
+    Suppress_Type_Name On
+    tls             ${ELASTICSEARCH_TLS}
+    tls.verify      ${ELASTICSEARCH_TLS_VERIFY}
+----
+
+**Event routing (rewrite_tag filters):**
+
+[source,conf]
+----
+[FILTER]
+    Name          rewrite_tag
+    Match         flow.events
+    Rule          $eventType ^io\.serverlessworkflow\.workflow\. workflow.instance false
+    Emitter_Mem_Buf_Limit 10M
+
+[FILTER]
+    Name          rewrite_tag
+    Match         flow.events
+    Rule          $eventType ^io\.serverlessworkflow\.task\. workflow.task false
+    Emitter_Mem_Buf_Limit 10M
+----
+
+**Index naming:**
+
+* Workflow events → `workflow-instance-events-raw-YYYY.MM.DD`
+* Task events → `task-execution-events-raw-YYYY.MM.DD`
+* Date-based rollover enables ILM management (automatic deletion after retention period)
+
+**Elasticsearch Transform normalization:**
+
+After FluentBit writes raw events to Elasticsearch, Transforms aggregate them:
+
+* `workflow-instance-events-raw-*` → `workflow-instances` (normalized index)
+* `task-execution-events-raw-*` → `task-executions` (normalized index)
+
+See: `scripts/fluentbit/elasticsearch/` for complete Elasticsearch mode configuration.
+
+=== Debugging FluentBit Output
+
+**Check which output is configured:**
 
 [source,bash]
 ----
-# Check FluentBit logs
-kubectl logs -n logging -l app=workflows-fluent-bit-mode1 | grep -i lua
+# PostgreSQL mode
+kubectl get configmap -n logging workflows-fluent-bit-config -o yaml | grep -A 10 "\[OUTPUT\]"
+
+# Elasticsearch mode
+kubectl get configmap -n logging workflows-fluent-bit-config -o yaml | grep -A 10 "\[OUTPUT\]"
+----
+
+**PostgreSQL mode errors:**
+
+[source,bash]
+----
+# Check FluentBit logs for PostgreSQL connection issues
+kubectl logs -n logging -l app=workflows-fluent-bit | grep -i pgsql
+
+# Common errors:
+# - "connection refused" → PostgreSQL service not reachable
+# - "authentication failed" → Incorrect credentials
+# - "relation does not exist" → Table not created
+----
+
+**Elasticsearch mode errors:**
+
+[source,bash]
+----
+# Check FluentBit logs for Elasticsearch connection issues
+kubectl logs -n logging -l app=workflows-fluent-bit | grep -i elasticsearch
+
+# Common errors:
+# - "connection refused" → Elasticsearch service not reachable
+# - "unauthorized" → Incorrect credentials
+# - "index creation failed" → Index template misconfiguration
+----
+
+**Lua script debugging (PostgreSQL mode only):**
+
+[source,bash]
+----
+# Check FluentBit logs for Lua errors
+kubectl logs -n logging -l app=workflows-fluent-bit | grep -i lua
 
 # Common errors:
 # - "attempt to index nil value" → Missing field in event JSON
 # - "syntax error" → Invalid Lua syntax in script
 ----
 
-TIP: The Lua script is embedded in the ConfigMap. After modifying `flatten-event.lua`, regenerate the ConfigMap using `generate-configmap.sh` and restart FluentBit pods.
+TIP: After modifying FluentBit configuration, regenerate the ConfigMap using `generate-configmap.sh` and restart FluentBit pods.
 
 == Common Issues
 
@@ -297,14 +421,43 @@ curl -X POST http://localhost:8082/test-workflows/simple-set \
 
 # Check FluentBit is processing events
 kubectl logs -n logging -l app=workflows-fluent-bit --tail=100 | grep -E "stdout|eventType"
+----
 
-# Check storage received events (PostgreSQL example)
+=== Verify PostgreSQL Storage (MODE 1)
+
+[source,bash]
+----
+# Check raw events table
 kubectl exec -n postgresql postgresql-0 -- \
   env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c \
   "SELECT COUNT(*) FROM workflow_events_raw;"
+
+# Check normalized table
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c \
+  "SELECT id, name, status FROM workflow_instances LIMIT 5;"
 ----
 
-Expected: Count should increase after triggering workflows.
+Expected: Count should increase after triggering workflows, and normalized table should contain workflow instances.
+
+=== Verify Elasticsearch Storage (MODE 2)
+
+[source,bash]
+----
+# Port-forward to Elasticsearch
+kubectl port-forward -n elasticsearch svc/elasticsearch 9200:9200 &
+
+# Check raw events index
+curl -s http://localhost:9200/workflow-instance-events-raw-*/_count | jq .
+
+# Check normalized index (after transform runs, ~1s delay)
+curl -s http://localhost:9200/workflow-instances/_search?size=5 | jq '.hits.hits[]._source'
+
+# Check transform status
+curl -s http://localhost:9200/_transform/workflow-instance-transform | jq '.transforms[0].stats'
+----
+
+Expected: Raw events index count should increase immediately, normalized index populated after ~1 second delay.
 
 == KIND-Specific Notes
 

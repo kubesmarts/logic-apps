@@ -1,0 +1,100 @@
+{
+  "index_patterns": ["workflow-events-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date",
+          "doc_values": true
+        },
+        "timestamp": {
+          "type": "date",
+          "doc_values": true
+        },
+        "eventType": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "instanceId": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "workflowName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "workflowVersion": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "workflowNamespace": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "status": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "startTime": {
+          "type": "date"
+        },
+        "endTime": {
+          "type": "date"
+        },
+        "input": {
+          "type": "flattened"
+        },
+        "output": {
+          "type": "flattened"
+        },
+        "error": {
+          "properties": {
+            "type": {
+              "type": "keyword"
+            },
+            "title": {
+              "type": "text"
+            },
+            "detail": {
+              "type": "text"
+            },
+            "status": {
+              "type": "integer"
+            },
+            "instance": {
+              "type": "keyword"
+            }
+          }
+        }
+      }
+    }
+  }
+}

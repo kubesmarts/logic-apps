@@ -10,11 +10,11 @@ Data Index is a *read-only query service* for Serverless Workflow 1.0.0 runtime 
 *Key Features:*
 
 * 📊 **GraphQL API** - Query workflow instances and task executions
-* 🚀 **Real-time Processing** - Events normalized immediately (< 1ms with PostgreSQL, ~1s with Elasticsearch)
+* 🚀 **Real-time Processing** - PostgreSQL: <1ms triggers, Elasticsearch: ~1s transforms
 * 🔍 **Flexible Filtering** - Filter by status, name, namespace, time ranges
-* 🎯 **Production Ready** - Deployed and tested in Kubernetes environments
+* 🎯 **Production Ready** - Both PostgreSQL and Elasticsearch backends fully tested
 * 📝 **Structured Logging** - Captures events from Quarkus Flow apps via FluentBit
-* 🔄 **Multiple Storage Backends** - PostgreSQL or Elasticsearch
+* 🔄 **Multiple Storage Backends** - Choose PostgreSQL (MODE 1) or Elasticsearch (MODE 2)
 ****
 
 == How It Works
@@ -34,23 +34,29 @@ GraphQL API
 
 == Storage Backends
 
-Data Index supports two storage backends:
+Data Index supports two production-ready storage backends:
 
-[cols="1,3,3"]
+[cols="1,3,2"]
 |===
 |Backend |Best For |Status
 
-|**PostgreSQL**
-|Production deployments, ACID transactions, < 50K workflows/day
+|**PostgreSQL** (MODE 1)
+|Most deployments - ACID transactions, simple operations, <50K workflows/day
 |✅ Production Ready
 
-|**Elasticsearch**
-|Full-text search, high throughput (100K+ workflows/day), analytics
+|**Elasticsearch** (MODE 2)
+|High throughput (100K+ workflows/day), full-text search, advanced analytics
 |✅ Production Ready
 
 |===
 
-Choose based on your requirements - see xref:deployment/overview.adoc[Deployment Overview] for details.
+**Both backends provide:**
+
+* Same GraphQL API (backend-agnostic queries)
+* Same data model (WorkflowInstance, TaskExecution)
+* Production-grade reliability and performance
+
+Choose based on your requirements - see xref:architecture/overview.adoc#_decision_matrix[Decision Matrix] for detailed comparison.
 
 == Quick Links
 
@@ -72,10 +78,16 @@ Data Index is a *read-only* query service. It does **NOT**:
 
 == System Requirements
 
+**Core:**
+
 * Kubernetes cluster (or KIND for local development)
-* Storage backend: PostgreSQL 13+ OR Elasticsearch 7+
 * FluentBit 2.0+
 * Quarkus Flow applications with https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html[structured logging^] enabled
+
+**Storage backend (choose one):**
+
+* PostgreSQL 13+ (MODE 1)
+* Elasticsearch 7.10+ (MODE 2)
 
 == Next Steps
 

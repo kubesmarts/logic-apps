@@ -46,6 +46,12 @@
       <artifactId>data-index-storage-common</artifactId>
     </dependency>
 
+    <!-- Elasticsearch schema initialization -->
+    <dependency>
+      <groupId>org.kubesmarts.logic.apps</groupId>
+      <artifactId>data-index-storage-elasticsearch-schema</artifactId>
+    </dependency>
+
     <!-- Domain models -->
     <dependency>
       <groupId>org.kubesmarts.logic.apps</groupId>

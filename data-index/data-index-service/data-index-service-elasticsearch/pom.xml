@@ -50,6 +50,12 @@
       <artifactId>data-index-storage-elasticsearch</artifactId>
     </dependency>
 
+    <!-- Elasticsearch schema (ILM, templates, transforms) -->
+    <dependency>
+      <groupId>org.kubesmarts.logic.apps</groupId>
+      <artifactId>data-index-storage-elasticsearch-schema</artifactId>
+    </dependency>
+
     <!-- Container image building -->
     <dependency>
       <groupId>io.quarkus</groupId>
