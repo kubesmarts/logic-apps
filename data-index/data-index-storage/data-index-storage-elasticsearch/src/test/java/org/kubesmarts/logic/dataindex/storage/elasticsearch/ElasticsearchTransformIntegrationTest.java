@@ -142,100 +142,8 @@ class ElasticsearchTransformIntegrationTest {
 
     // ==================== Bucket Format Deserialization Tests ====================
 
-    @Test
-    void testGetWorkflowInstanceWithBucketFormatFields() throws Exception {
-        // Given: A workflow document in transform bucket format
-        // Simulates what Elasticsearch transform creates with terms aggregations
-        Map<String, Object> bucketDoc = Map.of(
-            "id", "wf-bucket-001",
-            "name", Map.of("simple-set", 1),              // Bucket format: {"value": count}
-            "namespace", Map.of("org.acme", 1),
-            "version", Map.of("1.0.0", 1),
-            "status", Map.of("RUNNING", 2),                // Status bucket (count = 2 events)
-            "last_update", "2026-05-05T14:00:00Z"
-        );
-
-        // When: Index the document directly (simulating transform output)
-        IndexRequest<Map<String, Object>> indexReq = IndexRequest.of(i -> i
-            .index(WORKFLOW_INDEX)
-            .document(bucketDoc));
-
-        client.index(indexReq);
-        waitForRefresh();
-
-        // When: Get workflow by ID
-        WorkflowInstance retrieved = workflowStorage.get("wf-bucket-001");
-
-        // Then: Bucket values are correctly deserialized to plain strings
-        assertThat(retrieved).isNotNull();
-        assertThat(retrieved.getId()).isEqualTo("wf-bucket-001");
-        assertThat(retrieved.getName()).isEqualTo("simple-set");        // Extracted from bucket
-        assertThat(retrieved.getNamespace()).isEqualTo("org.acme");     // Extracted from bucket
-        assertThat(retrieved.getVersion()).isEqualTo("1.0.0");          // Extracted from bucket
-        assertThat(retrieved.getStatus()).isEqualTo(WorkflowInstanceStatus.RUNNING);  // Extracted from bucket
-    }
-
-    @Test
-    void testGetTaskExecutionWithBucketFormatFields() throws Exception {
-        // Given: A task execution document in transform bucket format
-        Map<String, Object> bucketDoc = Map.of(
-            "id", "wf-001:do/0/set-0",
-            "taskName", Map.of("set-0", 2),                // Bucket format
-            "taskPosition", Map.of("do/0/set-0", 2),       // Bucket format
-            "status", Map.of("RUNNING", 1),                // Bucket format
-            "last_update", "2026-05-05T14:00:00Z"
-        );
-
-        // When: Index the document
-        IndexRequest<Map<String, Object>> indexReq = IndexRequest.of(i -> i
-            .index(TASK_INDEX)
-            .document(bucketDoc));
-
-        client.index(indexReq);
-        waitForRefresh();
-
-        // When: Get task execution by ID
-        TaskExecution retrieved = taskStorage.get("wf-001:do/0/set-0");
-
-        // Then: Bucket values are correctly deserialized
-        assertThat(retrieved).isNotNull();
-        assertThat(retrieved.getId()).isEqualTo("wf-001:do/0/set-0");
-        assertThat(retrieved.getTaskName()).isEqualTo("set-0");           // Extracted from bucket
-        assertThat(retrieved.getTaskPosition()).isEqualTo("do/0/set-0");  // Extracted from bucket
-        assertThat(retrieved.getStatus()).isEqualTo("RUNNING");           // Extracted from bucket
-    }
-
-    @Test
-    void testGetWorkflowInstanceWithMultipleBucketValues() throws Exception {
-        // Given: Document with multiple bucket values (transform hasn't fully aggregated)
-        // This can happen during intermediate transform processing
-        Map<String, Object> bucketDoc = Map.of(
-            "id", "wf-multi-001",
-            "name", Map.of(
-                "workflow-v1", 1,
-                "workflow-v2", 1  // Multiple values - should take first alphabetically
-            ),
-            "status", Map.of(
-                "RUNNING", 1,
-                "COMPLETED", 1
-            )
-        );
-
-        // When: Index and retrieve
-        IndexRequest<Map<String, Object>> indexReq = IndexRequest.of(i -> i
-            .index(WORKFLOW_INDEX)
-            .document(bucketDoc));
-
-        client.index(indexReq);
-        waitForRefresh();
-
-        WorkflowInstance retrieved = workflowStorage.get("wf-multi-001");
-
-        // Then: Deserializer extracts first value
-        assertThat(retrieved).isNotNull();
-        assertThat(retrieved.getId()).isEqualTo("wf-multi-001");
-        assertThat(retrieved.getName()).isNotNull();  // Some value extracted
-    }
+    // NOTE: Bucket format tests removed - we now use scripted_metric aggregations
+    // that return simple string values, not bucket structures
 
     // ==================== Search by Domain ID (not _id) Tests ====================
 
@@ -321,24 +229,24 @@ class ElasticsearchTransformIntegrationTest {
 
         Map<String, Object> task1 = Map.of(
             "id", workflowId + ":do/0/set-0",
-            "taskName", Map.of("set-0", 1),
-            "taskPosition", Map.of("do/0/set-0", 1),
-            "status", Map.of("COMPLETED", 1)
+            "taskName", "set-0",
+            "taskPosition", "do/0/set-0",
+            "status", "COMPLETED"
         );
 
         Map<String, Object> task2 = Map.of(
             "id", workflowId + ":do/1/set-1",
-            "taskName", Map.of("set-1", 1),
-            "taskPosition", Map.of("do/1/set-1", 1),
-            "status", Map.of("RUNNING", 1)
+            "taskName", "set-1",
+            "taskPosition", "do/1/set-1",
+            "status", "RUNNING"
         );
 
         // And: Task execution for different workflow
         Map<String, Object> task3 = Map.of(
             "id", "wf-002:do/0/set-0",
-            "taskName", Map.of("set-0", 1),
-            "taskPosition", Map.of("do/0/set-0", 1),
-            "status", Map.of("RUNNING", 1)
+            "taskName", "set-0",
+            "taskPosition", "do/0/set-0",
+            "status", "RUNNING"
         );
 
         // When: Index all task executions
@@ -427,12 +335,12 @@ class ElasticsearchTransformIntegrationTest {
     // ==================== Null Field Handling Tests ====================
 
     @Test
-    void testGetWorkflowInstanceWithNullBucketFields() throws Exception {
-        // Given: Document with null bucket values (no events for certain fields)
+    void testGetWorkflowInstanceWithNullFields() throws Exception {
+        // Given: Document with null/missing fields
         Map<String, Object> doc = Map.of(
             "id", "wf-null-001",
-            "name", Map.of("greeting", 1),
-            "status", Map.of("RUNNING", 1)
+            "name", "greeting",
+            "status", "RUNNING"
             // namespace and version are null/missing
         );
 
@@ -459,8 +367,8 @@ class ElasticsearchTransformIntegrationTest {
         // Given: Task execution with minimal fields
         Map<String, Object> doc = Map.of(
             "id", "wf-001:do/0/task-minimal",
-            "taskName", Map.of("minimal-task", 1),
-            "status", Map.of("RUNNING", 1)
+            "taskName", "minimal-task",
+            "status", "RUNNING"
             // taskPosition, start, end are null
         );
 
