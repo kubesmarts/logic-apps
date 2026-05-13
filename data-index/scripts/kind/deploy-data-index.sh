@@ -212,12 +212,16 @@ create_configmap() {
 create_secret() {
     log_step "Creating data-index Secret..."
 
-    kubectl create secret generic data-index-secret \
-        --namespace data-index \
-        --from-literal=QUARKUS_DATASOURCE_PASSWORD=dataindex123 \
-        --dry-run=client -o yaml | kubectl apply -f -
-
-    log_info "✓ Secret created"
+    if [[ "$MODE" == "postgresql" ]]; then
+        kubectl create secret generic data-index-secret \
+            --namespace data-index \
+            --from-literal=QUARKUS_DATASOURCE_PASSWORD=dataindex123 \
+            --dry-run=client -o yaml | kubectl apply -f -
+        log_info "✓ PostgreSQL Secret created"
+    elif [[ "$MODE" == "elasticsearch" ]]; then
+        # No authentication for simple Elasticsearch deployment
+        log_info "✓ Elasticsearch has no authentication (test mode)"
+    fi
 }
 
 # Deploy data-index service
@@ -284,8 +288,12 @@ spec:
           value: "INFO"
         - name: QUARKUS_LOG_CATEGORY_ORG_KUBESMARTS_LOGIC_LEVEL
           value: "DEBUG"
-        - name: QUARKUS_ELASTICSEARCH_HOSTS
-          value: "data-index-es-es-default-0.data-index-es-es-default.elasticsearch.svc.cluster.local:9200"
+        - name: ELASTICSEARCH_HOST
+          value: "elasticsearch.elasticsearch.svc.cluster.local"
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: ELASTICSEARCH_PROTOCOL
+          value: "http"
         resources:
           requests:
             memory: "512Mi"
