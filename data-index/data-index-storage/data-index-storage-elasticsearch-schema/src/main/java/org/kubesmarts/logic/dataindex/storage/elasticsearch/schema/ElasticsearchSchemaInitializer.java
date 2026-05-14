@@ -172,6 +172,10 @@ public class ElasticsearchSchemaInitializer {
 
         LOGGER.info("Applying ILM policy '{}'...", name);
         String json = loadResourceAsString(resourcePath);
+
+        // Replace retention placeholder
+        json = json.replace("{RETENTION_PERIOD}", rawEventsRetention);
+
         JsonNode rootNode = objectMapper.readTree(json);
         JsonNode policyNode = rootNode.get("policy");
 
