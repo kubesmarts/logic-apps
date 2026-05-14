@@ -1,0 +1,8 @@
+Regression Test Results - Thu 14 May 2026 10:19:40 EDT
+=================================
+[WARNING] Tests run: 12, Failures: 0, Errors: 0, Skipped: 2, Time elapsed: 28.81 s -- in org.kubesmarts.logic.dataindex.elasticsearch.ElasticsearchStorageIntegrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in org.kubesmarts.logic.dataindex.storage.elasticsearch.ElasticsearchDevServicesTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 44.34 s -- in org.kubesmarts.logic.dataindex.storage.elasticsearch.ElasticsearchTransformIntegrationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.223 s -- in org.kubesmarts.logic.dataindex.storage.elasticsearch.TransformFieldMappingTest
+[WARNING] Tests run: 25, Failures: 0, Errors: 0, Skipped: 2
+[INFO] BUILD SUCCESS

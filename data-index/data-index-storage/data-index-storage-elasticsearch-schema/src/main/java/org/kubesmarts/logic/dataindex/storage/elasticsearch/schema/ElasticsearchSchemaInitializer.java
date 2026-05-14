@@ -41,8 +41,11 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @ApplicationScoped
 @Startup
@@ -58,6 +61,12 @@ public class ElasticsearchSchemaInitializer {
 
     @ConfigProperty(name = "data-index.elasticsearch.schema.init.enabled", defaultValue = "true")
     boolean schemaInitEnabled;
+
+    @ConfigProperty(name = "data-index.transform.smart-filter.time-window", defaultValue = "1h")
+    String smartFilterTimeWindow;
+
+    @ConfigProperty(name = "data-index.ilm.raw-events-retention", defaultValue = "30d")
+    String rawEventsRetention;
 
     String[] ilmPolicyResources = new String[]{
             "/elasticsearch/ilm/data-index-events-retention.json"
@@ -90,6 +99,8 @@ public class ElasticsearchSchemaInitializer {
 
         LOGGER.info("Initializing Elasticsearch schema...");
 
+        validateConfiguration();
+
         try {
             applyIlmPolicies();
             applyIndexTemplates();
@@ -99,6 +110,48 @@ public class ElasticsearchSchemaInitializer {
             LOGGER.error("Elasticsearch schema initialization failed", e);
             throw new RuntimeException("Failed to initialize Elasticsearch schema", e);
         }
+    }
+
+    private void validateConfiguration() {
+        // Check for null (should not happen in production due to defaultValue, but can happen in tests)
+        if (smartFilterTimeWindow == null || rawEventsRetention == null) {
+            throw new IllegalArgumentException(
+                "Configuration properties cannot be null. " +
+                "smartFilterTimeWindow: " + smartFilterTimeWindow + ", " +
+                "rawEventsRetention: " + rawEventsRetention
+            );
+        }
+
+        // Validate time window format
+        if (!smartFilterTimeWindow.matches("\\d+[mhd]|PT.*|P\\d+D")) {
+            throw new IllegalArgumentException(
+                "Invalid time window format: " + smartFilterTimeWindow +
+                ". Expected: '1h', '30m', '2h', or ISO-8601 (PT1H)"
+            );
+        }
+
+        // Validate ILM retention format
+        if (!rawEventsRetention.matches("\\d+d|P\\d+D")) {
+            throw new IllegalArgumentException(
+                "Invalid ILM retention format: " + rawEventsRetention +
+                ". Expected: '7d', '30d', '90d', or ISO-8601 (P30D)"
+            );
+        }
+
+        // Validate: time window ≤ ILM retention
+        long windowMillis = parseToMillis(smartFilterTimeWindow);
+        long retentionMillis = parseToMillis(rawEventsRetention);
+
+        if (windowMillis > retentionMillis) {
+            throw new IllegalArgumentException(
+                "Smart filter time window (" + smartFilterTimeWindow +
+                ") cannot exceed ILM retention (" + rawEventsRetention +
+                "). Events older than retention period are deleted by ILM."
+            );
+        }
+
+        LOGGER.info("Configuration validated: time-window={}, ilm-retention={}",
+            smartFilterTimeWindow, rawEventsRetention);
     }
 
     private void applyIlmPolicies() throws IOException {
@@ -128,6 +181,10 @@ public class ElasticsearchSchemaInitializer {
 
         LOGGER.info("Applying ILM policy '{}'...", name);
         String json = loadResourceAsString(resourcePath);
+
+        // Replace retention placeholder
+        json = json.replace("{RETENTION_PERIOD}", rawEventsRetention);
+
         JsonNode rootNode = objectMapper.readTree(json);
         JsonNode policyNode = rootNode.get("policy");
 
@@ -173,6 +230,9 @@ public class ElasticsearchSchemaInitializer {
 
         LOGGER.info("Applying transform '{}'...", name);
         String json = loadResourceAsString(resourcePath);
+
+        // Replace time window placeholder
+        json = json.replace("{TIME_WINDOW}", smartFilterTimeWindow);
 
         try (InputStream is = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8))) {
             PutTransformRequest request = PutTransformRequest.of(builder -> builder
@@ -270,5 +330,45 @@ public class ElasticsearchSchemaInitializer {
     private String extractResourceName(String resourcePath) {
         String fileName = resourcePath.substring(resourcePath.lastIndexOf('/') + 1);
         return fileName.substring(0, fileName.lastIndexOf('.'));
+    }
+
+    /**
+     * Parse duration string to milliseconds.
+     * Supports simple format (1h, 30m, 7d) and ISO-8601 (PT1H, P7D).
+     */
+    long parseToMillis(String duration) {
+        if (duration == null || duration.isEmpty()) {
+            throw new IllegalArgumentException("Duration cannot be null or empty");
+        }
+
+        // Try ISO-8601 format first (PT1H, P7D, etc.)
+        if (duration.startsWith("P")) {
+            try {
+                return Duration.parse(duration).toMillis();
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid ISO-8601 duration: " + duration, e);
+            }
+        }
+
+        // Parse simple format: 30m, 1h, 7d
+        Pattern pattern = Pattern.compile("(\\d+)([mhd])");
+        Matcher matcher = pattern.matcher(duration);
+
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException(
+                "Invalid duration format: " + duration +
+                ". Expected: '1h', '30m', '7d', or ISO-8601 (PT1H, P7D)"
+            );
+        }
+
+        long value = Long.parseLong(matcher.group(1));
+        String unit = matcher.group(2);
+
+        return switch (unit) {
+            case "m" -> Duration.ofMinutes(value).toMillis();
+            case "h" -> Duration.ofHours(value).toMillis();
+            case "d" -> Duration.ofDays(value).toMillis();
+            default -> throw new IllegalArgumentException("Unsupported unit: " + unit);
+        };
     }
 }

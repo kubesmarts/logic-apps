@@ -110,6 +110,38 @@ Quarkus Flow → /tmp/quarkus-flow-events.log (JSON)
 - Want auto-scaling storage (ILM)
 - Need multi-tenancy with index-per-tenant
 
+### Transform Query Optimization (Smart Filtering)
+
+**Performance Strategy:**
+- Transforms use smart filtering to maintain constant performance as data grows
+- Only process recent events (< 1 hour) + workflows/tasks still active (non-terminal)
+- Old completed workflows/tasks skipped (already aggregated, won't change)
+
+**Configuration:**
+```properties
+# Time window for smart filtering (default: 1h)
+data-index.transform.smart-filter.time-window=1h
+
+# Raw event retention (default: 30d)
+data-index.ilm.raw-events-retention=30d
+```
+
+**Query Logic:**
+- Clause 1: Events from last `{time-window}` (always process)
+- Clause 2: Older events only if NOT in terminal state
+- Result: Constant processing regardless of total event count
+
+**Data Retention:**
+- **Raw events** (`workflow-events-*`, `task-events-*`): Configurable (default 30 days)
+- **Normalized data** (`workflow-instances`, `task-executions`): **Permanent**
+- Raw events are temporary staging; normalized data is your source of truth
+
+**Metrics:**
+```bash
+# Check transform performance (PR#2 - not yet implemented)
+curl http://localhost:8080/q/metrics | grep data_index_transform
+```
+
 ---
 
 ## Choosing Between MODE 1 and MODE 2

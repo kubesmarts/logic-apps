@@ -2,7 +2,7 @@
   "policy": {
     "phases": {
       "delete": {
-        "min_age": "7d",
+        "min_age": "{RETENTION_PERIOD}",
         "actions": {
           "delete": {}
         }

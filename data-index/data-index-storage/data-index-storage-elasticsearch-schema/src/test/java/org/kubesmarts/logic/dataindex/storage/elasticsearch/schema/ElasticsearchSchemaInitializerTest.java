@@ -76,6 +76,10 @@ class ElasticsearchSchemaInitializerTest {
         when(client.ilm()).thenReturn(ilmClient);
         when(client.indices()).thenReturn(indicesClient);
         when(client.transform()).thenReturn(transformClient);
+
+        // Initialize configuration properties (not injected by @InjectMocks)
+        initializer.smartFilterTimeWindow = "1h";
+        initializer.rawEventsRetention = "30d";
     }
 
     @Test
