@@ -222,6 +222,9 @@ public class ElasticsearchSchemaInitializer {
         LOGGER.info("Applying transform '{}'...", name);
         String json = loadResourceAsString(resourcePath);
 
+        // Replace time window placeholder
+        json = json.replace("{TIME_WINDOW}", smartFilterTimeWindow);
+
         try (InputStream is = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8))) {
             PutTransformRequest request = PutTransformRequest.of(builder -> builder
                     .transformId(name)
