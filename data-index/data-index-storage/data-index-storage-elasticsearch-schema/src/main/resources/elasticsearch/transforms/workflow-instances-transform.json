@@ -2,7 +2,48 @@
   "source": {
     "index": "workflow-events-*",
     "query": {
-      "match_all": {}
+      "bool": {
+        "should": [
+          {
+            "range": {
+              "@timestamp": {
+                "gte": "now-{TIME_WINDOW}"
+              }
+            }
+          },
+          {
+            "bool": {
+              "filter": [
+                {
+                  "range": {
+                    "@timestamp": {
+                      "lt": "now-{TIME_WINDOW}"
+                    }
+                  }
+                }
+              ],
+              "must_not": [
+                {
+                  "term": {
+                    "eventType.keyword": "io.serverlessworkflow.workflow.completed.v1"
+                  }
+                },
+                {
+                  "term": {
+                    "eventType.keyword": "io.serverlessworkflow.workflow.faulted.v1"
+                  }
+                },
+                {
+                  "term": {
+                    "eventType.keyword": "io.serverlessworkflow.workflow.cancelled.v1"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "minimum_should_match": 1
+      }
     }
   },
   "dest": {
