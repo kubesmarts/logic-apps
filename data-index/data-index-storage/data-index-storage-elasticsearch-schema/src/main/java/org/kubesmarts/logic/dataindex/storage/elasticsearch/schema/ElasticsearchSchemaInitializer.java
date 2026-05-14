@@ -99,6 +99,8 @@ public class ElasticsearchSchemaInitializer {
 
         LOGGER.info("Initializing Elasticsearch schema...");
 
+        validateConfiguration();
+
         try {
             applyIlmPolicies();
             applyIndexTemplates();
@@ -108,6 +110,39 @@ public class ElasticsearchSchemaInitializer {
             LOGGER.error("Elasticsearch schema initialization failed", e);
             throw new RuntimeException("Failed to initialize Elasticsearch schema", e);
         }
+    }
+
+    private void validateConfiguration() {
+        // Validate time window format
+        if (!smartFilterTimeWindow.matches("\\d+[mhd]|PT.*|P\\d+D")) {
+            throw new IllegalArgumentException(
+                "Invalid time window format: " + smartFilterTimeWindow +
+                ". Expected: '1h', '30m', '2h', or ISO-8601 (PT1H)"
+            );
+        }
+
+        // Validate ILM retention format
+        if (!rawEventsRetention.matches("\\d+d|P\\d+D")) {
+            throw new IllegalArgumentException(
+                "Invalid ILM retention format: " + rawEventsRetention +
+                ". Expected: '7d', '30d', '90d', or ISO-8601 (P30D)"
+            );
+        }
+
+        // Validate: time window ≤ ILM retention
+        long windowMillis = parseToMillis(smartFilterTimeWindow);
+        long retentionMillis = parseToMillis(rawEventsRetention);
+
+        if (windowMillis > retentionMillis) {
+            throw new IllegalArgumentException(
+                "Smart filter time window (" + smartFilterTimeWindow +
+                ") cannot exceed ILM retention (" + rawEventsRetention +
+                "). Events older than retention period are deleted by ILM."
+            );
+        }
+
+        LOGGER.info("Configuration validated: time-window={}, ilm-retention={}",
+            smartFilterTimeWindow, rawEventsRetention);
     }
 
     private void applyIlmPolicies() throws IOException {
