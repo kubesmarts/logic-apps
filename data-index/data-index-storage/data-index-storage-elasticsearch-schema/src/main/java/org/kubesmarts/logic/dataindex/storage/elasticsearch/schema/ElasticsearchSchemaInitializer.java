@@ -113,6 +113,15 @@ public class ElasticsearchSchemaInitializer {
     }
 
     private void validateConfiguration() {
+        // Check for null (should not happen in production due to defaultValue, but can happen in tests)
+        if (smartFilterTimeWindow == null || rawEventsRetention == null) {
+            throw new IllegalArgumentException(
+                "Configuration properties cannot be null. " +
+                "smartFilterTimeWindow: " + smartFilterTimeWindow + ", " +
+                "rawEventsRetention: " + rawEventsRetention
+            );
+        }
+
         // Validate time window format
         if (!smartFilterTimeWindow.matches("\\d+[mhd]|PT.*|P\\d+D")) {
             throw new IllegalArgumentException(
