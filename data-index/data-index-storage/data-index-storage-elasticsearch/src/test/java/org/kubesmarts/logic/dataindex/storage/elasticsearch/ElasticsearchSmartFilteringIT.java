@@ -143,4 +143,78 @@ class ElasticsearchSmartFilteringIT {
             return null;
         }
     }
+
+    @Test
+    void testRecentEventsAlwaysProcessed() throws Exception {
+        String instanceId = "test-recent-" + UUID.randomUUID();
+        Instant now = Instant.now();
+
+        // Insert COMPLETED event (recent, within 1h window)
+        insertWorkflowEvent(instanceId, "io.serverlessworkflow.workflow.completed.v1",
+                           now, null, Map.of("result", "success"), null);
+
+        waitForTransform();
+
+        WorkflowInstance normalized = getNormalizedInstance(instanceId);
+        assertThat(normalized).isNotNull();
+        assertThat(normalized.getStatus()).isEqualTo(WorkflowInstanceStatus.COMPLETED);
+    }
+
+    @Test
+    void testOldTerminalEventsSkipped() throws Exception {
+        String instanceId = "test-old-terminal-" + UUID.randomUUID();
+        Instant oldTime = Instant.now().minus(Duration.ofHours(2)); // > 1h old
+
+        // Insert old COMPLETED event
+        insertWorkflowEvent(instanceId, "io.serverlessworkflow.workflow.completed.v1",
+                           oldTime, null, Map.of("result", "success"), null);
+
+        waitForTransform();
+
+        // Should NOT be processed (old + terminal)
+        WorkflowInstance normalized = getNormalizedInstance(instanceId);
+        assertThat(normalized).isNull();
+    }
+
+    @Test
+    void testOldNonTerminalEventsProcessed() throws Exception {
+        String instanceId = "test-old-running-" + UUID.randomUUID();
+        Instant oldTime = Instant.now().minus(Duration.ofHours(2)); // > 1h old
+
+        // Insert old RUNNING event
+        insertWorkflowEvent(instanceId, "io.serverlessworkflow.workflow.running.v1",
+                           oldTime, Map.of("orderId", "123"), null, null);
+
+        waitForTransform();
+
+        // SHOULD be processed (old but NON-terminal)
+        WorkflowInstance normalized = getNormalizedInstance(instanceId);
+        assertThat(normalized).isNotNull();
+        assertThat(normalized.getStatus()).isEqualTo(WorkflowInstanceStatus.RUNNING);
+    }
+
+    @Test
+    void testLateArrivalWithinWindow() throws Exception {
+        String instanceId = "test-late-arrival-" + UUID.randomUUID();
+        Instant baseTime = Instant.now();
+
+        // Insert COMPLETED event first
+        insertWorkflowEvent(instanceId, "io.serverlessworkflow.workflow.completed.v1",
+                           baseTime.plusSeconds(30), null, Map.of("result", "success"), null);
+
+        waitForTransform();
+
+        // Insert STARTED event late (but within 1h window)
+        insertWorkflowEvent(instanceId, "io.serverlessworkflow.workflow.started.v1",
+                           baseTime, Map.of("orderId", "123"), null, null);
+
+        waitForTransform();
+
+        // Both events should be processed
+        WorkflowInstance normalized = getNormalizedInstance(instanceId);
+        assertThat(normalized).isNotNull();
+        assertThat(normalized.getStatus()).isEqualTo(WorkflowInstanceStatus.COMPLETED);
+        assertThat(normalized.getInput()).isNotNull();
+        assertThat(normalized.getOutput()).isNotNull();
+    }
 }
