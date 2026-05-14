@@ -7,7 +7,7 @@
           {
             "range": {
               "@timestamp": {
-                "gte": "now-1h"
+                "gte": "now-{TIME_WINDOW}"
               }
             }
           },
@@ -17,7 +17,7 @@
                 {
                   "range": {
                     "@timestamp": {
-                      "lt": "now-1h"
+                      "lt": "now-{TIME_WINDOW}"
                     }
                   }
                 }
