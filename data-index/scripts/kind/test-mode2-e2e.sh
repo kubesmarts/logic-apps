@@ -53,7 +53,7 @@ error_handler() {
 
     echo ""
     log_info "Elasticsearch workflow-events count:"
-    curl -s -X GET "http://localhost:30920/workflow-events/_count?pretty" || true
+    curl -s -X GET "http://localhost:30920/workflow-events-*/_count?pretty" || true
 
     exit 1
 }
@@ -229,7 +229,7 @@ wait_for_events() {
     log_info "Checking raw events in Elasticsearch..."
     local raw_count=0
     for i in {1..30}; do
-        raw_count=$(curl -s -X GET "http://localhost:30920/workflow-events/_count" 2>/dev/null | jq -r '.count // 0')
+        raw_count=$(curl -s -X GET "http://localhost:30920/workflow-events-*/_count" 2>/dev/null | jq -r '.count // 0')
         if [[ "$raw_count" -gt 0 ]]; then
             log_info "✓ Found $raw_count raw events"
             break
