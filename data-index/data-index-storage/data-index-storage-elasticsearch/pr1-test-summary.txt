@@ -1,0 +1,17 @@
+PR#1 Final Test Summary - Thu 14 May 2026 11:29:14 EDT
+======================================
+
+Smart Filtering Tests:
+[ERROR] Tests run: 4, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 26.26 s <<< FAILURE! -- in org.kubesmarts.logic.dataindex.storage.elasticsearch.ElasticsearchSmartFilteringIT
+[ERROR] Tests run: 4, Failures: 1, Errors: 0, Skipped: 0
+
+Configuration Tests:
+[ERROR] Tests run: 3, Failures: 3, Errors: 0, Skipped: 0, Time elapsed: 0.761 s <<< FAILURE! -- in org.kubesmarts.logic.dataindex.storage.elasticsearch.ElasticsearchTransformConfigurationIT
+[ERROR] Tests run: 3, Failures: 3, Errors: 0, Skipped: 0
+
+Regression Tests:
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in org.kubesmarts.logic.dataindex.storage.elasticsearch.ElasticsearchDevServicesTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 42.84 s -- in org.kubesmarts.logic.dataindex.storage.elasticsearch.ElasticsearchTransformIntegrationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.107 s -- in org.kubesmarts.logic.dataindex.storage.elasticsearch.TransformFieldMappingTest
+[WARNING] Tests run: 25, Failures: 0, Errors: 0, Skipped: 2
+[INFO] BUILD SUCCESS
