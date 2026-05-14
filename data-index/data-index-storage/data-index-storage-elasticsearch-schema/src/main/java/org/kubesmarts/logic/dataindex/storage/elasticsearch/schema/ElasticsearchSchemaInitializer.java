@@ -59,6 +59,12 @@ public class ElasticsearchSchemaInitializer {
     @ConfigProperty(name = "data-index.elasticsearch.schema.init.enabled", defaultValue = "true")
     boolean schemaInitEnabled;
 
+    @ConfigProperty(name = "data-index.transform.smart-filter.time-window", defaultValue = "1h")
+    String smartFilterTimeWindow;
+
+    @ConfigProperty(name = "data-index.ilm.raw-events-retention", defaultValue = "30d")
+    String rawEventsRetention;
+
     String[] ilmPolicyResources = new String[]{
             "/elasticsearch/ilm/data-index-events-retention.json"
     };
