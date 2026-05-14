@@ -41,8 +41,11 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @ApplicationScoped
 @Startup
@@ -276,5 +279,45 @@ public class ElasticsearchSchemaInitializer {
     private String extractResourceName(String resourcePath) {
         String fileName = resourcePath.substring(resourcePath.lastIndexOf('/') + 1);
         return fileName.substring(0, fileName.lastIndexOf('.'));
+    }
+
+    /**
+     * Parse duration string to milliseconds.
+     * Supports simple format (1h, 30m, 7d) and ISO-8601 (PT1H, P7D).
+     */
+    long parseToMillis(String duration) {
+        if (duration == null || duration.isEmpty()) {
+            throw new IllegalArgumentException("Duration cannot be null or empty");
+        }
+
+        // Try ISO-8601 format first (PT1H, P7D, etc.)
+        if (duration.startsWith("P")) {
+            try {
+                return Duration.parse(duration).toMillis();
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid ISO-8601 duration: " + duration, e);
+            }
+        }
+
+        // Parse simple format: 30m, 1h, 7d
+        Pattern pattern = Pattern.compile("(\\d+)([mhd])");
+        Matcher matcher = pattern.matcher(duration);
+
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException(
+                "Invalid duration format: " + duration +
+                ". Expected: '1h', '30m', '7d', or ISO-8601 (PT1H, P7D)"
+            );
+        }
+
+        long value = Long.parseLong(matcher.group(1));
+        String unit = matcher.group(2);
+
+        return switch (unit) {
+            case "m" -> Duration.ofMinutes(value).toMillis();
+            case "h" -> Duration.ofHours(value).toMillis();
+            case "d" -> Duration.ofDays(value).toMillis();
+            default -> throw new IllegalArgumentException("Unsupported unit: " + unit);
+        };
     }
 }
