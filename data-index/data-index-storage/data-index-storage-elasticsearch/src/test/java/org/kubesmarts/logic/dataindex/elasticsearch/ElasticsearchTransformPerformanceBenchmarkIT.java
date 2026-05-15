@@ -134,4 +134,36 @@ class ElasticsearchTransformPerformanceBenchmarkIT {
             .gauge();
         return lag != null ? (long) lag.value() : -1;
     }
+
+    @Test
+    void testSmartFilteringScalesWithDataGrowth() throws Exception {
+        // Phase 1: Insert 1K events, 90% terminal (old)
+        LOGGER.info("=== Phase 1: Inserting 1K events ===");
+        insertBulkWorkflowEvents(1000, 0.9, Duration.ofHours(2));
+
+        // Measure transform processing time
+        long phase1Start = System.currentTimeMillis();
+        waitForTransformToProcess();
+        long phase1Duration = System.currentTimeMillis() - phase1Start;
+
+        LOGGER.info("Phase 1 (1K events): {} ms", phase1Duration);
+
+        // Phase 2: Insert 10K MORE events, 90% terminal (old)
+        LOGGER.info("=== Phase 2: Inserting 10K more events ===");
+        insertBulkWorkflowEvents(10000, 0.9, Duration.ofHours(2));
+
+        // Measure transform processing time
+        long phase2Start = System.currentTimeMillis();
+        waitForTransformToProcess();
+        long phase2Duration = System.currentTimeMillis() - phase2Start;
+
+        LOGGER.info("Phase 2 (11K total events): {} ms", phase2Duration);
+
+        // Assert: Processing time delta < 50% (ideally < 20%)
+        // Without smart filtering, would be 10x slower (linear growth)
+        double increase = (double) phase2Duration / phase1Duration;
+        LOGGER.info("Processing time increase: {}x", String.format("%.2f", increase));
+
+        assertThat(increase).isLessThan(1.5); // < 50% increase
+    }
 }
