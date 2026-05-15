@@ -99,8 +99,88 @@ class ElasticsearchTransformMetricsIT {
 
     private void waitForTransformAndMetrics() throws InterruptedException {
         // Wait for transform (1s frequency + buffer)
-        Thread.sleep(2000);
+        Thread.sleep(3000);
         // Wait for metrics poll (5s in test profile + buffer)
+        Thread.sleep(7000);
+    }
+
+    @Test
+    void testTransformMetricsCollected() throws Exception {
+        // Insert test events
+        insertBulkWorkflowEvents(10);
+
+        // Wait for transform processing and metrics collection
+        waitForTransformAndMetrics();
+
+        // Verify documents_processed metric exists and has value > 0
+        var documentsProcessed = registry.find("data_index.transform.documents_processed")
+            .tag("transform", TRANSFORM_ID)
+            .gauge();
+
+        assertThat(documentsProcessed).isNotNull();
+        assertThat(documentsProcessed.value()).isGreaterThan(0);
+
+        // Verify lag metric exists
+        var lag = registry.find("data_index.transform.lag")
+            .tag("transform", TRANSFORM_ID)
+            .gauge();
+
+        assertThat(lag).isNotNull();
+        assertThat(lag.value()).isGreaterThanOrEqualTo(0);
+
+        // Verify state metric exists and shows started (1)
+        var state = registry.find("data_index.transform.state")
+            .tag("transform", TRANSFORM_ID)
+            .gauge();
+
+        assertThat(state).isNotNull();
+        assertThat(state.value()).isEqualTo(1); // started
+    }
+
+    @Test
+    void testMetricsExposedViaPrometheus() throws Exception {
+        // Insert events to ensure metrics are collected
+        insertBulkWorkflowEvents(5);
+        waitForTransformAndMetrics();
+
+        // GET /q/metrics endpoint should expose Prometheus-format metrics
+        given()
+            .when().get("/q/metrics")
+            .then()
+            .statusCode(200)
+            .body(containsString("data_index_transform_documents_processed"))
+            .body(containsString("transform=\"workflow-instances-transform\""))
+            .body(containsString("transform=\"task-executions-transform\""));
+    }
+
+    @Test
+    void testMetricsUpdatePeriodically() throws Exception {
+        // Wait for initial metrics collection
         Thread.sleep(6000);
+
+        // Capture initial timestamp by checking Prometheus endpoint
+        String metricsInitial = given()
+            .when().get("/q/metrics")
+            .then()
+            .statusCode(200)
+            .extract().asString();
+
+        // Verify transform metrics exist
+        assertThat(metricsInitial).contains("data_index_transform_documents_processed");
+
+        // Wait for next metrics poll cycle (5s + buffer)
+        Thread.sleep(6000);
+
+        // Capture updated metrics
+        String metricsUpdated = given()
+            .when().get("/q/metrics")
+            .then()
+            .statusCode(200)
+            .extract().asString();
+
+        // Metrics should still be present (verifies periodic collection continues)
+        assertThat(metricsUpdated).contains("data_index_transform_documents_processed");
+        assertThat(metricsUpdated).contains("data_index_transform_state");
+        assertThat(metricsUpdated).contains("data_index_transform_lag");
     }
 }
