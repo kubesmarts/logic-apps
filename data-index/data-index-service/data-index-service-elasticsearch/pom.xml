@@ -62,6 +62,12 @@
       <artifactId>quarkus-container-image-jib</artifactId>
     </dependency>
 
+    <!-- Metrics and monitoring -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+    </dependency>
+
     <!-- TODO: Add Quarkus Elasticsearch dependencies when implementing MODE 2
     <dependency>
       <groupId>io.quarkus</groupId>

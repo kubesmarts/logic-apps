@@ -340,6 +340,33 @@ Status: COMPLETED/FAULTED/CANCELLED > RUNNING > CREATED
 
 **See:** `data-index/docs/deployment/MODE2_HANDOFF.md`
 
+### Metrics & Observability
+
+**Prometheus Metrics:**
+- Micrometer metrics exposed at `/q/metrics` endpoint
+- Metrics collector polls Transform Stats API every 30s (configurable)
+- Gauges for documents processed, indexed, lag, state, checkpoint
+
+**Configuration:**
+```properties
+# Enable/disable metrics (default: true)
+data-index.metrics.transform.enabled=true
+
+# Poll interval (default: 30s)
+data-index.metrics.transform.poll-interval=30s
+```
+
+**Grafana Integration:**
+- Use Prometheus datasource to query metrics
+- Alert on transform state != 1 (not running)
+- Alert on lag > 1000 (processing behind)
+- See `data-index/docs/elasticsearch/TRANSFORM_OPTIMIZATION.md` for dashboard examples
+
+**Performance Benchmarking:**
+- Tests verify smart filtering maintains constant processing time
+- Tests verify lag stays low under load (< 100 documents)
+- Run: `mvn test -Dtest=ElasticsearchTransformPerformanceBenchmarkIT`
+
 ### 2. JSON Field Exposure (String Getters)
 
 **DO:**

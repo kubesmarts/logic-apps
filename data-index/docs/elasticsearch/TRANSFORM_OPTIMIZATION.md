@@ -141,6 +141,156 @@ curl http://localhost:9200/_transform/workflow-instances-transform | jq '.transf
 
 ---
 
+## Metrics & Monitoring
+
+### Exposed Metrics
+
+The Data Index service exposes Prometheus-compatible metrics for both transforms:
+
+**Metrics:**
+- `data_index_transform_documents_processed{transform="..."}` - Total documents processed
+- `data_index_transform_documents_indexed{transform="..."}` - Total documents indexed
+- `data_index_transform_lag{transform="..."}` - Processing lag (processed - indexed)
+- `data_index_transform_state{transform="..."}` - Transform state (0=stopped, 1=started, 2=failed, -1=unknown)
+- `data_index_transform_last_checkpoint{transform="..."}` - Last checkpoint timestamp (epoch millis)
+
+**Transforms tracked:**
+- `workflow-instances-transform`
+- `task-executions-transform`
+
+### Prometheus Endpoint
+
+Metrics are available at:
+```
+GET /q/metrics
+```
+
+Example output:
+```
+# HELP data_index_transform_documents_processed  
+# TYPE data_index_transform_documents_processed gauge
+data_index_transform_documents_processed{transform="workflow-instances-transform"} 45230.0
+data_index_transform_documents_processed{transform="task-executions-transform"} 128450.0
+
+# HELP data_index_transform_lag  
+# TYPE data_index_transform_lag gauge
+data_index_transform_lag{transform="workflow-instances-transform"} 0.0
+data_index_transform_lag{transform="task-executions-transform"} 15.0
+```
+
+### Configuration
+
+```properties
+# Enable/disable transform metrics collection
+data-index.metrics.transform.enabled=true
+
+# How often to poll Transform Stats API
+# Default: 30s (recommended for production)
+# Lower values (5s-10s) for development
+# Higher values (60s-120s) for high-scale deployments
+data-index.metrics.transform.poll-interval=30s
+```
+
+### Grafana Dashboard
+
+**Recommended Queries:**
+
+```promql
+# Transform processing rate (events/second)
+rate(data_index_transform_documents_processed{transform="workflow-instances-transform"}[5m])
+
+# Transform lag (should stay near 0)
+data_index_transform_lag
+
+# Transform health (1 = healthy)
+data_index_transform_state == 1
+```
+
+**Alert Rules:**
+
+```yaml
+groups:
+  - name: elasticsearch_transforms
+    rules:
+      - alert: TransformStopped
+        expr: data_index_transform_state != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Transform {{ $labels.transform }} is not running"
+          description: "State: {{ $value }} (0=stopped, 2=failed, -1=unknown)"
+
+      - alert: TransformLagHigh
+        expr: data_index_transform_lag > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Transform {{ $labels.transform }} has high lag"
+          description: "Lag: {{ $value }} documents behind"
+```
+
+**Dashboard Panels:**
+
+1. **Processing Rate** (Graph)
+   - Query: `rate(data_index_transform_documents_processed[5m])`
+   - Y-axis: events/second
+   - Legend: `{{ transform }}`
+
+2. **Lag** (Graph)
+   - Query: `data_index_transform_lag`
+   - Y-axis: document count
+   - Threshold: Warning at 100, Critical at 1000
+
+3. **State** (Stat)
+   - Query: `data_index_transform_state`
+   - Mappings: 0=Stopped (red), 1=Running (green), 2=Failed (red), -1=Unknown (yellow)
+
+4. **Total Processed** (Stat)
+   - Query: `data_index_transform_documents_processed`
+   - Format: number with commas
+
+### Troubleshooting
+
+**High Lag**
+
+Symptom: `data_index_transform_lag` consistently > 100
+
+Possible causes:
+1. **High event volume** - Transform processing can't keep up
+   - Check `rate(data_index_transform_documents_processed[5m])`
+   - Consider reducing event volume or increasing Elasticsearch resources
+
+2. **Slow Elasticsearch** - Cluster under load
+   - Check Elasticsearch cluster metrics (CPU, memory, disk I/O)
+   - Review `_transform/<id>/_stats` for slow search/index times
+
+3. **Transform stopped** - Check `data_index_transform_state`
+   - If not `1` (started), investigate Elasticsearch logs
+   - Restart transform if needed
+
+**Metrics Not Updating**
+
+Symptom: Metrics stuck at same value
+
+Possible causes:
+1. **Metrics collection disabled** - Check `data-index.metrics.transform.enabled=true`
+2. **Transform not running** - Check transform state via Elasticsearch API
+3. **Scheduler not running** - Check application logs for scheduled job execution
+
+**Manual Verification:**
+
+```bash
+# Check metrics endpoint
+curl http://localhost:8080/q/metrics | grep data_index_transform
+
+# Check transform stats directly
+curl http://localhost:9200/_transform/workflow-instances-transform/_stats?pretty
+```
+
+---
+
 ## Troubleshooting
 
 ### Validation Errors
