@@ -138,7 +138,7 @@ data-index.ilm.raw-events-retention=30d
 
 **Metrics:**
 ```bash
-# Check transform performance (PR#2 - not yet implemented)
+# Check transform performance and health
 curl http://localhost:8080/q/metrics | grep data_index_transform
 ```
 
@@ -1065,10 +1065,11 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 
 ## Key Files Reference
 
-**Architecture:**
+**Architecture & Documentation:**
 - `data-index/docs/ARCHITECTURE-SUMMARY.md` - All deployment modes
 - `data-index/docs/deployment/MODE1_HANDOFF.md` - MODE 1 (PostgreSQL) details
 - `data-index/docs/deployment/MODE2_HANDOFF.md` - MODE 2 (Elasticsearch) details
+- `data-index/docs/elasticsearch/TRANSFORM_OPTIMIZATION.md` - Transform optimization & metrics guide
 
 **Code (Common):**
 - `data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/` - Domain model
@@ -1087,15 +1088,15 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - `data-index-elasticsearch-schema/src/main/resources/schema/` - ILM, templates, transforms
 
 **Configuration:**
-- `data-index-service/src/main/resources/application.properties` - Common config
-- `data-index-service/src/main/resources/application-postgresql.properties` - PostgreSQL backend
-- `data-index-service/src/main/resources/application-elasticsearch.properties` - Elasticsearch backend
-- `data-index/scripts/fluentbit/mode1-postgresql-triggers/fluent-bit.conf` - MODE 1 FluentBit
-- `data-index/scripts/fluentbit/mode2-elasticsearch-transforms/fluent-bit.conf` - MODE 2 FluentBit
+- `data-index-service/data-index-service-elasticsearch/src/main/resources/application.properties` - Elasticsearch config (metrics, ILM, smart filtering)
+- `data-index/scripts/fluentbit/elasticsearch/fluent-bit.conf` - MODE 2 FluentBit (Elasticsearch)
+- `data-index/scripts/fluentbit/postgresql/fluent-bit.conf` - MODE 1 FluentBit (PostgreSQL)
 
 **Testing:**
-- `data-index-service/src/test/java/.../graphql/WorkflowInstanceGraphQLApiTest.java` - PostgreSQL
-- `data-index-integration-tests/src/test/java/.../WorkflowInstanceElasticsearchTest.java` - Elasticsearch
+- `data-index-integration-tests/data-index-integration-tests-postgresql/src/test/java/.../WorkflowInstanceGraphQLApiTest.java` - PostgreSQL GraphQL tests
+- `data-index-storage/data-index-storage-elasticsearch/src/test/java/.../ElasticsearchWorkflowInstanceStorageIT.java` - Elasticsearch storage tests
+- `data-index-storage/data-index-storage-elasticsearch/src/test/java/.../ElasticsearchTransformMetricsIT.java` - Transform metrics tests
+- `data-index-storage/data-index-storage-elasticsearch/src/test/java/.../ElasticsearchTransformPerformanceBenchmarkIT.java` - Performance benchmarks
 
 **Build:**
 - `pom.xml` (root) - Generic dependencies, plugin versions
@@ -1125,6 +1126,9 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - Integration tests with Testcontainers
 - Dev Services support
 - Profile-based dependency isolation
+- Prometheus metrics for transform monitoring
+- Performance benchmarking tests
+- Grafana integration documentation
 
 ### 🔄 Optional Future Work
 

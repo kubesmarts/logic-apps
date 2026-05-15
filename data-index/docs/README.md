@@ -22,10 +22,7 @@ open target/generated-docs/index.html
 
 * **jsonnode-scalar-analysis.md** - Technical analysis of JSON field exposure in GraphQL
 * **MULTI_TENANT_FLUENTBIT.md** - Advanced multi-tenant FluentBit configuration patterns
-
-### Implementation Plans
-
-* **deployment/MODE2_IMPLEMENTATION_PLAN.md** - Elasticsearch storage backend implementation plan (in progress)
+* **elasticsearch/TRANSFORM_OPTIMIZATION.md** - Elasticsearch transform optimization & metrics guide
 
 ## Migration Status
 
