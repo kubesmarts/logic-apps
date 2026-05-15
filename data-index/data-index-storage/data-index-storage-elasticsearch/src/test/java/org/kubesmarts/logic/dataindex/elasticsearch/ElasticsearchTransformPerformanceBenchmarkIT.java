@@ -166,4 +166,31 @@ class ElasticsearchTransformPerformanceBenchmarkIT {
 
         assertThat(increase).isLessThan(1.5); // < 50% increase
     }
+
+    @Test
+    void testTransformLagUnderLoad() throws Exception {
+        // Insert 1K events rapidly (50% terminal, recent)
+        LOGGER.info("=== Inserting 1K events rapidly ===");
+        insertBulkWorkflowEvents(1000, 0.5, Duration.ofMinutes(30));
+
+        // Monitor lag metric over 5 poll intervals (25 seconds with 5s poll)
+        List<Long> lagSamples = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            Thread.sleep(5000); // Wait for metrics poll
+            long lag = getLagMetric();
+            lagSamples.add(lag);
+            LOGGER.info("Lag sample {}: {} documents", i + 1, lag);
+        }
+
+        // Assert: Max lag < 100 documents
+        long maxLag = lagSamples.stream().max(Long::compare).orElse(0L);
+        LOGGER.info("Max lag observed: {} documents", maxLag);
+        assertThat(maxLag).isLessThan(100);
+
+        // Assert: Lag decreases over time (transform catches up)
+        long firstLag = lagSamples.get(0);
+        long lastLag = lagSamples.get(lagSamples.size() - 1);
+        LOGGER.info("Lag trend: first={}, last={}", firstLag, lastLag);
+        assertThat(lastLag).isLessThanOrEqualTo(firstLag);
+    }
 }
