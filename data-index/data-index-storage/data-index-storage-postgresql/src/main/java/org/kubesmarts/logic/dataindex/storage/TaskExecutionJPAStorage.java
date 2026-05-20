@@ -68,7 +68,7 @@ public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskInstanc
     @Override
     public List<TaskExecution> findByWorkflowInstanceId(String workflowInstanceId) {
         List<TaskInstanceEntity> entities = em
-                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.instance.id = :instanceId", TaskInstanceEntity.class)
+                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.instanceId = :instanceId", TaskInstanceEntity.class)
                 .setParameter("instanceId", workflowInstanceId)
                 .getResultList();
 
