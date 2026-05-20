@@ -75,6 +75,7 @@ jobs:
           kubectl create namespace postgresql
 
           helm install postgresql bitnami/postgresql \
+            --version 18.6.7 \
             --namespace postgresql \
             --set auth.username=dataindex \
             --set auth.password=dataindex123 \
@@ -90,6 +91,9 @@ jobs:
             --selector=app.kubernetes.io/name=postgresql \
             --timeout=300s
 
+          # Additional wait for PostgreSQL to fully initialize
+          sleep 5
+
           # Copy migration SQL to pod
           kubectl cp \
             data-index/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql \
@@ -98,14 +102,14 @@ jobs:
           # Execute schema creation
           kubectl exec -n postgresql postgresql-0 -- \
             env PGPASSWORD=dataindex123 \
-            psql -U dataindex -d dataindex \
+            psql -h localhost -U dataindex -d dataindex \
             -f /tmp/schema.sql
 
           # Verify tables created
           echo "Verifying database schema..."
           kubectl exec -n postgresql postgresql-0 -- \
             env PGPASSWORD=dataindex123 \
-            psql -U dataindex -d dataindex \
+            psql -h localhost -U dataindex -d dataindex \
             -c '\dt'
 
       - name: Deploy Data Index service
@@ -198,12 +202,12 @@ jobs:
           echo "=== Database Tables ==="
           kubectl exec -n postgresql postgresql-0 -- \
             env PGPASSWORD=dataindex123 \
-            psql -U dataindex -d dataindex -c '\dt' || true
+            psql -h localhost -U dataindex -d dataindex -c '\dt' || true
 
           echo "=== Raw Events Count ==="
           kubectl exec -n postgresql postgresql-0 -- \
             env PGPASSWORD=dataindex123 \
-            psql -U dataindex -d dataindex \
+            psql -h localhost -U dataindex -d dataindex \
             -c 'SELECT COUNT(*) FROM workflow_events_raw;' || true
 
       - name: Cleanup
