@@ -186,16 +186,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to normalize task events with UPDATE-first pattern
+-- Function to normalize task lifecycle events into task_instances.
 --
--- Pattern:
---   1. Try UPDATE by (instance_id, task_position) WHERE "end" IS NULL
---   2. If no rows updated, INSERT new row
+-- Each logical task execution is identified by task_execution_id. Lifecycle
+-- events such as task.started and task.completed share this identifier and must
+-- be merged into the same row.
 --
--- The "end" IS NULL condition is critical:
---   - Prevents updating completed tasks (supports loop iterations)
---   - Only updates in-progress tasks (task.started → task.completed for same execution)
---   - Allows same position to execute multiple times (different rows)
+-- Use INSERT ... ON CONFLICT (task_execution_id) DO UPDATE instead of an
+-- UPDATE-first / INSERT-if-not-found pattern. The latter is race-prone under
+-- concurrent ingestion and can produce duplicate-key violations.
+--
+-- Repeated task positions, including loop iterations, remain separate because
+-- each execution has a distinct task_execution_id.
 CREATE OR REPLACE FUNCTION normalize_task_event()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -210,82 +212,79 @@ BEGIN
   VALUES (NEW.data->>'instanceId', NEW.time, NEW.time, event_timestamp)
   ON CONFLICT (id) DO NOTHING;
 
-  -- Try UPDATE first - match on (instance_id, task_position)
-  -- CRITICAL: Only update if "end" IS NULL (task not yet completed)
-  -- This prevents updating completed tasks, enabling loop iterations
-  UPDATE task_instances SET
-    -- Status: Use event timestamp to determine winner
+  INSERT INTO task_instances (
+    task_execution_id,
+    instance_id,
+    task_name,
+    task_position,
+    status,
+    start,
+    "end",
+    input,
+    output,
+    error_type,
+    error_title,
+    error_detail,
+    error_status,
+    error_instance,
+    last_event_time,
+    created_at,
+    updated_at
+  ) VALUES (
+    NEW.data->>'taskExecutionId',
+    NEW.data->>'instanceId',
+    NEW.data->>'taskName',
+    NEW.data->>'taskPosition',
+    NEW.data->>'status',
+    CASE
+      WHEN NEW.data ? 'startTime'
+      THEN to_timestamp((NEW.data->>'startTime')::numeric)
+      ELSE NULL
+    END,
+    CASE
+      WHEN NEW.data ? 'endTime'
+      THEN to_timestamp((NEW.data->>'endTime')::numeric)
+      ELSE NULL
+    END,
+    NEW.data->'input',
+    NEW.data->'output',
+    NEW.data->'error'->>'type',
+    NEW.data->'error'->>'title',
+    NEW.data->'error'->>'detail',
+    CASE
+      WHEN NEW.data->'error' ? 'status'
+      THEN (NEW.data->'error'->>'status')::integer
+      ELSE NULL
+    END,
+    NEW.data->'error'->>'instance',
+    event_timestamp,
+    NEW.time,
+    NEW.time
+  )
+  ON CONFLICT (task_execution_id) DO UPDATE SET
+    instance_id = COALESCE(EXCLUDED.instance_id, task_instances.instance_id),
+    task_name = COALESCE(EXCLUDED.task_name, task_instances.task_name),
+    task_position = COALESCE(EXCLUDED.task_position, task_instances.task_position),
+
     status = CASE
-      WHEN event_timestamp > last_event_time
-      THEN NEW.data->>'status'
-      ELSE status
+      WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
+      THEN EXCLUDED.status
+      ELSE task_instances.status
     END,
 
-    -- Immutable fields: Keep first non-null (don't overwrite)
-    task_name = COALESCE(task_name, NEW.data->>'taskName'),
-    task_position = COALESCE(task_position, NEW.data->>'taskPosition'),
-    start = COALESCE(start, to_timestamp((NEW.data->>'startTime')::numeric)),
-    input = COALESCE(input, NEW.data->'input'),
+    start = COALESCE(task_instances.start, EXCLUDED.start),
+    "end" = COALESCE(EXCLUDED."end", task_instances."end"),
+    input = COALESCE(task_instances.input, EXCLUDED.input),
+    output = COALESCE(EXCLUDED.output, task_instances.output),
 
-    -- Terminal fields: Keep latest non-null (preserve completion data)
-    "end" = COALESCE(to_timestamp((NEW.data->>'endTime')::numeric), "end"),
-    output = COALESCE(NEW.data->'output', output),
-    error_type = COALESCE(NEW.data->'error'->>'type', error_type),
-    error_title = COALESCE(NEW.data->'error'->>'title', error_title),
-    error_detail = COALESCE(NEW.data->'error'->>'detail', error_detail),
-    error_status = COALESCE((NEW.data->'error'->>'status')::integer, error_status),
-    error_instance = COALESCE(NEW.data->'error'->>'instance', error_instance),
+    error_type = COALESCE(EXCLUDED.error_type, task_instances.error_type),
+    error_title = COALESCE(EXCLUDED.error_title, task_instances.error_title),
+    error_detail = COALESCE(EXCLUDED.error_detail, task_instances.error_detail),
+    error_status = COALESCE(EXCLUDED.error_status, task_instances.error_status),
+    error_instance = COALESCE(EXCLUDED.error_instance, task_instances.error_instance),
 
-    -- Timestamp tracking: Keep latest event timestamp
-    last_event_time = GREATEST(event_timestamp, last_event_time),
-
-    -- Audit: Always update
-    updated_at = NEW.time
-
-  WHERE instance_id = NEW.data->>'instanceId'
-    AND task_position = NEW.data->>'taskPosition'
-    AND "end" IS NULL;  -- CRITICAL: Only update non-terminal tasks
-
-  -- If UPDATE didn't match any rows (NOT FOUND), INSERT new row
-  IF NOT FOUND THEN
-    INSERT INTO task_instances (
-      task_execution_id,
-      instance_id,
-      task_name,
-      task_position,
-      status,
-      start,
-      "end",
-      input,
-      output,
-      error_type,
-      error_title,
-      error_detail,
-      error_status,
-      error_instance,
-      last_event_time,
-      created_at,
-      updated_at
-    ) VALUES (
-      NEW.data->>'taskExecutionId',
-      NEW.data->>'instanceId',
-      NEW.data->>'taskName',
-      NEW.data->>'taskPosition',
-      NEW.data->>'status',
-      to_timestamp((NEW.data->>'startTime')::numeric),
-      to_timestamp((NEW.data->>'endTime')::numeric),
-      NEW.data->'input',
-      NEW.data->'output',
-      NEW.data->'error'->>'type',
-      NEW.data->'error'->>'title',
-      NEW.data->'error'->>'detail',
-      (NEW.data->'error'->>'status')::integer,
-      NEW.data->'error'->>'instance',
-      event_timestamp,
-      NEW.time,
-      NEW.time
-    );
-  END IF;
+    last_event_time = GREATEST(EXCLUDED.last_event_time, task_instances.last_event_time),
+    updated_at = EXCLUDED.updated_at; 
 
   RETURN NEW;
 END;
