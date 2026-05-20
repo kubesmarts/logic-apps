@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <title>FluentBit Scalability</title>
+  <link rel="stylesheet" href="../styles/slides.css">
+</head>
+<body>
+  <div class="slide">
+    <h2>Capacity & Tuning: FluentBit Scalability</h2>
+    <p class="subtitle">Can FluentBit handle massive event history?</p>
+
+    <div class="diagram-container" style="margin-top: 20px;">
+      <object data="../diagrams/fluentbit-daemonset.svg" type="image/svg+xml" style="width: 1200px; height: 500px;"></object>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;">
+      <div>
+        <h4>Architecture Benefits:</h4>
+        <ul style="font-size: 19px; line-height: 1.8;">
+          <li><strong>DaemonSet pattern:</strong> 1 FluentBit pod per node (horizontal scaling)</li>
+          <li><strong>Local tailing:</strong> Only reads logs from pods on same node</li>
+          <li><strong>Stateless:</strong> No shared state, independent pod processing</li>
+          <li><strong>Built-in buffering:</strong> 5MB buffer per pod (drops oldest on overflow)</li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Handling Large Event Volumes:</h4>
+        <ul style="font-size: 19px; line-height: 1.8;">
+          <li><strong>Batch processing:</strong> 1000 events/request (configurable)</li>
+          <li><strong>Filtering:</strong> Only JSON events processed (ignores non-workflow logs)</li>
+          <li><strong>Backpressure:</strong> Tail_Interval controls read rate (default: 1s)</li>
+          <li><strong>Memory limits:</strong> Kubernetes resource constraints prevent OOM</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top: 25px; background: #fff9c4; border: 3px solid #fbc02d; border-radius: 8px; padding: 20px;">
+      <p style="font-size: 20px; margin: 0; font-weight: bold; color: #f57c00;">
+        ⚡ Scaling Answer: FluentBit scales horizontally with cluster nodes. Each pod handles only local logs. No single point of congestion.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

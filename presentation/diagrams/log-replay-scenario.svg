@@ -1,0 +1,54 @@
+<svg viewBox="0 0 900 450" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow-replay" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#333" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-weight="bold" font-size="18" font-family="Arial" fill="#333">Log Replay Scenario: Restoring from /var/log/containers/</text>
+
+  <!-- Timeline -->
+  <line x1="50" y1="100" x2="850" y2="100" stroke="#333" stroke-width="2" marker-end="url(#arrow-replay)"/>
+  <text x="870" y="105" font-size="12" font-family="Arial" fill="#666">Time</text>
+
+  <!-- T0: Original Events -->
+  <rect x="70" y="120" width="200" height="100" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2"/>
+  <text x="170" y="145" text-anchor="middle" font-weight="bold" font-size="14" font-family="Arial">T0: Original Events</text>
+  <text x="170" y="165" text-anchor="middle" font-size="12" font-family="Arial" fill="#666">Workflow executes</text>
+  <text x="170" y="183" text-anchor="middle" font-size="12" font-family="Arial" fill="#666">Events: CREATED, RUNNING,</text>
+  <text x="170" y="201" text-anchor="middle" font-size="12" font-family="Arial" fill="#666">COMPLETED</text>
+
+  <!-- Arrow -->
+  <path d="M 170 220 L 170 260" stroke="#2e7d32" stroke-width="2" marker-end="url(#arrow-replay)" fill="none"/>
+
+  <!-- Logs Stored -->
+  <rect x="70" y="260" width="200" height="60" rx="8" fill="#fff9c4" stroke="#fbc02d" stroke-width="2"/>
+  <text x="170" y="285" text-anchor="middle" font-weight="bold" font-size="13" font-family="Arial">/var/log/containers/</text>
+  <text x="170" y="305" text-anchor="middle" font-size="11" font-family="Arial" fill="#666">workflow-pod-abc.log</text>
+
+  <!-- T1: Database Failure -->
+  <rect x="320" y="120" width="200" height="100" rx="8" fill="#ffebee" stroke="#c62828" stroke-width="2"/>
+  <text x="420" y="145" text-anchor="middle" font-weight="bold" font-size="14" font-family="Arial" fill="#c62828">T1: Database Failure</text>
+  <text x="420" y="165" text-anchor="middle" font-size="12" font-family="Arial" fill="#666">PostgreSQL/ES corrupted</text>
+  <text x="420" y="183" text-anchor="middle" font-size="12" font-family="Arial" fill="#666">Normalized data lost</text>
+  <text x="420" y="201" text-anchor="middle" font-size="12" font-family="Arial" fill="#666">❌ Need to restore</text>
+
+  <!-- Arrow from logs -->
+  <path d="M 270 290 L 320 290 L 320 260 L 420 260 L 420 220" stroke="#f57c00" stroke-width="3" marker-end="url(#arrow-replay)" stroke-dasharray="5,5" fill="none"/>
+  <text x="295" y="280" font-size="11" font-family="Arial" fill="#f57c00" font-weight="bold">Replay</text>
+
+  <!-- T2: Replay Execution -->
+  <rect x="570" y="120" width="250" height="100" rx="8" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+  <text x="695" y="145" text-anchor="middle" font-weight="bold" font-size="14" font-family="Arial" fill="#1976d2">T2: Replay via FluentBit</text>
+  <text x="695" y="165" text-anchor="middle" font-size="12" font-family="Arial" fill="#666">FluentBit re-reads logs</text>
+  <text x="695" y="183" text-anchor="middle" font-size="12" font-family="Arial" fill="#666">Events re-inserted</text>
+  <text x="695" y="201" text-anchor="middle" font-size="12" font-family="Arial" fill="#666">✅ Idempotency ensures correctness</text>
+
+  <!-- Idempotency Box -->
+  <rect x="100" y="350" width="700" height="80" rx="8" fill="#fff3e0" stroke="#f57c00" stroke-width="3"/>
+  <text x="450" y="375" text-anchor="middle" font-weight="bold" font-size="16" font-family="Arial" fill="#f57c00">Why Idempotency Matters for Replay</text>
+
+  <text x="120" y="400" font-size="14" font-family="Arial" fill="#333"><tspan font-weight="bold">MODE 1:</tspan> UPSERT with COALESCE - duplicate events update same row (no duplicates created)</text>
+  <text x="120" y="420" font-size="14" font-family="Arial" fill="#333"><tspan font-weight="bold">MODE 2:</tspan> Transform aggregates by ID - duplicate events aggregated into same document (last-write-wins)</text>
+</svg>

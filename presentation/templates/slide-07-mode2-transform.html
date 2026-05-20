@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <title>MODE 2 Transform Logic</title>
+  <link rel="stylesheet" href="../styles/slides.css">
+</head>
+<body>
+  <div class="slide">
+    <h2>MODE 2: Transform Logic & Idempotency</h2>
+    <p class="subtitle">Painless script handles field-level COALESCE</p>
+
+    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px; margin-top: 30px;">
+      <div>
+        <h4>Elasticsearch Transform (Painless):</h4>
+        <pre style="font-size: 15px; line-height: 1.5; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #f57c00;"><code>{
+  "source": {
+    "index": "workflow-events",
+    "query": {
+      "bool": {
+        "should": [
+          {
+            "range": {
+              "@timestamp": {
+                "gte": "now-1h"
+              }
+            }
+          },
+          {
+            "bool": {
+              "must_not": {
+                "terms": {
+                  "status": [
+                    "COMPLETED",
+                    "FAULTED",
+                    "CANCELLED"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "dest": {
+    "index": "workflow-instances"
+  },
+  "pivot": {
+    "group_by": {
+      "id": {
+        "terms": { "field": "id" }
+      }
+    },
+    "aggregations": {
+      "name": {
+        "scripted_metric": {
+          "init_script": "state.values = []",
+          "map_script": """
+            if (doc['name'].size() > 0) {
+              state.values.add(doc['name'].value)
+            }
+          """,
+          "combine_script": "return state.values",
+          "reduce_script": """
+            def all = [];
+            for (s in states) {
+              all.addAll(s);
+            }
+            return all.size() > 0 ?
+              all[0] : null;
+          """
+        }
+      },
+      "status": {
+        "scripted_metric": {
+          "reduce_script": """
+            // Terminal state wins
+            if (all.contains('COMPLETED'))
+              return 'COMPLETED';
+            if (all.contains('FAULTED'))
+              return 'FAULTED';
+            return all[all.size()-1];
+          """
+        }
+      },
+      "start": {
+        "scripted_metric": {
+          "reduce_script": """
+            // First value wins (immutable)
+            return all[0];
+          """
+        }
+      },
+      "end": {
+        "scripted_metric": {
+          "reduce_script": """
+            // Last non-null wins (terminal)
+            for (int i=all.size()-1; i>=0; i--) {
+              if (all[i] != null) return all[i];
+            }
+            return null;
+          """
+        }
+      }
+    }
+  },
+  "frequency": "1s",
+  "sync": {
+    "time": {
+      "field": "@timestamp",
+      "delay": "60s"
+    }
+  }
+}</code></pre>
+      </div>
+
+      <div>
+        <h4>Smart Filtering:</h4>
+        <div style="background: white; border: 2px solid #f57c00; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+          <p style="font-size: 18px; line-height: 1.6;">
+            <strong>Query optimization:</strong>
+          </p>
+          <ul style="font-size: 17px; line-height: 1.7;">
+            <li>Process events from <strong>last 1 hour</strong></li>
+            <li>OR workflows still <strong>active</strong> (not in terminal state)</li>
+            <li>Skip old completed workflows (won't change)</li>
+          </ul>
+        </div>
+
+        <h4 style="margin-top: 30px;">Idempotency Rules:</h4>
+        <ul style="font-size: 18px; line-height: 1.8;">
+          <li><strong>Immutable fields:</strong> First value wins (name, version, start, input)</li>
+          <li><strong>Terminal fields:</strong> Last non-null wins (end, output, error)</li>
+          <li><strong>Status:</strong> Terminal state precedence (COMPLETED/FAULTED > RUNNING > CREATED)</li>
+        </ul>
+
+        <div style="background: #fff3e0; border: 2px solid #f57c00; border-radius: 8px; padding: 15px; margin-top: 20px;">
+          <p style="font-size: 16px; margin: 0; color: #e65100;">
+            <strong>⚡ Performance:</strong> Constant processing time regardless of total workflow count (smart filtering)
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

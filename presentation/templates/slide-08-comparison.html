@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <title>MODE 1 vs MODE 2 Comparison</title>
+  <link rel="stylesheet" href="../styles/slides.css">
+</head>
+<body>
+  <div class="slide">
+    <h2>MODE 1 vs MODE 2: Feature Comparison</h2>
+    <p class="subtitle">Same GraphQL API, different storage backends</p>
+
+    <div class="diagram-container" style="margin-top: 30px;">
+      <object data="../diagrams/mode-comparison.svg" type="image/svg+xml" style="width: 1100px; height: 350px;"></object>
+    </div>
+
+    <div style="margin-top: 40px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 18px;">
+        <thead>
+          <tr style="background: #f5f5f5; border-bottom: 3px solid #333;">
+            <th style="padding: 15px; text-align: left; font-size: 20px;">Feature</th>
+            <th style="padding: 15px; text-align: center; font-size: 20px; color: #1976d2;">MODE 1 (PostgreSQL)</th>
+            <th style="padding: 15px; text-align: center; font-size: 20px; color: #f57c00;">MODE 2 (Elasticsearch)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 12px; font-weight: bold;">Normalization Latency</td>
+            <td style="padding: 12px; text-align: center;">&lt; 1ms (triggers)</td>
+            <td style="padding: 12px; text-align: center;">~1s (transforms)</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 12px; font-weight: bold;">Consistency Model</td>
+            <td style="padding: 12px; text-align: center;">Strong (ACID)</td>
+            <td style="padding: 12px; text-align: center;">Eventual (AP)</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 12px; font-weight: bold;">Scaling Strategy</td>
+            <td style="padding: 12px; text-align: center;">Vertical + read replicas</td>
+            <td style="padding: 12px; text-align: center;">Horizontal (sharding)</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 12px; font-weight: bold;">Capacity</td>
+            <td style="padding: 12px; text-align: center;">&lt; 50K workflows/day</td>
+            <td style="padding: 12px; text-align: center;">&gt; 50K workflows/day</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 12px; font-weight: bold;">Full-Text Search</td>
+            <td style="padding: 12px; text-align: center;">❌ (tsvector possible)</td>
+            <td style="padding: 12px; text-align: center;">✅ Native</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 12px; font-weight: bold;">Complex Aggregations</td>
+            <td style="padding: 12px; text-align: center;">⚠️ Limited</td>
+            <td style="padding: 12px; text-align: center;">✅ Advanced</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 12px; font-weight: bold;">Multi-Tenancy</td>
+            <td style="padding: 12px; text-align: center;">Row-level security</td>
+            <td style="padding: 12px; text-align: center;">Index-per-tenant</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 12px; font-weight: bold;">Operational Complexity</td>
+            <td style="padding: 12px; text-align: center;">Low (single DB)</td>
+            <td style="padding: 12px; text-align: center;">High (ES cluster)</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; font-weight: bold;">GraphQL API</td>
+            <td style="padding: 12px; text-align: center;" colspan="2">✅ Identical (SmallRye GraphQL)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <title>Demo Environment Setup</title>
+  <link rel="stylesheet" href="../styles/slides.css">
+</head>
+<body>
+  <div class="slide">
+    <h2>Demo Environment (KIND Cluster)</h2>
+    <p class="subtitle">Production-like deployment on local Kubernetes</p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px;">
+      <div>
+        <h3 style="color: #1976d2; margin-bottom: 25px;">MODE 1: PostgreSQL Demo</h3>
+        <div class="box" style="border: 3px solid #1976d2; background: white; padding: 25px;">
+          <h4 style="margin-top: 0;">Components Running:</h4>
+          <ul style="font-size: 20px; line-height: 2;">
+            <li><strong>PostgreSQL 15</strong> - Database backend</li>
+            <li><strong>Data Index Service</strong> - GraphQL API</li>
+            <li><strong>FluentBit DaemonSet</strong> - Log collection</li>
+            <li><strong>Test Workflow App</strong> - Generates events</li>
+          </ul>
+
+          <h4 style="margin-top: 30px;">Deployment Scripts:</h4>
+          <pre style="font-size: 16px; background: #f5f5f5; padding: 15px; border-radius: 6px;"><code>cd data-index/scripts/kind
+
+# Setup cluster
+./setup-cluster.sh
+
+# Install PostgreSQL
+MODE=postgresql ./install-dependencies.sh
+
+# Deploy Data Index
+./deploy-data-index.sh postgresql
+
+# Deploy FluentBit (MODE 1)
+cd ../fluentbit/mode1-postgresql-triggers
+./generate-configmap.sh
+kubectl apply -f kubernetes/
+
+# Deploy test app
+cd ../../kind
+./deploy-workflow-app.sh</code></pre>
+        </div>
+      </div>
+
+      <div>
+        <h3 style="color: #f57c00; margin-bottom: 25px;">MODE 2: Elasticsearch Demo</h3>
+        <div class="box" style="border: 3px solid #f57c00; background: white; padding: 25px;">
+          <h4 style="margin-top: 0;">Components Running:</h4>
+          <ul style="font-size: 20px; line-height: 2;">
+            <li><strong>Elasticsearch 8.11.1</strong> - Storage backend</li>
+            <li><strong>Data Index Service</strong> - GraphQL API</li>
+            <li><strong>FluentBit DaemonSet</strong> - Log collection</li>
+            <li><strong>Test Workflow App</strong> - Generates events</li>
+          </ul>
+
+          <h4 style="margin-top: 30px;">Deployment Scripts:</h4>
+          <pre style="font-size: 16px; background: #f5f5f5; padding: 15px; border-radius: 6px;"><code>cd data-index/scripts/kind
+
+# Setup cluster
+./setup-cluster.sh
+
+# Install Elasticsearch
+MODE=elasticsearch ./install-dependencies.sh
+
+# Deploy Data Index
+./deploy-data-index.sh elasticsearch
+
+# Deploy FluentBit (MODE 2)
+cd ../fluentbit/mode2-elasticsearch-transforms
+./generate-configmap.sh
+kubectl apply -f kubernetes/
+
+# Deploy test app
+cd ../../kind
+./deploy-workflow-app.sh</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 30px; background: #e8f5e9; border: 3px solid #2e7d32; border-radius: 8px; padding: 20px;">
+      <p style="font-size: 22px; margin: 0; font-weight: bold; color: #1b5e20;">
+        🎯 Demo Goal: Show workflows executing, events flowing through FluentBit, data normalized in real-time, GraphQL queries working
+      </p>
+    </div>
+  </div>
+</body>
+</html>

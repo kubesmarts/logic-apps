@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <title>Demo Commands</title>
+  <link rel="stylesheet" href="../styles/slides.css">
+</head>
+<body>
+  <div class="slide">
+    <h2>Live Demo Commands</h2>
+    <p class="subtitle">Interactive demonstration of Data Index in action</p>
+
+    <div style="margin-top: 30px;">
+      <h3 style="color: #2e7d32; margin-bottom: 20px;">1. Verify Components Running</h3>
+      <pre style="font-size: 17px; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Check Data Index service
+kubectl get pods -n data-index
+
+# Check FluentBit DaemonSet
+kubectl get pods -n logging
+
+# Check workflow app
+kubectl get pods -n default</code></pre>
+    </div>
+
+    <div style="margin-top: 30px;">
+      <h3 style="color: #2e7d32; margin-bottom: 20px;">2. Trigger Workflow Execution</h3>
+      <pre style="font-size: 17px; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Execute test workflow (generates events)
+curl -X POST http://localhost:30081/greeting \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Data Index Demo"}'
+
+# Response: {"id": "workflow-abc123", "message": "Workflow started"}</code></pre>
+    </div>
+
+    <div style="margin-top: 30px;">
+      <h3 style="color: #2e7d32; margin-bottom: 20px;">3. Watch Events Flow (FluentBit Logs)</h3>
+      <pre style="font-size: 17px; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Tail FluentBit logs to see event processing
+kubectl logs -n logging -l app=workflows-fluent-bit-mode1 -f
+
+# Or for MODE 2:
+kubectl logs -n logging -l app=workflows-fluent-bit-mode2 -f</code></pre>
+    </div>
+
+    <div style="margin-top: 30px;">
+      <h3 style="color: #2e7d32; margin-bottom: 20px;">4. Query via GraphQL</h3>
+      <pre style="font-size: 17px; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Get all workflow instances
+curl -X POST http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ workflowInstances { id name status startDate endDate } }"
+  }'
+
+# Filter by status
+curl -X POST http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ workflowInstances(where: {status: {equal: COMPLETED}}) {
+      id name status startDate endDate taskExecutions { id name status }
+    }}"
+  }'</code></pre>
+    </div>
+
+    <div style="margin-top: 30px;">
+      <h3 style="color: #2e7d32; margin-bottom: 20px;">5. Verify Data Normalization</h3>
+      <pre style="font-size: 17px; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># MODE 1: Check PostgreSQL tables
+kubectl exec -it -n data-index postgresql-0 -- psql -U postgres -d dataindex \
+  -c "SELECT id, name, status, start FROM workflow_instances;"
+
+# MODE 2: Check Elasticsearch indices
+kubectl port-forward -n data-index svc/elasticsearch 9200:9200
+curl http://localhost:9200/workflow-instances/_search?pretty</code></pre>
+    </div>
+  </div>
+</body>
+</html>

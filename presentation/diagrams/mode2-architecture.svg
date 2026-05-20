@@ -1,0 +1,60 @@
+<svg viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg">
+  <!-- FluentBit -->
+  <rect x="350" y="20" width="200" height="60" rx="8" fill="#fff3e0" stroke="#f57c00" stroke-width="2"/>
+  <text x="450" y="45" text-anchor="middle" font-weight="bold" font-size="14" font-family="Arial">FluentBit</text>
+  <text x="450" y="65" text-anchor="middle" font-size="11" fill="#666" font-family="Arial">Batch INSERT</text>
+
+  <defs>
+    <marker id="arrow-m2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#333" />
+    </marker>
+  </defs>
+
+  <!-- Arrow -->
+  <path d="M 450 80 L 450 120" stroke="#333" stroke-width="2" marker-end="url(#arrow-m2)" fill="none"/>
+
+  <!-- Raw Indices -->
+  <rect x="100" y="120" width="700" height="100" rx="8" fill="#fff9c4" stroke="#fbc02d" stroke-width="2"/>
+  <text x="450" y="145" text-anchor="middle" font-weight="bold" font-size="15" font-family="Arial">Elasticsearch Raw Indices</text>
+
+  <rect x="130" y="160" width="300" height="45" rx="4" fill="white" stroke="#666" stroke-width="1"/>
+  <text x="280" y="178" text-anchor="middle" font-size="12" font-family="monospace">workflow-events</text>
+  <text x="280" y="195" text-anchor="middle" font-size="10" fill="#666" font-family="Arial">(JSON documents, ILM 7d)</text>
+
+  <rect x="470" y="160" width="300" height="45" rx="4" fill="white" stroke="#666" stroke-width="1"/>
+  <text x="620" y="178" text-anchor="middle" font-size="12" font-family="monospace">task-events</text>
+  <text x="620" y="195" text-anchor="middle" font-size="10" fill="#666" font-family="Arial">(JSON documents, ILM 7d)</text>
+
+  <!-- Transform annotation -->
+  <rect x="280" y="235" width="340" height="35" rx="4" fill="#fff3e0" stroke="#f57c00" stroke-width="2"/>
+  <text x="450" y="258" text-anchor="middle" font-weight="bold" font-size="13" fill="#f57c00" font-family="Arial">⚡ Elasticsearch Transform (continuous, ~1s)</text>
+
+  <!-- Arrow -->
+  <path d="M 450 270 L 450 310" stroke="#333" stroke-width="2" marker-end="url(#arrow-m2)" fill="none"/>
+  <text x="480" y="295" font-size="11" fill="#999" font-family="Arial">Painless script aggregation</text>
+
+  <!-- Normalized Indices -->
+  <rect x="100" y="310" width="700" height="120" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2"/>
+  <text x="450" y="335" text-anchor="middle" font-weight="bold" font-size="15" font-family="Arial">Elasticsearch Normalized Indices</text>
+
+  <rect x="130" y="350" width="300" height="65" rx="4" fill="white" stroke="#666" stroke-width="1"/>
+  <text x="280" y="368" text-anchor="middle" font-size="12" font-family="monospace" font-weight="bold">workflow-instances</text>
+  <text x="280" y="385" text-anchor="middle" font-size="9" fill="#666" font-family="Arial">id, name, version, status</text>
+  <text x="280" y="399" text-anchor="middle" font-size="9" fill="#666" font-family="Arial">start, end, input, output</text>
+  <text x="280" y="413" text-anchor="middle" font-size="9" fill="#666" font-family="Arial">error (type, title, detail)</text>
+
+  <rect x="470" y="350" width="300" height="65" rx="4" fill="white" stroke="#666" stroke-width="1"/>
+  <text x="620" y="368" text-anchor="middle" font-size="12" font-family="monospace" font-weight="bold">task-executions</text>
+  <text x="620" y="385" text-anchor="middle" font-size="9" fill="#666" font-family="Arial">id, workflow_id, name, status</text>
+  <text x="620" y="399" text-anchor="middle" font-size="9" fill="#666" font-family="Arial">start, end, input, output</text>
+  <text x="620" y="413" text-anchor="middle" font-size="9" fill="#666" font-family="Arial">error (type, title, detail)</text>
+
+  <!-- Arrow -->
+  <path d="M 450 430 L 450 470" stroke="#333" stroke-width="2" marker-end="url(#arrow-m2)" fill="none"/>
+  <text x="500" y="455" font-size="11" fill="#999" font-family="Arial">ES Java Client</text>
+
+  <!-- GraphQL API -->
+  <rect x="350" y="470" width="200" height="50" rx="8" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+  <text x="450" y="495" text-anchor="middle" font-weight="bold" font-size="14" font-family="Arial">GraphQL API</text>
+  <text x="450" y="512" text-anchor="middle" font-size="11" fill="#666" font-family="Arial">SmallRye GraphQL</text>
+</svg>

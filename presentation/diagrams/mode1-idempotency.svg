@@ -1,0 +1,62 @@
+<svg viewBox="0 0 1000 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow-idem" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#333" />
+    </marker>
+  </defs>
+
+  <!-- Timeline -->
+  <line x1="50" y1="200" x2="950" y2="200" stroke="#333" stroke-width="2" marker-end="url(#arrow-idem)"/>
+  <text x="970" y="205" font-size="14" font-family="Arial" fill="#666">Time</text>
+
+  <!-- Event 1: COMPLETED (arrives first, but logically last) -->
+  <rect x="150" y="50" width="180" height="100" rx="8" fill="#ffebee" stroke="#c62828" stroke-width="2"/>
+  <text x="240" y="75" text-anchor="middle" font-weight="bold" font-size="14" font-family="Arial">Event 1 (arrives first)</text>
+  <text x="240" y="95" text-anchor="middle" font-size="12" font-family="monospace">status: COMPLETED</text>
+  <text x="240" y="112" text-anchor="middle" font-size="12" font-family="monospace">end: 10:05:00</text>
+  <text x="240" y="129" text-anchor="middle" font-size="12" font-family="monospace">output: {...}</text>
+  <text x="240" y="145" text-anchor="middle" font-size="10" fill="#666" font-family="Arial">t=1 (DB insert)</text>
+
+  <!-- Arrow to DB -->
+  <path d="M 240 150 L 240 280" stroke="#c62828" stroke-width="2" marker-end="url(#arrow-idem)" stroke-dasharray="5,5" fill="none"/>
+
+  <!-- Event 2: RUNNING (arrives second, but logically middle) -->
+  <rect x="410" y="50" width="180" height="100" rx="8" fill="#fff3e0" stroke="#f57c00" stroke-width="2"/>
+  <text x="500" y="75" text-anchor="middle" font-weight="bold" font-size="14" font-family="Arial">Event 2 (arrives second)</text>
+  <text x="500" y="95" text-anchor="middle" font-size="12" font-family="monospace">status: RUNNING</text>
+  <text x="500" y="112" text-anchor="middle" font-size="12" font-family="monospace">start: 10:00:00</text>
+  <text x="500" y="129" text-anchor="middle" font-size="12" font-family="monospace">(no end/output)</text>
+  <text x="500" y="145" text-anchor="middle" font-size="10" fill="#666" font-family="Arial">t=2 (DB insert)</text>
+
+  <!-- Arrow to DB -->
+  <path d="M 500 150 L 500 280" stroke="#f57c00" stroke-width="2" marker-end="url(#arrow-idem)" stroke-dasharray="5,5" fill="none"/>
+
+  <!-- Event 3: CREATED (arrives third, but logically first) -->
+  <rect x="670" y="50" width="180" height="100" rx="8" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+  <text x="760" y="75" text-anchor="middle" font-weight="bold" font-size="14" font-family="Arial">Event 3 (arrives third)</text>
+  <text x="760" y="95" text-anchor="middle" font-size="12" font-family="monospace">status: CREATED</text>
+  <text x="760" y="112" text-anchor="middle" font-size="12" font-family="monospace">name: "my-workflow"</text>
+  <text x="760" y="129" text-anchor="middle" font-size="12" font-family="monospace">input: {...}</text>
+  <text x="760" y="145" text-anchor="middle" font-size="10" fill="#666" font-family="Arial">t=3 (DB insert)</text>
+
+  <!-- Arrow to DB -->
+  <path d="M 760 150 L 760 280" stroke="#1976d2" stroke-width="2" marker-end="url(#arrow-idem)" stroke-dasharray="5,5" fill="none"/>
+
+  <!-- Database State (COALESCE result) -->
+  <rect x="100" y="280" width="800" height="100" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="3"/>
+  <text x="500" y="305" text-anchor="middle" font-weight="bold" font-size="16" font-family="Arial">Final Database State (COALESCE)</text>
+
+  <text x="150" y="330" font-size="13" font-family="monospace" fill="#333">status: COMPLETED</text>
+  <text x="150" y="350" font-size="13" font-family="monospace" fill="#333">name: "my-workflow"</text>
+  <text x="150" y="370" font-size="13" font-family="monospace" fill="#333">start: 10:00:00</text>
+
+  <text x="500" y="330" font-size="13" font-family="monospace" fill="#333">end: 10:05:00</text>
+  <text x="500" y="350" font-size="13" font-family="monospace" fill="#333">input: {...}</text>
+  <text x="500" y="370" font-size="13" font-family="monospace" fill="#333">output: {...}</text>
+
+  <!-- COALESCE annotation -->
+  <rect x="720" y="320" width="160" height="50" rx="4" fill="#fff9c4" stroke="#fbc02d" stroke-width="2"/>
+  <text x="800" y="340" text-anchor="middle" font-size="11" font-weight="bold" font-family="Arial" fill="#f57c00">✓ Idempotent</text>
+  <text x="800" y="357" text-anchor="middle" font-size="10" font-family="Arial" fill="#666">First value wins</text>
+  <text x="800" y="370" text-anchor="middle" font-size="10" font-family="Arial" fill="#666">for immutable fields</text>
+</svg>

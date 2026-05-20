@@ -1,0 +1,49 @@
+<svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- MODE 1 Box -->
+  <rect x="50" y="30" width="380" height="240" rx="8" fill="white" stroke="#1976d2" stroke-width="3"/>
+  <rect x="50" y="30" width="380" height="50" rx="8" fill="#e3f2fd" stroke="#1976d2" stroke-width="3"/>
+  <text x="240" y="62" text-anchor="middle" font-weight="bold" font-size="20" font-family="Arial" fill="#1976d2">MODE 1: PostgreSQL</text>
+
+  <!-- MODE 1 Features -->
+  <text x="70" y="110" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Normalization:</text>
+  <text x="240" y="110" font-size="15" font-family="Arial" fill="#666">&lt; 1ms (triggers)</text>
+
+  <text x="70" y="140" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Consistency:</text>
+  <text x="240" y="140" font-size="15" font-family="Arial" fill="#666">ACID transactions</text>
+
+  <text x="70" y="170" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Scaling:</text>
+  <text x="240" y="170" font-size="15" font-family="Arial" fill="#666">Vertical (read replicas)</text>
+
+  <text x="70" y="200" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Capacity:</text>
+  <text x="240" y="200" font-size="15" font-family="Arial" fill="#666">&lt; 50K workflows/day</text>
+
+  <text x="70" y="230" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Features:</text>
+  <text x="240" y="230" font-size="15" font-family="Arial" fill="#666">Relational queries</text>
+
+  <text x="70" y="255" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Operations:</text>
+  <text x="240" y="255" font-size="15" font-family="Arial" fill="#666">Simpler (no ES cluster)</text>
+
+  <!-- MODE 2 Box -->
+  <rect x="470" y="30" width="380" height="240" rx="8" fill="white" stroke="#f57c00" stroke-width="3"/>
+  <rect x="470" y="30" width="380" height="50" rx="8" fill="#fff3e0" stroke="#f57c00" stroke-width="3"/>
+  <text x="660" y="62" text-anchor="middle" font-weight="bold" font-size="20" font-family="Arial" fill="#f57c00">MODE 2: Elasticsearch</text>
+
+  <!-- MODE 2 Features -->
+  <text x="490" y="110" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Normalization:</text>
+  <text x="660" y="110" font-size="15" font-family="Arial" fill="#666">~1s (transforms)</text>
+
+  <text x="490" y="140" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Consistency:</text>
+  <text x="660" y="140" font-size="15" font-family="Arial" fill="#666">Eventual (AP)</text>
+
+  <text x="490" y="170" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Scaling:</text>
+  <text x="660" y="170" font-size="15" font-family="Arial" fill="#666">Horizontal (sharding)</text>
+
+  <text x="490" y="200" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Capacity:</text>
+  <text x="660" y="200" font-size="15" font-family="Arial" fill="#666">&gt; 50K workflows/day</text>
+
+  <text x="490" y="230" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Features:</text>
+  <text x="660" y="230" font-size="15" font-family="Arial" fill="#666">Full-text + aggregations</text>
+
+  <text x="490" y="255" font-size="16" font-family="Arial" font-weight="bold" fill="#333">✓ Operations:</text>
+  <text x="660" y="255" font-size="15" font-family="Arial" fill="#666">Complex (ES cluster)</text>
+</svg>
