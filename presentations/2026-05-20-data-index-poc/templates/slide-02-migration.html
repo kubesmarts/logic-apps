@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <title>Migration Context</title>
+  <link rel="stylesheet" href="../styles/slides.css">
+</head>
+<body>
+  <div class="slide">
+    <h2 style="border-bottom: 4px solid #5e35b1; padding-bottom: 15px;">Why We're Rebuilding Data Index</h2>
+
+    <div class="two-column" style="margin-top: 40px; margin-bottom: 40px;">
+      <div class="box" style="border: 3px solid #e65100; background: white;">
+        <h3 style="color: #e65100; margin-bottom: 20px;">Old: OpenShift Serverless Logic</h3>
+        <ul style="font-size: 22px; line-height: 1.9;">
+          <li><strong>Engine:</strong> SonataFlow (BPMN-based)</li>
+          <li><strong>Events:</strong> Kafka/Knative + CloudEvents</li>
+          <li><strong>Processing:</strong> Event processor service</li>
+          <li><strong>Storage:</strong> PostgreSQL/MongoDB/Infinispan</li>
+          <li><strong>API:</strong> GraphQL (ProcessInstances)</li>
+        </ul>
+      </div>
+
+      <div class="box" style="border: 3px solid #2e7d32; background: white;">
+        <h3 style="color: #2e7d32; margin-bottom: 20px;">New: Quarkus Flow + Data Index v1.0</h3>
+        <ul style="font-size: 22px; line-height: 1.9;">
+          <li><strong>Engine:</strong> Quarkus Flow (SW 1.0 spec)</li>
+          <li><strong>Events:</strong> Structured logs → FluentBit</li>
+          <li><strong>Processing:</strong> DB triggers/transforms (no service!)</li>
+          <li><strong>Storage:</strong> PostgreSQL OR Elasticsearch</li>
+          <li><strong>API:</strong> GraphQL (WorkflowInstances)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="color: #388e3c; margin-bottom: 20px;">Key Architectural Improvements</h3>
+    <ul style="font-size: 24px; line-height: 2;">
+      <li><strong>Simpler:</strong> No Kafka infrastructure, no event processor service to manage</li>
+      <li><strong>Faster:</strong> Real-time normalization (&lt; 1ms PostgreSQL, ~1s Elasticsearch)</li>
+      <li><strong>Cloud-native:</strong> Leverages Kubernetes log infrastructure (FluentBit DaemonSet)</li>
+      <li><strong>Standards-aligned:</strong> Serverless Workflow 1.0.0 domain model (not BPMN)</li>
+    </ul>
+  </div>
+</body>
+</html>

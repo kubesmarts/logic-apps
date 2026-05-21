@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <title>Decision Points</title>
+  <link rel="stylesheet" href="../styles/slides.css">
+</head>
+<body>
+  <div class="slide">
+    <h2>Architectural Decision Framework</h2>
+    <p class="subtitle">Which mode is right for your use case?</p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 25px;">
+      <div class="box" style="border: 3px solid #1976d2; background: white; padding: 20px;">
+        <h3 style="color: #1976d2; margin-top: 0; margin-bottom: 15px; font-size: 28px;">Choose MODE 1 if:</h3>
+        <ul style="font-size: 18px; line-height: 1.6;">
+          <li>✅ Workflow volume < 50K/day</li>
+          <li>✅ Strong consistency required (ACID)</li>
+          <li>✅ Existing PostgreSQL expertise</li>
+          <li>✅ Simpler operations preferred</li>
+          <li>✅ Real-time queries (&lt; 1ms lag)</li>
+          <li>✅ Standard relational queries</li>
+        </ul>
+
+        <div style="margin-top: 15px; background: #e3f2fd; border: 2px solid #1976d2; border-radius: 8px; padding: 12px;">
+          <p style="font-size: 15px; margin: 0; font-weight: bold; color: #1976d2;">
+            💡 Traditional enterprise, smaller scale
+          </p>
+        </div>
+      </div>
+
+      <div class="box" style="border: 3px solid #f57c00; background: white; padding: 20px;">
+        <h3 style="color: #f57c00; margin-top: 0; margin-bottom: 15px; font-size: 28px;">Choose MODE 2 if:</h3>
+        <ul style="font-size: 18px; line-height: 1.6;">
+          <li>✅ Workflow volume > 50K/day</li>
+          <li>✅ Eventual consistency acceptable</li>
+          <li>✅ Full-text search needed</li>
+          <li>✅ Complex aggregations required</li>
+          <li>✅ Existing Elasticsearch/EFK stack</li>
+          <li>✅ Horizontal scaling critical</li>
+        </ul>
+
+        <div style="margin-top: 15px; background: #fff3e0; border: 2px solid #f57c00; border-radius: 8px; padding: 12px;">
+          <p style="font-size: 15px; margin: 0; font-weight: bold; color: #f57c00;">
+            💡 Cloud-native, large scale, SaaS
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 25px;">
+      <h3 style="color: #2e7d32; margin-bottom: 15px; font-size: 28px;">Key Decision Factors:</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 16px;">
+        <thead>
+          <tr style="background: #e8f5e9; border-bottom: 3px solid #2e7d32;">
+            <th style="padding: 10px; text-align: left;">Factor</th>
+            <th style="padding: 10px; text-align: center;">MODE 1</th>
+            <th style="padding: 10px; text-align: center;">MODE 2</th>
+            <th style="padding: 10px; text-align: left;">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px; font-weight: bold;">Scale Threshold</td>
+            <td style="padding: 8px; text-align: center;">&lt; 50K/day</td>
+            <td style="padding: 8px; text-align: center;">&gt; 50K/day</td>
+            <td style="padding: 8px;">Primary decision point</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px; font-weight: bold;">Consistency</td>
+            <td style="padding: 8px; text-align: center;">Strong</td>
+            <td style="padding: 8px; text-align: center;">Eventual</td>
+            <td style="padding: 8px;">ACID vs BASE</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px; font-weight: bold;">Ops Complexity</td>
+            <td style="padding: 8px; text-align: center;">Low</td>
+            <td style="padding: 8px; text-align: center;">High</td>
+            <td style="padding: 8px;">ES cluster vs single DB</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px; font-weight: bold;">Migration Path</td>
+            <td style="padding: 8px; text-align: center;" colspan="2">Seamless (same API)</td>
+            <td style="padding: 8px;">Can switch later</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

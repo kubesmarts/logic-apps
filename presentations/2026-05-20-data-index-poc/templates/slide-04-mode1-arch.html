@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <title>MODE 1 Architecture</title>
+  <link rel="stylesheet" href="../styles/slides.css">
+</head>
+<body>
+  <div class="slide">
+    <h2>MODE 1: PostgreSQL + Triggers</h2>
+    <p class="subtitle">Real-time normalization with database triggers</p>
+
+    <div class="diagram-container">
+      <object data="../diagrams/mode1-architecture.svg" type="image/svg+xml" style="width: 1000px; height: 500px;"></object>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 15px;">
+      <div>
+        <h4 style="font-size: 24px; margin-bottom: 10px;">Key Characteristics:</h4>
+        <ul style="font-size: 18px; line-height: 1.6;">
+          <li>< 1ms normalization</li>
+          <li>ACID transactions</li>
+          <li>JSONB storage</li>
+          <li>Vertical scaling</li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="font-size: 24px; margin-bottom: 10px;">When to Choose MODE 1:</h4>
+        <ul style="font-size: 18px; line-height: 1.6;">
+          <li>< 50K workflows/day</li>
+          <li>ACID guarantees important</li>
+          <li>Existing PostgreSQL infra</li>
+          <li>Simpler operations</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

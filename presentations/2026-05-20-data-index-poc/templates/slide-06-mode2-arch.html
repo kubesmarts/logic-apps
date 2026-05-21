@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <title>MODE 2 Architecture</title>
+  <link rel="stylesheet" href="../styles/slides.css">
+</head>
+<body>
+  <div class="slide">
+    <h2>MODE 2: Elasticsearch + Transforms</h2>
+    <p class="subtitle">Continuous normalization with Elasticsearch transforms</p>
+
+    <div class="diagram-container">
+      <object data="../diagrams/mode2-architecture.svg" type="image/svg+xml" style="width: 1000px; height: 500px;"></object>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 15px;">
+      <div>
+        <h4 style="font-size: 24px; margin-bottom: 10px;">Key Characteristics:</h4>
+        <ul style="font-size: 18px; line-height: 1.6;">
+          <li>~1s normalization</li>
+          <li>Eventual consistency</li>
+          <li>Full-text search</li>
+          <li>Horizontal scaling</li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="font-size: 24px; margin-bottom: 10px;">When to Choose MODE 2:</h4>
+        <ul style="font-size: 18px; line-height: 1.6;">
+          <li>> 50K workflows/day</li>
+          <li>Full-text search needed</li>
+          <li>Complex aggregations</li>
+          <li>Multi-tenancy</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "data-index-presentation",
+  "version": "1.0.0",
+  "description": "Generate Data Index POC presentation slides",
+  "main": "generate-slides.js",
+  "scripts": {
+    "generate": "node generate-slides.js",
+    "clean": "rm -f output/*.png"
+  },
+  "dependencies": {
+    "puppeteer": "^22.6.0"
+  }
+}

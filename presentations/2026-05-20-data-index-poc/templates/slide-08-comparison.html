@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0">
+  <title>MODE 1 vs MODE 2 Comparison</title>
+  <link rel="stylesheet" href="../styles/slides.css">
+</head>
+<body>
+  <div class="slide">
+    <h2>MODE 1 vs MODE 2: Feature Comparison</h2>
+    <p class="subtitle">Same GraphQL API, different storage backends</p>
+
+    <div class="diagram-container" style="margin-top: 20px;">
+      <object data="../diagrams/mode-comparison.svg" type="image/svg+xml" style="width: 950px; height: 280px;"></object>
+    </div>
+
+    <div style="margin-top: 25px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 16px;">
+        <thead>
+          <tr style="background: #f5f5f5; border-bottom: 3px solid #333;">
+            <th style="padding: 10px; text-align: left; font-size: 17px;">Feature</th>
+            <th style="padding: 10px; text-align: center; font-size: 17px; color: #1976d2;">MODE 1</th>
+            <th style="padding: 10px; text-align: center; font-size: 17px; color: #f57c00;">MODE 2</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px; font-weight: bold;">Latency</td>
+            <td style="padding: 8px; text-align: center;">&lt; 1ms</td>
+            <td style="padding: 8px; text-align: center;">~1s</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px; font-weight: bold;">Consistency</td>
+            <td style="padding: 8px; text-align: center;">Strong (ACID)</td>
+            <td style="padding: 8px; text-align: center;">Eventual</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px; font-weight: bold;">Scaling</td>
+            <td style="padding: 8px; text-align: center;">Vertical</td>
+            <td style="padding: 8px; text-align: center;">Horizontal</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px; font-weight: bold;">Capacity</td>
+            <td style="padding: 8px; text-align: center;">&lt; 50K/day</td>
+            <td style="padding: 8px; text-align: center;">&gt; 50K/day</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px; font-weight: bold;">Full-Text Search</td>
+            <td style="padding: 8px; text-align: center;">❌</td>
+            <td style="padding: 8px; text-align: center;">✅</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px; font-weight: bold;">Ops Complexity</td>
+            <td style="padding: 8px; text-align: center;">Low</td>
+            <td style="padding: 8px; text-align: center;">High</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; font-weight: bold;">GraphQL API</td>
+            <td style="padding: 8px; text-align: center;" colspan="2">✅ Identical</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
