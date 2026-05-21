@@ -11,80 +11,78 @@
     <h2>Architectural Decision Framework</h2>
     <p class="subtitle">Which mode is right for your use case?</p>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px;">
-      <div class="box" style="border: 3px solid #1976d2; background: white; padding: 30px;">
-        <h3 style="color: #1976d2; margin-top: 0; margin-bottom: 25px;">Choose MODE 1 if:</h3>
-        <ul style="font-size: 21px; line-height: 2;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 25px;">
+      <div class="box" style="border: 3px solid #1976d2; background: white; padding: 20px;">
+        <h3 style="color: #1976d2; margin-top: 0; margin-bottom: 15px; font-size: 28px;">Choose MODE 1 if:</h3>
+        <ul style="font-size: 18px; line-height: 1.6;">
           <li>✅ Workflow volume < 50K/day</li>
           <li>✅ Strong consistency required (ACID)</li>
           <li>✅ Existing PostgreSQL expertise</li>
           <li>✅ Simpler operations preferred</li>
-          <li>✅ Real-time queries critical (&lt; 1ms lag)</li>
-          <li>✅ Standard relational queries sufficient</li>
-          <li>✅ Minimal infrastructure footprint</li>
+          <li>✅ Real-time queries (&lt; 1ms lag)</li>
+          <li>✅ Standard relational queries</li>
         </ul>
 
-        <div style="margin-top: 30px; background: #e3f2fd; border: 2px solid #1976d2; border-radius: 8px; padding: 20px;">
-          <p style="font-size: 19px; margin: 0; font-weight: bold; color: #1976d2;">
-            💡 Best for: Traditional enterprise deployments, smaller scale, PostgreSQL-centric stacks
+        <div style="margin-top: 15px; background: #e3f2fd; border: 2px solid #1976d2; border-radius: 8px; padding: 12px;">
+          <p style="font-size: 15px; margin: 0; font-weight: bold; color: #1976d2;">
+            💡 Traditional enterprise, smaller scale
           </p>
         </div>
       </div>
 
-      <div class="box" style="border: 3px solid #f57c00; background: white; padding: 30px;">
-        <h3 style="color: #f57c00; margin-top: 0; margin-bottom: 25px;">Choose MODE 2 if:</h3>
-        <ul style="font-size: 21px; line-height: 2;">
+      <div class="box" style="border: 3px solid #f57c00; background: white; padding: 20px;">
+        <h3 style="color: #f57c00; margin-top: 0; margin-bottom: 15px; font-size: 28px;">Choose MODE 2 if:</h3>
+        <ul style="font-size: 18px; line-height: 1.6;">
           <li>✅ Workflow volume > 50K/day</li>
           <li>✅ Eventual consistency acceptable</li>
           <li>✅ Full-text search needed</li>
           <li>✅ Complex aggregations required</li>
           <li>✅ Existing Elasticsearch/EFK stack</li>
-          <li>✅ Multi-tenancy (index-per-tenant)</li>
           <li>✅ Horizontal scaling critical</li>
         </ul>
 
-        <div style="margin-top: 30px; background: #fff3e0; border: 2px solid #f57c00; border-radius: 8px; padding: 20px;">
-          <p style="font-size: 19px; margin: 0; font-weight: bold; color: #f57c00;">
-            💡 Best for: Cloud-native deployments, large scale, Elasticsearch-centric stacks, SaaS platforms
+        <div style="margin-top: 15px; background: #fff3e0; border: 2px solid #f57c00; border-radius: 8px; padding: 12px;">
+          <p style="font-size: 15px; margin: 0; font-weight: bold; color: #f57c00;">
+            💡 Cloud-native, large scale, SaaS
           </p>
         </div>
       </div>
     </div>
 
-    <div style="margin-top: 40px;">
-      <h3 style="color: #2e7d32; margin-bottom: 20px;">Key Decision Factors:</h3>
-      <table style="width: 100%; border-collapse: collapse; font-size: 19px;">
+    <div style="margin-top: 25px;">
+      <h3 style="color: #2e7d32; margin-bottom: 15px; font-size: 28px;">Key Decision Factors:</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 16px;">
         <thead>
           <tr style="background: #e8f5e9; border-bottom: 3px solid #2e7d32;">
-            <th style="padding: 15px; text-align: left;">Factor</th>
-            <th style="padding: 15px; text-align: center;">MODE 1</th>
-            <th style="padding: 15px; text-align: center;">MODE 2</th>
-            <th style="padding: 15px; text-align: left;">Notes</th>
+            <th style="padding: 10px; text-align: left;">Factor</th>
+            <th style="padding: 10px; text-align: center;">MODE 1</th>
+            <th style="padding: 10px; text-align: center;">MODE 2</th>
+            <th style="padding: 10px; text-align: left;">Notes</th>
           </tr>
         </thead>
         <tbody>
           <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 12px; font-weight: bold;">Scale Threshold</td>
-            <td style="padding: 12px; text-align: center;">&lt; 50K/day</td>
-            <td style="padding: 12px; text-align: center;">&gt; 50K/day</td>
-            <td style="padding: 12px;">Primary decision point</td>
+            <td style="padding: 8px; font-weight: bold;">Scale Threshold</td>
+            <td style="padding: 8px; text-align: center;">&lt; 50K/day</td>
+            <td style="padding: 8px; text-align: center;">&gt; 50K/day</td>
+            <td style="padding: 8px;">Primary decision point</td>
           </tr>
           <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 12px; font-weight: bold;">Consistency</td>
-            <td style="padding: 12px; text-align: center;">Strong</td>
-            <td style="padding: 12px; text-align: center;">Eventual</td>
-            <td style="padding: 12px;">ACID vs BASE trade-off</td>
+            <td style="padding: 8px; font-weight: bold;">Consistency</td>
+            <td style="padding: 8px; text-align: center;">Strong</td>
+            <td style="padding: 8px; text-align: center;">Eventual</td>
+            <td style="padding: 8px;">ACID vs BASE</td>
           </tr>
           <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 12px; font-weight: bold;">Operational Complexity</td>
-            <td style="padding: 12px; text-align: center;">Low</td>
-            <td style="padding: 12px; text-align: center;">High</td>
-            <td style="padding: 12px;">ES cluster vs single DB</td>
+            <td style="padding: 8px; font-weight: bold;">Ops Complexity</td>
+            <td style="padding: 8px; text-align: center;">Low</td>
+            <td style="padding: 8px; text-align: center;">High</td>
+            <td style="padding: 8px;">ES cluster vs single DB</td>
           </tr>
           <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 12px; font-weight: bold;">Migration Path</td>
-            <td style="padding: 12px; text-align: center;" colspan="2">Seamless (same GraphQL API)</td>
-            <td style="padding: 12px;">Can switch later if needed</td>
+            <td style="padding: 8px; font-weight: bold;">Migration Path</td>
+            <td style="padding: 8px; text-align: center;" colspan="2">Seamless (same API)</td>
+            <td style="padding: 8px;">Can switch later</td>
           </tr>
         </tbody>
       </table>
