@@ -66,8 +66,8 @@ Data Index GraphQL API
 1. FluentBit tails Kubernetes container logs (`/var/log/containers/*_workflows_*.log`)
 2. Parses structured JSON events from Quarkus Flow
 3. Routes events to Elasticsearch daily indices:
-   - `workflow-instance-events-raw-YYYY.MM.DD`
-   - `task-execution-events-raw-YYYY.MM.DD`
+   - `workflow-events-YYYY.MM.DD`
+   - `task-events-YYYY.MM.DD`
 4. Elasticsearch Transform aggregates events into normalized indices (continuous, ~5-60s latency)
 5. Data Index GraphQL API queries normalized indices via Elasticsearch Java Client
 
