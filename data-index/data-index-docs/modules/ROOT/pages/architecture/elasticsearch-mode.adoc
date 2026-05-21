@@ -35,9 +35,9 @@ Elasticsearch MODE 2 uses **Elasticsearch Transforms** for real-time event norma
 [source,text]
 ----
 Quarkus Flow App
-    ↓ (structured logging → /tmp/quarkus-flow-events.log)
+    ↓ (structured logging → stdout)
 FluentBit DaemonSet
-    ↓ (tail log files, filter JSON events)
+    ↓ (tail Kubernetes logs, filter JSON events)
 Elasticsearch Raw Indices
     ↓ (ES Transform - continuous, 1s frequency)
 Elasticsearch Normalized Indices
@@ -47,8 +47,8 @@ GraphQL API (SmallRye GraphQL)
 
 == Data Flow
 
-1. **Quarkus Flow emits events** - Structured JSON logs to `/tmp/quarkus-flow-events.log`
-2. **FluentBit collects** - Tails log files, filters events by `eventType` field
+1. **Quarkus Flow emits events** - Structured JSON logs to stdout
+2. **FluentBit collects** - Tails Kubernetes container logs, filters events by `eventType` field
 3. **Routes by event type** - Workflow events vs task events
 4. **INSERT to raw indices** - Date-based indices with ILM policies
    * `workflow-events-2026.04.27`

@@ -3,6 +3,15 @@
 
 Practical examples of querying workflow instances and task executions using the Data Index GraphQL API.
 
+[NOTE]
+====
+Examples use `http://localhost:30080/graphql` (KIND cluster NodePort). Adjust the port based on your deployment:
+
+* Local development: `http://localhost:8080/graphql`
+* KIND cluster: `http://localhost:30080/graphql`
+* Production: Use your service's actual endpoint
+====
+
 == Basic Queries
 
 === Get All Workflow Instances
@@ -310,9 +319,8 @@ curl http://localhost:30080/graphql \
 ----
 {
   getWorkflowInstances(
-    sort: {
-      field: "startDate"
-      order: DESC
+    orderBy: {
+      startDate: DESC
     }
     limit: 10
   ) {
@@ -357,9 +365,8 @@ This returns results 41-60 (skipping first 40).
       namespace: "workflows"
       status: COMPLETED
     }
-    sort: {
-      field: "startDate"
-      order: DESC
+    orderBy: {
+      startDate: DESC
     }
     limit: 20
     offset: 0
@@ -386,9 +393,70 @@ This returns results 41-60 (skipping first 40).
 curl http://localhost:30080/graphql \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "{ getWorkflowInstances(filter: { namespace: \"workflows\", status: COMPLETED }, sort: { field: \"startDate\", order: DESC }, limit: 20) { id name status startDate taskExecutions { id taskName status } } }"
+    "query": "{ getWorkflowInstances(filter: { namespace: \"workflows\", status: COMPLETED }, orderBy: { startDate: DESC }, limit: 20) { id name status startDate taskExecutions { id taskName status } } }"
   }'
 ----
+
+=== Advanced Filtering Operators
+
+The GraphQL API supports advanced filter operators beyond simple equality:
+
+**String Filters:**
+
+* `eq` - Equals (exact match)
+* `ne` - Not equals
+* `contains` - Contains substring
+* `startsWith` - Starts with prefix
+* `endsWith` - Ends with suffix
+
+**Date/Time Filters:**
+
+* `eq` - Equals
+* `ne` - Not equals
+* `gte` - Greater than or equal
+* `lte` - Less than or equal
+* `between` - Between two values
+
+**Example - Filter workflows by name pattern:**
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      name: { contains: "test" }
+    }
+  ) {
+    id
+    name
+    status
+  }
+}
+----
+
+**Example - Filter workflows by date range:**
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      startDate: { gte: "2026-04-01T00:00:00Z" }
+      endDate: { lte: "2026-04-30T23:59:59Z" }
+    }
+  ) {
+    id
+    name
+    startDate
+    endDate
+  }
+}
+----
+
+[NOTE]
+====
+Simple field matching (e.g., `status: COMPLETED`) is shorthand for `status: { eq: COMPLETED }`. Both syntaxes are supported.
+====
 
 == Introspection
 
@@ -453,9 +521,8 @@ curl http://localhost:30080/graphql \
     filter: {
       status: FAULTED
     }
-    sort: {
-      field: "startDate"
-      order: DESC
+    orderBy: {
+      startDate: DESC
     }
     limit: 10
   ) {
@@ -508,9 +575,8 @@ curl http://localhost:30080/graphql \
     filter: {
       status: RUNNING
     }
-    sort: {
-      field: "startDate"
-      order: ASC
+    orderBy: {
+      startDate: ASC
     }
     limit: 10
   ) {
