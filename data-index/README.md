@@ -69,14 +69,14 @@ Data Index GraphQL API (passive, query-only)
 
 ```bash
 # 1. Start PostgreSQL with test data
-cd fluent-bit
+cd scripts/fluentbit
 docker-compose -f docker-compose-triggers.yml up -d
-cd ..
-docker-compose -f fluent-bit/docker-compose-triggers.yml exec -T postgres \
+cd ../..
+docker-compose -f scripts/fluentbit/docker-compose-triggers.yml exec -T postgres \
   psql -U postgres -d dataindex -f - < scripts/test-data-v1.sql
 
-# 2. Start Data Index service
-mvn quarkus:dev -pl data-index-service
+# 2. Start Data Index service (PostgreSQL backend)
+mvn quarkus:dev -pl data-index-service/data-index-service-postgresql
 
 # 3. Open GraphQL UI
 # http://localhost:8080/graphql-ui
@@ -99,7 +99,7 @@ See **[GraphQL Testing Guide](docs/graphql-testing.md)** for complete testing gu
 ### Test FluentBit Event Ingestion
 
 ```bash
-cd fluent-bit
+cd scripts/fluentbit
 ./test-triggers.sh
 ```
 
@@ -279,17 +279,20 @@ data-index/
 │   ├── domain-model-design.md     # Domain model decisions
 │   └── archive/                   # Historical documentation
 │
-├── fluent-bit/                    # ⚙️ FluentBit Configuration
-│   ├── fluent-bit-triggers.conf   # Main configuration
-│   ├── parsers.conf               # JSON parser
-│   ├── docker-compose-triggers.yml # Test environment (PostgreSQL + FluentBit)
-│   ├── test-triggers.sh           # Automated test script
-│   └── sample-events.jsonl        # Test data (8 events, 2 workflows)
-│
-├── scripts/                       # 🗄️ Database Scripts
-│   ├── schema-with-triggers-v2.sql # Complete schema with triggers (main schema)
-│   ├── test-data-v1.sql           # Test data for GraphQL API
-│   └── create-triggers.sql        # Create triggers on existing tables
+├── scripts/                       # 🗄️ Deployment Scripts and Configurations
+│   ├── fluentbit/                 # ⚙️ FluentBit Configurations
+│   │   ├── postgresql/            # MODE 1 (PostgreSQL triggers)
+│   │   │   ├── fluent-bit.conf
+│   │   │   ├── parsers.conf
+│   │   │   └── kubernetes/        # K8s manifests
+│   │   ├── elasticsearch/         # MODE 2 (Elasticsearch transforms)
+│   │   │   ├── fluent-bit.conf
+│   │   │   └── kubernetes/        # K8s manifests
+│   │   └── README.md
+│   └── kind/                      # KIND cluster scripts
+│       ├── setup-cluster.sh
+│       ├── deploy-data-index.sh
+│       └── test-mode1-e2e.sh
 │
 ├── data-index-model/              # 📦 Domain Model
 │   ├── org.kubesmarts.logic.dataindex.model/  # Domain entities
