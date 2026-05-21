@@ -193,16 +193,18 @@ $$ LANGUAGE plpgsql;
 
 -- Function to normalize task lifecycle events into task_instances.
 --
--- Each logical task execution is identified by task_execution_id. Lifecycle
--- events such as task.started and task.completed share this identifier and must
--- be merged into the same row.
+-- Each logical task execution is uniquely identified by (instance_id, task_position).
+-- Quarkus Flow generates different taskExecutionId values for each lifecycle event
+-- (task.started, task.completed, etc.), so we cannot use it as the primary key.
+-- Instead, we use the composite key (instance_id, task_position) which remains stable
+-- across all events for the same task execution.
 --
--- Use INSERT ... ON CONFLICT (task_execution_id) DO UPDATE instead of an
+-- Use INSERT ... ON CONFLICT (instance_id, task_position) DO UPDATE instead of an
 -- UPDATE-first / INSERT-if-not-found pattern. The latter is race-prone under
 -- concurrent ingestion and can produce duplicate-key violations.
 --
--- Repeated task positions, including loop iterations, remain separate because
--- each execution has a distinct task_execution_id.
+-- Repeated task positions (e.g., loop iterations) remain separate because
+-- each iteration has a distinct task_position value.
 CREATE OR REPLACE FUNCTION normalize_task_event()
 RETURNS TRIGGER AS $$
 DECLARE
