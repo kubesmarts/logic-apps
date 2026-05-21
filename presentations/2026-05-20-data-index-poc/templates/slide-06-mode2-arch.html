@@ -12,26 +12,26 @@
     <p class="subtitle">Continuous normalization with Elasticsearch transforms</p>
 
     <div class="diagram-container">
-      <object data="../diagrams/mode2-architecture.svg" type="image/svg+xml" style="width: 1100px; height: 600px;"></object>
+      <object data="../diagrams/mode2-architecture.svg" type="image/svg+xml" style="width: 1000px; height: 500px;"></object>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 15px;">
       <div>
-        <h4>Key Characteristics:</h4>
-        <ul style="font-size: 20px; line-height: 1.8;">
-          <li>~1s normalization (continuous)</li>
+        <h4 style="font-size: 24px; margin-bottom: 10px;">Key Characteristics:</h4>
+        <ul style="font-size: 18px; line-height: 1.6;">
+          <li>~1s normalization</li>
           <li>Eventual consistency</li>
-          <li>Full-text search + aggregations</li>
+          <li>Full-text search</li>
           <li>Horizontal scaling</li>
         </ul>
       </div>
       <div>
-        <h4>When to Choose MODE 2:</h4>
-        <ul style="font-size: 20px; line-height: 1.8;">
+        <h4 style="font-size: 24px; margin-bottom: 10px;">When to Choose MODE 2:</h4>
+        <ul style="font-size: 18px; line-height: 1.6;">
           <li>> 50K workflows/day</li>
-          <li>Need full-text search</li>
-          <li>Complex aggregations required</li>
-          <li>Multi-tenancy (index-per-tenant)</li>
+          <li>Full-text search needed</li>
+          <li>Complex aggregations</li>
+          <li>Multi-tenancy</li>
         </ul>
       </div>
     </div>

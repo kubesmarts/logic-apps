@@ -11,9 +11,9 @@
     <h2>Live Demo Commands</h2>
     <p class="subtitle">Interactive demonstration of Data Index in action</p>
 
-    <div style="margin-top: 30px;">
-      <h3 style="color: #2e7d32; margin-bottom: 20px;">1. Verify Components Running</h3>
-      <pre style="font-size: 17px; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Check Data Index service
+    <div style="margin-top: 20px;">
+      <h3 style="color: #2e7d32; margin-bottom: 12px;">1. Verify Components Running</h3>
+      <pre style="font-size: 14px; background: #f5f5f5; padding: 12px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Check Data Index service
 kubectl get pods -n data-index
 
 # Check FluentBit DaemonSet
@@ -23,9 +23,9 @@ kubectl get pods -n logging
 kubectl get pods -n default</code></pre>
     </div>
 
-    <div style="margin-top: 30px;">
-      <h3 style="color: #2e7d32; margin-bottom: 20px;">2. Trigger Workflow Execution</h3>
-      <pre style="font-size: 17px; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Execute test workflow (generates events)
+    <div style="margin-top: 20px;">
+      <h3 style="color: #2e7d32; margin-bottom: 12px;">2. Trigger Workflow Execution</h3>
+      <pre style="font-size: 14px; background: #f5f5f5; padding: 12px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Execute test workflow (generates events)
 curl -X POST http://localhost:30081/greeting \
   -H "Content-Type: application/json" \
   -d '{"name": "Data Index Demo"}'
@@ -33,18 +33,18 @@ curl -X POST http://localhost:30081/greeting \
 # Response: {"id": "workflow-abc123", "message": "Workflow started"}</code></pre>
     </div>
 
-    <div style="margin-top: 30px;">
-      <h3 style="color: #2e7d32; margin-bottom: 20px;">3. Watch Events Flow (FluentBit Logs)</h3>
-      <pre style="font-size: 17px; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Tail FluentBit logs to see event processing
+    <div style="margin-top: 20px;">
+      <h3 style="color: #2e7d32; margin-bottom: 12px;">3. Watch Events Flow (FluentBit Logs)</h3>
+      <pre style="font-size: 14px; background: #f5f5f5; padding: 12px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Tail FluentBit logs to see event processing
 kubectl logs -n logging -l app=workflows-fluent-bit-mode1 -f
 
 # Or for MODE 2:
 kubectl logs -n logging -l app=workflows-fluent-bit-mode2 -f</code></pre>
     </div>
 
-    <div style="margin-top: 30px;">
-      <h3 style="color: #2e7d32; margin-bottom: 20px;">4. Query via GraphQL</h3>
-      <pre style="font-size: 17px; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Get all workflow instances
+    <div style="margin-top: 20px;">
+      <h3 style="color: #2e7d32; margin-bottom: 12px;">4. Query via GraphQL</h3>
+      <pre style="font-size: 14px; background: #f5f5f5; padding: 12px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># Get all workflow instances
 curl -X POST http://localhost:30080/graphql \
   -H "Content-Type: application/json" \
   -d '{
@@ -61,9 +61,9 @@ curl -X POST http://localhost:30080/graphql \
   }'</code></pre>
     </div>
 
-    <div style="margin-top: 30px;">
-      <h3 style="color: #2e7d32; margin-bottom: 20px;">5. Verify Data Normalization</h3>
-      <pre style="font-size: 17px; background: #f5f5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># MODE 1: Check PostgreSQL tables
+    <div style="margin-top: 20px;">
+      <h3 style="color: #2e7d32; margin-bottom: 12px;">5. Verify Data Normalization</h3>
+      <pre style="font-size: 14px; background: #f5f5f5; padding: 12px; border-radius: 8px; border-left: 4px solid #2e7d32;"><code># MODE 1: Check PostgreSQL tables
 kubectl exec -it -n data-index postgresql-0 -- psql -U postgres -d dataindex \
   -c "SELECT id, name, status, start FROM workflow_instances;"
 
