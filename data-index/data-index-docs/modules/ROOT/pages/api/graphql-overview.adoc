@@ -174,7 +174,7 @@ Filter by status, name, namespace:
 [source,graphql]
 ----
 {
-  getWorkflowInstancesByFilter(
+  getWorkflowInstances(
     filter: {
       status: COMPLETED
       name: "petstore"
@@ -198,7 +198,7 @@ Retrieve failed workflows with complete error information:
 [source,graphql]
 ----
 {
-  getWorkflowInstancesByFilter(filter: { status: FAULTED }) {
+  getWorkflowInstances(filter: { status: FAULTED }) {
     id
     name
     status
