@@ -206,85 +206,176 @@ BEGIN
   -- Extract event timestamp from JSONB data
   event_timestamp := to_timestamp((NEW.data->>'timestamp')::numeric);
 
-  -- First ensure workflow instance exists (handle out-of-order events)
-  -- Task events might arrive before workflow events
-  INSERT INTO workflow_instances (id, created_at, updated_at, last_event_time)
-  VALUES (NEW.data->>'instanceId', NEW.time, NEW.time, event_timestamp)
-  ON CONFLICT (id) DO NOTHING;
+  -- Fast path:
+  -- Try to normalize the task event directly. In the common case, the workflow
+  -- instance already exists because workflow events have already created it.
+  BEGIN
+    INSERT INTO task_instances (
+      task_execution_id,
+      instance_id,
+      task_name,
+      task_position,
+      status,
+      start,
+      "end",
+      input,
+      output,
+      error_type,
+      error_title,
+      error_detail,
+      error_status,
+      error_instance,
+      last_event_time,
+      created_at,
+      updated_at
+    ) VALUES (
+      NEW.data->>'taskExecutionId',
+      NEW.data->>'instanceId',
+      NEW.data->>'taskName',
+      NEW.data->>'taskPosition',
+      NEW.data->>'status',
+      CASE
+        WHEN NEW.data ? 'startTime'
+        THEN to_timestamp((NEW.data->>'startTime')::numeric)
+        ELSE NULL
+      END,
+      CASE
+        WHEN NEW.data ? 'endTime'
+        THEN to_timestamp((NEW.data->>'endTime')::numeric)
+        ELSE NULL
+      END,
+      NEW.data->'input',
+      NEW.data->'output',
+      NEW.data->'error'->>'type',
+      NEW.data->'error'->>'title',
+      NEW.data->'error'->>'detail',
+      CASE
+        WHEN NEW.data->'error' ? 'status'
+        THEN (NEW.data->'error'->>'status')::integer
+        ELSE NULL
+      END,
+      NEW.data->'error'->>'instance',
+      event_timestamp,
+      NEW.time,
+      NEW.time
+    )
+    ON CONFLICT (task_execution_id) DO UPDATE SET
+      instance_id = COALESCE(EXCLUDED.instance_id, task_instances.instance_id),
+      task_name = COALESCE(EXCLUDED.task_name, task_instances.task_name),
+      task_position = COALESCE(EXCLUDED.task_position, task_instances.task_position),
 
-  INSERT INTO task_instances (
-    task_execution_id,
-    instance_id,
-    task_name,
-    task_position,
-    status,
-    start,
-    "end",
-    input,
-    output,
-    error_type,
-    error_title,
-    error_detail,
-    error_status,
-    error_instance,
-    last_event_time,
-    created_at,
-    updated_at
-  ) VALUES (
-    NEW.data->>'taskExecutionId',
-    NEW.data->>'instanceId',
-    NEW.data->>'taskName',
-    NEW.data->>'taskPosition',
-    NEW.data->>'status',
-    CASE
-      WHEN NEW.data ? 'startTime'
-      THEN to_timestamp((NEW.data->>'startTime')::numeric)
-      ELSE NULL
-    END,
-    CASE
-      WHEN NEW.data ? 'endTime'
-      THEN to_timestamp((NEW.data->>'endTime')::numeric)
-      ELSE NULL
-    END,
-    NEW.data->'input',
-    NEW.data->'output',
-    NEW.data->'error'->>'type',
-    NEW.data->'error'->>'title',
-    NEW.data->'error'->>'detail',
-    CASE
-      WHEN NEW.data->'error' ? 'status'
-      THEN (NEW.data->'error'->>'status')::integer
-      ELSE NULL
-    END,
-    NEW.data->'error'->>'instance',
-    event_timestamp,
-    NEW.time,
-    NEW.time
-  )
-  ON CONFLICT (task_execution_id) DO UPDATE SET
-    instance_id = COALESCE(EXCLUDED.instance_id, task_instances.instance_id),
-    task_name = COALESCE(EXCLUDED.task_name, task_instances.task_name),
-    task_position = COALESCE(EXCLUDED.task_position, task_instances.task_position),
+      status = CASE
+        WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
+        THEN EXCLUDED.status
+        ELSE task_instances.status
+      END,
 
-    status = CASE
-      WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
-      THEN EXCLUDED.status
-      ELSE task_instances.status
-    END,
+      start = COALESCE(task_instances.start, EXCLUDED.start),
+      "end" = COALESCE(EXCLUDED."end", task_instances."end"),
+      input = COALESCE(task_instances.input, EXCLUDED.input),
+      output = COALESCE(EXCLUDED.output, task_instances.output),
 
-    start = COALESCE(task_instances.start, EXCLUDED.start),
-    "end" = COALESCE(EXCLUDED."end", task_instances."end"),
-    input = COALESCE(task_instances.input, EXCLUDED.input),
-    output = COALESCE(EXCLUDED.output, task_instances.output),
+      error_type = COALESCE(EXCLUDED.error_type, task_instances.error_type),
+      error_title = COALESCE(EXCLUDED.error_title, task_instances.error_title),
+      error_detail = COALESCE(EXCLUDED.error_detail, task_instances.error_detail),
+      error_status = COALESCE(EXCLUDED.error_status, task_instances.error_status),
+      error_instance = COALESCE(EXCLUDED.error_instance, task_instances.error_instance),
 
-    error_type = COALESCE(EXCLUDED.error_type, task_instances.error_type),
-    error_title = COALESCE(EXCLUDED.error_title, task_instances.error_title),
-    error_detail = COALESCE(EXCLUDED.error_detail, task_instances.error_detail),
-    error_status = COALESCE(EXCLUDED.error_status, task_instances.error_status),
-    error_instance = COALESCE(EXCLUDED.error_instance, task_instances.error_instance),
+      last_event_time = GREATEST(EXCLUDED.last_event_time, task_instances.last_event_time),
+      updated_at = EXCLUDED.updated_at;
 
-    last_event_time = GREATEST(EXCLUDED.last_event_time, task_instances.last_event_time),
-    updated_at = EXCLUDED.updated_at; 
+  EXCEPTION WHEN foreign_key_violation THEN
+    -- Slow fallback:
+    -- A task event arrived before its workflow event. Create a minimal workflow
+    -- placeholder to satisfy fk_task_instance_workflow, then retry the task upsert.
+    INSERT INTO workflow_instances (
+      id,
+      created_at,
+      updated_at,
+      last_event_time
+    )
+    VALUES (
+      NEW.data->>'instanceId',
+      NEW.time,
+      NEW.time,
+      event_timestamp
+    )
+    ON CONFLICT (id) DO NOTHING;
+
+    INSERT INTO task_instances (
+      task_execution_id,
+      instance_id,
+      task_name,
+      task_position,
+      status,
+      start,
+      "end",
+      input,
+      output,
+      error_type,
+      error_title,
+      error_detail,
+      error_status,
+      error_instance,
+      last_event_time,
+      created_at,
+      updated_at
+    ) VALUES (
+      NEW.data->>'taskExecutionId',
+      NEW.data->>'instanceId',
+      NEW.data->>'taskName',
+      NEW.data->>'taskPosition',
+      NEW.data->>'status',
+      CASE
+        WHEN NEW.data ? 'startTime'
+        THEN to_timestamp((NEW.data->>'startTime')::numeric)
+        ELSE NULL
+      END,
+      CASE
+        WHEN NEW.data ? 'endTime'
+        THEN to_timestamp((NEW.data->>'endTime')::numeric)
+        ELSE NULL
+      END,
+      NEW.data->'input',
+      NEW.data->'output',
+      NEW.data->'error'->>'type',
+      NEW.data->'error'->>'title',
+      NEW.data->'error'->>'detail',
+      CASE
+        WHEN NEW.data->'error' ? 'status'
+        THEN (NEW.data->'error'->>'status')::integer
+        ELSE NULL
+      END,
+      NEW.data->'error'->>'instance',
+      event_timestamp,
+      NEW.time,
+      NEW.time
+    )
+    ON CONFLICT (task_execution_id) DO UPDATE SET
+      instance_id = COALESCE(EXCLUDED.instance_id, task_instances.instance_id),
+      task_name = COALESCE(EXCLUDED.task_name, task_instances.task_name),
+      task_position = COALESCE(EXCLUDED.task_position, task_instances.task_position),
+
+      status = CASE
+        WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
+        THEN EXCLUDED.status
+        ELSE task_instances.status
+      END,
+
+      start = COALESCE(task_instances.start, EXCLUDED.start),
+      "end" = COALESCE(EXCLUDED."end", task_instances."end"),
+      input = COALESCE(task_instances.input, EXCLUDED.input),
+      output = COALESCE(EXCLUDED.output, task_instances.output),
+
+      error_type = COALESCE(EXCLUDED.error_type, task_instances.error_type),
+      error_title = COALESCE(EXCLUDED.error_title, task_instances.error_title),
+      error_detail = COALESCE(EXCLUDED.error_detail, task_instances.error_detail),
+      error_status = COALESCE(EXCLUDED.error_status, task_instances.error_status),
+      error_instance = COALESCE(EXCLUDED.error_instance, task_instances.error_instance),
+
+      last_event_time = GREATEST(EXCLUDED.last_event_time, task_instances.last_event_time),
+      updated_at = EXCLUDED.updated_at;
+  END;
 
   RETURN NEW;
 END;
