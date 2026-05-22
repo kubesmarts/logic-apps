@@ -340,6 +340,49 @@ Status: COMPLETED/FAULTED/CANCELLED > RUNNING > CREATED
 
 **See:** `data-index/docs/deployment/MODE2_HANDOFF.md`
 
+### 1c. Task Instance Composite Key (Quarkus Flow ID Issue)
+
+**Problem:**
+Quarkus Flow generates a **different `taskExecutionId`** for each event (started, completed, faulted) for the same task execution. This caused duplicate rows in `task_instances` table instead of updates.
+
+**Example:**
+```
+task.started event:   taskExecutionId = ae3e79c7-ba7c-3122-ac8c-ade931e6984d
+task.completed event: taskExecutionId = 97469968-64b5-3cdd-b809-e58e4b6e3be7
+```
+
+**Old Behavior (WRONG):**
+- Primary key: `task_execution_id`
+- ON CONFLICT: `(task_execution_id)` → never matches
+- Result: Always INSERTs new row (4 rows for 2 tasks)
+
+**Solution (V2 Migration):**
+- Primary key: `(instance_id, task_position)` - composite key
+- ON CONFLICT: `(instance_id, task_position)` → matches on same task
+- Result: UPDATEs existing row on subsequent events (2 rows for 2 tasks)
+
+**Rationale:**
+- `(instance_id, task_position)` uniquely identifies a task execution within a workflow
+- Same workflow + same position = same task (regardless of changing taskExecutionId)
+- Enables proper UPSERT behavior despite Quarkus Flow's ID generation
+
+**Migration:** `V2__fix_task_instances_composite_key.sql`
+- Drops old PK on `task_execution_id`
+- Adds composite PK on `(instance_id, task_position)`
+- Updates trigger function to use composite key for conflict resolution
+- Cleans up existing duplicates (keeps latest by `last_event_time`)
+- Adds index on `task_execution_id` for GraphQL queries by ID
+
+**DO:**
+- ✅ Use composite key `(instance_id, task_position)` for task identity
+- ✅ Keep `task_execution_id` as a regular column (still exposed in GraphQL)
+- ✅ Trust `task_position` to be stable across task lifecycle
+
+**DON'T:**
+- ❌ Don't rely on `taskExecutionId` for UPSERT logic (it changes per event)
+- ❌ Don't assume Quarkus Flow will fix this (working as designed for their use case)
+- ❌ Don't remove `task_execution_id` column (GraphQL API still needs it)
+
 ### Metrics & Observability
 
 **Prometheus Metrics:**

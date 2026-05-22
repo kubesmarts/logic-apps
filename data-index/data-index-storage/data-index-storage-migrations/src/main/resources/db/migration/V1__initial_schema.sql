@@ -64,10 +64,10 @@ CREATE INDEX IF NOT EXISTS idx_workflow_instances_start ON workflow_instances (s
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_last_event_time ON workflow_instances (last_event_time DESC);
 
 CREATE TABLE IF NOT EXISTS task_instances (
-  task_execution_id VARCHAR(255) PRIMARY KEY,
+  task_execution_id VARCHAR(255),
   instance_id VARCHAR(255) NOT NULL,
   task_name VARCHAR(255),
-  task_position VARCHAR(255),
+  task_position VARCHAR(255) NOT NULL,
   status VARCHAR(50),
   start TIMESTAMP WITH TIME ZONE,
   "end" TIMESTAMP WITH TIME ZONE,
@@ -81,12 +81,17 @@ CREATE TABLE IF NOT EXISTS task_instances (
   error_instance VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  -- Composite primary key: (instance_id, task_position) uniquely identifies a task
+  -- Quarkus Flow generates different taskExecutionId per event (started, completed, etc.)
+  -- Same workflow + same position = same task execution
+  PRIMARY KEY (instance_id, task_position),
   CONSTRAINT fk_task_instance_workflow FOREIGN KEY (instance_id) REFERENCES workflow_instances(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_task_instances_instance_id ON task_instances (instance_id);
 CREATE INDEX IF NOT EXISTS idx_task_instances_status ON task_instances (status);
 CREATE INDEX IF NOT EXISTS idx_task_instances_last_event_time ON task_instances (last_event_time DESC);
+CREATE INDEX IF NOT EXISTS idx_task_instances_task_execution_id ON task_instances (task_execution_id);
 
 -- ============================================================================
 -- TRIGGER FUNCTIONS (Extract from JSONB and normalize with idempotency)
@@ -188,16 +193,18 @@ $$ LANGUAGE plpgsql;
 
 -- Function to normalize task lifecycle events into task_instances.
 --
--- Each logical task execution is identified by task_execution_id. Lifecycle
--- events such as task.started and task.completed share this identifier and must
--- be merged into the same row.
+-- Each logical task execution is uniquely identified by (instance_id, task_position).
+-- Quarkus Flow generates different taskExecutionId values for each lifecycle event
+-- (task.started, task.completed, etc.), so we cannot use it as the primary key.
+-- Instead, we use the composite key (instance_id, task_position) which remains stable
+-- across all events for the same task execution.
 --
--- Use INSERT ... ON CONFLICT (task_execution_id) DO UPDATE instead of an
+-- Use INSERT ... ON CONFLICT (instance_id, task_position) DO UPDATE instead of an
 -- UPDATE-first / INSERT-if-not-found pattern. The latter is race-prone under
 -- concurrent ingestion and can produce duplicate-key violations.
 --
--- Repeated task positions, including loop iterations, remain separate because
--- each execution has a distinct task_execution_id.
+-- Repeated task positions (e.g., loop iterations) remain separate because
+-- each iteration has a distinct task_position value.
 CREATE OR REPLACE FUNCTION normalize_task_event()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -259,28 +266,36 @@ BEGIN
       NEW.time,
       NEW.time
     )
-    ON CONFLICT (task_execution_id) DO UPDATE SET
-      instance_id = COALESCE(EXCLUDED.instance_id, task_instances.instance_id),
-      task_name = COALESCE(EXCLUDED.task_name, task_instances.task_name),
-      task_position = COALESCE(EXCLUDED.task_position, task_instances.task_position),
+    ON CONFLICT (instance_id, task_position) DO UPDATE SET
+      -- Update task_execution_id to the latest (even though it changes per event)
+      task_execution_id = EXCLUDED.task_execution_id,
 
+      -- Keep first non-null values (immutable fields)
+      task_name = COALESCE(task_instances.task_name, EXCLUDED.task_name),
+
+      -- Update status based on event timestamp (latest wins)
       status = CASE
         WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
         THEN EXCLUDED.status
         ELSE task_instances.status
       END,
 
+      -- Keep first start time, update end time with latest non-null value
       start = COALESCE(task_instances.start, EXCLUDED.start),
       "end" = COALESCE(EXCLUDED."end", task_instances."end"),
+
+      -- Keep first input, update output with latest non-null value
       input = COALESCE(task_instances.input, EXCLUDED.input),
       output = COALESCE(EXCLUDED.output, task_instances.output),
 
+      -- Update error fields with latest non-null values
       error_type = COALESCE(EXCLUDED.error_type, task_instances.error_type),
       error_title = COALESCE(EXCLUDED.error_title, task_instances.error_title),
       error_detail = COALESCE(EXCLUDED.error_detail, task_instances.error_detail),
       error_status = COALESCE(EXCLUDED.error_status, task_instances.error_status),
       error_instance = COALESCE(EXCLUDED.error_instance, task_instances.error_instance),
 
+      -- Track latest event time and update timestamp
       last_event_time = GREATEST(EXCLUDED.last_event_time, task_instances.last_event_time),
       updated_at = EXCLUDED.updated_at;
 
@@ -351,28 +366,36 @@ BEGIN
       NEW.time,
       NEW.time
     )
-    ON CONFLICT (task_execution_id) DO UPDATE SET
-      instance_id = COALESCE(EXCLUDED.instance_id, task_instances.instance_id),
-      task_name = COALESCE(EXCLUDED.task_name, task_instances.task_name),
-      task_position = COALESCE(EXCLUDED.task_position, task_instances.task_position),
+    ON CONFLICT (instance_id, task_position) DO UPDATE SET
+      -- Update task_execution_id to the latest (even though it changes per event)
+      task_execution_id = EXCLUDED.task_execution_id,
 
+      -- Keep first non-null values (immutable fields)
+      task_name = COALESCE(task_instances.task_name, EXCLUDED.task_name),
+
+      -- Update status based on event timestamp (latest wins)
       status = CASE
         WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
         THEN EXCLUDED.status
         ELSE task_instances.status
       END,
 
+      -- Keep first start time, update end time with latest non-null value
       start = COALESCE(task_instances.start, EXCLUDED.start),
       "end" = COALESCE(EXCLUDED."end", task_instances."end"),
+
+      -- Keep first input, update output with latest non-null value
       input = COALESCE(task_instances.input, EXCLUDED.input),
       output = COALESCE(EXCLUDED.output, task_instances.output),
 
+      -- Update error fields with latest non-null values
       error_type = COALESCE(EXCLUDED.error_type, task_instances.error_type),
       error_title = COALESCE(EXCLUDED.error_title, task_instances.error_title),
       error_detail = COALESCE(EXCLUDED.error_detail, task_instances.error_detail),
       error_status = COALESCE(EXCLUDED.error_status, task_instances.error_status),
       error_instance = COALESCE(EXCLUDED.error_instance, task_instances.error_instance),
 
+      -- Track latest event time and update timestamp
       last_event_time = GREATEST(EXCLUDED.last_event_time, task_instances.last_event_time),
       updated_at = EXCLUDED.updated_at;
   END;
