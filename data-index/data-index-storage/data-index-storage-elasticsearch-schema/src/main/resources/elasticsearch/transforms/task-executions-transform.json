@@ -63,9 +63,19 @@
     },
     "aggregations": {
       "instance_id": {
-        "terms": {
-          "field": "instanceId.keyword",
-          "size": 1
+        "scripted_metric": {
+          "init_script": {
+            "source": "state.value = null"
+          },
+          "map_script": {
+            "source": "if (params._source.instanceId != null) { state.value = params._source.instanceId }"
+          },
+          "combine_script": {
+            "source": "return state.value"
+          },
+          "reduce_script": {
+            "source": "for (s in states) { if (s != null) { return s } } return null"
+          }
         }
       },
       "taskPosition": {
