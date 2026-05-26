@@ -105,7 +105,7 @@
       "startDate": {
         "scripted_metric": {
           "init_script": "state.val = null",
-          "map_script": "long ts = 0; if (params._source.startTime != null) { ts = ((Number)params._source.startTime).longValue() * 1000L; } else if (params._source.instanceStatus == 'STARTED' && params._source.eventTime != null) { ts = ZonedDateTime.parse(params._source.eventTime).toInstant().toEpochMilli(); } if (ts > 0 && (state.val == null || ts < state.val)) { state.val = ts; }",
+          "map_script": "long ts = 0; if (params._source.startTime != null) { ts = Math.round(((Number)params._source.startTime).doubleValue() * 1000.0); } else if (params._source.instanceStatus == 'STARTED' && params._source.eventTime != null) { ts = ZonedDateTime.parse(params._source.eventTime).toInstant().toEpochMilli(); } if (ts > 0 && (state.val == null || ts < state.val)) { state.val = ts; }",
           "combine_script": "return state.val",
           "reduce_script": "def min = null; for (s in states) { if (s != null && (min == null || s < min)) { min = s } } return min"
         }
@@ -113,7 +113,7 @@
       "endDate": {
         "scripted_metric": {
           "init_script": "state.val = null",
-          "map_script": "long ts = 0; if (params._source.endTime != null) { ts = ((Number)params._source.endTime).longValue() * 1000L; } else if ((params._source.instanceStatus == 'COMPLETED' || params._source.instanceStatus == 'FAULTED' || params._source.instanceStatus == 'CANCELLED') && params._source.eventTime != null) { ts = ZonedDateTime.parse(params._source.eventTime).toInstant().toEpochMilli(); } if (ts > 0 && (state.val == null || ts > state.val)) { state.val = ts; }",
+          "map_script": "long ts = 0; if (params._source.endTime != null) { ts = Math.round(((Number)params._source.endTime).doubleValue() * 1000.0); } else if ((params._source.instanceStatus == 'COMPLETED' || params._source.instanceStatus == 'FAULTED' || params._source.instanceStatus == 'CANCELLED') && params._source.eventTime != null) { ts = ZonedDateTime.parse(params._source.eventTime).toInstant().toEpochMilli(); } if (ts > 0 && (state.val == null || ts > state.val)) { state.val = ts; }",
           "combine_script": "return state.val",
           "reduce_script": "def max = null; for (s in states) { if (s != null && (max == null || s > max)) { max = s } } return max"
         }
