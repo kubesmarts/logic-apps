@@ -43,10 +43,10 @@
           }
         },
         "startDate": {
-          "type": "date"
+          "type": "long"
         },
         "endDate": {
-          "type": "date"
+          "type": "long"
         },
         "input": {
           "type": "flattened"

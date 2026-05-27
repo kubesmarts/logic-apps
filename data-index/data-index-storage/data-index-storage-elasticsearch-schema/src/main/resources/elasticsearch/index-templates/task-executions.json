@@ -10,7 +10,10 @@
         "id": {
           "type": "keyword"
         },
-        "task_name": {
+        "instance_id": {
+          "type": "keyword"
+        },
+        "taskName": {
           "type": "text",
           "fields": {
             "keyword": {
@@ -18,7 +21,7 @@
             }
           }
         },
-        "task_position": {
+        "taskPosition": {
           "type": "text",
           "fields": {
             "keyword": {
@@ -35,10 +38,10 @@
           }
         },
         "startDate": {
-          "type": "date"
+          "type": "long"
         },
         "endDate": {
-          "type": "date"
+          "type": "long"
         },
         "input": {
           "type": "flattened"
