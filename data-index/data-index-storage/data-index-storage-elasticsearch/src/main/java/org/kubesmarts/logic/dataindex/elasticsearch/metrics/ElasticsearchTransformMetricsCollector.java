@@ -16,9 +16,18 @@
 package org.kubesmarts.logic.dataindex.elasticsearch.metrics;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.transform.GetTransformStatsRequest;
-import co.elastic.clients.elasticsearch.transform.GetTransformStatsResponse;
-import co.elastic.clients.elasticsearch.transform.get_transform_stats.TransformStats;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Gauge;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestClient;
+
+import java.io.InputStream;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.quarkus.runtime.Startup;
@@ -53,6 +62,12 @@ public class ElasticsearchTransformMetricsCollector {
     @Inject
     MeterRegistry registry;
 
+    @Inject
+    RestClient restClient;
+
+    @Inject
+    ObjectMapper objectMapper;
+
     @ConfigProperty(name = "data-index.metrics.transform.enabled", defaultValue = "true")
     boolean metricsEnabled;
 
@@ -60,6 +75,12 @@ public class ElasticsearchTransformMetricsCollector {
         "workflow-instances-transform",
         "task-executions-transform"
     );
+
+    private final Map<String, AtomicLong> documentsProcessedGauges = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> documentsIndexedGauges = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> lagGauges = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> stateGauges = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> lastCheckpointGauges = new ConcurrentHashMap<>();
 
     /**
      * Collect metrics for all transforms on schedule.
@@ -78,60 +99,81 @@ public class ElasticsearchTransformMetricsCollector {
             } catch (Exception e) {
                 LOGGER.warn("Failed to collect metrics for transform '{}': {}", transformId, e.getMessage());
                 // Set state to unknown (-1) on error
-                registry.gauge("data_index.transform.state",
-                    Tags.of("transform", transformId), -1);
+                gauge("data_index.transform.state", transformId, stateGauges).set(-1);
             }
         }
     }
 
-    private void collectMetricsForTransform(String transformId) throws Exception {
-        GetTransformStatsRequest request = GetTransformStatsRequest.of(builder ->
-            builder.transformId(transformId));
-
-        GetTransformStatsResponse response = client.transform().getTransformStats(request);
-
-        if (response.transforms().isEmpty()) {
-            LOGGER.warn("Transform '{}' not found, skipping metrics", transformId);
-            return;
-        }
-
-        TransformStats stats = response.transforms().get(0);
-        updateMetrics(transformId, stats);
+    private AtomicLong gauge(String metricName, String transformId, Map<String, AtomicLong> cache) {
+        return cache.computeIfAbsent(transformId, id -> {
+            AtomicLong value = new AtomicLong(0L);
+    
+            Gauge.builder(metricName, value, AtomicLong::get)
+                    .tag("transform", id)
+                    .register(registry);
+    
+            return value;
+        });
     }
 
-    private void updateMetrics(String transformId, TransformStats stats) {
-        Tags tags = Tags.of("transform", transformId);
-
-        // Documents processed
-        registry.gauge("data_index.transform.documents_processed", tags,
-            stats.stats().documentsProcessed());
-
-        // Documents indexed
-        registry.gauge("data_index.transform.documents_indexed", tags,
-            stats.stats().documentsIndexed());
-
-        // Lag (processed - indexed)
-        long lag = stats.stats().documentsProcessed() - stats.stats().documentsIndexed();
-        registry.gauge("data_index.transform.lag", tags, lag);
-
-        // State (0=stopped, 1=started, 2=failed, -1=unknown)
-        int stateValue = mapStateToNumeric(stats.state());
-        registry.gauge("data_index.transform.state", tags, stateValue);
-
-        // Last checkpoint timestamp (if available)
-        if (stats.checkpointing() != null && stats.checkpointing().last() != null) {
-            long checkpoint = stats.checkpointing().last().timestampMillis();
-            registry.gauge("data_index.transform.last_checkpoint", tags, checkpoint);
+    private void collectMetricsForTransform(String transformId) throws Exception {
+        Request request = new Request("GET", "/_transform/" + transformId + "/_stats");
+        Response response = restClient.performRequest(request);
+    
+        try (InputStream is = response.getEntity().getContent()) {
+            JsonNode root = objectMapper.readTree(is);
+            JsonNode transforms = root.path("transforms");
+    
+            if (!transforms.isArray() || transforms.isEmpty()) {
+                LOGGER.warn("Transform '{}' not found, skipping metrics", transformId);
+                return;
+            }
+    
+            JsonNode transform = transforms.get(0);
+            updateMetricsFromJson(transformId, transform);
         }
+    }
 
-        LOGGER.debug("Updated metrics for transform '{}': processed={}, indexed={}, lag={}, state={}",
-            transformId, stats.stats().documentsProcessed(), stats.stats().documentsIndexed(),
-            lag, stats.state());
+    private void updateMetricsFromJson(String transformId, JsonNode transform) {
+        JsonNode stats = transform.path("stats");
+    
+        long documentsProcessed = stats.path("documents_processed").asLong(0L);
+        long documentsIndexed = stats.path("documents_indexed").asLong(0L);
+        long lag = Math.max(0L, documentsProcessed - documentsIndexed);
+    
+        String state = transform.path("state").asText("unknown");
+        int stateValue = mapStateToNumeric(state);
+    
+        gauge("data_index.transform.documents_processed", transformId, documentsProcessedGauges)
+                .set(documentsProcessed);
+    
+        gauge("data_index.transform.documents_indexed", transformId, documentsIndexedGauges)
+                .set(documentsIndexed);
+    
+        gauge("data_index.transform.lag", transformId, lagGauges)
+                .set(lag);
+    
+        gauge("data_index.transform.state", transformId, stateGauges)
+                .set(stateValue);
+    
+        JsonNode checkpoint = transform.path("checkpointing").path("last").path("timestamp_millis");
+        if (!checkpoint.isMissingNode() && !checkpoint.isNull()) {
+            gauge("data_index.transform.last_checkpoint", transformId, lastCheckpointGauges)
+                    .set(checkpoint.asLong());
+        }
+    
+        LOGGER.debug(
+                "Updated metrics for transform '{}': processed={}, indexed={}, lag={}, state={}",
+                transformId,
+                documentsProcessed,
+                documentsIndexed,
+                lag,
+                state);
     }
 
     private int mapStateToNumeric(String state) {
         return switch (state.toLowerCase()) {
-            case "started" -> 1;
+            case "started", "indexing"  -> 1;
             case "stopped" -> 0;
             case "failed" -> 2;
             default -> -1;  // unknown
