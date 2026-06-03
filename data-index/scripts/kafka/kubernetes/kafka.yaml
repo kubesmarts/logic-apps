@@ -1,0 +1,195 @@
+#
+# Copyright 2024 KubeSmarts Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Kafka single-node deployment for MODE 3 integration testing (KRaft mode, no ZooKeeper).
+#
+# Topology:
+#   - StatefulSet:  single Kafka broker + controller in one process (KRaft)
+#   - kafka-headless: ClusterIP/None — used by StatefulSet DNS (kafka-0.kafka-headless.kafka)
+#   - kafka:          ClusterIP — stable service name for in-cluster clients
+#   - kafka-nodeport: NodePort 30900 — external access for local debugging
+#
+# Internal bootstrap address (for pods in the cluster):
+#   kafka.kafka.svc.cluster.local:9092
+#
+# External bootstrap address (from the host when using KIND with port mapping):
+#   localhost:30900
+#   NOTE: advertised listeners use the internal DNS name; external consumers must run
+#         inside the cluster or use a tool that tolerates metadata redirect (e.g. kcat).
+#
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  serviceName: kafka-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+        - name: kafka
+          image: apache/kafka:3.7.0
+          ports:
+            - containerPort: 9092
+              name: plaintext
+              protocol: TCP
+            - containerPort: 9093
+              name: controller
+              protocol: TCP
+          env:
+            # KRaft: this node acts as both broker and controller.
+            # apache/kafka maps KAFKA_<PROP> → the corresponding server property
+            # (e.g. KAFKA_NODE_ID → node.id). No KAFKA_CFG_ prefix needed.
+            - name: KAFKA_NODE_ID
+              value: "0"
+            - name: KAFKA_PROCESS_ROLES
+              value: broker,controller
+            # Controller quorum: only this node (node 0)
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: "0@kafka-0.kafka-headless.kafka.svc.cluster.local:9093"
+            # Listeners: PLAINTEXT for clients, CONTROLLER for KRaft internal use
+            - name: KAFKA_LISTENERS
+              value: PLAINTEXT://:9092,CONTROLLER://:9093
+            # Advertised to producers/consumers — must be reachable by in-cluster clients
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: PLAINTEXT://kafka.kafka.svc.cluster.local:9092
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: CONTROLLER
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: PLAINTEXT
+            # Auto-create topics so flow-lifecycle-out is created on first publish
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+            # Default replication factor 1 (single-node cluster)
+            - name: KAFKA_DEFAULT_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            # Log directory for the official image
+            - name: KAFKA_LOG_DIRS
+              value: /var/lib/kafka/data
+            # Fixed cluster ID triggers automatic KRaft storage format on first boot
+            - name: CLUSTER_ID
+              value: "MkU3OEVBNTcwNTJENDM2Qk"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          readinessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+# Headless service — required for StatefulSet pod DNS resolution
+# kafka-0.kafka-headless.kafka.svc.cluster.local
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: kafka
+  ports:
+    - port: 9092
+      targetPort: 9092
+      name: plaintext
+    - port: 9093
+      targetPort: 9093
+      name: controller
+---
+# Stable ClusterIP service — use this address in application configuration
+# bootstrap.servers=kafka.kafka.svc.cluster.local:9092
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  type: ClusterIP
+  selector:
+    app: kafka
+  ports:
+    - port: 9092
+      targetPort: 9092
+      name: plaintext
+      protocol: TCP
+---
+# NodePort service — external debugging access from the KIND host at localhost:30900
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-nodeport
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  type: NodePort
+  selector:
+    app: kafka
+  ports:
+    - port: 9092
+      targetPort: 9092
+      nodePort: 30900
+      name: plaintext
+      protocol: TCP

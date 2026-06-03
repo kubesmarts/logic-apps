@@ -1,0 +1,1936 @@
+[
+  {
+    "specversion": "1.0",
+    "id": "f47a1e06-2d54-4c73-93e1-a5d3cc5cd19d",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:46.978529-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:46.978515-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "5e76d785-24a8-4e26-97a3-25f62e13af2d",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.started.v1",
+    "time": "2026-05-28T18:16:46.978744-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:46.978739-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "aebaf370-9cde-4174-ac60-137ddbde28bb",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:46.97902-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:46.979011-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "df24082a-d06a-4a97-9b4c-7726a0c2e7b6",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:46.979588-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:46.979574-03:00",
+      "output": {
+        "count": 1
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "7b194b35-4c98-4655-9ef4-d4f99cb793db",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:46.981057-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:46.981049-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "936e1416-b25c-4177-b6db-321346675d04",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:46.981384-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:46.981378-03:00",
+      "output": {
+        "count": 1
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "dde7476d-500c-4fcf-91a6-9218d801fbff",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:46.981681-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:46.981675-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "65f4813f-412f-431d-94bf-9c7eeb1fea28",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:46.981813-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:46.98179-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "8308a21e-3849-4d4f-9bcb-ed7575d16526",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:47.982231-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:47.98211-03:00",
+      "output": {
+        "count": 1
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "e5ed991d-2223-49fc-ba6f-6eb9f0edbcad",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:47.983463-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:47.983422-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "3f0aaf4f-2bbd-4a4c-9ee3-8a603df65468",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:47.98376-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:47.983744-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "1e8df227-e844-439f-87f3-da23d35a49ef",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:47.984555-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:47.984537-03:00",
+      "output": {
+        "count": 2
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "23a9b62a-8ce2-4ed9-baa4-4413e2b3aa59",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:47.98663-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:47.986611-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "65de1ba6-8f7c-40de-9e60-3d1737435bb2",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:47.987514-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:47.987496-03:00",
+      "output": {
+        "count": 2
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "d3379527-f3d8-4bba-8346-b6d2198df125",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:47.987935-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:47.987926-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "08c55a6a-f756-481c-bb03-32224e97fafc",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:47.988042-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:47.988036-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "3044eda5-bd00-47ea-bc1e-f3e80005a910",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:48.9887-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:48.988599-03:00",
+      "output": {
+        "count": 2
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "5c9f3374-af37-4672-8442-8c3db1574772",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:48.989872-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:48.989844-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "31119284-b270-4c8f-8988-6fb1db6a16a2",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:48.990114-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:48.9901-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "18f2bad9-d3bd-4c77-8d6b-6ca2f4efeffc",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:48.990806-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:48.990799-03:00",
+      "output": {
+        "count": 3
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "09712118-b8e7-459c-afd3-ee1b42ad4885",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:48.992073-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:48.992064-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "85c727e8-be49-4ed2-8b5d-97fde58a78b0",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:48.992739-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:48.99273-03:00",
+      "output": {
+        "count": 3
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "b3e942f7-a1cd-4297-a74b-02ff7cc80610",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:48.992955-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:48.992948-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "ff5a8eb2-96a9-4caa-95d2-d359cc21eb87",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:48.993137-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:48.993127-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "3506f565-0876-4ec4-bef6-47995e555dfa",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:49.994476-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:49.994376-03:00",
+      "output": {
+        "count": 3
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "7d774e9f-e199-4ef2-9e9b-666fa5cfe5ca",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:49.995567-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:49.995534-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "9f69f341-42fd-49b6-b588-369bd1ab6db2",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:49.995826-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:49.995811-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "f89b114f-b993-44b6-b7f9-19f80f69a1bd",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:49.996567-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:49.996559-03:00",
+      "output": {
+        "count": 4
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "7d436e47-9c7e-415a-afff-0a8cefdd94ef",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:49.998347-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:49.998319-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "c2e49289-3b09-46ee-bdcb-716f1781ae6d",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:49.999162-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:49.999151-03:00",
+      "output": {
+        "count": 4
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "6585ad86-1e2d-4ef3-950b-59fb2a9038f1",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:49.99964-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:49.999626-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "e5a31418-e41c-460e-88e6-87ca85943e32",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:49.999857-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:49.999848-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "36c55d7e-8ebd-4e54-9440-16fe31bb70e2",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:51.001204-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:51.001096-03:00",
+      "output": {
+        "count": 4
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "3420e989-a4ba-489c-bed2-e15380b61580",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:51.002368-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:51.00234-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "8e86bf6e-8664-401c-8124-52417d74c389",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:51.00255-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:51.002543-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "f436baa5-744c-4c74-a336-e34dc184c4cc",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:51.003025-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:51.003019-03:00",
+      "output": {
+        "count": 5
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "8b9f17dc-4750-4d86-9edc-801be0ca52ff",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:51.004821-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:51.0048-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "0d3a1e48-6ffd-45d0-9c71-897b86af5ff8",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:51.005601-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:51.005587-03:00",
+      "output": {
+        "count": 5
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "42ca88b1-74de-4294-a9bd-43eb49af2615",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:51.005991-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:51.00598-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "6d8a2440-6828-4046-9975-77e65d4627e8",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:51.006141-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:51.006132-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "a9857116-9a60-4e59-8402-0b9209092473",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:52.007382-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:52.007335-03:00",
+      "output": {
+        "count": 5
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "cc088ba3-4228-4ecc-ac5d-01ed716c0470",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:52.007783-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:52.007773-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "7847fec6-c169-49d7-b631-b551b7818d71",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:52.007878-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:52.007873-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "f1c573d6-a90d-4cba-aaf6-671ad5f01f77",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:52.008135-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:52.008131-03:00",
+      "output": {
+        "count": 6
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "ac2b5703-749c-405b-a149-68ace0c5e6cc",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:52.010956-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:52.010936-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "5051c122-2b64-452d-b146-409728610132",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:52.011637-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:52.011627-03:00",
+      "output": {
+        "count": 6
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "cf0866a0-8127-45ba-ac3d-7e7ac3305f9f",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:52.011957-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:52.011938-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "8b81158b-e4af-40f8-b8ea-e93c1cce71c1",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:52.012081-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:52.012072-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "e41c052d-b1dd-47be-9371-0823a7c8288d",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:53.013392-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:53.013312-03:00",
+      "output": {
+        "count": 6
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "ea86acfc-8f64-4b7d-b3d2-2f6f67ffd5b0",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:53.014388-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:53.014346-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "6a169fc0-066e-4840-8334-d9586886bb97",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:53.014639-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:53.014627-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "0e863859-c79d-4d1d-b248-2246563df79f",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:53.015462-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:53.015447-03:00",
+      "output": {
+        "count": 7
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "a6852fe3-9807-47c1-9129-f212bf8bfca6",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:53.017183-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:53.017161-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "2102eaba-685b-47e8-9ba2-d3f1e1ef2fc1",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:53.017851-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:53.017847-03:00",
+      "output": {
+        "count": 7
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "d845704f-28d9-43c5-81c7-9ca5ef7b2d7c",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:53.017996-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:53.017991-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "cd7af0b1-9a39-4775-9d3f-c7ce22f4cf91",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:53.018052-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:53.018046-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "a732d6fc-d9cb-4765-897b-0313b7526d83",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:54.019396-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:54.019293-03:00",
+      "output": {
+        "count": 7
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "b945f051-51bb-4531-b4d7-aee56419822d",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:54.020926-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:54.020898-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "bba99429-9a4f-4d28-bb40-018ff2299faf",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:54.02114-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:54.021132-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "74b4d707-f638-435f-a8f9-f9442a2eefb4",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:54.021702-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:54.021693-03:00",
+      "output": {
+        "count": 8
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "45441a90-1a4b-4fb8-a779-248ebdda890d",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:54.023462-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:54.02345-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "94d59abe-8f03-4694-8b9c-418f48b5324f",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:54.024513-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:54.024486-03:00",
+      "output": {
+        "count": 8
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "2a6c6078-a5fb-4363-b151-d6cc099bc587",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:54.025154-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:54.025137-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "8c4a3e60-7e2b-4746-b6ac-9c377442b623",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:54.025547-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:54.025499-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "ac0bd2b1-0948-4975-8d52-1fb86215095b",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:55.026963-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:55.026866-03:00",
+      "output": {
+        "count": 8
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "ecb7acc4-1410-4246-96c8-ab6f43022b97",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:55.028066-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:55.028033-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "85689a1a-d20f-4d1d-a894-b669067b81d3",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:55.028356-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:55.028342-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "63464322-c9c0-4c9e-aaed-7a79eaff0aa7",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:55.029047-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:55.029039-03:00",
+      "output": {
+        "count": 9
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "9e8cf750-0b13-41eb-adfa-333eba418cc4",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:55.029994-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:55.029982-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "e832ff39-def8-4fa2-96fb-fb3c8a13e103",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:55.030749-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:55.030736-03:00",
+      "output": {
+        "count": 9
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "76fde24e-71ee-4770-b4aa-623594b1c5d8",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:55.031167-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:55.031161-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "76046963-2010-4441-9c5c-9ebb68131076",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:55.031247-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:55.03124-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "3b7b45d9-3d46-4ebb-a484-67e3f147d01f",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:56.032015-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:56.031914-03:00",
+      "output": {
+        "count": 9
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "44bb58e3-0e2b-490d-9775-3cb809d95dd0",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:56.033125-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:56.033093-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "2f9b48d3-f20f-48b3-a7f4-19f0a767ae0c",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:56.03339-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:56.033378-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "cfccd65f-c28f-45c0-bb2d-af9ae0276b28",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:56.034153-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:56.034139-03:00",
+      "output": {
+        "count": 10
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "10daba02-4835-43be-8ba6-d8134c17425a",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:56.035776-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:56.035759-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "c34a6844-36e3-448e-950d-46f599012b9a",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:56.036427-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:56.036418-03:00",
+      "output": {
+        "count": 10
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "fb4eac88-5084-4bb4-9ff5-69b6f717340e",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:56.036675-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:56.036668-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "852a0bdf-f7e4-42b1-a81d-715b1c4d3412",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:56.036757-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:56.036751-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "f8edefc7-d565-41bf-b51b-cc75d0b74af2",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:57.038081-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:57.038006-03:00",
+      "output": {
+        "count": 10
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "95304fda-396a-4d8d-82f2-cb9292d3f8d6",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:57.039144-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:57.039066-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "8207d9bc-04b7-4549-8893-f7ed7ab25225",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:57.039451-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:57.039433-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "38cb5039-6b97-45d5-9d1a-cbe6f2875f07",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:57.040117-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:57.040104-03:00",
+      "output": {
+        "count": 11
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "f32afb49-6780-47cd-b581-fedbdc82fdd7",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:57.041683-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:57.041655-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "f7320dd0-38d0-4013-9ec3-f44bfb5dfe3b",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:57.043055-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:57.043038-03:00",
+      "output": {
+        "count": 11
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "3bc177a3-dfe6-45e9-b5b9-bfd221221b75",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:57.043561-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:57.043551-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "453049e5-c27b-4774-b9b1-a7d018a0a425",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:57.043737-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:57.043724-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "89feba59-46eb-48e9-8559-566ef4054681",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:58.044413-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:58.044332-03:00",
+      "output": {
+        "count": 11
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "02b61f6e-83f8-46e5-870d-dbc7e0468e73",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:58.045524-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:58.045486-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "00273a62-ca1c-4113-95a3-68c2351977ea",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:58.045794-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:58.045781-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "decd9256-9b2c-486f-b470-44cb54148962",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:58.046471-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:58.046458-03:00",
+      "output": {
+        "count": 12
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "4a452a14-9476-4f6a-816e-9f8636b36418",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:58.048176-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:58.048155-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "ee5f15a1-cddb-4ae0-a8b3-9670f43e116b",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:58.049158-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:58.049146-03:00",
+      "output": {
+        "count": 12
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "1bc88449-473b-492b-9405-710cf7098322",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:58.04959-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:58.049574-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "2ec5e064-55b6-408d-82d0-9e6649de3acc",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:58.049753-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:58.049738-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "6f296875-d03f-473e-a37b-3a8db2f8d9f6",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:59.051405-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:59.051222-03:00",
+      "output": {
+        "count": 12
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "82362473-43e9-4d4f-ac66-425b1c3b69ec",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:59.0523-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:59.052274-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "1a99e2d6-89a8-4801-b211-a664c93d75b4",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:59.052453-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:59.052445-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "3b044eeb-78ff-49dd-97de-ab8f5f31339a",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:59.052945-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/0/inc",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:59.052935-03:00",
+      "output": {
+        "count": 13
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "a70203ec-20ea-45ea-9683-28b080466887",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:59.054701-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:59.054688-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "9fc14ec4-ff6d-4cb5-b626-66327a83c8ed",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:16:59.055304-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/1/looping",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:16:59.055294-03:00",
+      "output": {
+        "count": 13
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "fe1b8a0a-80e8-4d07-9bb7-40d25b3fe3c9",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T18:16:59.055577-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T18:16:59.055568-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "dbe942f6-3bd8-4bb0-af5a-a6f753708458",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:59.055683-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:59.055676-03:00",
+      "status": "WAITING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "c30cad19-36d5-4f29-903d-f656e3119a3e",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T18:16:59.784919-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T18:16:59.784872-03:00",
+      "status": "SUSPENDED"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "0481fc10-45f1-4dd2-a419-905500d248e0",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.suspended.v1",
+    "time": "2026-05-28T18:16:59.785221-03:00",
+    "data": {
+      "name": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "suspendedAt": "2026-05-28T18:16:59.78521-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "65d83146-479d-442c-98b4-44b47fd9bfbd",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T18:17:00.05704-03:00",
+    "data": {
+      "workflow": "01KSR74SRH4D8A4ZGQ4Q2A56VE",
+      "task": "do/2/waitABit",
+      "definition": {
+        "namespace": "example",
+        "name": "SwitchLoopWait",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T18:17:00.056953-03:00",
+      "output": {
+        "count": 13
+      }
+    }
+  }
+]

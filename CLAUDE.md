@@ -1,8 +1,8 @@
 # Claude AI Assistant Guidelines - KubeSmarts Logic Apps
 
 **Project:** Data Index v1.0.0 for Serverless Workflow 1.0.0  
-**Status:** Production Ready (MODE 1 & MODE 2)  
-**Last Updated:** 2026-04-29
+**Status:** Production Ready (MODE 1, MODE 2 & MODE 3)  
+**Last Updated:** 2026-05-29
 
 ---
 
@@ -160,12 +160,50 @@ curl http://localhost:8080/q/metrics | grep data_index_transform
 - Auto-scaling storage needed
 - Multi-tenancy requirements
 
-**Both modes share:**
-- Identical GraphQL API
+**Use MODE 3 (Kafka) when:**
+- Kafka infrastructure already exists
+- Security requirements (no log files)
+- Direct event stream processing
+- Need encrypted transport (SSL/SASL_SSL)
+
+**All modes share:**
+- Same normalized PostgreSQL tables (workflow_instances, task_instances)
 - Same domain model
-- FluentBit ingestion
 - Idempotent event processing
 - No Event Processor service
+
+---
+
+## Architecture (MODE 3 - Kafka)
+
+```
+Quarkus Flow → Kafka (CloudEvents, topic: flow-lifecycle-out)
+                      ↓ (SmallRye Reactive Messaging)
+              KafkaLifecycleConsumer (event type routing)
+                      ↓ (Mapper → WorkflowInstanceEvent / TaskExecutionEvent)
+              WorkflowEventProcessor / TaskExecutionProcessor
+                      ↓
+              WorkflowPersistence / TaskPersistence (JDBC UPSERT)
+                      ↓
+              PostgreSQL normalized tables
+                      ↓ (JPA/Hibernate)
+              GraphQL API (SmallRye GraphQL)
+
+   (failed records → dead-letter topic: data-index-events-dlq)
+```
+
+**Key Components:**
+- **KafkaLifecycleConsumer** - Consumes CloudEvents (`io.cloudevents.CloudEvent`), validates them, and routes by event type prefix via `LifecycleEventUtils.isWorkflow()` / `isTask()`
+- **Mapper** - Maps a `CloudEvent` + `LifecycleEvent` payload into a `WorkflowInstanceEvent` or `TaskExecutionEvent`
+- **EventProcessor<T>** - Generic processing interface; implemented by `WorkflowEventProcessor` and `TaskExecutionProcessor`
+- **WorkflowPersistence** - UPSERT to workflow_instances with field-level idempotency
+- **TaskPersistence** - UPSERT to task_instances with FK violation recovery (savepoint + placeholder workflow), ON CONFLICT `(instance_id, task_position)`
+- **Dead-letter queue** - Records that fail processing throw `ProcessEventFailedException` and are routed to the `data-index-events-dlq` topic
+
+**NOT used in MODE 3:**
+- ❌ FluentBit (events come from Kafka, not log files)
+- ❌ PostgreSQL triggers (normalization done in Java via JDBC)
+- ❌ Raw event tables (writes directly to normalized tables)
 
 ---
 
@@ -197,6 +235,9 @@ data-index/
 │   │   └── GraphQLConfiguration.java
 │   └── service/                   # JAX-RS resources
 │       └── RootResource.java      # Landing page
+├── data-index-ingestion/           # MODE 3 Kafka ingestion
+│   ├── data-index-ingestion-kafka-processor/ # Normalizers (JDBC UPSERT)
+│   └── data-index-ingestion-kafka-service/  # Quarkus Kafka consumer service
 ├── data-index-integration-tests/  # E2E tests (MODE 1 & MODE 2)
 │   ├── WorkflowInstanceGraphQLApiTest.java (PostgreSQL)
 │   └── WorkflowInstanceElasticsearchTest.java (Elasticsearch)
@@ -1005,7 +1046,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - Don't add Event Processor service (MODE 1 uses triggers, MODE 2 uses transforms)
 - Don't use polling architecture
 - Don't create staging tables (MODE 1) or separate processing indices (MODE 2)
-- Don't add Kafka (MODE 3 not implemented)
+- Don't mix MODE 3 Kafka ingestion with MODE 1 FluentBit ingestion in the same deployment
 - Don't mix PostgreSQL and Elasticsearch in same deployment
 
 ### ❌ Dependencies
@@ -1109,9 +1150,10 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 ## Key Files Reference
 
 **Architecture & Documentation:**
-- `data-index/docs/ARCHITECTURE-SUMMARY.md` - All deployment modes
 - `data-index/docs/deployment/MODE1_HANDOFF.md` - MODE 1 (PostgreSQL) details
 - `data-index/docs/deployment/MODE2_HANDOFF.md` - MODE 2 (Elasticsearch) details
+- `data-index/data-index-ingestion/README.md` - MODE 3 (Kafka) overview
+- `data-index/data-index-ingestion/data-index-ingestion-kafka-service/README.md` - MODE 3 (Kafka) service details
 - `data-index/docs/elasticsearch/TRANSFORM_OPTIMIZATION.md` - Transform optimization & metrics guide
 
 **Code (Common):**
@@ -1130,6 +1172,10 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - `data-index-elasticsearch-schema/src/main/java/.../` - Schema initializer
 - `data-index-elasticsearch-schema/src/main/resources/schema/` - ILM, templates, transforms
 
+**Code (MODE 3 - Kafka):**
+- `data-index-ingestion/data-index-ingestion-kafka-processor/` - `EventProcessor<T>`, `WorkflowEventProcessor`, `TaskExecutionProcessor`, `persistence/WorkflowPersistence`, `persistence/TaskPersistence`, `data/WorkflowInstanceEvent`, `data/TaskExecutionEvent`, `util/LifecycleEventUtils`, `ProcessEventFailedException`
+- `data-index-ingestion/data-index-ingestion-kafka-service/` - `KafkaLifecycleConsumer`, `Mapper`, `LifecycleEvent`, `HealthChecks`, `RootResource`
+
 **Configuration:**
 - `data-index-service/data-index-service-elasticsearch/src/main/resources/application.properties` - Elasticsearch config (metrics, ILM, smart filtering)
 - `data-index/scripts/fluentbit/elasticsearch/fluent-bit.conf` - MODE 2 FluentBit (Elasticsearch)
@@ -1140,6 +1186,9 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - `data-index-storage/data-index-storage-elasticsearch/src/test/java/.../ElasticsearchWorkflowInstanceStorageIT.java` - Elasticsearch storage tests
 - `data-index-storage/data-index-storage-elasticsearch/src/test/java/.../ElasticsearchTransformMetricsIT.java` - Transform metrics tests
 - `data-index-storage/data-index-storage-elasticsearch/src/test/java/.../ElasticsearchTransformPerformanceBenchmarkIT.java` - Performance benchmarks
+- `data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/.../KafkaIngestionITest.java` - Kafka ingestion integration tests
+- `data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/.../BaseWorkflowLifecycleITest.java` - Shared base for lifecycle integration tests
+- `data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/.../{Cancelled,Faulted,Suspended}WorkflowITest.java` - Lifecycle-specific integration tests
 
 **Build:**
 - `pom.xml` (root) - Generic dependencies, plugin versions
@@ -1182,9 +1231,6 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 4. Reorganize root-level docs into subdirectories
 5. Add Elasticsearch aggregations API
 6. Add full-text search capabilities
-
-**Not Planned:**
-- MODE 3 (Kafka) - design documented, not implemented
 
 ---
 

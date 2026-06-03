@@ -60,6 +60,11 @@
       <artifactId>persistence-commons-api</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>io.serverlessworkflow</groupId>
+      <artifactId>serverlessworkflow-impl-core</artifactId>
+    </dependency>
+
     <!-- Test dependencies -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>

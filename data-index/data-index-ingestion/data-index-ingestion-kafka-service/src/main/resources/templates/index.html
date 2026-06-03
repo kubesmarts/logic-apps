@@ -1,0 +1,131 @@
+{@java.lang.String version}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Index Kafka Ingestion Service</title>
+    <style>
+      body { font-family: sans-serif; margin: 2em; background: #fafafa; }
+      h1 { color: #333; }
+      h2 { color: #555; margin-top: 2em; }
+      .endpoint { background: white; padding: 1em; margin: 1em 0; border-left: 4px solid #007bff; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+      code { background: #f0f0f0; padding: 0.2em 0.4em; border-radius: 3px; }
+      .version { color: #666; font-size: 0.9em; }
+
+
+      .health-checks { list-style: none; padding: 0; }
+      .health-checks li { padding: 0.8em; margin: 0.5em 0; background: #f9f9f9; border-radius: 3px; border-left: 3px solid #ddd; }
+      .health-checks li.up { border-left-color: #28a745; }
+      .health-checks li.down { border-left-color: #dc3545; }
+      .check-name-text { font-weight: 500; display: inline; }
+      .check-status { display: inline; margin-left: 0.5em; }
+      .check-data { font-size: 0.9em; color: #666; padding-left: 1.5em; margin-top: 0.5em; }
+      .data-item { margin: 0.2em 0; }
+      .emoji-up { color: #28a745; }
+      .emoji-down { color: #dc3545; }
+      .loading { color: #666; }
+      .error { color: #dc3545; background: #f8d7da; padding: 1em; border-radius: 4px; border-left: 4px solid #dc3545; }
+
+      table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+      th, td { text-align: left; padding: 0.7em; border-bottom: 1px solid #ddd; }
+      th { background: #f5f5f5; font-weight: bold; }
+    </style>
+  </head>
+  <body>
+    <h1>Data Index Kafka Ingestion Service</h1>
+    <p class="version">Version: {version}</p>
+    <p>MODE 3: Direct Kafka → PostgreSQL event normalization</p>
+
+    <div class="health-container">
+      <h2>Health Status</h2>
+      <div id="health-status" class="loading">Loading health information...</div>
+    </div>
+
+    <h2>Available Endpoints</h2>
+    <div class="endpoint">
+      <strong>Health:</strong> <code>GET /q/health</code>
+      <p>Kubernetes liveness and readiness probes</p>
+    </div>
+
+    <h2>Processing</h2>
+    <p>This service consumes CloudEvents from the Kafka topic <code>flow-lifecycle-out</code>
+       and normalizes workflow and task execution data to PostgreSQL.</p>
+
+    <h2>Dead Letter Queue</h2>
+    <div class="endpoint">
+      <strong>DLQ topic:</strong> <code>data-index-events-dlq</code>
+      <p>Records that fail processing (deserialization errors, persistence failures)
+         are routed to this topic instead of blocking the consumer. Monitor it to
+         inspect and reprocess failed events.</p>
+    </div>
+
+    <h3>Configuration</h3>
+    <p>Configure via environment variables or <code>application.properties</code>:</p>
+    <ul>
+      <li><code>KAFKA_BOOTSTRAP_SERVERS</code> - Kafka brokers</li>
+      <li><code>QUARKUS_DATASOURCE_JDBC_URL</code> - PostgreSQL connection</li>
+      <li><code>QUARKUS_DATASOURCE_USERNAME</code> - Database user</li>
+      <li><code>QUARKUS_DATASOURCE_PASSWORD</code> - Database password</li>
+    </ul>
+    <script>
+      function fetchHealthStatus() {
+        fetch('/q/health')
+          .then(response => response.json())
+          .then(data => {
+            const container = document.getElementById('health-status');
+
+            const statusEmoji = data.status === 'UP' ? '<span class="emoji-up">✅</span>' : '<span class="emoji-down">❌</span>';
+            const statusText = `$\{statusEmoji} Overall Status: <strong>$\{data.status}</strong>`;
+
+            if (!data.checks || data.checks.length === 0) {
+              container.innerHTML = statusText;
+              return;
+            }
+
+            let html = `<div>$\{statusText}</div>`;
+            html += '<ul class="health-checks">';
+
+            data.checks.forEach(check => {
+              const checkEmoji = check.status === 'UP' ? '<span class="emoji-up">✅</span>' : '<span class="emoji-down">❌</span>';
+              const className = check.status === 'UP' ? 'up' : 'down';
+
+              let checkHtml = `<li class="$\{className}">
+                <span class="check-name-text">$\{checkEmoji} $\{check.name}</span>`;
+
+              if (check.data && Object.keys(check.data).length > 0) {
+                checkHtml += '<div class="check-data">';
+                Object.entries(check.data).forEach(([key, value]) => {
+                  const displayKey = key === '<default>' ? 'database' : key;
+                  const formattedValue = formatValue(value);
+                  checkHtml += `<div class="data-item"><strong>$\{displayKey}:</strong> $\{formattedValue}</div>`;
+                });
+                checkHtml += '</div>';
+              }
+
+              checkHtml += '</li>';
+              html += checkHtml;
+            });
+
+            html += '</ul>';
+            container.innerHTML = html;
+          })
+          .catch(error => {
+            const container = document.getElementById('health-status');
+            container.innerHTML = `<div class="error">⚠️ Failed to fetch health status: $\{error.message}</div>`;
+          });
+      }
+
+      function formatValue(value) {
+        if (typeof value === 'string') {
+          return value;
+        }
+        return JSON.stringify(value);
+      }
+
+      // Fetch health status on page load and refresh every 30 seconds
+      document.addEventListener('DOMContentLoaded', fetchHealthStatus);
+      setInterval(fetchHealthStatus, 30000);
+    </script>
+  </body>
+</html>

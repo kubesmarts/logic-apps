@@ -63,6 +63,7 @@
     <version.org.testcontainers>2.0.4</version.org.testcontainers>
     <version.org.assertj>3.27.7</version.org.assertj>
     <version.org.slf4j>2.0.12</version.org.slf4j>
+    <version.io.serverlessworkflow>7.22.1.Final</version.io.serverlessworkflow>
 
     <!-- Maven plugins -->
     <version.maven-compiler-plugin>3.13.0</version.maven-compiler-plugin>
@@ -85,6 +86,14 @@
         <groupId>io.quarkus.platform</groupId>
         <artifactId>quarkus-bom</artifactId>
         <version>${quarkus.platform.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>io.serverlessworkflow</groupId>
+        <artifactId>serverlessworkflow-bom</artifactId>
+        <version>${version.io.serverlessworkflow}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

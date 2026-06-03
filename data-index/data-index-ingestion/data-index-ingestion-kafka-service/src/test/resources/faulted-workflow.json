@@ -1,0 +1,92 @@
+[
+  {
+    "specversion": "1.0",
+    "id": "7b356b1a-e54b-4bc3-82cd-27ef7cf3eb03",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T16:55:43.953261-03:00",
+    "data": {
+      "name": "01KSR2FQCGEFV9B5V6QQ6PTJDK",
+      "definition": { "namespace": "quarkus.flow", "name": "faulted-workflow", "version": "0.0.1" },
+      "updatedAt": "2026-05-28T16:55:43.953184-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "1dced28c-7733-45b2-b391-a0c976b1217e",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.started.v1",
+    "time": "2026-05-28T16:55:43.954898-03:00",
+    "data": {
+      "name": "01KSR2FQCGEFV9B5V6QQ6PTJDK",
+      "definition": { "namespace": "quarkus.flow", "name": "faulted-workflow", "version": "0.0.1" },
+      "startedAt": "2026-05-28T16:55:43.95464-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "8c4cf798-10bf-411c-98b5-e919bd773ce7",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T16:55:43.955806-03:00",
+    "data": {
+      "workflow": "01KSR2FQCGEFV9B5V6QQ6PTJDK",
+      "task": "do/0/http-0",
+      "definition": { "namespace": "quarkus.flow", "name": "faulted-workflow", "version": "0.0.1" },
+      "startedAt": "2026-05-28T16:55:43.955762-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "385bae84-b4da-4d8d-b5d9-c1db4f4144db",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T16:55:44.148226-03:00",
+    "data": {
+      "name": "01KSR2FQCGEFV9B5V6QQ6PTJDK",
+      "definition": { "namespace": "quarkus.flow", "name": "faulted-workflow", "version": "0.0.1" },
+      "updatedAt": "2026-05-28T16:55:44.148203-03:00",
+      "status": "FAULTED"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "9cac3c62-e1ce-44b0-a454-1b79b25d8480",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.faulted.v1",
+    "time": "2026-05-28T16:55:44.145617-03:00",
+    "data": {
+      "workflow": "01KSR2FQCGEFV9B5V6QQ6PTJDK",
+      "task": "do/0/http-0",
+      "definition": { "namespace": "quarkus.flow", "name": "faulted-workflow", "version": "0.0.1" },
+      "faultedAt": "2026-05-28T16:55:44.145462-03:00",
+      "error": {
+        "type": "https://serverlessworkflow.io/spec/1.0.0/errors/data",
+        "status": 422,
+        "instance": "do/0/http-0",
+        "title": null,
+        "detail": "io.netty.channel.AbstractChannel$AnnotatedConnectException: Connection refused: localhost/127.0.0.1:9899"
+      }
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "4c30f7ca-052c-43d8-a736-7de21b733b45",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.faulted.v1",
+    "time": "2026-05-28T16:55:44.148727-03:00",
+    "data": {
+      "name": "01KSR2FQCGEFV9B5V6QQ6PTJDK",
+      "definition": { "namespace": "quarkus.flow", "name": "faulted-workflow", "version": "0.0.1" },
+      "faultedAt": "2026-05-28T16:55:44.148639-03:00",
+      "error": {
+        "type": "https://serverlessworkflow.io/spec/1.0.0/errors/data",
+        "status": 422,
+        "instance": "do/0/http-0",
+        "title": null,
+        "detail": "io.netty.channel.AbstractChannel$AnnotatedConnectException: Connection refused: localhost/127.0.0.1:9899"
+      }
+    }
+  }
+]

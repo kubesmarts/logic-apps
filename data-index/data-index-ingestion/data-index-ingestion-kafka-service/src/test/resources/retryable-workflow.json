@@ -1,0 +1,139 @@
+[
+  {
+    "specversion": "1.0",
+    "id": "b8533b5f-3767-41f6-89bc-c25f1eecf1ed",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T17:32:47.950823-03:00",
+    "data": {
+      "name": "01KSR2GDEGPM83CANG5QRCQ2TE",
+      "definition": {
+        "namespace": "test",
+        "name": "retryable-example",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T17:32:47.950724-03:00",
+      "status": "RUNNING"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "9ab8a81c-b334-44a8-b39e-4905efb8a7fc",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.started.v1",
+    "time": "2026-05-28T17:32:47.952436-03:00",
+    "data": {
+      "name": "01KSR2GDEGPM83CANG5QRCQ2TE",
+      "definition": {
+        "namespace": "test",
+        "name": "retryable-example",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T17:32:47.952403-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "99952c4b-e236-4656-bb9a-64224e7f31d4",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T17:32:47.95312-03:00",
+    "data": {
+      "workflow": "01KSR2GDEGPM83CANG5QRCQ2TE",
+      "task": "do/0/tryGetPet/do",
+      "definition": {
+        "namespace": "test",
+        "name": "retryable-example",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T17:32:47.953074-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "601c303a-4a99-44c4-8d0c-78ef16d07ddf",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.started.v1",
+    "time": "2026-05-28T17:32:47.954286-03:00",
+    "data": {
+      "workflow": "01KSR2GDEGPM83CANG5QRCQ2TE",
+      "task": "do/0/tryGetPet/do/0/getPet",
+      "definition": {
+        "namespace": "test",
+        "name": "retryable-example",
+        "version": "0.1.0"
+      },
+      "startedAt": "2026-05-28T17:32:47.954257-03:00"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "0c160a9c-0a55-4898-8d1e-7d68b3cccb94",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T17:32:48.186207-03:00",
+    "data": {
+      "workflow": "01KSR2GDEGPM83CANG5QRCQ2TE",
+      "task": "do/0/tryGetPet/do/0/getPet",
+      "definition": {
+        "namespace": "test",
+        "name": "retryable-example",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T17:32:48.186152-03:00",
+      "output": null
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "0a293c82-d2b7-4104-b514-c368ab5e59ff",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.task.completed.v1",
+    "time": "2026-05-28T17:32:48.186749-03:00",
+    "data": {
+      "workflow": "01KSR2GDEGPM83CANG5QRCQ2TE",
+      "task": "do/0/tryGetPet/do",
+      "definition": {
+        "namespace": "test",
+        "name": "retryable-example",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T17:32:48.186728-03:00",
+      "output": null
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "bb951ecb-4fee-4b02-b2f1-44a1e62ba51a",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.status-changed.v1",
+    "time": "2026-05-28T17:32:48.18711-03:00",
+    "data": {
+      "name": "01KSR2GDEGPM83CANG5QRCQ2TE",
+      "definition": {
+        "namespace": "test",
+        "name": "retryable-example",
+        "version": "0.1.0"
+      },
+      "updatedAt": "2026-05-28T17:32:48.18709-03:00",
+      "status": "COMPLETED"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "cb32e4cf-744d-40f2-ba7c-43f5fc3c5293",
+    "source": "reference-impl",
+    "type": "io.serverlessworkflow.workflow.completed.v1",
+    "time": "2026-05-28T17:32:48.187395-03:00",
+    "data": {
+      "name": "01KSR2GDEGPM83CANG5QRCQ2TE",
+      "definition": {
+        "namespace": "test",
+        "name": "retryable-example",
+        "version": "0.1.0"
+      },
+      "completedAt": "2026-05-28T17:32:48.18738-03:00",
+      "output": null
+    }
+  }
+]

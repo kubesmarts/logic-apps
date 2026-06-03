@@ -31,7 +31,9 @@ package org.kubesmarts.logic.dataindex.model;
  * v1.0.0 uses string status values aligned with SW 1.0.0 spec.
  */
 public enum WorkflowInstanceStatus {
+    PENDING,
     RUNNING,
+    WAITING,
     COMPLETED,
     FAULTED,
     CANCELLED,

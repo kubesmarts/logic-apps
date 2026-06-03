@@ -109,7 +109,21 @@
         <artifactId>workflow-test-app</artifactId>
         <version>${project.version}</version>
       </dependency>
-
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-ingestion-kafka-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-ingestion-kafka-processor</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-ingestion-kafka-service</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <!-- Data Index specific dependencies -->
       <dependency>
         <groupId>org.json</groupId>
@@ -145,6 +159,18 @@
         <groupId>org.elasticsearch.client</groupId>
         <artifactId>elasticsearch-rest-client-sniffer</artifactId>
         <version>8.11.1</version>
+      </dependency>
+
+      <!-- CloudEvents -->
+      <dependency>
+        <groupId>io.cloudevents</groupId>
+        <artifactId>cloudevents-core</artifactId>
+        <version>4.0.2</version>
+      </dependency>
+      <dependency>
+        <groupId>io.cloudevents</groupId>
+        <artifactId>cloudevents-json-jackson</artifactId>
+        <version>4.0.2</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -211,6 +237,7 @@
     <module>data-index-integration-tests</module>
     <module>data-index-docs</module>
     <module>workflow-test-app</module>
+    <module>data-index-ingestion</module>
   </modules>
 
 </project>

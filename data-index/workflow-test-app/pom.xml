@@ -120,6 +120,17 @@
     </dependency>
   </dependencies>
 
+  <profiles>
+    <profile>
+      <id>kafka</id>
+      <dependencies>
+        <dependency>
+          <groupId>io.quarkus</groupId>
+          <artifactId>quarkus-messaging-kafka</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
   <build>
     <plugins>
       <plugin>

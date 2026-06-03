@@ -86,6 +86,18 @@ public class TaskExecution {
     @Ignore
     private JsonNode output;
 
+    /**
+     * Workflow instance ID (for event context).
+     * <p>The workflow instance this task belongs to.
+     */
+    private String instanceId;
+
+    /**
+     * Event timestamp (when the event occurred).
+     * <p>Distinct from task execution times (start/end)
+     */
+    private ZonedDateTime eventTimestamp;
+
     public String getId() {
         return id;
     }
@@ -158,6 +170,22 @@ public class TaskExecution {
         this.output = output;
     }
 
+    public String getInstanceId() {
+        return instanceId;
+    }
+
+    public void setInstanceId(String instanceId) {
+        this.instanceId = instanceId;
+    }
+
+    public ZonedDateTime getEventTimestamp() {
+        return eventTimestamp;
+    }
+
+    public void setEventTimestamp(ZonedDateTime eventTimestamp) {
+        this.eventTimestamp = eventTimestamp;
+    }
+
     /**
      * Get input data as JSON string for GraphQL.
      * @return JSON string or null if no input
@@ -204,6 +232,8 @@ public class TaskExecution {
                 ", start=" + start +
                 ", end=" + end +
                 ", error=" + error +
+                ", instanceId='" + instanceId + '\'' +
+                ", eventTimestamp=" + eventTimestamp +
                 '}';
     }
 }
