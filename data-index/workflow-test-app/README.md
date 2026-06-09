@@ -144,6 +144,22 @@ mvn quarkus:dev
 
 **Access:** http://localhost:8080
 
+### Development Mode (MODE 3 - Kafka)
+
+Activate the `kafka` Maven profile and `kafka` Quarkus profile to enable Kafka event publishing:
+
+```bash
+mvn quarkus:dev -Pkafka -Dquarkus.profile=kafka
+```
+
+**What the `kafka` Maven profile adds:**
+- `quarkus-messaging-kafka` — SmallRye Reactive Messaging Kafka connector
+- `quarkus-flow-messaging` — Quarkus Flow Kafka event publisher (publishes CloudEvents to topic `flow-lifecycle-out`)
+
+**Access:** http://localhost:8080
+
+Quarkus Dev Services will automatically start a Redpanda container as the Kafka broker. Workflow execution events are published to the `flow-lifecycle-out` topic as CloudEvents.
+
 ### Production Build
 
 ```bash
@@ -151,6 +167,14 @@ mvn clean package -DskipTests
 ```
 
 **Result:** `target/quarkus-app/` (JVM mode)
+
+### Production Build (MODE 3 - Kafka)
+
+```bash
+mvn clean package -Pkafka -Dquarkus.profile=kafka -DskipTests
+```
+
+**Result:** `target/quarkus-app/` with Kafka messaging dependencies included.
 
 ### Container Image
 
@@ -189,6 +213,30 @@ kubectl apply -f target/kubernetes/kubernetes.yml -n workflows
 
 ## Testing
 
+### MODE 3 (Kafka) Integration Tests
+
+The Kafka ingestion integration tests live in the `data-index-ingestion-kafka-service` module. Run them with the `kafka` Maven profile and `kafka` Quarkus profile:
+
+```bash
+# From data-index/data-index-ingestion/data-index-ingestion-kafka-service/
+mvn verify -Pkafka -Dquarkus.profile=kafka
+```
+
+Quarkus Dev Services starts a Redpanda (Kafka-compatible) broker and a PostgreSQL container automatically. Tests produce CloudEvents directly onto the `flow-lifecycle-out` topic and assert normalized records in PostgreSQL.
+
+To run only the Kafka ingestion integration test class:
+
+```bash
+mvn verify -Pkafka -Dquarkus.profile=kafka -Dit.test=KafkaIngestionIT
+```
+
+**What the tests cover:**
+- Workflow started/completed events normalized to `workflow_instances`
+- Task lifecycle events (started → completed) normalized to `task_instances`
+- Field-level idempotency — immutable fields (name, version) are never overwritten
+- Task events arriving before the parent workflow (placeholder + FK recovery)
+- Error propagation from workflow events
+
 ### Execute Workflow via REST
 
 ```bash
@@ -215,6 +263,8 @@ curl http://localhost:30080/graphql \
 
 ## Event Flow
 
+### MODE 1 / MODE 2 (log-based)
+
 ```
 Workflow Execution
     ↓
@@ -229,6 +279,24 @@ FluentBit DaemonSet tails logs
 PostgreSQL raw tables (workflow_events_raw, task_events_raw)
     ↓
 PostgreSQL triggers normalize to workflow_instances, task_instances
+    ↓
+Data Index GraphQL API
+```
+
+### MODE 3 (Kafka, activated with `-Pkafka -Dquarkus.profile=kafka`)
+
+```
+Workflow Execution
+    ↓
+Quarkus Flow Messaging (quarkus-flow-messaging)
+    ↓
+Kafka topic: flow-lifecycle-out (CloudEvents)
+    ↓
+KafkaEventConsumer (data-index-ingestion-kafka-service)
+    ↓
+WorkflowEventNormalizer / TaskEventNormalizer (JDBC UPSERT)
+    ↓
+PostgreSQL normalized tables (workflow_instances, task_instances)
     ↓
 Data Index GraphQL API
 ```
@@ -260,6 +328,23 @@ Data Index GraphQL API
 ```
 
 **Provides:** JAX-RS endpoint for triggering workflows
+
+### Kafka dependencies (Maven profile `kafka`)
+
+```xml
+<!-- Activated with -Pkafka -->
+<dependency>
+  <groupId>io.quarkus</groupId>
+  <artifactId>quarkus-messaging-kafka</artifactId>
+</dependency>
+<dependency>
+  <groupId>io.quarkiverse.flow</groupId>
+  <artifactId>quarkus-flow-messaging</artifactId>
+  <version>${quarkus-flow.version}</version>
+</dependency>
+```
+
+**Provides:** SmallRye Reactive Messaging Kafka connector and Quarkus Flow Kafka publisher — publishes workflow lifecycle events as CloudEvents to the `flow-lifecycle-out` topic.
 
 ## Logs
 

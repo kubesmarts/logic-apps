@@ -57,6 +57,7 @@ usage() {
     echo "Modes:"
     echo "  postgresql           - Mode 1: FluentBit → PostgreSQL (triggers) → Query tables"
     echo "  elasticsearch        - Mode 2: FluentBit → Elasticsearch → Transform → Query indices"
+    echo "  kafka                - Mode 3: Kafka → Kafka Ingestion Service → PostgreSQL → Query tables"
     echo ""
     echo "Legacy mode names (deprecated but still supported):"
     echo "  postgresql-polling   - Alias for 'postgresql'"
@@ -82,7 +83,7 @@ validate_mode() {
     esac
 
     case "$MODE" in
-        postgresql|elasticsearch)
+        postgresql|elasticsearch|kafka)
             log_info "Deployment mode: $MODE"
             ;;
         *)
@@ -130,6 +131,16 @@ check_prerequisites() {
                 exit 1
             fi
             ;;
+        kafka)
+            if ! kubectl get namespace postgresql &> /dev/null; then
+                log_error "PostgreSQL not installed. Run: MODE=kafka ./install-dependencies.sh"
+                exit 1
+            fi
+            if ! kubectl get namespace kafka &> /dev/null; then
+                log_error "Kafka not installed. Run: MODE=kafka ./install-dependencies.sh"
+                exit 1
+            fi
+            ;;
     esac
 
     log_info "✓ Dependencies verified"
@@ -141,18 +152,24 @@ build_image() {
 
     cd "${PROJECT_ROOT}"
 
-    # Build with Maven using profile-based approach
-    log_info "Building data-index-service-${MODE} module..."
-    mvn clean package -pl data-index/data-index-service/data-index-service-${MODE} -am \
+    # MODE 3 (kafka) uses the postgresql image for query tables
+    local BUILD_MODE="${MODE}"
+    if [[ "${MODE}" == "kafka" ]]; then
+        BUILD_MODE="postgresql"
+        log_info "MODE 3: building postgresql query service (data-index-service-postgresql)"
+    fi
+
+    log_info "Building data-index-service-${BUILD_MODE} module..."
+    mvn clean package -pl data-index/data-index-service/data-index-service-${BUILD_MODE} -am \
         -Dquarkus.container-image.build=true \
         -DskipFlyway=true \
         -DskipTests -q
 
-    log_info "✓ Container image built (without Flyway): kubesmarts/data-index-service-${MODE}:${IMAGE_TAG}"
+    log_info "✓ Container image built (without Flyway): kubesmarts/data-index-service-${BUILD_MODE}:${IMAGE_TAG}"
 
     # Load image into KIND cluster
     log_info "Loading image into KIND cluster..."
-    kind load docker-image kubesmarts/data-index-service-${MODE}:${IMAGE_TAG} \
+    kind load docker-image kubesmarts/data-index-service-${BUILD_MODE}:${IMAGE_TAG} \
         --name ${CLUSTER_NAME}
 
     log_info "✓ Image loaded to KIND cluster"
@@ -212,7 +229,7 @@ create_configmap() {
 create_secret() {
     log_step "Creating data-index Secret..."
 
-    if [[ "$MODE" == "postgresql" ]]; then
+    if [[ "$MODE" == "postgresql" || "$MODE" == "kafka" ]]; then
         kubectl create secret generic data-index-secret \
             --namespace data-index \
             --from-literal=QUARKUS_DATASOURCE_PASSWORD=dataindex123 \
@@ -227,6 +244,12 @@ create_secret() {
 # Deploy data-index service
 deploy_service() {
     log_step "Deploying data-index-service..."
+
+    # MODE 3 (kafka) uses the postgresql image for the query side
+    local DEPLOY_IMAGE_MODE="${MODE}"
+    if [[ "${MODE}" == "kafka" ]]; then
+        DEPLOY_IMAGE_MODE="postgresql"
+    fi
 
     kubectl apply -f - <<EOF
 apiVersion: apps/v1
@@ -250,7 +273,7 @@ spec:
     spec:
       containers:
       - name: data-index-service
-        image: kubesmarts/data-index-service-${MODE}:${IMAGE_TAG}
+        image: kubesmarts/data-index-service-${DEPLOY_IMAGE_MODE}:${IMAGE_TAG}
         imagePullPolicy: Never
         ports:
         - containerPort: 8080
@@ -376,6 +399,10 @@ print_info() {
         elasticsearch)
             echo "  - Elasticsearch: http://localhost:30920"
             ;;
+        kafka)
+            echo "  - PostgreSQL:    postgresql://dataindex:dataindex123@localhost:30432/dataindex"
+            echo "  - Kafka:         localhost:30900"
+            ;;
     esac
 
     echo ""
@@ -409,8 +436,8 @@ main() {
         log_info "Skipping image build (SKIP_IMAGE_BUILD=true)"
     fi
 
-    # Initialize database for PostgreSQL mode (skip if already initialized in CI)
-    if [[ "$MODE" == "postgresql" ]]; then
+    # Initialize database for PostgreSQL and kafka modes (skip if already initialized in CI)
+    if [[ "$MODE" == "postgresql" || "$MODE" == "kafka" ]]; then
         if [[ "${SKIP_DB_INIT:-false}" != "true" ]]; then
             init_database_schema
         else

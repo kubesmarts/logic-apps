@@ -6,6 +6,7 @@
 ** xref:deployment/kind-local.adoc[Local Development (KIND)]
 ** xref:deployment/postgresql.adoc[PostgreSQL Production]
 ** xref:deployment/elasticsearch.adoc[Elasticsearch Production]
+** xref:deployment/kafka.adoc[Kafka Production]
 ** xref:deployment/fluentbit-config.adoc[FluentBit Configuration]
 
 * Operations
@@ -24,3 +25,4 @@
 ** xref:architecture/overview.adoc[How Data Index Works]
 ** xref:architecture/postgresql-mode.adoc[PostgreSQL Mode]
 ** xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode]
+** xref:architecture/kafka-mode.adoc[Kafka Mode]

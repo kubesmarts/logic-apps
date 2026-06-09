@@ -18,6 +18,13 @@ cd data-index-docs
 mvn clean package
 ```
 
+You can also build directly with npm:
+
+```bash
+cd data-index/data-index-docs
+npm run build
+```
+
 ## Output
 
 **Generated HTML:** `target/generated-docs/`
@@ -52,9 +59,8 @@ open target/generated-docs/index.html
 Or serve with a local web server:
 
 ```bash
-cd target/generated-docs
-python3 -m http.server 8000
-# Open http://localhost:8000
+npm run serve
+# Open http://localhost:8080
 ```
 
 ## Documentation Structure
@@ -91,8 +97,8 @@ modules/ROOT/
 
 1. Edit AsciiDoc files in `modules/ROOT/pages/`
 2. Update navigation in `modules/ROOT/nav.adoc`
-3. Rebuild: `mvn clean package`
-4. View changes: Open `target/generated-docs/index.html`
+3. Rebuild with `npm run build` or run `npm run dev` for auto-rebuild
+4. View changes at `http://localhost:8080` (dev) or `target/generated-docs/index.html`
 
 ## Antora Configuration
 
@@ -106,6 +112,7 @@ modules/ROOT/
 - NPM packages:
   - `@antora/cli` - Antora command-line interface
   - `@antora/site-generator` - Site generator
+  - `nodemon` - Auto rebuild/restart during docs development
 
 These are automatically installed during the build.
 

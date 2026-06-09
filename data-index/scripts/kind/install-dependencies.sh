@@ -26,7 +26,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 CLUSTER_NAME="${CLUSTER_NAME:-data-index-test}"
-MODE="${MODE:-postgresql}"  # postgresql, elasticsearch
+MODE="${MODE:-postgresql}"  # postgresql, elasticsearch, kafka
 
 # Logging functions
 log_info() {
@@ -54,12 +54,6 @@ check_prerequisites() {
         exit 1
     fi
 
-    if ! command -v helm &> /dev/null; then
-        log_error "Helm is not installed. Please install from: https://helm.sh/docs/intro/install/"
-        exit 1
-    fi
-    log_info "✓ Helm $(helm version --short 2>/dev/null)"
-
     # Check cluster exists
     if ! kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
         log_error "Cluster '${CLUSTER_NAME}' does not exist. Run setup-cluster.sh first"
@@ -78,6 +72,7 @@ create_namespaces() {
     kubectl create namespace logging --dry-run=client -o yaml | kubectl apply -f -
     kubectl create namespace postgresql --dry-run=client -o yaml | kubectl apply -f -
     kubectl create namespace elasticsearch --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace kafka --dry-run=client -o yaml | kubectl apply -f -
     kubectl create namespace workflows --dry-run=client -o yaml | kubectl apply -f -
 
     log_info "✓ Namespaces created"
@@ -115,6 +110,42 @@ install_postgresql() {
 
     log_info "✓ PostgreSQL installed"
     log_info "  Connection: postgresql://dataindex:dataindex123@localhost:30432/dataindex"
+}
+
+# Install Kafka (KRaft single-node) — used by MODE 3
+install_kafka() {
+    local SCRIPT_DIR
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local KAFKA_MANIFEST="${SCRIPT_DIR}/../kafka/kubernetes/kafka.yaml"
+
+    log_step "Installing Kafka (KRaft single-node)..."
+
+    if [[ ! -f "${KAFKA_MANIFEST}" ]]; then
+        log_error "Kafka manifest not found: ${KAFKA_MANIFEST}"
+        log_error "Expected at: data-index/scripts/kafka/kubernetes/kafka.yaml"
+        exit 1
+    fi
+
+    kubectl apply -f "${KAFKA_MANIFEST}"
+
+    log_info "Waiting for Kafka to be ready (this may take ~60 seconds)..."
+    kubectl wait --namespace kafka \
+        --for=condition=ready pod/kafka-0 \
+        --timeout=180s
+
+    # Verify broker is accepting connections
+    for i in {1..15}; do
+        if kubectl exec -n kafka kafka-0 -- \
+            /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server localhost:9092 --list &>/dev/null; then
+            break
+        fi
+        sleep 5
+    done
+
+    log_info "✓ Kafka installed"
+    log_info "  Bootstrap (in-cluster): kafka.kafka.svc.cluster.local:9092"
+    log_info "  Bootstrap (host debug):  localhost:30900"
 }
 
 # Install Elasticsearch (simple deployment without SSL)
@@ -233,13 +264,19 @@ print_summary() {
     fi
 
     if [[ "$MODE" == "elasticsearch" ]]; then
-        echo "  - Elasticsearch: $(kubectl get elasticsearch -n elasticsearch data-index-es -o json | jq -r '.status.health' 2>/dev/null || echo 'N/A')"
+        echo "  - Elasticsearch: $(kubectl get pods -n elasticsearch -l app=elasticsearch -o json | jq -r '.items[0].status.phase' 2>/dev/null || echo 'N/A')"
+    fi
+
+    if [[ "$MODE" == "kafka" ]]; then
+        echo "  - PostgreSQL: $(kubectl get pods -n postgresql -l app.kubernetes.io/component=primary -o json | jq -r '.items[0].status.phase' 2>/dev/null || echo 'N/A')"
+        echo "  - Kafka:      $(kubectl get pods -n kafka -l app=kafka -o json | jq -r '.items[0].status.phase' 2>/dev/null || echo 'N/A')"
     fi
 
     echo ""
     log_info "Next Steps:"
-    echo "  - MODE 1 (PostgreSQL): Deploy FluentBit with MODE 1 config (see test-mode1-e2e.sh)"
-    echo "  - MODE 2 (Elasticsearch): Deploy FluentBit with MODE 2 config (not yet implemented)"
+    echo "  - MODE 1 (PostgreSQL):    ./deploy-data-index.sh postgresql  →  test-mode1-e2e.sh"
+    echo "  - MODE 2 (Elasticsearch): ./deploy-data-index.sh elasticsearch  →  test-mode2-e2e.sh"
+    echo "  - MODE 3 (Kafka):         ./deploy-data-index.sh kafka  →  ./init-database-schema.sh → ./deploy-kafka-ingestion.sh → test-mode3-e2e.sh"
     echo ""
 }
 
@@ -258,8 +295,12 @@ main() {
         elasticsearch)
             install_elasticsearch
             ;;
+        kafka)
+            install_postgresql
+            install_kafka
+            ;;
         *)
-            log_error "Invalid MODE: ${MODE}. Valid options: postgresql, elasticsearch"
+            log_error "Invalid MODE: ${MODE}. Valid options: postgresql, elasticsearch, kafka"
             exit 1
             ;;
     esac

@@ -141,6 +141,12 @@ public class WorkflowInstance {
     @Ignore
     private Workflow workflow;
 
+    /**
+     * Event timestamp (when the event occurred).
+     * <p>Distinct from instance start/end times
+     */
+    private ZonedDateTime eventTimestamp;
+
     public String getId() {
         return id;
     }
@@ -247,6 +253,14 @@ public class WorkflowInstance {
         this.workflow = workflow;
     }
 
+    public ZonedDateTime getEventTimestamp() {
+        return eventTimestamp;
+    }
+
+    public void setEventTimestamp(ZonedDateTime eventTimestamp) {
+        this.eventTimestamp = eventTimestamp;
+    }
+
     /**
      * Get input data as JSON string for GraphQL.
      * @return JSON string or null if no input
@@ -299,6 +313,7 @@ public class WorkflowInstance {
                 ", taskExecutions=" + taskExecutions +
                 ", error=" + error +
                 ", workflow=" + workflow +
+                ", eventTimestamp=" + eventTimestamp +
                 '}';
     }
 }

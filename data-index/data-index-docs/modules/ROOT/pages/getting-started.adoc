@@ -46,7 +46,7 @@ mvn quarkus:dev
 * GraphQL UI available at http://localhost:8080/q/graphql-ui
 * Elasticsearch available at http://localhost:9200
 
-**Note:** Development mode doesn't include FluentBit. To test with real workflow events, use the KIND installation below.
+NOTE: Development mode doesn't include FluentBit. To test with real workflow events, use the KIND installation below.
 
 == Quick Install (KIND)
 
@@ -54,6 +54,7 @@ Data Index supports two storage backends. Choose one based on your needs:
 
 * **PostgreSQL (MODE 1)** - Recommended for most users, simpler deployment
 * **Elasticsearch (MODE 2)** - For high throughput or full-text search requirements
+* **Kafka (MODE 3)** - For stream-based ingestion, requires Kafka infrastructure
 
 === Option 1: PostgreSQL Backend (Recommended)
 
@@ -93,6 +94,27 @@ kubectl apply -f elasticsearch/kubernetes/configmap.yaml
 kubectl apply -f elasticsearch/kubernetes/daemonset.yaml
 ----
 
+=== Option 3: Kafka Ingestion
+
+[source,bash]
+----
+# 1. Setup KIND cluster and Infrastructure dependencies (Kafka, PostgreSQL)
+./setup-cluster.sh
+MODE=kafka ./install-dependencies.sh
+
+# 2. Deploy the data index query service (PostgreSQL backend)
+./deploy-data-index.sh kafka
+
+# 3. Initialize the database schema
+./init-database-schema.sh
+
+# 4. Deploy the Kafka ingestion service
+./deploy-kafka-ingestion.sh
+
+# 5. Deploy test workflow app with kafka profile
+MODE=kafka ./deploy-workflow-app.sh
+----
+
 == Verify Installation
 
 === Check Pods
@@ -109,6 +131,9 @@ kubectl get pods -n logging
 
 # PostgreSQL
 kubectl get pods -n postgresql
+
+# Kafka
+kubectl get pods -n kafka
 ----
 
 Expected output:

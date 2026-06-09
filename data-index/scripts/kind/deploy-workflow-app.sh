@@ -35,14 +35,25 @@ CLUSTER_NAME="${CLUSTER_NAME:-data-index-test}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
-log_info "Deploying workflow test application to KIND"
+log_info "Deploying workflow test application to KIND (MODE: ${MODE:-})"
 
 # Build workflow-test-app image
+# MODE=kafka activates the kafka Maven profile and Quarkus kafka profile so the app
+# publishes CloudEvents to Kafka instead of writing to stdout.
 log_step "Building workflow-test-app image..."
 cd "${PROJECT_ROOT}"
+
+MAVEN_EXTRA_ARGS=""
+if [[ "${MODE:-}" == "kafka" ]]; then
+    MAVEN_EXTRA_ARGS="-Pkafka -Dquarkus.profile=kafka"
+    log_info "  Kafka profile: -Pkafka -Dquarkus.profile=kafka"
+    log_info "  Events will be published to Kafka topic: flow-lifecycle-out"
+fi
+
 mvn clean package -pl data-index/workflow-test-app -am \
     -Dquarkus.container-image.build=true \
-    -DskipTests -q
+    -DskipTests -q \
+    ${MAVEN_EXTRA_ARGS}
 
 log_info "✓ Container image built: kubesmarts/workflow-test-app:${IMAGE_TAG}"
 
@@ -143,6 +154,17 @@ spec:
     protocol: TCP
     name: http
 EOF
+
+# Patch Deployment with Kafka env vars when MODE=kafka
+if [[ "${MODE:-}" == "kafka" ]]; then
+    log_step "Patching Deployment with Kafka env vars..."
+    kubectl patch deployment workflow-test-app -n workflows --type=json -p='[
+      {"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"QUARKUS_PROFILE","value":"kafka"}},
+      {"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"KAFKA_BOOTSTRAP_SERVERS","value":"kafka.kafka.svc.cluster.local:9092"}},
+      {"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"MP_MESSAGING_CONNECTOR_SMALLRYE_KAFKA_BOOTSTRAP_SERVERS","value":"kafka.kafka.svc.cluster.local:9092"}}
+    ]'
+    log_info "✓ Kafka env vars patched"
+fi
 
 log_step "Waiting for deployment to be ready..."
 kubectl wait --namespace workflows \

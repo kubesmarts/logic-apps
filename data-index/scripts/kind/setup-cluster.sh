@@ -58,14 +58,13 @@ check_prerequisites() {
     fi
     log_info "✓ kubectl $(kubectl version --client --short 2>/dev/null | head -1)"
 
-    # Check Docker
-    if ! command -v docker &> /dev/null; then
-        log_error "Docker is not installed. Please install Docker Desktop or Docker Engine"
+    # Check Docker is installed and running
+    if ! command -v docker &>/dev/null; then
+        log_error "Docker is not installed. Please install Docker Desktop or Docker Engine."
         exit 1
     fi
-
-    if ! docker info &> /dev/null; then
-        log_error "Docker is not running. Please start Docker"
+    if ! docker info &>/dev/null 2>&1; then
+        log_error "Docker daemon is not running. Please start Docker."
         exit 1
     fi
     log_info "✓ Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null)"
@@ -106,9 +105,13 @@ nodes:
     - containerPort: 30432
       hostPort: 30432
       protocol: TCP
-    # Elasticsearch (for local access - future)
+    # Elasticsearch (for local access)
     - containerPort: 30920
       hostPort: 30920
+      protocol: TCP
+    # Kafka (MODE 3 - for local debugging access)
+    - containerPort: 30900
+      hostPort: 30900
       protocol: TCP
 EOF
 
@@ -132,8 +135,8 @@ print_cluster_info() {
     log_info "KIND Cluster Setup Complete!"
     log_info "=========================================="
     echo ""
-    log_info "Cluster Name: ${CLUSTER_NAME}"
-    log_info "Context: kind-${CLUSTER_NAME}"
+    log_info "Cluster Name:      ${CLUSTER_NAME}"
+    log_info "Context:           kind-${CLUSTER_NAME}"
     echo ""
     log_info "Nodes:"
     kubectl get nodes -o wide
@@ -141,7 +144,8 @@ print_cluster_info() {
     log_info "Port Mappings (NodePort):"
     echo "  - GraphQL API:       http://localhost:30080/graphql"
     echo "  - PostgreSQL:        localhost:30432"
-    echo "  - Elasticsearch:     http://localhost:30920 (future)"
+    echo "  - Elasticsearch:     http://localhost:30920"
+    echo "  - Kafka (debug):     localhost:30900 (MODE 3)"
     echo ""
     log_info "Next Steps:"
     echo "  1. Install dependencies: ./install-dependencies.sh"
