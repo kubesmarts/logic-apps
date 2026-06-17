@@ -21,10 +21,17 @@ import io.cloudevents.CloudEvent;
 import io.cloudevents.jackson.JsonCloudEventData;
 import io.serverlessworkflow.impl.lifecycle.ce.TaskCEData;
 import io.serverlessworkflow.impl.lifecycle.ce.WorkflowCEData;
+import io.smallrye.reactive.messaging.MutinyEmitter;
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.eclipse.microprofile.reactive.messaging.Message;
+import org.eclipse.microprofile.reactive.messaging.Metadata;
 import org.kubesmarts.logic.dataindex.ingestion.kafka.processor.EventProcessor;
 import org.kubesmarts.logic.dataindex.ingestion.kafka.processor.ProcessEventFailedException;
 import org.kubesmarts.logic.dataindex.model.LifecycleEventUtils;
@@ -32,6 +39,12 @@ import org.kubesmarts.logic.dataindex.model.TaskExecution;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 @ApplicationScoped
 public class KafkaLifecycleConsumer {
@@ -47,34 +60,69 @@ public class KafkaLifecycleConsumer {
     @Inject
     EventProcessor<TaskExecution> taskExecutionProcessor;
 
+    @Inject
+    @Channel("data-index-events-dlq")
+    MutinyEmitter<String> deadLetterEmitter;
+
     @Incoming("data-index-events")
-    public void consumeLifecycleEvent(ConsumerRecord<String, String> record) {
+    public CompletionStage<Void> consumeLifecycleEvent(Message<ConsumerRecords<String, String>> records) {
+        List<CompletionStage<Void>> deadLetterSends = new ArrayList<>();
 
-        try {
-            CloudEvent cloudEvent = validateCloudEvent(record);
+        for (ConsumerRecord<String, String> record : records.getPayload()) {
+            try {
+                CloudEvent cloudEvent = validateCloudEvent(record);
 
-            JsonCloudEventData cloudEventData = (JsonCloudEventData) cloudEvent.getData();
-            if (cloudEventData == null || cloudEventData.getNode() == null) {
-                throw new IllegalArgumentException("The CloudEvent data node consumed at offset %s from partition %s is null or empty."
-                        .formatted(record.offset(), record.partition()));
+                JsonCloudEventData cloudEventData = (JsonCloudEventData) cloudEvent.getData();
+                if (cloudEventData == null || cloudEventData.getNode() == null) {
+                    throw new IllegalArgumentException("The CloudEvent data node consumed at offset %s from partition %s is null or empty."
+                            .formatted(record.offset(), record.partition()));
+                }
+
+                Class<?> eventClass = LifecycleEventUtils.getEventClass(cloudEvent.getType());
+                Object data = jackson.convertValue(cloudEventData.getNode(), eventClass);
+
+                if (data instanceof TaskCEData taskData) {
+                    handleTaskEvent(cloudEvent, taskData);
+                } else if (data instanceof WorkflowCEData workflowData) {
+                    handleWorkflowEvent(cloudEvent, workflowData);
+                } else {
+                    throw new IllegalArgumentException("Unsupported event type '%s' consumed at offset %s from partition %s."
+                            .formatted(cloudEvent.getType(), record.offset(), record.partition()));
+                }
+            } catch (Exception e) {
+                log.error("Failed to consume the record from Kafka at offset '{}' from partition '{}'. Routing to dead-letter queue.",
+                        record.offset(), record.partition(), e);
+                deadLetterSends.add(sendToDeadLetterQueue(record, e));
             }
-
-            Class<?> eventClass = LifecycleEventUtils.getEventClass(cloudEvent.getType());
-            Object data = jackson.convertValue(cloudEventData.getNode(), eventClass);
-
-            if (data instanceof TaskCEData taskData) {
-                handleTaskEvent(cloudEvent, taskData);
-            } else if (data instanceof WorkflowCEData workflowData) {
-                handleWorkflowEvent(cloudEvent, workflowData);
-            } else {
-                throw new IllegalArgumentException("Unsupported event type '%s' consumed at offset %s from partition %s."
-                        .formatted(cloudEvent.getType(), record.offset(), record.partition()));
-            }
-        } catch (Exception e) {
-            log.error("Failed to consume the record from Kafka at offset '{}' from partition '{}'.", record.offset(), record.partition(), e);
-            throw new ProcessEventFailedException("Failed to consume Kafka record at offset %s from partition %s".formatted(
-                    record.offset(), record.partition()), e);
         }
+
+        // Commit the batch only after every dead-letter write has completed
+        CompletableFuture<?>[] pending = deadLetterSends.stream()
+                .map(CompletionStage::toCompletableFuture)
+                .toArray(CompletableFuture[]::new);
+
+        return CompletableFuture.allOf(pending).thenCompose(ignored -> records.ack());
+    }
+
+    private CompletionStage<Void> sendToDeadLetterQueue(ConsumerRecord<String, String> record, Exception cause) {
+        RecordHeaders headers = new RecordHeaders();
+        headers.add("dead-letter-reason", bytes(cause.getMessage() != null ? cause.getMessage() : cause.toString()));
+        headers.add("dead-letter-cause", bytes(cause.getClass().getName()));
+        headers.add("dead-letter-original-topic", bytes(record.topic()));
+        headers.add("dead-letter-original-partition", bytes(Integer.toString(record.partition())));
+        headers.add("dead-letter-original-offset", bytes(Long.toString(record.offset())));
+
+        OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
+                .withKey(record.key())
+                .withHeaders(headers)
+                .build();
+
+        return deadLetterEmitter.sendMessage(Message.of(record.value(), Metadata.of(metadata)))
+                .subscribeAsCompletionStage();
+    }
+
+    private static byte[] bytes(String value) {
+        return value.getBytes(StandardCharsets.UTF_8);
     }
 
     private CloudEvent validateCloudEvent(ConsumerRecord<String, String> record) throws JsonProcessingException {
