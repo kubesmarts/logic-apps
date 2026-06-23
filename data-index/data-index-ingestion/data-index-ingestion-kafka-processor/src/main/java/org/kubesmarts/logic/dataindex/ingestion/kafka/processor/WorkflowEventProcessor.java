@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Objects;
 
 @Unremovable
@@ -40,13 +41,19 @@ public class WorkflowEventProcessor implements EventProcessor<WorkflowInstance> 
     }
 
     public void process(final WorkflowInstance event) {
-        try {
-            this.workflowPersistence.persist(Objects.requireNonNull(event, "event cannot be null"));
-            log.debug("Successfully processed the workflow event with ID: {}", event.getId());
-        } catch (SQLException e) {
-            log.error("Error while processing the workflow event: {}", event, e);
-            throw new ProcessEventFailedException("Failed to process the workflow event with instance ID: " + event.getId(), e);
-        }
+        processBatch(List.of(event));
     }
+   
+    public void processBatch(final List<WorkflowInstance> events) {
+        log.info("Processing workflow batch size: {}", events.size());
+
+        try {
+            workflowPersistence.persistBatch(events);
+            log.info("Successfully processed {} workflow events", events.size());
+        } catch (SQLException e) {
+            log.error("Error while processing workflow event batch", e);
+            throw new ProcessEventFailedException("Failed to process workflow event batch", e);
+        }
+    } 
 }
 

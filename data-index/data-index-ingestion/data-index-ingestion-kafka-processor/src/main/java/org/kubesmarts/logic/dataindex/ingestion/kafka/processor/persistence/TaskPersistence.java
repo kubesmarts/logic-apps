@@ -17,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Unremovable
@@ -62,6 +63,36 @@ public class TaskPersistence {
                     conn.rollback();
                     throw e;
                 }
+            }
+        }
+    }
+
+    public void persistBatch(List<TaskExecution> events) throws SQLException {
+        if (events == null || events.isEmpty()) {
+            return;
+        }
+    
+        log.debug("Persisting task DB batch size: {}", events.size());
+    
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(insertTaskUpsert)) {
+    
+            conn.setAutoCommit(false);
+    
+            try {
+                for (TaskExecution event : events) {
+                    setTaskParameters(stmt, event);
+                    stmt.addBatch();
+                }
+    
+                int[] result = stmt.executeBatch();
+                conn.commit();
+    
+                log.debug("Committed task DB batch size: {}, executeBatch result length: {}",
+                        events.size(), result.length);
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
             }
         }
     }

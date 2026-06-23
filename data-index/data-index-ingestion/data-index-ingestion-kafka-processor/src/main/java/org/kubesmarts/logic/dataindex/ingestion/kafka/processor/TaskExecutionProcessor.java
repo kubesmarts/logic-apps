@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Objects;
 
 @Unremovable
@@ -32,7 +33,7 @@ public class TaskExecutionProcessor implements EventProcessor<TaskExecution> {
 
     private static final Logger log = LoggerFactory.getLogger(TaskExecutionProcessor.class);
 
-    final TaskPersistence taskPersistence;
+    private final TaskPersistence taskPersistence;
 
     @Inject
     public TaskExecutionProcessor(TaskPersistence taskPersistence) {
@@ -41,22 +42,36 @@ public class TaskExecutionProcessor implements EventProcessor<TaskExecution> {
 
     @Override
     public void process(TaskExecution event) {
-        Objects.requireNonNull(event, "event cannot be null");
-        log.debug("Processing task: {}", event);
-        event.setId(generateTaskExecutionId(event));
+        processBatch(List.of(event));
+    }
+
+    public void processBatch(List<TaskExecution> events) {
+        Objects.requireNonNull(events, "events cannot be null");
+
+        if (events.isEmpty()) {
+            return;
+        }
+
+        log.info("Processing task batch size: {}", events.size());
+
         try {
-            this.taskPersistence.persist(event);
-            log.debug("Successfully processed the task event with ID: {}", event.getInstanceId());
+            for (TaskExecution event : events) {
+                Objects.requireNonNull(event, "event cannot be null");
+                event.setId(generateTaskExecutionId(event));
+            }
+
+            this.taskPersistence.persistBatch(events);
+
+            log.debug("Successfully processed task batch size: {}", events.size());
         } catch (SQLException e) {
-            log.error("Error while processing the task event: {}", event, e);
-            throw new ProcessEventFailedException("Failed to process the task event with instance ID: " + event.getInstanceId(), e);
+            log.error("Error while processing task batch size: {}", events.size(), e);
+            throw new ProcessEventFailedException("Failed to process task event batch", e);
         }
     }
 
     private String generateTaskExecutionId(TaskExecution taskExecutionEvent) {
-        // Generate deterministic ID based on instance's ID + task position
-        return taskExecutionEvent.getInstanceId() +
-                ":" + taskExecutionEvent.getTaskPosition();
+        return taskExecutionEvent.getInstanceId()
+                + ":"
+                + taskExecutionEvent.getTaskPosition();
     }
 }
-

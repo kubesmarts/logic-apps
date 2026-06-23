@@ -28,12 +28,16 @@ import jakarta.inject.Inject;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Message;
 import org.eclipse.microprofile.reactive.messaging.Metadata;
 import org.kubesmarts.logic.dataindex.ingestion.kafka.processor.EventProcessor;
 import org.kubesmarts.logic.dataindex.ingestion.kafka.processor.ProcessEventFailedException;
+import org.kubesmarts.logic.dataindex.ingestion.kafka.processor.WorkflowEventProcessor;
+import org.kubesmarts.logic.dataindex.ingestion.kafka.processor.TaskExecutionProcessor;
+
 import org.kubesmarts.logic.dataindex.model.LifecycleEventUtils;
 import org.kubesmarts.logic.dataindex.model.TaskExecution;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
@@ -46,45 +50,57 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+
 @ApplicationScoped
 public class KafkaLifecycleConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaLifecycleConsumer.class);
 
+    private final WorkflowEventProcessor workflowEventProcessor;
+    private final TaskExecutionProcessor taskExecutionProcessor;
+
+    @Inject
+    public KafkaLifecycleConsumer(WorkflowEventProcessor workflowEventProcessor,
+                                  TaskExecutionProcessor taskExecutionProcessor)
+    {
+        this.workflowEventProcessor = workflowEventProcessor;
+        this.taskExecutionProcessor = taskExecutionProcessor;
+    }
+    
     @Inject
     ObjectMapper jackson;
-
-    @Inject
-    EventProcessor<WorkflowInstance> workflowEventProcessor;
-
-    @Inject
-    EventProcessor<TaskExecution> taskExecutionProcessor;
 
     @Inject
     @Channel("data-index-events-dlq")
     MutinyEmitter<String> deadLetterEmitter;
 
+    @ConfigProperty(name = "data-index.ingestion.db-batch-size", defaultValue = "1000")
+    int dbBatchSize;
+
     @Incoming("data-index-events")
     public CompletionStage<Void> consumeLifecycleEvent(Message<ConsumerRecords<String, String>> records) {
         List<CompletionStage<Void>> deadLetterSends = new ArrayList<>();
-
+    
+        List<WorkflowInstance> workflowInstances = new ArrayList<>();
+        List<TaskExecution> taskExecutions = new ArrayList<>();
+    
         for (ConsumerRecord<String, String> record : records.getPayload()) {
             try {
                 CloudEvent cloudEvent = validateCloudEvent(record);
-
+    
                 JsonCloudEventData cloudEventData = (JsonCloudEventData) cloudEvent.getData();
                 if (cloudEventData == null || cloudEventData.getNode() == null) {
                     throw new IllegalArgumentException("The CloudEvent data node consumed at offset %s from partition %s is null or empty."
                             .formatted(record.offset(), record.partition()));
                 }
-
+    
                 Class<?> eventClass = LifecycleEventUtils.getEventClass(cloudEvent.getType());
                 Object data = jackson.convertValue(cloudEventData.getNode(), eventClass);
-
+    
                 if (data instanceof TaskCEData taskData) {
-                    handleTaskEvent(cloudEvent, taskData);
+                    taskExecutions.add(mapTaskEvent(cloudEvent, taskData));
                 } else if (data instanceof WorkflowCEData workflowData) {
-                    handleWorkflowEvent(cloudEvent, workflowData);
+                    workflowInstances.add(mapWorkflowEvent(cloudEvent, workflowData));
                 } else {
                     throw new IllegalArgumentException("Unsupported event type '%s' consumed at offset %s from partition %s."
                             .formatted(cloudEvent.getType(), record.offset(), record.partition()));
@@ -95,13 +111,56 @@ public class KafkaLifecycleConsumer {
                 deadLetterSends.add(sendToDeadLetterQueue(record, e));
             }
         }
-
-        // Commit the batch only after every dead-letter write has completed
+    
+        try {
+            log.info("Mapped Kafka batch: workflows={}, tasks={}",
+                    workflowInstances.size(), taskExecutions.size());
+    
+            for (List<WorkflowInstance> chunk : partition(workflowInstances, dbBatchSize)) {
+                workflowEventProcessor.processBatch(chunk);
+            }
+    
+            for (List<TaskExecution> chunk : partition(taskExecutions, dbBatchSize)) {
+                taskExecutionProcessor.processBatch(chunk);
+            }
+        } catch (Exception e) {
+            log.error("Failed to persist Kafka batch. Nacking the batch so it can be retried.", e);
+            return records.nack(e);
+        }
+    
         CompletableFuture<?>[] pending = deadLetterSends.stream()
                 .map(CompletionStage::toCompletableFuture)
                 .toArray(CompletableFuture[]::new);
-
+    
         return CompletableFuture.allOf(pending).thenCompose(ignored -> records.ack());
+    }
+        
+    private static <T> List<List<T>> partition(List<T> list, int size) {
+        List<List<T>> chunks = new ArrayList<>();
+    
+        for (int i = 0; i < list.size(); i += size) {
+            chunks.add(list.subList(i, Math.min(i + size, list.size())));
+        }
+    
+        return chunks;
+    }
+    
+    private TaskExecution mapTaskEvent(CloudEvent cloudEvent, TaskCEData data) {
+        try {
+            return Mapper.mapTaskExecutionEvent(cloudEvent, data, jackson);
+        } catch (Exception e) {
+            log.error("Error while mapping CloudEvent (task) with ID: {}", cloudEvent.getId(), e);
+            throw new ProcessEventFailedException("Failed to map CloudEvent with ID: " + cloudEvent.getId(), e);
+        }
+    }
+    
+    private WorkflowInstance mapWorkflowEvent(CloudEvent cloudEvent, WorkflowCEData data) {
+        try {
+            return Mapper.mapWorkflowInstanceEvent(cloudEvent, data, jackson);
+        } catch (Exception e) {
+            log.error("Error while mapping CloudEvent (workflow) with ID: {}", data.getName(), e);
+            throw new ProcessEventFailedException("Failed to map CloudEvent with ID: " + data.getName(), e);
+        }
     }
 
     private CompletionStage<Void> sendToDeadLetterQueue(ConsumerRecord<String, String> record, Exception cause) {
