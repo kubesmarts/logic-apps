@@ -84,17 +84,40 @@ public class TaskPersistence {
                     setTaskParameters(stmt, event);
                     stmt.addBatch();
                 }
-    
+
                 int[] result = stmt.executeBatch();
                 conn.commit();
-    
+
                 log.debug("Committed task DB batch size: {}, executeBatch result length: {}",
                         events.size(), result.length);
             } catch (SQLException e) {
                 conn.rollback();
-                throw e;
+                // A task may arrive before its workflow. The batch upsert cannot create the
+                // missing placeholder workflow, so fall back to per-record persistence which
+                // recovers from foreign key violations individually.
+                if (isForeignKeyViolation(e)) {
+                    log.debug("Task batch hit foreign key violation; falling back to per-record persistence");
+                    persistEachIndividually(events);
+                } else {
+                    throw e;
+                }
             }
         }
+    }
+
+    private void persistEachIndividually(List<TaskExecution> events) throws SQLException {
+        for (TaskExecution event : events) {
+            persist(event);
+        }
+    }
+
+    private boolean isForeignKeyViolation(SQLException e) {
+        for (SQLException current = e; current != null; current = current.getNextException()) {
+            if (INVALID_FOREIGN_KEY.equals(current.getSQLState())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void tryInsertTask(TaskExecution event, Connection conn) throws SQLException {
