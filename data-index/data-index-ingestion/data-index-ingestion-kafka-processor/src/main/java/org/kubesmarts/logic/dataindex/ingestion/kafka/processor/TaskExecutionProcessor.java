@@ -52,7 +52,7 @@ public class TaskExecutionProcessor implements EventProcessor<TaskExecution> {
             return;
         }
 
-        log.info("Processing task batch size: {}", events.size());
+        log.debug("Processing task batch size: {}", events.size());
 
         try {
             for (TaskExecution event : events) {

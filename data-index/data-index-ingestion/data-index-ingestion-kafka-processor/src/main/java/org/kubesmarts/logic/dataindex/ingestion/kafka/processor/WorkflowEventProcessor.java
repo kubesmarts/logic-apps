@@ -45,11 +45,11 @@ public class WorkflowEventProcessor implements EventProcessor<WorkflowInstance> 
     }
    
     public void processBatch(final List<WorkflowInstance> events) {
-        log.info("Processing workflow batch size: {}", events.size());
+        log.debug("Processing workflow batch size: {}", events.size());
 
         try {
             workflowPersistence.persistBatch(events);
-            log.info("Successfully processed {} workflow events", events.size());
+            log.debug("Successfully processed {} workflow events", events.size());
         } catch (SQLException e) {
             log.error("Error while processing workflow event batch", e);
             throw new ProcessEventFailedException("Failed to process workflow event batch", e);

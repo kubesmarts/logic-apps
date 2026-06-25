@@ -101,9 +101,6 @@ public class KafkaLifecycleConsumer {
                     taskExecutions.add(mapTaskEvent(cloudEvent, taskData));
                 } else if (data instanceof WorkflowCEData workflowData) {
                     workflowInstances.add(mapWorkflowEvent(cloudEvent, workflowData));
-                } else {
-                    throw new IllegalArgumentException("Unsupported event type '%s' consumed at offset %s from partition %s."
-                            .formatted(cloudEvent.getType(), record.offset(), record.partition()));
                 }
             } catch (Exception e) {
                 log.error("Failed to consume the record from Kafka at offset '{}' from partition '{}'. Routing to dead-letter queue.",
