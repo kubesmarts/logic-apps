@@ -17,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Unremovable
@@ -57,6 +58,31 @@ public class WorkflowPersistence {
             }
         }
     }
+
+    public void persistBatch(List<WorkflowInstance> events) throws SQLException {
+        if (events == null || events.isEmpty()) {
+            return;
+        }
+    
+        try (Connection conn = dataSource.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(insertWorkflowUpsert)) {
+    
+            conn.setAutoCommit(false);
+    
+            try {
+                for (WorkflowInstance event : events) {
+                    setWorkflowParameters(stmt, event);
+                    stmt.addBatch();
+                }
+    
+                stmt.executeBatch();
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        }
+   }
 
     private void setWorkflowParameters(PreparedStatement stmt, WorkflowInstance event) throws SQLException {
         stmt.setString(1, event.getId());
