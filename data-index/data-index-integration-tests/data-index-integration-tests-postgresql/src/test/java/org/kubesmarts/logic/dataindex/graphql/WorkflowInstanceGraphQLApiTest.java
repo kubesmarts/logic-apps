@@ -117,8 +117,14 @@ public class WorkflowInstanceGraphQLApiTest {
         task2.setWorkflowInstance(workflow1);
         tasks1.add(task2);
 
-        workflow1.setTaskExecutions(tasks1);
+        // Persist workflow first
         em.persist(workflow1);
+
+        // Persist task instances separately (composite ID entities can't cascade)
+        em.persist(task1);
+        em.persist(task2);
+
+        workflow1.setTaskExecutions(tasks1);
 
         // Create test workflow instance 2 with error
         WorkflowInstanceEntity workflow2 = new WorkflowInstanceEntity();
@@ -161,8 +167,13 @@ public class WorkflowInstanceGraphQLApiTest {
         task3.setWorkflowInstance(workflow2);
         tasks2.add(task3);
 
-        workflow2.setTaskExecutions(tasks2);
+        // Persist workflow first
         em.persist(workflow2);
+
+        // Persist task instance separately (composite ID entities can't cascade)
+        em.persist(task3);
+
+        workflow2.setTaskExecutions(tasks2);
 
         em.flush();
     }
@@ -475,7 +486,7 @@ public class WorkflowInstanceGraphQLApiTest {
                 .post("/graphql")
                 .then()
                 .statusCode(200)
-                .body("data.getWorkflowInstance.taskExecutions[0].id", equalTo("task-2-1"))
+                .body("data.getWorkflowInstance.taskExecutions[0].id", equalTo(TEST_WORKFLOW_ID_2 + ":/do/0"))
                 .body("data.getWorkflowInstance.taskExecutions[0].error.type", equalTo("communication"))
                 .body("data.getWorkflowInstance.taskExecutions[0].error.status", equalTo(500))
                 .body("data.getWorkflowInstance.taskExecutions[0].error.title", equalTo("Internal Server Error"))
