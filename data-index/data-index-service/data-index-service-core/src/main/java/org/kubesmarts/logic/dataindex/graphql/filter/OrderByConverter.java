@@ -101,10 +101,12 @@ public class OrderByConverter {
             result.add(new DataIndexAttributeSort("taskPosition", toSortDirection(orderBy.getTaskPosition())));
         }
         if (orderBy.getEnter() != null) {
-            result.add(new DataIndexAttributeSort("enter", toSortDirection(orderBy.getEnter())));
+            // Map GraphQL enter → entity start field
+            result.add(new DataIndexAttributeSort("start", toSortDirection(orderBy.getEnter())));
         }
         if (orderBy.getExit() != null) {
-            result.add(new DataIndexAttributeSort("exit", toSortDirection(orderBy.getExit())));
+            // Map GraphQL exit → entity end field
+            result.add(new DataIndexAttributeSort("end", toSortDirection(orderBy.getExit())));
         }
 
         return result;

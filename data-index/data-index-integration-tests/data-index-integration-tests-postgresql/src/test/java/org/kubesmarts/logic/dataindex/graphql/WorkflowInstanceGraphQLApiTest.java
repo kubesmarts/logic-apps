@@ -495,6 +495,55 @@ public class WorkflowInstanceGraphQLApiTest {
     }
 
     /**
+     * Test task execution ordering by enter/exit (mapped to start/end entity fields).
+     * Validates OrderByConverter correctly maps GraphQL enter→start and exit→end.
+     */
+    @Test
+    public void testTaskExecutionOrdering() {
+        // Test ordering by enter (maps to start field)
+        String queryByEnter = """
+            {
+              getTaskExecutions(limit: 10, orderBy: { enter: ASC }) {
+                id
+                taskName
+                startDate
+              }
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(Map.of("query", queryByEnter))
+        .when()
+            .post("/graphql")
+        .then()
+            .statusCode(200)
+            .body("data.getTaskExecutions", notNullValue())
+            .body("data.getTaskExecutions.size()", greaterThan(0));
+
+        // Test ordering by exit (maps to end field)
+        String queryByExit = """
+            {
+              getTaskExecutions(limit: 10, orderBy: { exit: DESC }) {
+                id
+                taskName
+                endDate
+              }
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(Map.of("query", queryByExit))
+        .when()
+            .post("/graphql")
+        .then()
+            .statusCode(200)
+            .body("data.getTaskExecutions", notNullValue())
+            .body("data.getTaskExecutions.size()", greaterThan(0));
+    }
+
+    /**
      * Test error filtering in GraphQL queries.
      * Validates that ErrorFilter works correctly for both workflow instances and task executions.
      */
