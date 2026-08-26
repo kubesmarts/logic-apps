@@ -60,5 +60,6 @@ package-lock.json
 .superpowers/
 .claude/
 
-# Superpowers planning artifacts
-docs/superpowers/
+# Superpowers planning artifacts (anywhere in tree)
+**/superpowers/
+superpowers/
