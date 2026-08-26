@@ -149,7 +149,6 @@ PUT /task-events
       "event_type": {"type": "keyword"},
       "event_time": {"type": "date"},
       "instance_id": {"type": "keyword"},
-      "task_execution_id": {"type": "keyword"},
       "task_position": {"type": "keyword"},
       "task_name": {"type": "keyword"},
       "start_time": {"type": "date"},

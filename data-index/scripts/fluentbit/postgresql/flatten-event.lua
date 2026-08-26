@@ -93,10 +93,8 @@ function flatten_event(tag, timestamp, record)
     -- ========================================================================
     -- Task-specific fields (task_events table)
     -- ========================================================================
-
-    if record["taskExecutionId"] ~= nil then
-        new_record["task_execution_id"] = record["taskExecutionId"]
-    end
+    -- Note: taskExecutionId is no longer extracted - tasks identified by composite key
+    --       (instance_id, task_position) instead. Triggers extract from JSONB as needed.
 
     if record["taskName"] ~= nil then
         new_record["task_name"] = record["taskName"]

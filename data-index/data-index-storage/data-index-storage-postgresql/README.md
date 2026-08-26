@@ -103,21 +103,11 @@ Maps to `task_instances` table:
 @Entity
 @Table(name = "task_instances")
 public class TaskInstanceEntity {
-    @Column(name = "task_execution_id")
-    private String taskExecutionId;  // Event ID (unique)
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;  // Synthetic database ID
-    
-    @Column(name = "instance_id")
-    private String instanceId;  // Parent workflow ID
+    @EmbeddedId
+    private TaskInstanceEntityId id;  // Composite PK: (instance_id, task_position)
     
     @Column(name = "task_name")
     private String taskName;
-    
-    @Column(name = "task_position")
-    private String taskPosition;
     
     private String status;
     
@@ -135,12 +125,44 @@ public class TaskInstanceEntity {
     @Column(columnDefinition = "jsonb")
     private JsonNode output;
     
-    @Column(name = "last_event_time")
-    private ZonedDateTime lastEventTime;
+    @ManyToOne
+    @JoinColumn(name = "instance_id", insertable = false, updatable = false)
+    private WorkflowInstanceEntity workflowInstance;
+    
+    // Convenience getters/setters for composite key parts
+    public String getInstanceId() {
+        return id != null ? id.getInstanceId() : null;
+    }
+    
+    public void setInstanceId(String instanceId) {
+        if (this.id == null) this.id = new TaskInstanceEntityId();
+        this.id.setInstanceId(instanceId);
+    }
+    
+    public String getTaskPosition() {
+        return id != null ? id.getTaskPosition() : null;
+    }
+    
+    public void setTaskPosition(String taskPosition) {
+        if (this.id == null) this.id = new TaskInstanceEntityId();
+        this.id.setTaskPosition(taskPosition);
+    }
+    
+    // Derived ID for GraphQL
+    public String getId() {
+        if (id != null && id.getInstanceId() != null && id.getTaskPosition() != null) {
+            return id.getInstanceId() + ":" + id.getTaskPosition();
+        }
+        return null;
+    }
 }
 ```
 
-**Key difference:** `id` (GraphQL) comes from `taskExecutionId` (event ID), NOT the synthetic database `id`.
+**Composite Key Design:**
+- Primary key: `(instance_id, task_position)` uniquely identifies each task
+- Uses `@EmbeddedId` to handle composite key with FK relationship
+- GraphQL `id` derived as `"instanceId:taskPosition"`
+- No `task_execution_id` column (redundant with composite key)
 
 ## MapStruct Mappers
 

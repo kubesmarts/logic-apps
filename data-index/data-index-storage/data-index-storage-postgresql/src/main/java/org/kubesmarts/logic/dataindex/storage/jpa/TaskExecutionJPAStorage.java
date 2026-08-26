@@ -85,9 +85,9 @@ public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskInstanc
         String instanceId = id.substring(0, separatorIndex);
         String taskPosition = id.substring(separatorIndex + 1);
 
-        // Query by composite key
+        // Query by composite key (embedded ID path)
         List<TaskInstanceEntity> entities = em
-                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.instanceId = :instanceId AND t.taskPosition = :taskPosition", TaskInstanceEntity.class)
+                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.id.instanceId = :instanceId AND t.id.taskPosition = :taskPosition", TaskInstanceEntity.class)
                 .setParameter("instanceId", instanceId)
                 .setParameter("taskPosition", taskPosition)
                 .setMaxResults(1)
@@ -103,7 +103,7 @@ public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskInstanc
     @Override
     public List<TaskExecution> findByWorkflowInstanceId(String workflowInstanceId) {
         List<TaskInstanceEntity> entities = em
-                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.instanceId = :instanceId", TaskInstanceEntity.class)
+                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.id.instanceId = :instanceId", TaskInstanceEntity.class)
                 .setParameter("instanceId", workflowInstanceId)
                 .getResultList();
 
