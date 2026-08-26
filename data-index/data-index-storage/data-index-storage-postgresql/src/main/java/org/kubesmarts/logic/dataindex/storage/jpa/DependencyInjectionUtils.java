@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.kubesmarts.logic.dataindex.storage;
+package org.kubesmarts.logic.dataindex.storage.jpa;
 
 import java.util.Iterator;
 import java.util.function.Supplier;

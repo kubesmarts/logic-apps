@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.metrics;
+package org.kubesmarts.logic.dataindex.storage.common.metrics;
 
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -22,7 +22,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
-import org.kubesmarts.logic.dataindex.api.PollingEventProcessor;
+import org.kubesmarts.logic.dataindex.storage.common.api.PollingEventProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.json;
+package org.kubesmarts.logic.dataindex.storage.jpa.json;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

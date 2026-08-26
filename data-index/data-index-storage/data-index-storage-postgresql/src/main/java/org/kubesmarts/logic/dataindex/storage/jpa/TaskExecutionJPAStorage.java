@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.storage;
+package org.kubesmarts.logic.dataindex.storage.jpa;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.kubesmarts.logic.dataindex.storage.AbstractStorage;
-import org.kubesmarts.logic.dataindex.storage.JsonPredicateBuilder;
 import org.kubesmarts.logic.dataindex.api.TaskExecutionStorage;
-import org.kubesmarts.logic.dataindex.storage.entity.TaskInstanceEntity;
-import org.kubesmarts.logic.dataindex.storage.mapper.TaskInstanceEntityMapper;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.TaskInstanceEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.mapper.TaskInstanceEntityMapper;
 import org.kubesmarts.logic.dataindex.model.TaskExecution;
 
 import jakarta.enterprise.context.ApplicationScoped;

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.kubesmarts.logic.dataindex.storage.entity;
+package org.kubesmarts.logic.dataindex.storage.jpa.entity;
 
 import java.io.Serializable;
 

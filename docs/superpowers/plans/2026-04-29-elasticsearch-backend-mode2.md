@@ -950,7 +950,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Create test profile**
 
-Create `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/ElasticsearchTestProfile.java`:
+Create `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTestProfile.java`:
 
 ```java
 /*
@@ -1023,7 +1023,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write failing test for ILM policy creation**
 
-Create `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/ElasticsearchSchemaInitializerTest.java`:
+Create `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchSchemaInitializerTest.java`:
 
 ```java
 /*
@@ -1143,7 +1143,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Update existing test to use test profile**
 
-Edit `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/ElasticsearchStorageIntegrationTest.java`:
+Edit `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchStorageIntegrationTest.java`:
 
 Add `@TestProfile` annotation at class level:
 
@@ -1184,7 +1184,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write test for out-of-order event handling**
 
-Create `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/WorkflowInstanceTransformTest.java`:
+Create `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/WorkflowInstanceTransformTest.java`:
 
 ```java
 /*
@@ -1723,7 +1723,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Add task execution CRUD test**
 
-Edit `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/ElasticsearchStorageIntegrationTest.java`:
+Edit `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchStorageIntegrationTest.java`:
 
 Add this test method:
 

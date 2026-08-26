@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.kubesmarts.logic.dataindex.postgresql;
+package org.kubesmarts.logic.dataindex.storage.postgresql;
 
 import org.hibernate.boot.model.FunctionContributions;
 import org.hibernate.boot.model.FunctionContributor;
 import org.hibernate.query.sqm.function.SqmFunctionRegistry;
 
-import static org.kubesmarts.logic.dataindex.postgresql.ContainsSQLFunction.*;
+import static org.kubesmarts.logic.dataindex.storage.postgresql.ContainsSQLFunction.*;
 
 public class CustomFunctionsContributor implements FunctionContributor {
 

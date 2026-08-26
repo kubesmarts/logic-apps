@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.kubesmarts.logic.dataindex.postgresql;
+package org.kubesmarts.logic.dataindex.storage.postgresql;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-import org.kubesmarts.logic.dataindex.json.JsonUtils;
+import org.kubesmarts.logic.dataindex.storage.jpa.json.JsonUtils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

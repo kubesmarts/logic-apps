@@ -16,16 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.kubesmarts.logic.dataindex.storage;
+package org.kubesmarts.logic.dataindex.storage.jpa;
 
 import java.util.Optional;
 import java.util.function.Function;
 
-import org.kubesmarts.logic.dataindex.storage.entity.AbstractEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.AbstractEntity;
 import org.kie.kogito.persistence.api.StorageFetcher;
 import org.kie.kogito.persistence.api.query.Query;
-
-import io.smallrye.mutiny.Multi;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManager;

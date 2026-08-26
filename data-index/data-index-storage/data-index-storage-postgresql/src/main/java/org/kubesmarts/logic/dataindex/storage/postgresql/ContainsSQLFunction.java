@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.kubesmarts.logic.dataindex.postgresql;
+package org.kubesmarts.logic.dataindex.storage.postgresql;
 
 import java.util.Iterator;
 import java.util.List;

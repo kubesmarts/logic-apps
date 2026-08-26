@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.kubesmarts.logic.dataindex.json;
+package org.kubesmarts.logic.dataindex.storage.jpa.json;
 
 import java.util.Iterator;
 import java.util.Map;

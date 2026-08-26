@@ -87,7 +87,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ## Task 2: Create Metrics Collector
 
 **Files:**
-- Create: `data-index/data-index-storage/data-index-storage-elasticsearch/src/main/java/org/kubesmarts/logic/dataindex/elasticsearch/metrics/ElasticsearchTransformMetricsCollector.java`
+- Create: `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/main/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/metrics/ElasticsearchTransformMetricsCollector.java`
 
 - [ ] **Step 1: Create metrics package directory**
 
@@ -310,7 +310,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ## Task 4: Create Metrics Test Profile
 
 **Files:**
-- Create: `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/MetricsTestProfile.java`
+- Create: `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/MetricsTestProfile.java`
 
 - [ ] **Step 1: Create MetricsTestProfile class**
 
@@ -380,7 +380,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ## Task 5: Write Metrics Integration Test - Part 1 (Setup)
 
 **Files:**
-- Create: `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/ElasticsearchTransformMetricsIT.java`
+- Create: `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTransformMetricsIT.java`
 
 - [ ] **Step 1: Create test class with setup methods**
 
@@ -518,7 +518,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ## Task 6: Write Metrics Integration Test - Part 2 (Test Cases)
 
 **Files:**
-- Modify: `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/ElasticsearchTransformMetricsIT.java`
+- Modify: `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTransformMetricsIT.java`
 
 - [ ] **Step 1: Add test for basic metrics collection**
 
@@ -653,7 +653,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ## Task 7: Write Performance Benchmark Test - Part 1 (Setup)
 
 **Files:**
-- Create: `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/ElasticsearchTransformPerformanceBenchmarkIT.java`
+- Create: `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTransformPerformanceBenchmarkIT.java`
 
 - [ ] **Step 1: Create benchmark test class**
 
@@ -822,7 +822,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ## Task 8: Write Performance Benchmark Test - Part 2 (Scaling Test)
 
 **Files:**
-- Modify: `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/ElasticsearchTransformPerformanceBenchmarkIT.java`
+- Modify: `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTransformPerformanceBenchmarkIT.java`
 
 - [ ] **Step 1: Add test for smart filtering scaling**
 
@@ -887,7 +887,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ## Task 9: Write Performance Benchmark Test - Part 3 (Lag Test)
 
 **Files:**
-- Modify: `data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/elasticsearch/ElasticsearchTransformPerformanceBenchmarkIT.java`
+- Modify: `../../../data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTransformPerformanceBenchmarkIT.java`
 
 - [ ] **Step 1: Add test for transform lag under load**
 

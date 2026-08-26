@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.elasticsearch;
+package org.kubesmarts.logic.dataindex.storage.elasticsearch;
 
 import io.quarkus.test.junit.QuarkusTestProfile;
 

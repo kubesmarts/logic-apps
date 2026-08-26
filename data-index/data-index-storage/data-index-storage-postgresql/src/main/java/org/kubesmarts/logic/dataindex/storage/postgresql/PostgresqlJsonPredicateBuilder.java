@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.kubesmarts.logic.dataindex.postgresql;
+package org.kubesmarts.logic.dataindex.storage.postgresql;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.kubesmarts.logic.dataindex.storage.JsonPredicateBuilder;
+import org.kubesmarts.logic.dataindex.storage.jpa.JsonPredicateBuilder;
 import org.kie.kogito.persistence.api.query.AttributeFilter;
 
 import jakarta.enterprise.context.ApplicationScoped;

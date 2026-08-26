@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.elasticsearch;
+package org.kubesmarts.logic.dataindex.storage.elasticsearch;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 
 import org.kubesmarts.logic.dataindex.api.WorkflowInstanceStorage;
-import org.kubesmarts.logic.dataindex.elasticsearch.config.ElasticsearchConfiguration;
+import org.kubesmarts.logic.dataindex.storage.elasticsearch.config.ElasticsearchConfiguration;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.kie.kogito.persistence.api.StorageServiceCapability;
 import org.kie.kogito.persistence.api.query.Query;
@@ -30,14 +30,10 @@ import org.slf4j.LoggerFactory;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.DeleteRequest;
 import co.elastic.clients.elasticsearch.core.DeleteResponse;
-import co.elastic.clients.elasticsearch.core.GetRequest;
-import co.elastic.clients.elasticsearch.core.GetResponse;
 import co.elastic.clients.elasticsearch.core.IndexRequest;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
-import co.elastic.clients.elasticsearch.core.search.Hit;
-import io.smallrye.mutiny.Multi;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 

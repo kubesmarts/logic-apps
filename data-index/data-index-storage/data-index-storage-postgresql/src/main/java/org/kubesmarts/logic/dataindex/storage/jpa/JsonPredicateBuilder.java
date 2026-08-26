@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.kubesmarts.logic.dataindex.storage;
+package org.kubesmarts.logic.dataindex.storage.jpa;
 
 import org.kie.kogito.persistence.api.query.AttributeFilter;
 

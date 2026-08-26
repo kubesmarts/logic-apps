@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.elasticsearch.config;
+package org.kubesmarts.logic.dataindex.storage.elasticsearch.config;
 
 import java.io.IOException;
 import java.io.InputStream;

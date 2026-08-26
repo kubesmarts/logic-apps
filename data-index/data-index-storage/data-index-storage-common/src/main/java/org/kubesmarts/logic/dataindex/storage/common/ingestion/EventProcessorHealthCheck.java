@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.ingestion;
+package org.kubesmarts.logic.dataindex.storage.common.ingestion;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -24,7 +24,7 @@ import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 import org.eclipse.microprofile.health.Liveness;
-import org.kubesmarts.logic.dataindex.api.PollingEventProcessor;
+import org.kubesmarts.logic.dataindex.storage.common.api.PollingEventProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

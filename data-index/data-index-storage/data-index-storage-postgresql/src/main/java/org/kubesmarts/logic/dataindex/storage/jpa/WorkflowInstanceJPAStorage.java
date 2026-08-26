@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.storage;
+package org.kubesmarts.logic.dataindex.storage.jpa;
 
 import java.util.Optional;
 
-import org.kubesmarts.logic.dataindex.storage.AbstractStorage;
-import org.kubesmarts.logic.dataindex.storage.JsonPredicateBuilder;
 import org.kubesmarts.logic.dataindex.api.WorkflowInstanceStorage;
-import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceEntity;
-import org.kubesmarts.logic.dataindex.storage.mapper.WorkflowInstanceEntityMapper;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.WorkflowInstanceEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.mapper.WorkflowInstanceEntityMapper;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 
 import jakarta.enterprise.context.ApplicationScoped;

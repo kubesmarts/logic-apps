@@ -26,20 +26,6 @@ import org.kie.kogito.persistence.api.query.Query;
 import io.smallrye.mutiny.Multi;
 
 public interface StorageFetcher<K, V> {
-    /**
-     * Adds a listener on the create events.
-     */
-    Multi<V> objectCreatedListener();
-
-    /**
-     * Adds a listener on the update events.
-     */
-    Multi<V> objectUpdatedListener();
-
-    /**
-     * Adds a listener on the remove events.
-     */
-    Multi<K> objectRemovedListener();
 
     /**
      * Gets the `Query` object to query the storage.

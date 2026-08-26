@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.storage.mapper;
+package org.kubesmarts.logic.dataindex.storage.jpa.mapper;
 
-import org.kubesmarts.logic.dataindex.storage.entity.TaskInstanceEntity;
-import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.TaskInstanceEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.WorkflowInstanceEntity;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.InjectionStrategy;

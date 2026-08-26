@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.storage.mapper;
+package org.kubesmarts.logic.dataindex.storage.jpa.mapper;
 
-import org.kubesmarts.logic.dataindex.storage.entity.ErrorEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.ErrorEntity;
 import org.kubesmarts.logic.dataindex.model.Error;
 import org.mapstruct.InjectionStrategy;
 import org.mapstruct.Mapper;

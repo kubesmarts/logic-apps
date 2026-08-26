@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.elasticsearch;
+package org.kubesmarts.logic.dataindex.storage.elasticsearch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.kie.kogito.persistence.api.query.FilterCondition.EQUAL;
 
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.ingestion;
+package org.kubesmarts.logic.dataindex.storage.common.ingestion;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.kubesmarts.logic.dataindex.api.PollingEventProcessor;
+import org.kubesmarts.logic.dataindex.storage.common.api.PollingEventProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
