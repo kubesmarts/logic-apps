@@ -19,6 +19,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +31,8 @@ import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.kubesmarts.logic.dataindex.api.TaskExecutionStorage;
+import org.kubesmarts.logic.dataindex.model.TaskExecution;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstanceStatus;
 import org.kubesmarts.logic.dataindex.storage.jpa.entity.ErrorEntity;
 import org.kubesmarts.logic.dataindex.storage.jpa.entity.TaskInstanceEntity;
@@ -37,7 +40,10 @@ import org.kubesmarts.logic.dataindex.storage.jpa.entity.WorkflowInstanceEntity;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasSize;
 
 /**
  * Integration tests for GraphQL API.
@@ -63,6 +69,9 @@ public class WorkflowInstanceGraphQLApiTest {
 
     @Inject
     EntityManager em;
+
+    @Inject
+    TaskExecutionStorage taskExecutionStorage;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String TEST_WORKFLOW_ID_1 = "test-workflow-instance-1";
@@ -543,5 +552,105 @@ public class WorkflowInstanceGraphQLApiTest {
             .body("data.tasksByError.size()", greaterThan(0))
             .body("data.tasksByError[0].error.status", equalTo(500))
             .body("data.tasksByError[0].error.instance", equalTo("/do/0/failingTask"));
+    }
+
+    /**
+     * Backward-compatibility regression test for {@code TaskExecutionJPAStorage.get(id)}.
+     *
+     * <p>{@code TaskInstanceEntity} now uses {@code @EmbeddedId}, so {@code instanceId} and
+     * {@code taskPosition} are no longer top-level JPQL-mapped attributes of the entity - they
+     * live under the embedded {@code id} attribute. A hand-written JPQL query referencing
+     * {@code t.instanceId} / {@code t.taskPosition} directly compiles but fails at runtime.
+     * This calls the storage method directly (bypassing any GraphQL-level shortcuts) to pin
+     * down the exact regression.
+     */
+    @Test
+    public void testTaskExecutionStorageGetById() {
+        String id = TEST_WORKFLOW_ID_2 + ":/do/0";
+
+        TaskExecution task = taskExecutionStorage.get(id);
+
+        assertThat(task, notNullValue());
+        assertThat(task.getId(), equalTo(id));
+        assertThat(task.getInstanceId(), equalTo(TEST_WORKFLOW_ID_2));
+        assertThat(task.getTaskPosition(), equalTo("/do/0"));
+        assertThat(task.getTaskName(), equalTo("failingTask"));
+    }
+
+    /**
+     * Backward-compatibility regression test for
+     * {@code TaskExecutionJPAStorage.findByWorkflowInstanceId(id)}. Same root cause as
+     * {@link #testTaskExecutionStorageGetById()} - calls the storage method directly so the
+     * assertion doesn't depend on the GraphQL resolver's "already loaded via relationship"
+     * shortcut, which otherwise masks this bug in end-to-end tests.
+     */
+    @Test
+    public void testTaskExecutionStorageFindByWorkflowInstanceId() {
+        List<TaskExecution> tasks = taskExecutionStorage.findByWorkflowInstanceId(TEST_WORKFLOW_ID_1);
+
+        assertThat(tasks, hasSize(2));
+        assertThat(tasks.stream().map(TaskExecution::getTaskPosition).collect(Collectors.toList()),
+                containsInAnyOrder("/do/0", "/do/1"));
+    }
+
+    /**
+     * Backward-compatibility regression test for the {@code getTaskExecution(id)} GraphQL query
+     * (the user-facing contract on top of {@link #testTaskExecutionStorageGetById()}).
+     */
+    @Test
+    public void testGetTaskExecutionById() {
+        String id = TEST_WORKFLOW_ID_2 + ":/do/0";
+        String query = """
+                {
+                  getTaskExecution(id: "%s") {
+                    id
+                    taskName
+                    taskPosition
+                    status
+                  }
+                }
+                """.formatted(id);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("query", query))
+                .when()
+                .post("/graphql")
+                .then()
+                .statusCode(200)
+                .body("data.getTaskExecution", notNullValue())
+                .body("data.getTaskExecution.id", equalTo(id))
+                .body("data.getTaskExecution.taskName", equalTo("failingTask"))
+                .body("data.getTaskExecution.taskPosition", equalTo("/do/0"));
+    }
+
+    /**
+     * Backward-compatibility regression test for filtering {@code getTaskExecutions} by
+     * {@code taskPosition}. The generic Criteria-API query builder resolves attribute names via
+     * {@code root.get(attribute)}, which - like the JPQL case above - breaks once
+     * {@code taskPosition} moves under the entity's {@code @EmbeddedId}.
+     */
+    @Test
+    public void testGetTaskExecutionsFilterByTaskPosition() {
+        String query = """
+                {
+                  getTaskExecutions(filter: { taskPosition: { eq: "/do/1" } }) {
+                    id
+                    taskName
+                    taskPosition
+                  }
+                }
+                """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("query", query))
+                .when()
+                .post("/graphql")
+                .then()
+                .statusCode(200)
+                .body("data.getTaskExecutions.size()", is(1))
+                .body("data.getTaskExecutions[0].taskName", equalTo("processData"))
+                .body("data.getTaskExecutions[0].taskPosition", equalTo("/do/1"));
     }
 }

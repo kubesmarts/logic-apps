@@ -98,7 +98,8 @@ public class OrderByConverter {
             result.add(new DataIndexAttributeSort("taskName", toSortDirection(orderBy.getTaskName())));
         }
         if (orderBy.getTaskPosition() != null) {
-            result.add(new DataIndexAttributeSort("taskPosition", toSortDirection(orderBy.getTaskPosition())));
+            // TaskInstanceEntity.taskPosition lives under the @EmbeddedId; see FilterConverter.
+            result.add(new DataIndexAttributeSort("id.taskPosition", toSortDirection(orderBy.getTaskPosition())));
         }
         if (orderBy.getEnter() != null) {
             result.add(new DataIndexAttributeSort("enter", toSortDirection(orderBy.getEnter())));

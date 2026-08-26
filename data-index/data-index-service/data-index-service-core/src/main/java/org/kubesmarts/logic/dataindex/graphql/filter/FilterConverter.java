@@ -103,7 +103,9 @@ public class FilterConverter {
         // String filters
         addStringFilters(result, "id", filter.getId());
         addStringFilters(result, "taskName", filter.getTaskName());
-        addStringFilters(result, "taskPosition", filter.getTaskPosition());
+        // TaskInstanceEntity.taskPosition lives under the @EmbeddedId, so the JPA attribute
+        // path is "id.taskPosition", not "taskPosition".
+        addStringFilters(result, "id.taskPosition", filter.getTaskPosition());
 
         // DateTime filters
         addDateTimeFilters(result, "enter", filter.getEnter());

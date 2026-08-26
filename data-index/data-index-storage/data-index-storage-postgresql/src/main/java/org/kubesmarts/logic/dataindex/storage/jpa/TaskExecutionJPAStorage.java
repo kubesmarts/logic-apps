@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 
 import org.kubesmarts.logic.dataindex.api.TaskExecutionStorage;
 import org.kubesmarts.logic.dataindex.storage.jpa.entity.TaskInstanceEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.TaskInstanceEntityId;
 import org.kubesmarts.logic.dataindex.storage.jpa.mapper.TaskInstanceEntityMapper;
 import org.kubesmarts.logic.dataindex.model.TaskExecution;
 
@@ -85,25 +86,16 @@ public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskInstanc
         String instanceId = id.substring(0, separatorIndex);
         String taskPosition = id.substring(separatorIndex + 1);
 
-        // Query by composite key
-        List<TaskInstanceEntity> entities = em
-                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.instanceId = :instanceId AND t.taskPosition = :taskPosition", TaskInstanceEntity.class)
-                .setParameter("instanceId", instanceId)
-                .setParameter("taskPosition", taskPosition)
-                .setMaxResults(1)
-                .getResultList();
+        // Look up by composite key directly (TaskInstanceEntity uses @EmbeddedId)
+        TaskInstanceEntity entity = em.find(TaskInstanceEntity.class, new TaskInstanceEntityId(instanceId, taskPosition));
 
-        if (entities.isEmpty()) {
-            return null;
-        }
-
-        return mapToModel.apply(entities.get(0));
+        return entity == null ? null : mapToModel.apply(entity);
     }
 
     @Override
     public List<TaskExecution> findByWorkflowInstanceId(String workflowInstanceId) {
         List<TaskInstanceEntity> entities = em
-                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.instanceId = :instanceId", TaskInstanceEntity.class)
+                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.id.instanceId = :instanceId", TaskInstanceEntity.class)
                 .setParameter("instanceId", workflowInstanceId)
                 .getResultList();
 
