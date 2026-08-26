@@ -22,8 +22,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import org.kubesmarts.logic.dataindex.storage.entity.AbstractEntity;
 import org.kie.kogito.persistence.api.Storage;
+import org.kubesmarts.logic.dataindex.storage.entity.AbstractEntity;
 
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -38,12 +38,12 @@ public abstract class AbstractStorage<K, E extends AbstractEntity, V> extends Ab
     }
 
     protected AbstractStorage(EntityManager em, Class<V> modelClass, Class<E> entityClass, Function<E, V> mapToModel,
-            Function<V, E> mapToEntity, Function<E, K> mapEntityToKey) {
-        this(em, modelClass, entityClass, mapToModel, mapToEntity, mapEntityToKey, Optional.empty());
+                              Function<V, E> mapToEntity) {
+        this(em, modelClass, entityClass, mapToModel, mapToEntity, Optional.empty());
     }
 
     protected AbstractStorage(EntityManager em, Class<V> modelClass, Class<E> entityClass, Function<E, V> mapToModel,
-            Function<V, E> mapToEntity, Function<E, K> mapEntityToKey, Optional<JsonPredicateBuilder> jsonPredicateBuilder) {
+                              Function<V, E> mapToEntity, Optional<JsonPredicateBuilder> jsonPredicateBuilder) {
         super(em, entityClass, mapToModel, jsonPredicateBuilder);
         this.modelClass = modelClass;
         this.mapToEntity = mapToEntity;

@@ -186,8 +186,8 @@ Change class declaration from `public class WorkflowInstanceError` to `public cl
 /**
  * Error information for failed workflow and task executions.
  *
- * <p>Represents a runtime error from Serverless Workflow 1.0.0 execution.
- * Aligns with the <a href="https://github.com/serverlessworkflow/specification/blob/main/dsl-reference.md#error">SW 1.0.0 Error spec</a>
+ * <p>Represents a runtime error from Open Workflow 1.0.0 execution.
+ * Aligns with the <a href="https://github.com/serverlessworkflow/specification/blob/main/dsl-reference.md#error">OW 1.0.0 Error spec</a>
  *
  * <p>This captures error details from Quarkus Flow structured logging events
  * (workflow.instance.faulted, workflow.task.faulted).
@@ -464,7 +464,7 @@ Change:
  * JPA entity for workflow instance error information.
  *
  * <p><b>Design principle:</b> This entity stores data from the error object in
- * workflow.instance.faulted events. It aligns with the Serverless Workflow 1.0.0 Error spec.
+ * workflow.instance.faulted events. It aligns with the Open Workflow 1.0.0 Error spec.
  *
  * <p><b>Event source:</b>
  * <ul>
@@ -485,7 +485,7 @@ To:
  * JPA embeddable for error information.
  *
  * <p><b>Design principle:</b> This entity stores data from the error object in
- * workflow and task faulted events. It aligns with the Serverless Workflow 1.0.0 Error spec.
+ * workflow and task faulted events. It aligns with the Open Workflow 1.0.0 Error spec.
  *
  * <p><b>Event sources:</b>
  * <ul>
@@ -601,13 +601,15 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 - [ ] **Step 1: Update import statement**
 
 Change:
+
 ```java
-import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceErrorEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.WorkflowInstanceErrorEntity;
 ```
 
 To:
+
 ```java
-import org.kubesmarts.logic.dataindex.storage.entity.ErrorEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.ErrorEntity;
 ```
 
 - [ ] **Step 2: Update field type**
@@ -793,14 +795,16 @@ Expected: File renamed
 - [ ] **Step 2: Update imports**
 
 Change:
+
 ```java
-import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceErrorEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.WorkflowInstanceErrorEntity;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstanceError;
 ```
 
 To:
+
 ```java
-import org.kubesmarts.logic.dataindex.storage.entity.ErrorEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.ErrorEntity;
 import org.kubesmarts.logic.dataindex.model.Error;
 ```
 

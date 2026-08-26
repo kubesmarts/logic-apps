@@ -33,8 +33,6 @@ import jakarta.transaction.Transactional;
 
 public class AbstractJPAStorageFetcher<K, E extends AbstractEntity, V> implements StorageFetcher<K, V> {
 
-    private static final String LISTENER_NOT_AVAILABLE_IN_JPA = "Listener not available in JPA database";
-
     protected EntityManager em;
     protected Class<E> entityClass;
     protected Function<E, V> mapToModel;
@@ -56,21 +54,6 @@ public class AbstractJPAStorageFetcher<K, E extends AbstractEntity, V> implement
         this.jsonPredicateBuilder = jsonPredicateBuilder;
         Entity entity = entityClass.getAnnotation(Entity.class);
         this.entityName = (entity != null && !entity.name().isEmpty()) ? entity.name() : entityClass.getSimpleName();
-    }
-
-    @Override
-    public Multi<V> objectCreatedListener() {
-        throw new UnsupportedOperationException(LISTENER_NOT_AVAILABLE_IN_JPA);
-    }
-
-    @Override
-    public Multi<V> objectUpdatedListener() {
-        throw new UnsupportedOperationException(LISTENER_NOT_AVAILABLE_IN_JPA);
-    }
-
-    @Override
-    public Multi<K> objectRemovedListener() {
-        throw new UnsupportedOperationException(LISTENER_NOT_AVAILABLE_IN_JPA);
     }
 
     @Override

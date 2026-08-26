@@ -1,6 +1,6 @@
 # Claude AI Assistant Guidelines - KubeSmarts Logic Apps
 
-**Project:** Data Index v1.0.0 for Serverless Workflow 1.0.0  
+**Project:** Data Index v1.0.0 for Open Workflow 1.0.0  
 **Status:** Production Ready (MODE 1, MODE 2 & MODE 3)  
 **Last Updated:** 2026-05-29
 
@@ -26,7 +26,7 @@
 
 ## Project Overview
 
-This is a **read-only query service** for Serverless Workflow (SW 1.0.0) runtime execution data. It provides a GraphQL API for querying workflow instances and task executions.
+This is a **read-only query service** for Open Workflow (OW 1.0.0) runtime execution data. It provides a GraphQL API for querying workflow instances and task executions.
 
 **What it does:**
 - Captures Quarkus Flow structured logging events via FluentBit

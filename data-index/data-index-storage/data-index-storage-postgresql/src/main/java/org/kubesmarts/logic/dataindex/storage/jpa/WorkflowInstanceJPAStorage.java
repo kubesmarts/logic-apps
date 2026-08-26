@@ -15,16 +15,14 @@
  */
 package org.kubesmarts.logic.dataindex.storage;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.kubesmarts.logic.dataindex.storage.AbstractStorage;
 import org.kubesmarts.logic.dataindex.storage.JsonPredicateBuilder;
-import org.kubesmarts.logic.dataindex.api.TaskExecutionStorage;
-import org.kubesmarts.logic.dataindex.storage.entity.TaskInstanceEntity;
-import org.kubesmarts.logic.dataindex.storage.mapper.TaskInstanceEntityMapper;
-import org.kubesmarts.logic.dataindex.model.TaskExecution;
+import org.kubesmarts.logic.dataindex.api.WorkflowInstanceStorage;
+import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceEntity;
+import org.kubesmarts.logic.dataindex.storage.mapper.WorkflowInstanceEntityMapper;
+import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -32,48 +30,35 @@ import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 
 /**
- * JPA storage implementation for TaskExecution domain model.
+ * JPA storage implementation for WorkflowInstance domain model.
  *
  * <p>Uses:
  * <ul>
- *   <li>TaskInstanceEntity - JPA entity for persistence (maps to task_instances table)
- *   <li>TaskInstanceEntityMapper - MapStruct mapper for entity/model conversion
+ *   <li>WorkflowInstanceEntity - JPA entity for persistence
+ *   <li>WorkflowInstanceEntityMapper - MapStruct mapper for entity/model conversion
  *   <li>AbstractStorage - Base JPA storage with query support
  * </ul>
  */
 @ApplicationScoped
-public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskInstanceEntity, TaskExecution>
-        implements TaskExecutionStorage {
+public class WorkflowInstanceJPAStorage extends AbstractStorage<String, WorkflowInstanceEntity, WorkflowInstance>
+        implements WorkflowInstanceStorage {
 
     @Inject
-    public TaskExecutionJPAStorage(
+    public WorkflowInstanceJPAStorage(
             EntityManager em,
-            TaskInstanceEntityMapper mapper,
+            WorkflowInstanceEntityMapper mapper,
             Instance<JsonPredicateBuilder> jsonPredicateBuilder) {
         super(
                 em,
-                TaskExecution.class,
-                TaskInstanceEntity.class,
+                WorkflowInstance.class,
+                WorkflowInstanceEntity.class,
                 mapper::toModel,
                 mapper::toEntity,
-                TaskInstanceEntity::getTaskExecutionId,
                 Optional.ofNullable(DependencyInjectionUtils.getInstance(jsonPredicateBuilder)));
     }
 
     // Default constructor for CDI proxying
-    protected TaskExecutionJPAStorage() {
+    protected WorkflowInstanceJPAStorage() {
         super();
-    }
-
-    @Override
-    public List<TaskExecution> findByWorkflowInstanceId(String workflowInstanceId) {
-        List<TaskInstanceEntity> entities = em
-                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.instanceId = :instanceId", TaskInstanceEntity.class)
-                .setParameter("instanceId", workflowInstanceId)
-                .getResultList();
-
-        return entities.stream()
-                .map(mapToModel)
-                .collect(Collectors.toList());
     }
 }

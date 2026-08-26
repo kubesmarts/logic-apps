@@ -41,7 +41,7 @@ This specification documents the design of a 15-slide technical presentation cov
 
 **Slide 1: Title Slide**
 - Title: "Data Index v1.0.0 POC"
-- Subtitle: "Read-Only Query Service for Serverless Workflows"
+- Subtitle: "Read-Only Query Service for Open Workflows"
 - Migration context: "OpenShift Serverless Logic → Quarkus Flow"
 - Two mode badges: MODE 1 (PostgreSQL + Triggers), MODE 2 (Elasticsearch + Transforms)
 - Date and organization footer

@@ -496,7 +496,7 @@ Create `presentation/templates/slide-01-title.html`:
 <body>
   <div class="slide" style="text-align: center; justify-content: center;">
     <h1>Data Index v1.0.0 POC</h1>
-    <p class="subtitle">Read-Only Query Service for Serverless Workflows</p>
+    <p class="subtitle">Read-Only Query Service for Open Workflows</p>
     <p style="font-size: 28px; color: #999; margin-bottom: 60px;">
       Migration from OpenShift Serverless Logic → Quarkus Flow
     </p>
@@ -590,7 +590,7 @@ Create `presentation/templates/slide-02-migration.html`:
       <li><strong>Simpler:</strong> No Kafka infrastructure, no event processor service to manage</li>
       <li><strong>Faster:</strong> Real-time normalization (&lt; 1ms PostgreSQL, ~1s Elasticsearch)</li>
       <li><strong>Cloud-native:</strong> Leverages Kubernetes log infrastructure (FluentBit DaemonSet)</li>
-      <li><strong>Standards-aligned:</strong> Serverless Workflow 1.0.0 domain model (not BPMN)</li>
+      <li><strong>Standards-aligned:</strong> Open Workflow 1.0.0 domain model (not BPMN)</li>
     </ul>
   </div>
 </body>

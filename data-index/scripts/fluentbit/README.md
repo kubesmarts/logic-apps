@@ -197,7 +197,7 @@ Routes events to correct tables based on event type:
 
 ## Event Types
 
-FluentBit processes Serverless Workflow 1.0.0 CloudEvents:
+FluentBit processes Open Workflow 1.0.0 CloudEvents:
 
 ### Workflow Instance Events
 - `io.serverlessworkflow.workflow.started.v1`

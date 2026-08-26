@@ -22,4 +22,4 @@ npm run clean
 
 ## Output
 
-PNG images (1920x1080) in `output/` directory.
+PNG images (1920x1080) in `output` directory.

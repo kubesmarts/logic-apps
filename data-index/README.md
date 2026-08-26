@@ -18,7 +18,7 @@
 -->
 # Data Index v1.0.0
 
-**Query service for Serverless Workflow 1.0.0 execution data.**
+**Query service for Open Workflow 1.0.0 execution data.**
 
 **Status**: ✅ Event Ingestion Architecture Complete - Ready for Real Workflow Testing  
 **Verification**: ✅ Safe, Testable, Runnable - See [Verification Report](VERIFICATION-REPORT.md)
@@ -55,7 +55,7 @@ Data Index GraphQL API (passive, query-only)
 - ✅ No event processing - read-only query service
 - ✅ No Kafka dependencies - logs as transport via FluentBit
 - ✅ PostgreSQL-only storage (MongoDB, Infinispan removed)
-- ✅ Serverless Workflow 1.0.0 domain model (no legacy BPMN concepts)
+- ✅ Open Workflow 1.0.0 domain model (no legacy BPMN concepts)
 - ✅ Out-of-order event handling via PostgreSQL triggers
 - 🏆 **Swappable ingestion pipeline** - can migrate FluentBit→Debezium→Kafka with zero Data Index changes
 
@@ -423,8 +423,8 @@ Database-level logic using UPSERT + COALESCE ensures correct merging even when e
 
 **Why**: Declarative, tested, no application code needed for merge logic.
 
-### 3. Serverless Workflow 1.0.0 as Source of Truth
-Domain model based ONLY on SW 1.0.0 spec + Quarkus Flow events.
+### 3. Open Workflow 1.0.0 as Source of Truth
+Domain model based ONLY on OW 1.0.0 spec + Quarkus Flow events.
 
 **Why**: Clean break from Kogito legacy, forward-compatible with SW spec evolution.
 
@@ -509,7 +509,7 @@ See JPA entity validation guidelines (TODO: create after MapStruct mappers).
 
 - **Planning Repository**: [logic-v2-planning](../logic-v2-planning/)
 - **Quarkus Flow**: [quarkiverse/quarkus-flow](https://github.com/quarkiverse/quarkus-flow)
-- **Serverless Workflow**: [serverlessworkflow.io](https://serverlessworkflow.io)
+- **Open Workflow**: [openworkflow.io](https://openworkflow.io)
 - **FluentBit**: [fluentbit.io](https://fluentbit.io)
 
 ---

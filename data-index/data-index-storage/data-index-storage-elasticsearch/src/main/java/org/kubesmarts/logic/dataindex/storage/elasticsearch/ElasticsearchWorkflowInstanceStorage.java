@@ -194,24 +194,6 @@ public class ElasticsearchWorkflowInstanceStorage implements WorkflowInstanceSto
     }
 
     @Override
-    public Multi<WorkflowInstance> objectCreatedListener() {
-        // Reactive listeners not implemented in v1.0.0
-        return Multi.createFrom().empty();
-    }
-
-    @Override
-    public Multi<WorkflowInstance> objectUpdatedListener() {
-        // Reactive listeners not implemented in v1.0.0
-        return Multi.createFrom().empty();
-    }
-
-    @Override
-    public Multi<String> objectRemovedListener() {
-        // Reactive listeners not implemented in v1.0.0
-        return Multi.createFrom().empty();
-    }
-
-    @Override
     public Set<StorageServiceCapability> capabilities() {
         return Set.of(StorageServiceCapability.JSON_QUERY);
     }

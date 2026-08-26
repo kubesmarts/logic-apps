@@ -1,6 +1,6 @@
 # Data Index Service
 
-Main Quarkus application that provides a GraphQL API for querying Serverless Workflow execution data.
+Main Quarkus application that provides a GraphQL API for querying Open Workflow execution data.
 
 ## Overview
 

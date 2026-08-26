@@ -1,6 +1,6 @@
 # KubeSmarts Logic Apps
 
-Data Index and Jobs Service for Serverless Workflow 1.0.0 on OpenShift Serverless Logic.
+Data Index and Jobs Service for Open Workflow 1.0.0 on OpenShift Serverless Logic.
 
 ## Build
 

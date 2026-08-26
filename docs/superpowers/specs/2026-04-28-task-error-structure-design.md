@@ -32,7 +32,7 @@ The error object exists in the log events but is not being captured or exposed.
 3. Capture full error structure from Quarkus Flow events in the database
 4. Expose structured errors via GraphQL API
 5. Enable error filtering in GraphQL queries (by type, status, instance, etc.)
-6. Maintain consistency with Serverless Workflow 1.0.0 Error spec
+6. Maintain consistency with Open Workflow 1.0.0 Error spec
 
 ## Non-Goals
 
@@ -269,35 +269,35 @@ WHERE instance_id = NEW.data->>'instanceId'
 Rename `WorkflowInstanceErrorEntity` → `ErrorEntity`:
 
 ```java
-package org.kubesmarts.logic.dataindex.storage.entity;
+package org.kubesmarts.logic.dataindex.storage.jpa.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 
 /**
  * JPA embeddable for error information.
- * 
+ *
  * Used by both WorkflowInstanceEntity and TaskInstanceEntity.
  * Maps to error_* columns in workflow_instances and task_instances tables.
  */
 @Embeddable
 public class ErrorEntity {
-    
+
     @Column(name = "error_type")
     private String type;
-    
+
     @Column(name = "error_title")
     private String title;
-    
+
     @Column(name = "error_detail", columnDefinition = "TEXT")
     private String detail;
-    
+
     @Column(name = "error_status")
     private Integer status;
-    
+
     @Column(name = "error_instance")
     private String instance;
-    
+
     // ... getters/setters, equals, hashCode, toString
 }
 ```
@@ -325,17 +325,18 @@ public void setError(ErrorEntity error) { this.error = error; }
 Rename `WorkflowInstanceErrorEntityMapper` → `ErrorEntityMapper`:
 
 ```java
-package org.kubesmarts.logic.dataindex.storage.mapper;
+package org.kubesmarts.logic.dataindex.storage.jpa.mapper;
 
-import org.kubesmarts.logic.dataindex.storage.entity.ErrorEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.ErrorEntity;
 import org.kubesmarts.logic.dataindex.model.Error;
 import org.mapstruct.InjectionStrategy;
 import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "cdi", injectionStrategy = InjectionStrategy.CONSTRUCTOR)
 public interface ErrorEntityMapper {
-    
+
     Error toModel(ErrorEntity entity);
+
     ErrorEntity toEntity(Error model);
 }
 ```
@@ -824,7 +825,7 @@ query {
 ## Constraints & Assumptions
 
 **Constraints:**
-- Must maintain consistency with Serverless Workflow 1.0.0 Error spec
+- Must maintain consistency with Open Workflow 1.0.0 Error spec
 - No new migration files (unreleased version, modify V1__)
 - Keep existing trigger-based architecture
 - Maintain COALESCE idempotency pattern

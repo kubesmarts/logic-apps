@@ -16,7 +16,7 @@
 package org.kubesmarts.logic.dataindex.model;
 
 /**
- * Workflow instance execution status for Serverless Workflow 1.0.0.
+ * Workflow instance execution status for Open Workflow 1.0.0.
  *
  * <p>Status values map directly to Quarkus Flow event types:
  * <ul>

@@ -251,24 +251,6 @@ public class ElasticsearchTaskExecutionStorage implements TaskExecutionStorage {
     }
 
     @Override
-    public Multi<TaskExecution> objectCreatedListener() {
-        // Reactive listeners not implemented in v1.0.0
-        return Multi.createFrom().empty();
-    }
-
-    @Override
-    public Multi<TaskExecution> objectUpdatedListener() {
-        // Reactive listeners not implemented in v1.0.0
-        return Multi.createFrom().empty();
-    }
-
-    @Override
-    public Multi<String> objectRemovedListener() {
-        // Reactive listeners not implemented in v1.0.0
-        return Multi.createFrom().empty();
-    }
-
-    @Override
     public Set<StorageServiceCapability> capabilities() {
         return Set.of(StorageServiceCapability.JSON_QUERY);
     }

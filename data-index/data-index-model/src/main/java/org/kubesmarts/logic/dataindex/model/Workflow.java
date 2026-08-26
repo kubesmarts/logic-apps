@@ -23,11 +23,11 @@ import java.util.Set;
 /**
  * Workflow definition metadata.
  *
- * <p>Represents a registered Serverless Workflow 1.0.0 definition.
+ * <p>Represents a registered Open Workflow 1.0.0 definition.
  * The complete workflow definition (document) is stored as a JSON blob in the
  * {@code source} field. Other fields contain extracted metadata for querying.
  *
- * <p>Serverless Workflow 1.0.0 uses a document-based model where tasks are
+ * <p>Open Workflow 1.0.0 uses a document-based model where tasks are
  * defined within the workflow document structure (do, fork, emit, call, etc.).
  */
 public class Workflow {
@@ -43,7 +43,7 @@ public class Workflow {
 
     /**
      * The complete workflow definition as a JSON blob.
-     * This contains the full Serverless Workflow 1.0.0 document including
+     * This contains the full Open Workflow 1.0.0 document including
      * all task definitions, metadata, and configuration.
      */
     private String source;
