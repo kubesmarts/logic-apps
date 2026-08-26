@@ -55,3 +55,10 @@ package-lock.json
 
 # Apache RAT check excludes file
 !.rat-excludes
+
+# Claude Code artifacts
+.superpowers/
+.claude/
+
+# Superpowers planning artifacts
+docs/superpowers/
