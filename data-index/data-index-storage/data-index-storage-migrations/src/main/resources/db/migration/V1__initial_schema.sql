@@ -64,7 +64,6 @@ CREATE INDEX IF NOT EXISTS idx_workflow_instances_start ON workflow_instances (s
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_last_event_time ON workflow_instances (last_event_time DESC);
 
 CREATE TABLE IF NOT EXISTS task_instances (
-  task_execution_id VARCHAR(255),
   instance_id VARCHAR(255) NOT NULL,
   task_name VARCHAR(255),
   task_position VARCHAR(255) NOT NULL,
@@ -82,8 +81,7 @@ CREATE TABLE IF NOT EXISTS task_instances (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   -- Composite primary key: (instance_id, task_position) uniquely identifies a task
-  -- Quarkus Flow generates different taskExecutionId per event (started, completed, etc.)
-  -- Same workflow + same position = same task execution
+  -- TaskExecution.id is derived from instanceId + taskPosition (no column needed)
   PRIMARY KEY (instance_id, task_position),
   CONSTRAINT fk_task_instance_workflow FOREIGN KEY (instance_id) REFERENCES workflow_instances(id) ON DELETE CASCADE
 );
@@ -91,7 +89,6 @@ CREATE TABLE IF NOT EXISTS task_instances (
 CREATE INDEX IF NOT EXISTS idx_task_instances_instance_id ON task_instances (instance_id);
 CREATE INDEX IF NOT EXISTS idx_task_instances_status ON task_instances (status);
 CREATE INDEX IF NOT EXISTS idx_task_instances_last_event_time ON task_instances (last_event_time DESC);
-CREATE INDEX IF NOT EXISTS idx_task_instances_task_execution_id ON task_instances (task_execution_id);
 
 -- ============================================================================
 -- TRIGGER FUNCTIONS (Extract from JSONB and normalize with idempotency)
@@ -218,7 +215,6 @@ BEGIN
   -- instance already exists because workflow events have already created it.
   BEGIN
     INSERT INTO task_instances (
-      task_execution_id,
       instance_id,
       task_name,
       task_position,
@@ -236,7 +232,6 @@ BEGIN
       created_at,
       updated_at
     ) VALUES (
-      NEW.data->>'taskExecutionId',
       NEW.data->>'instanceId',
       NEW.data->>'taskName',
       NEW.data->>'taskPosition',
@@ -267,9 +262,6 @@ BEGIN
       NEW.time
     )
     ON CONFLICT (instance_id, task_position) DO UPDATE SET
-      -- Update task_execution_id to the latest (even though it changes per event)
-      task_execution_id = EXCLUDED.task_execution_id,
-
       -- Keep first non-null values (immutable fields)
       task_name = COALESCE(task_instances.task_name, EXCLUDED.task_name),
 
@@ -318,7 +310,6 @@ BEGIN
     ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO task_instances (
-      task_execution_id,
       instance_id,
       task_name,
       task_position,
@@ -336,7 +327,6 @@ BEGIN
       created_at,
       updated_at
     ) VALUES (
-      NEW.data->>'taskExecutionId',
       NEW.data->>'instanceId',
       NEW.data->>'taskName',
       NEW.data->>'taskPosition',
@@ -367,9 +357,6 @@ BEGIN
       NEW.time
     )
     ON CONFLICT (instance_id, task_position) DO UPDATE SET
-      -- Update task_execution_id to the latest (even though it changes per event)
-      task_execution_id = EXCLUDED.task_execution_id,
-
       -- Keep first non-null values (immutable fields)
       task_name = COALESCE(task_instances.task_name, EXCLUDED.task_name),
 

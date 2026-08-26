@@ -62,6 +62,44 @@ public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskInstanc
         super();
     }
 
+    /**
+     * Get task execution by derived ID.
+     * <p>ID format: "instanceId:taskPosition"
+     * <p>Parses the composite ID and queries by both instanceId and taskPosition.
+     *
+     * @param id Derived ID in format "instanceId:taskPosition"
+     * @return TaskExecution or null if not found
+     */
+    @Override
+    public TaskExecution get(String id) {
+        if (id == null || id.isEmpty()) {
+            return null;
+        }
+
+        // Parse composite ID: "instanceId:taskPosition"
+        int separatorIndex = id.indexOf(':');
+        if (separatorIndex == -1 || separatorIndex == 0 || separatorIndex == id.length() - 1) {
+            throw new IllegalArgumentException("Invalid task execution ID format. Expected 'instanceId:taskPosition', got: " + id);
+        }
+
+        String instanceId = id.substring(0, separatorIndex);
+        String taskPosition = id.substring(separatorIndex + 1);
+
+        // Query by composite key
+        List<TaskInstanceEntity> entities = em
+                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.instanceId = :instanceId AND t.taskPosition = :taskPosition", TaskInstanceEntity.class)
+                .setParameter("instanceId", instanceId)
+                .setParameter("taskPosition", taskPosition)
+                .setMaxResults(1)
+                .getResultList();
+
+        if (entities.isEmpty()) {
+            return null;
+        }
+
+        return mapToModel.apply(entities.get(0));
+    }
+
     @Override
     public List<TaskExecution> findByWorkflowInstanceId(String workflowInstanceId) {
         List<TaskInstanceEntity> entities = em

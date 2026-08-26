@@ -94,7 +94,6 @@ public class WorkflowInstanceGraphQLApiTest {
         List<TaskInstanceEntity> tasks1 = new ArrayList<>();
 
         TaskInstanceEntity task1 = new TaskInstanceEntity();
-        task1.setTaskExecutionId("task-1-1");
         task1.setInstanceId(TEST_WORKFLOW_ID_1);
         task1.setTaskName("validateInput");
         task1.setTaskPosition("/do/0");
@@ -107,7 +106,6 @@ public class WorkflowInstanceGraphQLApiTest {
         tasks1.add(task1);
 
         TaskInstanceEntity task2 = new TaskInstanceEntity();
-        task2.setTaskExecutionId("task-1-2");
         task2.setInstanceId(TEST_WORKFLOW_ID_1);
         task2.setTaskName("processData");
         task2.setTaskPosition("/do/1");
@@ -144,7 +142,6 @@ public class WorkflowInstanceGraphQLApiTest {
         List<TaskInstanceEntity> tasks2 = new ArrayList<>();
 
         TaskInstanceEntity task3 = new TaskInstanceEntity();
-        task3.setTaskExecutionId("task-2-1");
         task3.setInstanceId(TEST_WORKFLOW_ID_2);
         task3.setTaskName("failingTask");
         task3.setTaskPosition("/do/0");

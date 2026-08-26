@@ -24,9 +24,6 @@ import org.kubesmarts.logic.dataindex.model.LifecycleEventUtils;
 import org.kubesmarts.logic.dataindex.model.TaskExecution;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstanceStatus;
-import java.time.OffsetDateTime;
-import java.util.UUID;
-
 public final class Mapper {
 
     private Mapper() {}
@@ -91,7 +88,6 @@ public final class Mapper {
         taskExecution.setInstanceId(instanceId);
         taskExecution.setEventTimestamp(cloudEvent.getTime().toZonedDateTime());
         taskExecution.setStatus(status);
-        taskExecution.setId(generateTaskExecutionId(instanceId, taskPosition, cloudEvent.getTime()));
         taskExecution.setTaskPosition(taskPosition);
         taskExecution.setTaskName(taskPosition.substring(taskPosition.lastIndexOf("/") + 1));
 
@@ -140,10 +136,5 @@ public final class Mapper {
         error.setStatus(workflowError.status());
         error.setInstance(workflowError.instance());
         return error;
-    }
-
-    private static String generateTaskExecutionId(String instanceId, String taskPosition, OffsetDateTime time) {
-        String composite = instanceId + ":" + taskPosition + ":" + time.toInstant().toEpochMilli();
-        return UUID.nameUUIDFromBytes(composite.getBytes()).toString();
     }
 }

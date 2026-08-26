@@ -57,19 +57,11 @@ import jakarta.persistence.Table;
 public class TaskInstanceEntity extends AbstractEntity {
 
     /**
-     * Task execution ID (primary key).
-     * <p>Source: taskExecutionId from Quarkus Flow events
-     * <p>Extracted by trigger from: data->>'taskExecutionId'
-     */
-    @Id
-    @Column(name = "task_execution_id")
-    private String taskExecutionId;
-
-    /**
-     * Workflow instance ID (foreign key).
+     * Workflow instance ID (part of composite primary key).
      * <p>Source: instanceId from Quarkus Flow events
      * <p>Extracted by trigger from: data->>'instanceId'
      */
+    @Id
     @Column(name = "instance_id", nullable = false)
     private String instanceId;
 
@@ -81,11 +73,13 @@ public class TaskInstanceEntity extends AbstractEntity {
     private String taskName;
 
     /**
-     * Task position in workflow document (JSONPointer).
+     * Task position in workflow document (JSONPointer, part of composite primary key).
      * <p>Source: taskPosition from Quarkus Flow task events
      * <p>Extracted by trigger from: data->>'taskPosition'
      * <p>Examples: "do/0/set-0", "fork/branches/0/do/1"
      */
+    @Id
+    @Column(name = "task_position", nullable = false)
     private String taskPosition;
 
     /**
@@ -164,15 +158,11 @@ public class TaskInstanceEntity extends AbstractEntity {
 
     @Override
     public String getId() {
-        return taskExecutionId;
-    }
-
-    public String getTaskExecutionId() {
-        return taskExecutionId;
-    }
-
-    public void setTaskExecutionId(String taskExecutionId) {
-        this.taskExecutionId = taskExecutionId;
+        // Return derived ID from composite key
+        if (instanceId != null && taskPosition != null) {
+            return instanceId + ":" + taskPosition;
+        }
+        return null;
     }
 
     public String getInstanceId() {
@@ -280,21 +270,21 @@ public class TaskInstanceEntity extends AbstractEntity {
             return false;
         }
         TaskInstanceEntity that = (TaskInstanceEntity) o;
-        return Objects.equals(taskExecutionId, that.taskExecutionId);
+        return Objects.equals(instanceId, that.instanceId) &&
+               Objects.equals(taskPosition, that.taskPosition);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(taskExecutionId);
+        return Objects.hash(instanceId, taskPosition);
     }
 
     @Override
     public String toString() {
         return "TaskInstanceEntity{" +
-                "taskExecutionId='" + taskExecutionId + '\'' +
-                ", instanceId='" + instanceId + '\'' +
-                ", taskName='" + taskName + '\'' +
+                "instanceId='" + instanceId + '\'' +
                 ", taskPosition='" + taskPosition + '\'' +
+                ", taskName='" + taskName + '\'' +
                 ", status='" + status + '\'' +
                 ", start=" + start +
                 ", end=" + end +

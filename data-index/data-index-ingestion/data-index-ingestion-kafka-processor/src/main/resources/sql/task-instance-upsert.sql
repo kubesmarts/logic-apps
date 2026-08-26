@@ -1,9 +1,9 @@
 INSERT INTO task_instances (
-  task_execution_id, instance_id, task_name, task_position, status,
+  instance_id, task_name, task_position, status,
   start, "end", input, output,
   error_type, error_title, error_detail, error_status, error_instance,
   last_event_time, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?, ?, NOW(), NOW())
 ON CONFLICT (instance_id, task_position) DO UPDATE SET
   instance_id = COALESCE(EXCLUDED.instance_id, task_instances.instance_id),
   task_name = COALESCE(EXCLUDED.task_name, task_instances.task_name),

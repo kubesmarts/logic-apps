@@ -55,11 +55,6 @@ public class TaskExecutionProcessor implements EventProcessor<TaskExecution> {
         log.debug("Processing task batch size: {}", events.size());
 
         try {
-            for (TaskExecution event : events) {
-                Objects.requireNonNull(event, "event cannot be null");
-                event.setId(generateTaskExecutionId(event));
-            }
-
             this.taskPersistence.persistBatch(events);
 
             log.debug("Successfully processed task batch size: {}", events.size());
@@ -67,11 +62,5 @@ public class TaskExecutionProcessor implements EventProcessor<TaskExecution> {
             log.error("Error while processing task batch size: {}", events.size(), e);
             throw new ProcessEventFailedException("Failed to process task event batch", e);
         }
-    }
-
-    private String generateTaskExecutionId(TaskExecution taskExecutionEvent) {
-        return taskExecutionEvent.getInstanceId()
-                + ":"
-                + taskExecutionEvent.getTaskPosition();
     }
 }
