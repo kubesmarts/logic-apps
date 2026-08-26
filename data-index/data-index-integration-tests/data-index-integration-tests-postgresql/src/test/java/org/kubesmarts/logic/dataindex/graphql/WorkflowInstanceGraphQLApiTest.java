@@ -31,9 +31,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstanceStatus;
-import org.kubesmarts.logic.dataindex.storage.entity.ErrorEntity;
-import org.kubesmarts.logic.dataindex.storage.entity.TaskInstanceEntity;
-import org.kubesmarts.logic.dataindex.storage.entity.WorkflowInstanceEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.ErrorEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.TaskInstanceEntity;
+import org.kubesmarts.logic.dataindex.storage.jpa.entity.WorkflowInstanceEntity;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;

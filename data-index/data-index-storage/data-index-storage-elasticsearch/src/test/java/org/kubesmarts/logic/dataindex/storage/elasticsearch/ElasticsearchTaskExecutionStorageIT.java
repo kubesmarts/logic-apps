@@ -26,8 +26,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.kubesmarts.logic.dataindex.elasticsearch.ElasticsearchTaskExecutionStorage;
-import org.kubesmarts.logic.dataindex.elasticsearch.TestAttributeFilter;
 import org.kubesmarts.logic.dataindex.model.Error;
 import org.kubesmarts.logic.dataindex.model.TaskExecution;
 import org.kie.kogito.persistence.api.query.FilterCondition;

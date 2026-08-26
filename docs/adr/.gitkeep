@@ -1,0 +1,15 @@
+# Architecture Decision Records
+
+This directory contains ADRs (Architecture Decision Records) documenting significant architectural decisions made in this project.
+
+## Format
+
+ADRs should follow a consistent format:
+- Filename: `NNNN-title-with-dashes.md` (e.g., `0001-use-postgresql-triggers.md`)
+- Content: Context, Decision, Consequences
+
+## Guidelines
+
+- Record decisions that have long-term impact on the system
+- Keep ADRs immutable - use new ADRs to supersede old ones
+- Link related ADRs for traceability

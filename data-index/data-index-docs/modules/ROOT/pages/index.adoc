@@ -3,7 +3,7 @@
 
 == What is Data Index?
 
-Data Index is a *read-only query service* for Serverless Workflow 1.0.0 runtime execution data. It provides a GraphQL API for querying workflow instances and task executions from Quarkus Flow applications.
+Data Index is a *read-only query service* for Open Workflow 1.0.0 runtime execution data. It provides a GraphQL API for querying workflow instances and task executions from Quarkus Flow applications.
 
 [sidebar]
 ****

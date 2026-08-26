@@ -235,7 +235,6 @@
   <modules>
     <module>persistence-commons</module>
     <module>data-index</module>
-    <module>security-commons</module>
   </modules>
 
   <repositories>

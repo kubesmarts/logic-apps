@@ -1,6 +1,6 @@
 # Claude AI Assistant Guidelines - KubeSmarts Logic Apps
 
-**Project:** Data Index v1.0.0 for Serverless Workflow 1.0.0  
+**Project:** Data Index v1.0.0 for Open Workflow 1.0.0  
 **Status:** Production Ready (MODE 1, MODE 2 & MODE 3)  
 **Last Updated:** 2026-05-29
 
@@ -18,7 +18,7 @@
 **Documentation locations:**
 - Main documentation: `data-index/data-index-docs/` (Antora/AsciiDoc)
 - Script docs: `data-index/scripts/*/README.md`
-- Architecture docs: `data-index/docs/ARCHITECTURE-*.md`
+- Architecture Decision Records (ADRs): `docs/adr/`
 
 **The documentation module (`data-index-docs`) is served at `/docs` in the running application and is the user-facing manual. It must always be accurate and complete.**
 
@@ -26,7 +26,7 @@
 
 ## Project Overview
 
-This is a **read-only query service** for Serverless Workflow (SW 1.0.0) runtime execution data. It provides a GraphQL API for querying workflow instances and task executions.
+This is a **read-only query service** for Open Workflow (OW 1.0.0) runtime execution data. It provides a GraphQL API for querying workflow instances and task executions.
 
 **What it does:**
 - Captures Quarkus Flow structured logging events via FluentBit
@@ -351,7 +351,7 @@ mvn quarkus:dev -Dquarkus.profile=elasticsearch
 - ❌ Don't use polling architecture
 - ❌ Don't reference "staging tables" (we use raw tables + triggers)
 
-**See:** `data-index/docs/deployment/MODE1_HANDOFF.md`
+**See:** `data-index/data-index-docs/modules/ROOT/pages/architecture/postgresql-mode.adoc`
 
 ### 1b. Transform-Based Normalization (MODE 2 - Elasticsearch)
 
@@ -379,7 +379,7 @@ Status: COMPLETED/FAULTED/CANCELLED > RUNNING > CREATED
 - Reduces processing as data grows
 - Constant performance regardless of total workflow count
 
-**See:** `data-index/docs/deployment/MODE2_HANDOFF.md`
+**See:** `data-index/data-index-docs/modules/ROOT/pages/architecture/elasticsearch-mode.adoc`
 
 ### 1c. Task Instance Composite Key (Quarkus Flow ID Issue)
 
@@ -469,8 +469,6 @@ data-index.metrics.transform.poll-interval=30s
 - Clients parse JSON client-side
 - NOT industry standard (custom scalar preferred, but complex)
 - JSON is opaque to GraphQL (no field-level selection)
-
-**See:** `data-index/docs/jsonnode-scalar-analysis.md`
 
 ### 3. Field Names - Critical Mapping
 
@@ -824,8 +822,6 @@ cd ../../kind
 curl http://localhost:30080/graphql -d '{"query":"..."}'
 ```
 
-**See:** `data-index/docs/deployment/MODE1_E2E_TESTING.md`
-
 ### Elasticsearch Deployment
 
 ```bash
@@ -1150,8 +1146,9 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 ## Key Files Reference
 
 **Architecture & Documentation:**
-- `data-index/docs/deployment/MODE1_HANDOFF.md` - MODE 1 (PostgreSQL) details
-- `data-index/docs/deployment/MODE2_HANDOFF.md` - MODE 2 (Elasticsearch) details
+- `data-index/data-index-docs/modules/ROOT/pages/architecture/postgresql-mode.adoc` - MODE 1 (PostgreSQL) details
+- `data-index/data-index-docs/modules/ROOT/pages/architecture/elasticsearch-mode.adoc` - MODE 2 (Elasticsearch) details
+- `data-index/data-index-docs/modules/ROOT/pages/architecture/kafka-mode.adoc` - MODE 3 (Kafka) details
 - `data-index/data-index-ingestion/README.md` - MODE 3 (Kafka) overview
 - `data-index/data-index-ingestion/data-index-ingestion-kafka-service/README.md` - MODE 3 (Kafka) service details
 - `data-index/docs/elasticsearch/TRANSFORM_OPTIMIZATION.md` - Transform optimization & metrics guide

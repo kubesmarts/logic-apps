@@ -29,7 +29,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
  * Runtime execution of a workflow task.
  *
  * <p>Represents an execution instance of a task within a workflow instance.
- * Tasks in Serverless Workflow 1.0.0 include: call, do, fork, emit, for, try, etc.
+ * Tasks in Open Workflow 1.0.0 include: call, do, fork, emit, for, try, etc.
  *
  * <p>The taskPosition field is critical - it's a JSONPointer that uniquely identifies
  * the task within the workflow definition (e.g., "/do/0" for first task in a do sequence).

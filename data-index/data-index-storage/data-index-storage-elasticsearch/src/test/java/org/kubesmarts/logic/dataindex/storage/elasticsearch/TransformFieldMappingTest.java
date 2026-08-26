@@ -11,14 +11,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.kubesmarts.logic.dataindex.elasticsearch.ElasticsearchWorkflowInstanceStorage;
-import org.kubesmarts.logic.dataindex.elasticsearch.TestAttributeFilter;
-import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
-import org.kie.kogito.persistence.api.query.FilterCondition;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.IndexRequest;
-import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import io.quarkus.test.junit.QuarkusTest;

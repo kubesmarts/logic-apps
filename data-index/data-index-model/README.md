@@ -127,7 +127,7 @@ public enum WorkflowInstanceStatus {
 }
 ```
 
-Maps to Serverless Workflow 1.0.0 CloudEvent types:
+Maps to Open Workflow 1.0.0 CloudEvent types:
 - `io.serverlessworkflow.workflow.started.v1` → `RUNNING`
 - `io.serverlessworkflow.workflow.completed.v1` → `COMPLETED`
 - etc.

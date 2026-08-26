@@ -15,7 +15,6 @@
  */
 package org.kubesmarts.logic.dataindex.graphql;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.microprofile.graphql.Description;
@@ -31,7 +30,7 @@ import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import jakarta.inject.Inject;
 
 /**
- * GraphQL API for Serverless Workflow 1.0.0 execution data.
+ * GraphQL API for Open Workflow 1.0.0 execution data.
  *
  * <p>Provides queries for:
  * <ul>
@@ -72,10 +71,10 @@ public class WorkflowInstanceGraphQLApi {
     /**
      * Get multiple workflow instances.
      *
-     * @param filter Optional filter criteria
+     * @param filter  Optional filter criteria
      * @param orderBy Optional sort order
-     * @param limit Maximum number of results
-     * @param offset Number of results to skip
+     * @param limit   Maximum number of results
+     * @param offset  Number of results to skip
      * @return List of workflow instances matching criteria
      */
     @Query("getWorkflowInstances")
@@ -132,10 +131,10 @@ public class WorkflowInstanceGraphQLApi {
     /**
      * Get multiple task executions with filtering, sorting, and pagination.
      *
-     * @param filter Optional filter criteria
+     * @param filter  Optional filter criteria
      * @param orderBy Optional sort order
-     * @param limit Maximum number of results
-     * @param offset Number of results to skip
+     * @param limit   Maximum number of results
+     * @param offset  Number of results to skip
      * @return List of task executions matching criteria
      */
     @Query("getTaskExecutions")
@@ -188,11 +187,11 @@ public class WorkflowInstanceGraphQLApi {
 
     /**
      * Load task executions for a workflow instance.
-     *
+     * <p>
      * In Elasticsearch MODE 2, task executions are stored in a separate index
      * and must be loaded explicitly (unlike PostgreSQL MODE 1 where JPA may have
      * already loaded the relationship).
-     *
+     * <p>
      * This method uses the TaskExecutionStorage API to find task executions by
      * workflow instance ID and populates the taskExecutions field.
      *

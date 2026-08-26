@@ -22,8 +22,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Error information for failed workflow and task executions.
  *
- * <p>Represents a runtime error from Serverless Workflow 1.0.0 execution.
- * Aligns with the <a href="https://github.com/serverlessworkflow/specification/blob/main/dsl-reference.md#error">SW 1.0.0 Error spec</a>
+ * <p>Represents a runtime error from Open Workflow 1.0.0 execution.
+ * Aligns with the <a href="https://github.com/serverlessworkflow/specification/blob/main/dsl-reference.md#error">OW 1.0.0 Error spec</a>
  *
  * <p>This captures error details from Quarkus Flow structured logging events
  * (workflow.instance.faulted, workflow.task.faulted).

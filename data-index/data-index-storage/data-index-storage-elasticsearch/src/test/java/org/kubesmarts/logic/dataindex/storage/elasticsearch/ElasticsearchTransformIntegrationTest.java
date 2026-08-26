@@ -23,11 +23,8 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.kubesmarts.logic.dataindex.elasticsearch.ElasticsearchTaskExecutionStorage;
-import org.kubesmarts.logic.dataindex.elasticsearch.ElasticsearchWorkflowInstanceStorage;
 import org.kubesmarts.logic.dataindex.model.TaskExecution;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
-import org.kubesmarts.logic.dataindex.model.WorkflowInstanceStatus;
 
 import java.util.List;
 import java.util.Map;

@@ -173,14 +173,13 @@ For production with TLS:
 ### Deploy FluentBit
 
 ```bash
-# Option 1: Quick deploy (uses existing ConfigMap)
-./deploy.sh
+# Deploy using top-level script
+cd ../  # Go to scripts/fluentbit/
+./deploy-fluentbit.sh elasticsearch
 
-# Option 2: Regenerate ConfigMap from source files
-./deploy.sh regenerate
-
-# Option 3: Manual steps
+# Or manual steps:
 kubectl create namespace logging
+../generate-configmap.sh elasticsearch kubernetes/configmap.yaml
 kubectl apply -f kubernetes/configmap.yaml
 kubectl apply -f kubernetes/daemonset.yaml
 ```
@@ -510,9 +509,8 @@ After FluentBit is running:
 
 - `fluent-bit.conf` - Main FluentBit configuration
 - `parsers.conf` - Log format parsers
-- `kubernetes/configmap.yaml` - Auto-generated ConfigMap
+- `kubernetes/configmap.yaml` - Auto-generated ConfigMap (by `../generate-configmap.sh`)
 - `kubernetes/daemonset.yaml` - FluentBit DaemonSet
-- `deploy.sh` - Deployment helper script
 - `README.md` - This file
 
 ## Support
