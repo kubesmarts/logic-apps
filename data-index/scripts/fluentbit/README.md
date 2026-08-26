@@ -86,8 +86,6 @@ Data Index GraphQL API
 - `parsers.conf` - CRI and JSON parsers
 - `kubernetes/configmap.yaml` - Generated from source files
 - `kubernetes/daemonset.yaml` - FluentBit deployment
-- `deploy.sh` - Deployment helper script
-- `validate.sh` - Configuration validation script
 
 ---
 
