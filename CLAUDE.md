@@ -351,7 +351,7 @@ mvn quarkus:dev -Dquarkus.profile=elasticsearch
 - ❌ Don't use polling architecture
 - ❌ Don't reference "staging tables" (we use raw tables + triggers)
 
-**See:** `data-index/docs/deployment/MODE1_HANDOFF.md`
+**See:** `data-index/data-index-docs/modules/ROOT/pages/architecture/postgresql-mode.adoc`
 
 ### 1b. Transform-Based Normalization (MODE 2 - Elasticsearch)
 
@@ -379,7 +379,7 @@ Status: COMPLETED/FAULTED/CANCELLED > RUNNING > CREATED
 - Reduces processing as data grows
 - Constant performance regardless of total workflow count
 
-**See:** `data-index/docs/deployment/MODE2_HANDOFF.md`
+**See:** `data-index/data-index-docs/modules/ROOT/pages/architecture/elasticsearch-mode.adoc`
 
 ### 1c. Task Instance Composite Key (Quarkus Flow ID Issue)
 
@@ -824,8 +824,6 @@ cd ../../kind
 curl http://localhost:30080/graphql -d '{"query":"..."}'
 ```
 
-**See:** `data-index/docs/deployment/MODE1_E2E_TESTING.md`
-
 ### Elasticsearch Deployment
 
 ```bash
@@ -1150,8 +1148,9 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 ## Key Files Reference
 
 **Architecture & Documentation:**
-- `data-index/docs/deployment/MODE1_HANDOFF.md` - MODE 1 (PostgreSQL) details
-- `data-index/docs/deployment/MODE2_HANDOFF.md` - MODE 2 (Elasticsearch) details
+- `data-index/data-index-docs/modules/ROOT/pages/architecture/postgresql-mode.adoc` - MODE 1 (PostgreSQL) details
+- `data-index/data-index-docs/modules/ROOT/pages/architecture/elasticsearch-mode.adoc` - MODE 2 (Elasticsearch) details
+- `data-index/data-index-docs/modules/ROOT/pages/architecture/kafka-mode.adoc` - MODE 3 (Kafka) details
 - `data-index/data-index-ingestion/README.md` - MODE 3 (Kafka) overview
 - `data-index/data-index-ingestion/data-index-ingestion-kafka-service/README.md` - MODE 3 (Kafka) service details
 - `data-index/docs/elasticsearch/TRANSFORM_OPTIMIZATION.md` - Transform optimization & metrics guide
