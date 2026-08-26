@@ -470,8 +470,6 @@ data-index.metrics.transform.poll-interval=30s
 - NOT industry standard (custom scalar preferred, but complex)
 - JSON is opaque to GraphQL (no field-level selection)
 
-**See:** `data-index/docs/jsonnode-scalar-analysis.md`
-
 ### 3. Field Names - Critical Mapping
 
 **Database columns → JPA Entity → GraphQL:**
