@@ -2,7 +2,21 @@
 
 **Project:** Data Index v1.0.0 for Open Workflow 1.0.0  
 **Status:** Production Ready (MODE 1, MODE 2 & MODE 3)  
-**Last Updated:** 2026-05-29
+**Last Updated:** 2026-08-26
+
+---
+
+## **CRITICAL: Governance and Review Process**
+
+**NEVER push code or create PRs without explicit user approval:**
+
+1. **Test First:** Always run relevant tests before committing
+2. **Commit Locally:** Commit changes to local branch only
+3. **Report Results:** Show test results and summary of changes
+4. **Wait for Approval:** User reviews and decides when to push/create PR
+5. **No Assumptions:** Don't assume code is ready just because it compiles
+
+**This is NOT negotiable. Pushing untested code or creating PRs without approval is a critical error.**
 
 ---
 
