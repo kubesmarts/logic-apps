@@ -1,24 +1,24 @@
 INSERT INTO task_instances (
-  instance_id, task_name, task_position, status,
-  start, "end", input, output,
+  instance_id, task_name, task, status,
+  "startedAt", "endedAt", input, output,
   error_type, error_title, error_detail, error_status, error_instance,
   last_event_time, created_at, updated_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-ON CONFLICT (instance_id, task_position) DO UPDATE SET
+ON CONFLICT (instance_id, task) DO UPDATE SET
   instance_id = COALESCE(EXCLUDED.instance_id, task_instances.instance_id),
   task_name = COALESCE(EXCLUDED.task_name, task_instances.task_name),
-  task_position = COALESCE(EXCLUDED.task_position, task_instances.task_position),
+  task = COALESCE(EXCLUDED.task, task_instances.task),
   status = CASE
     WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
     THEN EXCLUDED.status
     ELSE task_instances.status
   END,
-  start = COALESCE(task_instances.start, EXCLUDED.start),
+  "startedAt" = COALESCE(task_instances."startedAt", EXCLUDED."startedAt"),
   input = COALESCE(task_instances.input, EXCLUDED.input),
-  "end" = CASE
+  "endedAt" = CASE
     WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
-    THEN COALESCE(EXCLUDED."end", task_instances."end")
-    ELSE task_instances."end"
+    THEN COALESCE(EXCLUDED."endedAt", task_instances."endedAt")
+    ELSE task_instances."endedAt"
   END,
   output = CASE
     WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
