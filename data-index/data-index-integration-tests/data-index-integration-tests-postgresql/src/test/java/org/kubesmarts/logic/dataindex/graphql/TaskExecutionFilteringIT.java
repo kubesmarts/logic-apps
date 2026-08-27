@@ -38,12 +38,12 @@ import static org.hamcrest.Matchers.*;
  * Integration tests for TaskExecution GraphQL filtering and sorting.
  *
  * <p><b>Purpose:</b> Verify that GraphQL filters/sorts correctly map to JPA entity fields,
- * especially composite key fields that require nested paths (id.taskPosition).
+ * especially composite key fields that require nested paths (id.task).
  *
  * <p><b>Tests cover:</b>
  * <ul>
- *   <li>Filter by taskPosition (composite key field) - requires "id.taskPosition" mapping
- *   <li>Order by taskPosition (composite key field) - requires "id.taskPosition" mapping
+ *   <li>Filter by taskPosition (composite key field) - requires "id.task" mapping
+ *   <li>Order by taskPosition (composite key field) - requires "id.task" mapping
  *   <li>Order by enter/exit (entity start/end fields) - requires field name mapping
  *   <li>Filter by input/output (JSON fields) - requires "input"/"output" not "inputArgs"/"outputArgs"
  * </ul>
@@ -51,7 +51,7 @@ import static org.hamcrest.Matchers.*;
  * <p><b>Expected Behavior:</b>
  * These tests will FAIL until FilterConverter and OrderByConverter are fixed to:
  * <ul>
- *   <li>Map taskPosition → id.taskPosition (composite key)
+ *   <li>Map taskPosition → id.task (composite key)
  *   <li>Map enter → start, exit → end (field names)
  *   <li>Map inputArgs → input, outputArgs → output (field names)
  * </ul>
@@ -126,10 +126,10 @@ public class TaskExecutionFilteringIT {
      * Test filtering by taskPosition (composite key field).
      *
      * <p><b>Current Bug:</b> FilterConverter uses "taskPosition" but entity has @EmbeddedId,
-     * so actual path is "id.taskPosition". This causes Criteria query to fail.
+     * so actual path is "id.task". This causes Criteria query to fail.
      *
      * <p><b>Expected Failure:</b> System error or null results until FilterConverter maps
-     * "taskPosition" → "id.taskPosition".
+     * "taskPosition" → "id.task".
      */
     @Test
     public void testFilterByTaskPosition() {
@@ -137,7 +137,7 @@ public class TaskExecutionFilteringIT {
             {
               getTaskExecutions(filter: { taskPosition: { eq: "/do/1" } }) {
                 id
-                taskPosition
+                task
                 taskName
               }
             }
@@ -152,7 +152,7 @@ public class TaskExecutionFilteringIT {
             .statusCode(200)
             .body("data.getTaskExecutions", notNullValue())
             .body("data.getTaskExecutions.size()", equalTo(1))
-            .body("data.getTaskExecutions[0].taskPosition", equalTo("/do/1"))
+            .body("data.getTaskExecutions[0].task", equalTo("/do/1"))
             .body("data.getTaskExecutions[0].taskName", equalTo("task-beta"));
     }
 
@@ -160,10 +160,10 @@ public class TaskExecutionFilteringIT {
      * Test ordering by taskPosition (composite key field).
      *
      * <p><b>Current Bug:</b> OrderByConverter uses "taskPosition" but entity has @EmbeddedId,
-     * so actual path is "id.taskPosition". This causes Criteria query to fail.
+     * so actual path is "id.task". This causes Criteria query to fail.
      *
      * <p><b>Expected Failure:</b> System error or wrong order until OrderByConverter maps
-     * "taskPosition" → "id.taskPosition".
+     * "taskPosition" → "id.task".
      */
     @Test
     public void testOrderByTaskPosition() {
@@ -171,7 +171,7 @@ public class TaskExecutionFilteringIT {
             {
               getTaskExecutions(orderBy: { taskPosition: ASC }) {
                 id
-                taskPosition
+                task
                 taskName
               }
             }
@@ -187,9 +187,9 @@ public class TaskExecutionFilteringIT {
             .body("data.getTaskExecutions", notNullValue())
             .body("data.getTaskExecutions.size()", equalTo(3))
             // Should be ordered: /do/0, /do/1, /do/2
-            .body("data.getTaskExecutions[0].taskPosition", equalTo("/do/0"))
-            .body("data.getTaskExecutions[1].taskPosition", equalTo("/do/1"))
-            .body("data.getTaskExecutions[2].taskPosition", equalTo("/do/2"));
+            .body("data.getTaskExecutions[0].task", equalTo("/do/0"))
+            .body("data.getTaskExecutions[1].task", equalTo("/do/1"))
+            .body("data.getTaskExecutions[2].task", equalTo("/do/2"));
     }
 
     /**
@@ -205,7 +205,7 @@ public class TaskExecutionFilteringIT {
               getTaskExecutions(orderBy: { enter: DESC }) {
                 id
                 taskName
-                startDate
+                startedAt
               }
             }
             """;
@@ -238,7 +238,7 @@ public class TaskExecutionFilteringIT {
               getTaskExecutions(orderBy: { exit: ASC }) {
                 id
                 taskName
-                endDate
+                endedAt
                 status
               }
             }

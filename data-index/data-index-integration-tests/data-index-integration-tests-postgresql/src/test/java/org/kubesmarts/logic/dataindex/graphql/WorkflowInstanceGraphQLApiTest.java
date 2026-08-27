@@ -201,8 +201,8 @@ public class WorkflowInstanceGraphQLApiTest {
                     namespace
                     name
                     status
-                    startDate
-                    endDate
+                    startedAt
+                    endedAt
                   }
                 }
                 """;
@@ -237,10 +237,10 @@ public class WorkflowInstanceGraphQLApiTest {
                     taskExecutions {
                       id
                       taskName
-                      taskPosition
+                      task
                       status
-                      startDate
-                      endDate
+                      startedAt
+                      endedAt
                     }
                   }
                 }
@@ -273,7 +273,7 @@ public class WorkflowInstanceGraphQLApiTest {
                     taskExecutions {
                       id
                       taskName
-                      taskPosition
+                      task
                       status
                     }
                   }
@@ -304,10 +304,10 @@ public class WorkflowInstanceGraphQLApiTest {
                   getTaskExecutions(limit: 10) {
                     id
                     taskName
-                    taskPosition
+                    task
                     status
-                    startDate
-                    endDate
+                    startedAt
+                    endedAt
                   }
                 }
                 """;
@@ -333,7 +333,7 @@ public class WorkflowInstanceGraphQLApiTest {
                   getTaskExecutionsByWorkflowInstance(workflowInstanceId: "%s") {
                     id
                     taskName
-                    taskPosition
+                    task
                     status
                   }
                 }
@@ -465,7 +465,7 @@ public class WorkflowInstanceGraphQLApiTest {
                     status
                     taskExecutions {
                       id
-                      taskPosition
+                      task
                       status
                       error {
                         type
@@ -506,7 +506,7 @@ public class WorkflowInstanceGraphQLApiTest {
               getTaskExecutions(limit: 10, orderBy: { enter: ASC }) {
                 id
                 taskName
-                startDate
+                startedAt
               }
             }
             """;
@@ -527,7 +527,7 @@ public class WorkflowInstanceGraphQLApiTest {
               getTaskExecutions(limit: 10, orderBy: { exit: DESC }) {
                 id
                 taskName
-                endDate
+                endedAt
               }
             }
             """;
@@ -573,7 +573,7 @@ public class WorkflowInstanceGraphQLApiTest {
                 }
               ) {
                 id
-                taskPosition
+                task
                 error { status, instance, type }
               }
             }
