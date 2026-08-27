@@ -383,7 +383,7 @@ class ElasticsearchTransformIntegrationTest {
         assertThat(retrieved).isNotNull();
         assertThat(retrieved.getId()).isEqualTo("wf-001:do/0/task-minimal");
         assertThat(retrieved.getTaskName()).isEqualTo("minimal-task");
-        assertThat(retrieved.getTaskPosition()).isNull();
-        assertThat(retrieved.getStart()).isNull();
+        assertThat(retrieved.getTask()).isNull();
+        assertThat(retrieved.getStartedAt()).isNull();
     }
 }

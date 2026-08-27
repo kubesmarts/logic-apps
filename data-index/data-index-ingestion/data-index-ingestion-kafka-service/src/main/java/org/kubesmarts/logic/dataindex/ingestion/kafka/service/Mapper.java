@@ -46,16 +46,16 @@ public final class Mapper {
         workflow.setEventTimestamp(cloudEvent.getTime().toZonedDateTime());
 
         if (data instanceof WorkflowStartedCEData started) {
-            workflow.setStart(started.getStartedAt().toZonedDateTime());
+            workflow.setStartedAt(started.getStartedAt().toZonedDateTime());
         } else if (data instanceof WorkflowCompletedCEData completed) {
-            workflow.setEnd(completed.getCompletedAt().toZonedDateTime());
+            workflow.setEndedAt(completed.getCompletedAt().toZonedDateTime());
         } else if (data instanceof WorkflowFailedCEData failed) {
-            workflow.setEnd(failed.getFaultedAt().toZonedDateTime());
+            workflow.setEndedAt(failed.getFaultedAt().toZonedDateTime());
             if (failed.getError() != null) {
                 workflow.setError(mapError(failed.getError()));
             }
         } else if (data instanceof WorkflowCancelledCEData cancelled) {
-            workflow.setEnd(cancelled.getCancelledAt().toZonedDateTime());
+            workflow.setEndedAt(cancelled.getCancelledAt().toZonedDateTime());
         } else if (data instanceof WorkflowStatusCEDataEvent statusChanged) {
             workflow.setLastUpdate(statusChanged.getUpdatedAt().toZonedDateTime());
         }
@@ -88,22 +88,22 @@ public final class Mapper {
         taskExecution.setInstanceId(instanceId);
         taskExecution.setEventTimestamp(cloudEvent.getTime().toZonedDateTime());
         taskExecution.setStatus(status);
-        taskExecution.setTaskPosition(taskPosition);
+        taskExecution.setTask(taskPosition);
         taskExecution.setTaskName(taskPosition.substring(taskPosition.lastIndexOf("/") + 1));
 
         if (data instanceof TaskStartedCEData started) {
-            taskExecution.setStart(started.getStartedAt().toZonedDateTime());
+            taskExecution.setStartedAt(started.getStartedAt().toZonedDateTime());
         }
 
         if (data instanceof TaskCompletedCEData completed) {
-            taskExecution.setEnd(completed.getCompletedAt().toZonedDateTime());
+            taskExecution.setEndedAt(completed.getCompletedAt().toZonedDateTime());
         } else if (data instanceof TaskFailedCEData failed) {
-            taskExecution.setEnd(failed.getFaultedAt().toZonedDateTime());
+            taskExecution.setEndedAt(failed.getFaultedAt().toZonedDateTime());
             if (failed.getError() != null) {
                 taskExecution.setError(mapError(failed.getError()));
             }
         } else if (data instanceof TaskCancelledCEData cancelled) {
-            taskExecution.setEnd(cancelled.getCancelledAt().toZonedDateTime());
+            taskExecution.setEndedAt(cancelled.getCancelledAt().toZonedDateTime());
         }
 
         if (data instanceof TaskStartedCEDataWithInput withInput && withInput.getInput() != null) {

@@ -45,20 +45,24 @@ import jakarta.persistence.Table;
  *
  * <p><b>Event sources (via triggers):</b>
  * <ul>
- *   <li>workflow.task.started → taskName, taskPosition, start, input, status
- *   <li>workflow.task.completed → end, output, status
- *   <li>workflow.task.faulted → end, status
+ *   <li>workflow.task.started → taskName, task, startedAt, input, status
+ *   <li>workflow.task.completed → endedAt, output, status
+ *   <li>workflow.task.faulted → endedAt, error, status
+ *   <li>workflow.task.cancelled → endedAt, status
  * </ul>
  *
  * <p>Maps to TaskExecution domain model.
  * <p>Uses @EmbeddedId for composite primary key to better handle FK on PK column scenario.
+ *
+ * <p><b>Open Workflow Alignment:</b> Field names match Open Workflow 1.0.0 specification:
+ * 'task' (JSON Pointer), 'startedAt', 'endedAt' (generic terminal timestamp + status).
  */
 @Entity
 @Table(name = "task_instances")
 public class TaskInstanceEntity extends AbstractEntity {
 
     /**
-     * Composite primary key (instance_id, task_position).
+     * Composite primary key (instance_id, task).
      * <p>Using @EmbeddedId instead of @IdClass for better JPA handling when
      * instance_id is also a foreign key column.
      */
@@ -84,17 +88,19 @@ public class TaskInstanceEntity extends AbstractEntity {
      * Task execution start time.
      * <p>Source: startTime from workflow.task.started event
      * <p>Extracted by trigger from: to_timestamp((data->>'startTime')::numeric)
+     * <p>Column: 'startedAt' (Open Workflow spec field name)
      */
-    @Column(name = "\"start\"")
-    private ZonedDateTime start;
+    @Column(name = "\"startedAt\"")
+    private ZonedDateTime startedAt;
 
     /**
-     * Task execution end time.
-     * <p>Source: endTime from workflow.task.completed or workflow.task.faulted events
+     * Task execution end time (terminal timestamp).
+     * <p>Source: endTime from workflow.task.completed/faulted/cancelled events
      * <p>Extracted by trigger from: to_timestamp((data->>'endTime')::numeric)
+     * <p>Column: 'endedAt' (generic terminal timestamp, status indicates which terminal state)
      */
-    @Column(name = "\"end\"")
-    private ZonedDateTime end;
+    @Column(name = "\"endedAt\"")
+    private ZonedDateTime endedAt;
 
     /**
      * Input data (JSONB).
@@ -150,8 +156,8 @@ public class TaskInstanceEntity extends AbstractEntity {
     @Override
     public String getId() {
         // Return derived ID from composite key
-        if (id != null && id.getInstanceId() != null && id.getTaskPosition() != null) {
-            return id.getInstanceId() + ":" + id.getTaskPosition();
+        if (id != null && id.getInstanceId() != null && id.getTask() != null) {
+            return id.getInstanceId() + ":" + id.getTask();
         }
         return null;
     }
@@ -164,7 +170,7 @@ public class TaskInstanceEntity extends AbstractEntity {
         this.id = id;
     }
 
-    // Convenience getters/setters for composite key parts (for backward compatibility)
+    // Convenience getters/setters for composite key parts
     public String getInstanceId() {
         return id != null ? id.getInstanceId() : null;
     }
@@ -176,15 +182,15 @@ public class TaskInstanceEntity extends AbstractEntity {
         this.id.setInstanceId(instanceId);
     }
 
-    public String getTaskPosition() {
-        return id != null ? id.getTaskPosition() : null;
+    public String getTask() {
+        return id != null ? id.getTask() : null;
     }
 
-    public void setTaskPosition(String taskPosition) {
+    public void setTask(String task) {
         if (this.id == null) {
             this.id = new TaskInstanceEntityId();
         }
-        this.id.setTaskPosition(taskPosition);
+        this.id.setTask(task);
     }
 
     public String getTaskName() {
@@ -203,20 +209,20 @@ public class TaskInstanceEntity extends AbstractEntity {
         this.status = status;
     }
 
-    public ZonedDateTime getStart() {
-        return start;
+    public ZonedDateTime getStartedAt() {
+        return startedAt;
     }
 
-    public void setStart(ZonedDateTime start) {
-        this.start = start;
+    public void setStartedAt(ZonedDateTime startedAt) {
+        this.startedAt = startedAt;
     }
 
-    public ZonedDateTime getEnd() {
-        return end;
+    public ZonedDateTime getEndedAt() {
+        return endedAt;
     }
 
-    public void setEnd(ZonedDateTime end) {
-        this.end = end;
+    public void setEndedAt(ZonedDateTime endedAt) {
+        this.endedAt = endedAt;
     }
 
     public JsonNode getInput() {
@@ -290,8 +296,8 @@ public class TaskInstanceEntity extends AbstractEntity {
                 "id=" + id +
                 ", taskName='" + taskName + '\'' +
                 ", status='" + status + '\'' +
-                ", start=" + start +
-                ", end=" + end +
+                ", startedAt=" + startedAt +
+                ", endedAt=" + endedAt +
                 ", error=" + error +
                 '}';
     }

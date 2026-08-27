@@ -279,13 +279,13 @@ class ElasticsearchTransformNormalizationIT {
 
         WorkflowInstance normalized = getNormalizedInstance(instanceId);
         assertThat(normalized).isNotNull();
-        assertThat(normalized.getStart()).isNotNull();
-        assertThat(normalized.getEnd()).isNotNull();
+        assertThat(normalized.getStartedAt()).isNotNull();
+        assertThat(normalized.getEndedAt()).isNotNull();
 
-        assertThat(normalized.getStart().toInstant().toEpochMilli())
+        assertThat(normalized.getStartedAt().toInstant().toEpochMilli())
             .isCloseTo(t5s.toEpochMilli(), org.assertj.core.api.Assertions.within(1000L));
 
-        assertThat(normalized.getEnd().toInstant().toEpochMilli())
+        assertThat(normalized.getEndedAt().toInstant().toEpochMilli())
             .isCloseTo(t20s.toEpochMilli(), org.assertj.core.api.Assertions.within(1000L));
     }
 
@@ -390,12 +390,12 @@ class ElasticsearchTransformNormalizationIT {
 
         assertThat(normalized.getStatus()).isEqualTo(WorkflowInstanceStatus.COMPLETED);
 
-        assertThat(normalized.getStart()).isNotNull();
-        assertThat(normalized.getStart().toInstant().toEpochMilli())
+        assertThat(normalized.getStartedAt()).isNotNull();
+        assertThat(normalized.getStartedAt().toInstant().toEpochMilli())
             .isCloseTo(baseTime.toEpochMilli(), org.assertj.core.api.Assertions.within(1000L));
 
-        assertThat(normalized.getEnd()).isNotNull();
-        assertThat(normalized.getEnd().toInstant().toEpochMilli())
+        assertThat(normalized.getEndedAt()).isNotNull();
+        assertThat(normalized.getEndedAt().toInstant().toEpochMilli())
             .isCloseTo(baseTime.plusSeconds(30).toEpochMilli(), org.assertj.core.api.Assertions.within(1000L));
     }
 
@@ -552,18 +552,18 @@ class ElasticsearchTransformNormalizationIT {
                 Object startValue = source.get("startDate");
                 if (startValue instanceof Number) {
                     long epochMillis = ((Number) startValue).longValue();
-                    instance.setStart(ZonedDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneOffset.UTC));
+                    instance.setStartedAt(ZonedDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneOffset.UTC));
                 } else if (startValue instanceof String) {
-                    instance.setStart(ZonedDateTime.parse((String) startValue));
+                    instance.setStartedAt(ZonedDateTime.parse((String) startValue));
                 }
             }
             if (source.containsKey("endDate")) {
                 Object endValue = source.get("endDate");
                 if (endValue instanceof Number) {
                     long epochMillis = ((Number) endValue).longValue();
-                    instance.setEnd(ZonedDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneOffset.UTC));
+                    instance.setEndedAt(ZonedDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneOffset.UTC));
                 } else if (endValue instanceof String) {
-                    instance.setEnd(ZonedDateTime.parse((String) endValue));
+                    instance.setEndedAt(ZonedDateTime.parse((String) endValue));
                 }
             }
 

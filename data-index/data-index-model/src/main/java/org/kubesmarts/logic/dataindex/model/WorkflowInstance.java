@@ -87,18 +87,18 @@ public class WorkflowInstance {
     /**
      * Instance start time.
      * <p>Source: startTime from workflow.instance.started event
+     * <p>Open Workflow spec field name: 'startedAt'
      */
-    @JsonProperty("startDate")
     @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
-    private ZonedDateTime start;
+    private ZonedDateTime startedAt;
 
     /**
-     * Instance end time.
-     * <p>Source: endTime from workflow.instance.completed or workflow.instance.faulted events
+     * Instance end time (terminal state).
+     * <p>Source: endTime from workflow.instance.completed/faulted/cancelled events
+     * <p>Open Workflow spec field name: 'endedAt' (generic for completedAt/faultedAt/cancelledAt)
      */
-    @JsonProperty("endDate")
     @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
-    private ZonedDateTime end;
+    private ZonedDateTime endedAt;
 
     /**
      * Last update timestamp.
@@ -189,20 +189,20 @@ public class WorkflowInstance {
         this.status = status;
     }
 
-    public ZonedDateTime getStart() {
-        return start;
+    public ZonedDateTime getStartedAt() {
+        return startedAt;
     }
 
-    public void setStart(ZonedDateTime start) {
-        this.start = start;
+    public void setStartedAt(ZonedDateTime startedAt) {
+        this.startedAt = startedAt;
     }
 
-    public ZonedDateTime getEnd() {
-        return end;
+    public ZonedDateTime getEndedAt() {
+        return endedAt;
     }
 
-    public void setEnd(ZonedDateTime end) {
-        this.end = end;
+    public void setEndedAt(ZonedDateTime endedAt) {
+        this.endedAt = endedAt;
     }
 
     public ZonedDateTime getLastUpdate() {
@@ -305,8 +305,8 @@ public class WorkflowInstance {
                 ", name='" + name + '\'' +
                 ", version='" + version + '\'' +
                 ", status=" + status +
-                ", start=" + start +
-                ", end=" + end +
+                ", startedAt=" + startedAt +
+                ", endedAt=" + endedAt +
                 ", lastUpdate=" + lastUpdate +
                 ", input=" + input +
                 ", output=" + output +

@@ -24,8 +24,11 @@ import jakarta.persistence.Embeddable;
 /**
  * Composite ID class for TaskInstanceEntity.
  *
- * <p>Represents the composite primary key (instance_id, task_position).
+ * <p>Represents the composite primary key (instance_id, task).
  * Uses @Embeddable approach for better JPA handling of composite keys with foreign keys.
+ *
+ * <p><b>Open Workflow Alignment:</b> Column 'task' stores JSON Pointer (e.g., '/do/1/initialize')
+ * matching the Open Workflow specification's 'task' field in lifecycle events.
  */
 @Embeddable
 public class TaskInstanceEntityId implements Serializable {
@@ -35,15 +38,15 @@ public class TaskInstanceEntityId implements Serializable {
     @Column(name = "instance_id")
     private String instanceId;
 
-    @Column(name = "task_position")
-    private String taskPosition;
+    @Column(name = "task")
+    private String task;
 
     public TaskInstanceEntityId() {
     }
 
-    public TaskInstanceEntityId(String instanceId, String taskPosition) {
+    public TaskInstanceEntityId(String instanceId, String task) {
         this.instanceId = instanceId;
-        this.taskPosition = taskPosition;
+        this.task = task;
     }
 
     public String getInstanceId() {
@@ -54,12 +57,12 @@ public class TaskInstanceEntityId implements Serializable {
         this.instanceId = instanceId;
     }
 
-    public String getTaskPosition() {
-        return taskPosition;
+    public String getTask() {
+        return task;
     }
 
-    public void setTaskPosition(String taskPosition) {
-        this.taskPosition = taskPosition;
+    public void setTask(String task) {
+        this.task = task;
     }
 
     @Override
@@ -68,11 +71,11 @@ public class TaskInstanceEntityId implements Serializable {
         if (o == null || getClass() != o.getClass()) return false;
         TaskInstanceEntityId that = (TaskInstanceEntityId) o;
         return Objects.equals(instanceId, that.instanceId) &&
-               Objects.equals(taskPosition, that.taskPosition);
+               Objects.equals(task, that.task);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(instanceId, taskPosition);
+        return Objects.hash(instanceId, task);
     }
 }

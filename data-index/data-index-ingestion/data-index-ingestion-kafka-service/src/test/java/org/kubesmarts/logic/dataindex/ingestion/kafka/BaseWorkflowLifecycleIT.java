@@ -147,7 +147,7 @@ public abstract class BaseWorkflowLifecycleIT {
                 .untilAsserted(() -> {
                     try (Connection conn = dataSource.getConnection();
                          PreparedStatement stmt = conn.prepareStatement(
-                                 "SELECT 1 FROM task_instances WHERE task_position = ? AND instance_id = ?")) {
+                                 "SELECT 1 FROM task_instances WHERE task = ? AND instance_id = ?")) {
                         stmt.setString(1, taskPosition);
                         stmt.setString(2, instanceId);
                         try (ResultSet rs = stmt.executeQuery()) {

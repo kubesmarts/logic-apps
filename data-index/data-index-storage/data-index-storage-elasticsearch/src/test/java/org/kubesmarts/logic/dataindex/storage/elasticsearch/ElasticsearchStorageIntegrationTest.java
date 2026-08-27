@@ -315,7 +315,7 @@ public class ElasticsearchStorageIntegrationTest {
         assertThat(retrieved).isNotNull();
         assertThat(retrieved.getId()).isEqualTo("task-1");
         assertThat(retrieved.getTaskName()).isEqualTo("greetTask");
-        assertThat(retrieved.getTaskPosition()).isEqualTo("/do/0");
+        assertThat(retrieved.getTask()).isEqualTo("/do/0");
     }
 
     @Test
@@ -378,8 +378,8 @@ public class ElasticsearchStorageIntegrationTest {
         TaskExecution task = new TaskExecution();
         task.setId(id);
         task.setTaskName(taskName);
-        task.setTaskPosition(taskPosition);
-        task.setStart(ZonedDateTime.now());
+        task.setTask(taskPosition);
+        task.setStartedAt(ZonedDateTime.now());
         return task;
     }
 

@@ -31,8 +31,11 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
  * <p>Represents an execution instance of a task within a workflow instance.
  * Tasks in Open Workflow 1.0.0 include: call, do, fork, emit, for, try, etc.
  *
- * <p>The taskPosition field is critical - it's a JSONPointer that uniquely identifies
- * the task within the workflow definition (e.g., "/do/0" for first task in a do sequence).
+ * <p><b>Open Workflow Alignment:</b> Field names match Open Workflow 1.0.0 specification
+ * lifecycle events: 'task' (JSON Pointer), 'startedAt', 'endedAt'.
+ *
+ * <p>The 'task' field is a JSON Pointer that uniquely identifies the task within the
+ * workflow definition (e.g., "/do/0" for first task in a do sequence).
  */
 public class TaskExecution {
 
@@ -46,13 +49,14 @@ public class TaskExecution {
     private String taskName;
 
     /**
-     * JSONPointer identifying the task's position in the workflow definition.
+     * JSON Pointer identifying the task's position in the workflow definition.
      * Example: "/do/0", "/do/1/then/0", etc.
      * This is the unique identifier for the task within the workflow document.
+     * <p>Open Workflow spec field name: 'task'
      * <p>Deserialized from Elasticsearch bucket format via BucketStringDeserializer
      */
     @JsonDeserialize(using = BucketStringDeserializer.class)
-    private String taskPosition;
+    private String task;
 
     /**
      * Task execution status.
@@ -62,13 +66,19 @@ public class TaskExecution {
     @JsonDeserialize(using = BucketStringDeserializer.class)
     private String status;
 
-    @JsonProperty("startDate")
+    /**
+     * Task start timestamp.
+     * <p>Open Workflow spec field name: 'startedAt'
+     */
     @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
-    private ZonedDateTime start;
+    private ZonedDateTime startedAt;
 
-    @JsonProperty("endDate")
+    /**
+     * Task end timestamp (terminal state).
+     * <p>Open Workflow spec field name: 'endedAt' (generic for completedAt/faultedAt/cancelledAt)
+     */
     @JsonDeserialize(using = EpochMillisZonedDateTimeDeserializer.class)
-    private ZonedDateTime end;
+    private ZonedDateTime endedAt;
 
     private Error error;
 
@@ -100,22 +110,22 @@ public class TaskExecution {
 
     /**
      * Get derived task execution ID.
-     * <p>ID is derived from instanceId + taskPosition (format: "instanceId:taskPosition")
+     * <p>ID is derived from instanceId + task (format: "instanceId:task")
      * <p>No database column - computed from composite key
      */
     public String getId() {
         if (id != null) {
             return id;
         }
-        if (instanceId != null && taskPosition != null) {
-            return instanceId + ":" + taskPosition;
+        if (instanceId != null && task != null) {
+            return instanceId + ":" + task;
         }
         return null;
     }
 
     /**
      * Set task execution ID.
-     * <p>For deserialization only - ID is normally derived from instanceId + taskPosition
+     * <p>For deserialization only - ID is normally derived from instanceId + task
      */
     public void setId(String id) {
         this.id = id;
@@ -129,12 +139,12 @@ public class TaskExecution {
         this.taskName = taskName;
     }
 
-    public String getTaskPosition() {
-        return taskPosition;
+    public String getTask() {
+        return task;
     }
 
-    public void setTaskPosition(String taskPosition) {
-        this.taskPosition = taskPosition;
+    public void setTask(String task) {
+        this.task = task;
     }
 
     public String getStatus() {
@@ -145,20 +155,20 @@ public class TaskExecution {
         this.status = status;
     }
 
-    public ZonedDateTime getStart() {
-        return start;
+    public ZonedDateTime getStartedAt() {
+        return startedAt;
     }
 
-    public void setStart(ZonedDateTime start) {
-        this.start = start;
+    public void setStartedAt(ZonedDateTime startedAt) {
+        this.startedAt = startedAt;
     }
 
-    public ZonedDateTime getEnd() {
-        return end;
+    public ZonedDateTime getEndedAt() {
+        return endedAt;
     }
 
-    public void setEnd(ZonedDateTime end) {
-        this.end = end;
+    public void setEndedAt(ZonedDateTime endedAt) {
+        this.endedAt = endedAt;
     }
 
     public Error getError() {
@@ -242,10 +252,10 @@ public class TaskExecution {
         return "TaskExecution{" +
                 "id='" + id + '\'' +
                 ", taskName='" + taskName + '\'' +
-                ", taskPosition='" + taskPosition + '\'' +
+                ", task='" + task + '\'' +
                 ", status='" + status + '\'' +
-                ", start=" + start +
-                ", end=" + end +
+                ", startedAt=" + startedAt +
+                ", endedAt=" + endedAt +
                 ", error=" + error +
                 ", instanceId='" + instanceId + '\'' +
                 ", eventTimestamp=" + eventTimestamp +

@@ -82,8 +82,8 @@ public class WorkflowInstanceGraphQLApiTest {
         workflow1.setName("test-workflow");
         workflow1.setVersion("1.0.0");
         workflow1.setStatus(WorkflowInstanceStatus.COMPLETED);
-        workflow1.setStart(ZonedDateTime.now().minusMinutes(10));
-        workflow1.setEnd(ZonedDateTime.now());
+        workflow1.setStartedAt(ZonedDateTime.now().minusMinutes(10));
+        workflow1.setEndedAt(ZonedDateTime.now());
 
         JsonNode inputJson = MAPPER.readTree("{\"name\":\"John\",\"age\":30}");
         JsonNode outputJson = MAPPER.readTree("{\"result\":\"success\",\"processed\":true}");
@@ -96,10 +96,10 @@ public class WorkflowInstanceGraphQLApiTest {
         TaskInstanceEntity task1 = new TaskInstanceEntity();
         task1.setInstanceId(TEST_WORKFLOW_ID_1);
         task1.setTaskName("validateInput");
-        task1.setTaskPosition("/do/0");
+        task1.setTask("/do/0");
         task1.setStatus("COMPLETED");
-        task1.setStart(ZonedDateTime.now().minusMinutes(10));
-        task1.setEnd(ZonedDateTime.now().minusMinutes(9));
+        task1.setStartedAt(ZonedDateTime.now().minusMinutes(10));
+        task1.setEndedAt(ZonedDateTime.now().minusMinutes(9));
         task1.setInput(MAPPER.readTree("{\"input\":\"validate\"}"));
         task1.setOutput(MAPPER.readTree("{\"valid\":true}"));
         task1.setWorkflowInstance(workflow1);
@@ -108,10 +108,10 @@ public class WorkflowInstanceGraphQLApiTest {
         TaskInstanceEntity task2 = new TaskInstanceEntity();
         task2.setInstanceId(TEST_WORKFLOW_ID_1);
         task2.setTaskName("processData");
-        task2.setTaskPosition("/do/1");
+        task2.setTask("/do/1");
         task2.setStatus("COMPLETED");
-        task2.setStart(ZonedDateTime.now().minusMinutes(9));
-        task2.setEnd(ZonedDateTime.now().minusMinutes(5));
+        task2.setStartedAt(ZonedDateTime.now().minusMinutes(9));
+        task2.setEndedAt(ZonedDateTime.now().minusMinutes(5));
         task2.setInput(MAPPER.readTree("{\"data\":\"process\"}"));
         task2.setOutput(MAPPER.readTree("{\"processed\":true}"));
         task2.setWorkflowInstance(workflow1);
@@ -133,8 +133,8 @@ public class WorkflowInstanceGraphQLApiTest {
         workflow2.setName("test-workflow-failed");
         workflow2.setVersion("1.0.0");
         workflow2.setStatus(WorkflowInstanceStatus.FAULTED);
-        workflow2.setStart(ZonedDateTime.now().minusMinutes(5));
-        workflow2.setEnd(ZonedDateTime.now());
+        workflow2.setStartedAt(ZonedDateTime.now().minusMinutes(5));
+        workflow2.setEndedAt(ZonedDateTime.now());
         workflow2.setInput(MAPPER.readTree("{\"name\":\"Jane\"}"));
 
         ErrorEntity wfError = new ErrorEntity();
@@ -150,10 +150,10 @@ public class WorkflowInstanceGraphQLApiTest {
         TaskInstanceEntity task3 = new TaskInstanceEntity();
         task3.setInstanceId(TEST_WORKFLOW_ID_2);
         task3.setTaskName("failingTask");
-        task3.setTaskPosition("/do/0");
+        task3.setTask("/do/0");
         task3.setStatus("FAULTED");
-        task3.setStart(ZonedDateTime.now().minusMinutes(5));
-        task3.setEnd(ZonedDateTime.now());
+        task3.setStartedAt(ZonedDateTime.now().minusMinutes(5));
+        task3.setEndedAt(ZonedDateTime.now());
         task3.setInput(MAPPER.readTree("{\"action\":\"fail\"}"));
 
         ErrorEntity taskError = new ErrorEntity();
@@ -201,8 +201,8 @@ public class WorkflowInstanceGraphQLApiTest {
                     namespace
                     name
                     status
-                    startDate
-                    endDate
+                    startedAt
+                    endedAt
                   }
                 }
                 """;
@@ -237,10 +237,10 @@ public class WorkflowInstanceGraphQLApiTest {
                     taskExecutions {
                       id
                       taskName
-                      taskPosition
+                      task
                       status
-                      startDate
-                      endDate
+                      startedAt
+                      endedAt
                     }
                   }
                 }
@@ -273,7 +273,7 @@ public class WorkflowInstanceGraphQLApiTest {
                     taskExecutions {
                       id
                       taskName
-                      taskPosition
+                      task
                       status
                     }
                   }
@@ -304,10 +304,10 @@ public class WorkflowInstanceGraphQLApiTest {
                   getTaskExecutions(limit: 10) {
                     id
                     taskName
-                    taskPosition
+                    task
                     status
-                    startDate
-                    endDate
+                    startedAt
+                    endedAt
                   }
                 }
                 """;
@@ -333,7 +333,7 @@ public class WorkflowInstanceGraphQLApiTest {
                   getTaskExecutionsByWorkflowInstance(workflowInstanceId: "%s") {
                     id
                     taskName
-                    taskPosition
+                    task
                     status
                   }
                 }
@@ -465,7 +465,7 @@ public class WorkflowInstanceGraphQLApiTest {
                     status
                     taskExecutions {
                       id
-                      taskPosition
+                      task
                       status
                       error {
                         type
@@ -495,18 +495,18 @@ public class WorkflowInstanceGraphQLApiTest {
     }
 
     /**
-     * Test task execution ordering by enter/exit (mapped to start/end entity fields).
-     * Validates OrderByConverter correctly maps GraphQL enter→start and exit→end.
+     * Test task execution ordering by enter/exit (mapped to startedAt/endedAt entity fields).
+     * Validates OrderByConverter correctly maps GraphQL enter→startedAt and exit→endedAt.
      */
     @Test
     public void testTaskExecutionOrdering() {
-        // Test ordering by enter (maps to start field)
+        // Test ordering by enter (maps to startedAt field)
         String queryByEnter = """
             {
               getTaskExecutions(limit: 10, orderBy: { enter: ASC }) {
                 id
                 taskName
-                startDate
+                startedAt
               }
             }
             """;
@@ -521,13 +521,13 @@ public class WorkflowInstanceGraphQLApiTest {
             .body("data.getTaskExecutions", notNullValue())
             .body("data.getTaskExecutions.size()", greaterThan(0));
 
-        // Test ordering by exit (maps to end field)
+        // Test ordering by exit (maps to endedAt field)
         String queryByExit = """
             {
               getTaskExecutions(limit: 10, orderBy: { exit: DESC }) {
                 id
                 taskName
-                endDate
+                endedAt
               }
             }
             """;
@@ -573,7 +573,7 @@ public class WorkflowInstanceGraphQLApiTest {
                 }
               ) {
                 id
-                taskPosition
+                task
                 error { status, instance, type }
               }
             }

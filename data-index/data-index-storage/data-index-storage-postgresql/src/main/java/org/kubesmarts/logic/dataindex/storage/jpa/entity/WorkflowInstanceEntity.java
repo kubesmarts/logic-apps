@@ -91,16 +91,18 @@ public class WorkflowInstanceEntity extends AbstractEntity {
     /**
      * Instance start time.
      * <p>Source: startTime from workflow.instance.started event
+     * <p>Column: 'startedAt' (Open Workflow spec field name)
      */
-    @Column(name = "\"start\"")
-    private ZonedDateTime start;
+    @Column(name = "\"startedAt\"")
+    private ZonedDateTime startedAt;
 
     /**
-     * Instance end time.
-     * <p>Source: endTime from workflow.instance.completed or workflow.instance.faulted events
+     * Instance end time (terminal timestamp).
+     * <p>Source: endTime from workflow.instance.completed/faulted/cancelled events
+     * <p>Column: 'endedAt' (generic terminal timestamp, status indicates which terminal state)
      */
-    @Column(name = "\"end\"")
-    private ZonedDateTime end;
+    @Column(name = "\"endedAt\"")
+    private ZonedDateTime endedAt;
 
     /**
      * Last update timestamp.
@@ -192,20 +194,20 @@ public class WorkflowInstanceEntity extends AbstractEntity {
         this.status = status;
     }
 
-    public ZonedDateTime getStart() {
-        return start;
+    public ZonedDateTime getStartedAt() {
+        return startedAt;
     }
 
-    public void setStart(ZonedDateTime start) {
-        this.start = start;
+    public void setStartedAt(ZonedDateTime startedAt) {
+        this.startedAt = startedAt;
     }
 
-    public ZonedDateTime getEnd() {
-        return end;
+    public ZonedDateTime getEndedAt() {
+        return endedAt;
     }
 
-    public void setEnd(ZonedDateTime end) {
-        this.end = end;
+    public void setEndedAt(ZonedDateTime endedAt) {
+        this.endedAt = endedAt;
     }
 
     public ZonedDateTime getLastUpdate() {
@@ -289,8 +291,8 @@ public class WorkflowInstanceEntity extends AbstractEntity {
                 ", name='" + name + '\'' +
                 ", version='" + version + '\'' +
                 ", status=" + status +
-                ", start=" + start +
-                ", end=" + end +
+                ", startedAt=" + startedAt +
+                ", endedAt=" + endedAt +
                 '}';
     }
 }

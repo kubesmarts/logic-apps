@@ -154,7 +154,7 @@ class ElasticsearchWorkflowInstanceStorageIT {
         assertThat(retrieved.getNamespace()).isEqualTo("test-namespace");
         assertThat(retrieved.getVersion()).isEqualTo("1.0.0");
         assertThat(retrieved.getStatus()).isEqualTo(WorkflowInstanceStatus.RUNNING);
-        assertThat(retrieved.getStart()).isNotNull();
+        assertThat(retrieved.getStartedAt()).isNotNull();
     }
 
     @Test
@@ -175,7 +175,7 @@ class ElasticsearchWorkflowInstanceStorageIT {
 
         // When: Update the instance
         instance.setStatus(WorkflowInstanceStatus.COMPLETED);
-        instance.setEnd(ZonedDateTime.now());
+        instance.setEndedAt(ZonedDateTime.now());
         storage.put(TEST_ID_1, instance);
         waitForRefresh();
 
@@ -183,7 +183,7 @@ class ElasticsearchWorkflowInstanceStorageIT {
         WorkflowInstance retrieved = storage.get(TEST_ID_1);
         assertThat(retrieved).isNotNull();
         assertThat(retrieved.getStatus()).isEqualTo(WorkflowInstanceStatus.COMPLETED);
-        assertThat(retrieved.getEnd()).isNotNull();
+        assertThat(retrieved.getEndedAt()).isNotNull();
     }
 
     @Test
@@ -400,7 +400,7 @@ class ElasticsearchWorkflowInstanceStorageIT {
         error.setInstance("error-001");
 
         instance.setError(error);
-        instance.setEnd(ZonedDateTime.now());
+        instance.setEndedAt(ZonedDateTime.now());
 
         // When: Put and get the instance
         storage.put(TEST_ID_1, instance);
@@ -436,7 +436,7 @@ class ElasticsearchWorkflowInstanceStorageIT {
         instance.setNamespace("test-namespace");
         instance.setVersion("1.0.0");
         instance.setStatus(status);
-        instance.setStart(ZonedDateTime.now());
+        instance.setStartedAt(ZonedDateTime.now());
         instance.setLastUpdate(ZonedDateTime.now());
         return instance;
     }

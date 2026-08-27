@@ -35,13 +35,13 @@ public class CancelledWorkflowIT extends BaseWorkflowLifecycleIT {
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
-                     "SELECT task_name, task_position, status " +
+                     "SELECT task_name, task, status " +
                              "FROM task_instances WHERE instance_id = ? AND status = 'CANCELLED'")) {
             stmt.setString(1, workflowId);
             try (ResultSet rs = stmt.executeQuery()) {
                 assertThat(rs.next()).isTrue();
                 assertThat(rs.getString("task_name")).isEqualTo("waitABit");
-                assertThat(rs.getString("task_position")).isEqualTo("do/2/waitABit");
+                assertThat(rs.getString("task")).isEqualTo("do/2/waitABit");
                 assertThat(rs.getString("status")).isEqualTo("CANCELLED");
             }
         }

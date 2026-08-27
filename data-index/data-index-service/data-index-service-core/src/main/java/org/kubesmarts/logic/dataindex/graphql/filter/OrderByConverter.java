@@ -26,13 +26,11 @@ import org.kie.kogito.persistence.api.query.SortDirection;
  *
  * <p>Handles conversion for WorkflowInstance and TaskExecution ordering.
  *
- * <p><b>Field Mapping</b>:
+ * <p><b>Field Mapping (Open Workflow Alignment):</b>
  * <ul>
- *   <li>GraphQL field names map to entity field names
- *   <li>startTime → start (entity uses "start" column)
- *   <li>endTime → end (entity uses "end" column)
- *   <li>enter → enter (TaskExecution entity)
- *   <li>exit → exit (TaskExecution entity)
+ *   <li>Workflow: startTime → startedAt, endTime → endedAt
+ *   <li>Task: enter → startedAt, exit → endedAt (backward compat GraphQL names)
+ *   <li>Task: taskPosition → id.task (composite key field)
  * </ul>
  */
 public class OrderByConverter {
@@ -66,10 +64,10 @@ public class OrderByConverter {
             result.add(new DataIndexAttributeSort("status", toSortDirection(orderBy.getStatus())));
         }
         if (orderBy.getStartTime() != null) {
-            result.add(new DataIndexAttributeSort("start", toSortDirection(orderBy.getStartTime())));
+            result.add(new DataIndexAttributeSort("startedAt", toSortDirection(orderBy.getStartTime())));
         }
         if (orderBy.getEndTime() != null) {
-            result.add(new DataIndexAttributeSort("end", toSortDirection(orderBy.getEndTime())));
+            result.add(new DataIndexAttributeSort("endedAt", toSortDirection(orderBy.getEndTime())));
         }
         if (orderBy.getLastUpdate() != null) {
             result.add(new DataIndexAttributeSort("lastUpdate", toSortDirection(orderBy.getLastUpdate())));
@@ -98,16 +96,16 @@ public class OrderByConverter {
             result.add(new DataIndexAttributeSort("taskName", toSortDirection(orderBy.getTaskName())));
         }
         if (orderBy.getTaskPosition() != null) {
-            // taskPosition is part of composite key (@EmbeddedId) - use nested path
-            result.add(new DataIndexAttributeSort("id.taskPosition", toSortDirection(orderBy.getTaskPosition())));
+            // task is part of composite key (@EmbeddedId) - use nested path
+            result.add(new DataIndexAttributeSort("id.task", toSortDirection(orderBy.getTaskPosition())));
         }
         if (orderBy.getEnter() != null) {
-            // Map GraphQL enter → entity start field
-            result.add(new DataIndexAttributeSort("start", toSortDirection(orderBy.getEnter())));
+            // Map GraphQL enter (backward compat) → entity startedAt field
+            result.add(new DataIndexAttributeSort("startedAt", toSortDirection(orderBy.getEnter())));
         }
         if (orderBy.getExit() != null) {
-            // Map GraphQL exit → entity end field
-            result.add(new DataIndexAttributeSort("end", toSortDirection(orderBy.getExit())));
+            // Map GraphQL exit (backward compat) → entity endedAt field
+            result.add(new DataIndexAttributeSort("endedAt", toSortDirection(orderBy.getExit())));
         }
 
         return result;

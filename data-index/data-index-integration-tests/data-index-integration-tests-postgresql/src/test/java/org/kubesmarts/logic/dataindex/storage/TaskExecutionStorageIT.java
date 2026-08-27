@@ -71,17 +71,17 @@ public class TaskExecutionStorageIT {
         workflow.setName("test-workflow");
         workflow.setVersion("1.0");
         workflow.setStatus(WorkflowInstanceStatus.RUNNING);
-        workflow.setStart(ZonedDateTime.now().minusMinutes(5));
+        workflow.setStartedAt(ZonedDateTime.now().minusMinutes(5));
         em.persist(workflow);
 
         // Create task 1 using convenience setters
         TaskInstanceEntity task1 = new TaskInstanceEntity();
         task1.setInstanceId(TEST_WORKFLOW_ID);
-        task1.setTaskPosition(TEST_TASK_POSITION_1);
+        task1.setTask(TEST_TASK_POSITION_1);
         task1.setTaskName("task1");
         task1.setStatus("COMPLETED");
-        task1.setStart(ZonedDateTime.now().minusMinutes(5));
-        task1.setEnd(ZonedDateTime.now().minusMinutes(3));
+        task1.setStartedAt(ZonedDateTime.now().minusMinutes(5));
+        task1.setEndedAt(ZonedDateTime.now().minusMinutes(3));
         task1.setInput(MAPPER.readTree("{\"input\":\"data1\"}"));
         task1.setOutput(MAPPER.readTree("{\"output\":\"result1\"}"));
         em.persist(task1);
@@ -89,10 +89,10 @@ public class TaskExecutionStorageIT {
         // Create task 2 using convenience setters
         TaskInstanceEntity task2 = new TaskInstanceEntity();
         task2.setInstanceId(TEST_WORKFLOW_ID);
-        task2.setTaskPosition(TEST_TASK_POSITION_2);
+        task2.setTask(TEST_TASK_POSITION_2);
         task2.setTaskName("task2");
         task2.setStatus("RUNNING");
-        task2.setStart(ZonedDateTime.now().minusMinutes(3));
+        task2.setStartedAt(ZonedDateTime.now().minusMinutes(3));
         task2.setInput(MAPPER.readTree("{\"input\":\"data2\"}"));
         em.persist(task2);
 
@@ -119,7 +119,7 @@ public class TaskExecutionStorageIT {
         assertNotNull(task, "Task should be found");
         assertEquals(derivedId, task.getId(), "ID should match derived format");
         assertEquals(TEST_WORKFLOW_ID, task.getInstanceId(), "Instance ID should match");
-        assertEquals(TEST_TASK_POSITION_1, task.getTaskPosition(), "Task position should match");
+        assertEquals(TEST_TASK_POSITION_1, task.getTask(), "Task should match");
         assertEquals("task1", task.getTaskName(), "Task name should match");
         assertEquals("COMPLETED", task.getStatus(), "Status should match");
     }
@@ -282,15 +282,15 @@ public class TaskExecutionStorageIT {
         workflow2.setName("another-workflow");
         workflow2.setVersion("1.0");
         workflow2.setStatus(WorkflowInstanceStatus.RUNNING);
-        workflow2.setStart(ZonedDateTime.now());
+        workflow2.setStartedAt(ZonedDateTime.now());
         em.persist(workflow2);
 
         TaskInstanceEntity task3 = new TaskInstanceEntity();
         task3.setInstanceId(anotherWorkflowId);
-        task3.setTaskPosition(TEST_TASK_POSITION_1); // Same position as task1, different workflow
+        task3.setTask(TEST_TASK_POSITION_1); // Same position as task1, different workflow
         task3.setTaskName("task3");
         task3.setStatus("RUNNING");
-        task3.setStart(ZonedDateTime.now());
+        task3.setStartedAt(ZonedDateTime.now());
         em.persist(task3);
         em.flush();
 

@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS workflow_instances (
   name VARCHAR(255),
   version VARCHAR(255),
   status VARCHAR(50),
-  start TIMESTAMP WITH TIME ZONE,
-  "end" TIMESTAMP WITH TIME ZONE,
+  "startedAt" TIMESTAMP WITH TIME ZONE,
+  "endedAt" TIMESTAMP WITH TIME ZONE,
   last_update TIMESTAMP WITH TIME ZONE,
   last_event_time TIMESTAMP WITH TIME ZONE,  -- Idempotency: track event timestamp
   input JSONB,
@@ -60,16 +60,16 @@ CREATE TABLE IF NOT EXISTS workflow_instances (
 
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_namespace_name ON workflow_instances (namespace, name);
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_status ON workflow_instances (status);
-CREATE INDEX IF NOT EXISTS idx_workflow_instances_start ON workflow_instances (start DESC);
+CREATE INDEX IF NOT EXISTS idx_workflow_instances_startedAt ON workflow_instances ("startedAt" DESC);
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_last_event_time ON workflow_instances (last_event_time DESC);
 
 CREATE TABLE IF NOT EXISTS task_instances (
   instance_id VARCHAR(255) NOT NULL,
   task_name VARCHAR(255),
-  task_position VARCHAR(255) NOT NULL,
+  task VARCHAR(255) NOT NULL,
   status VARCHAR(50),
-  start TIMESTAMP WITH TIME ZONE,
-  "end" TIMESTAMP WITH TIME ZONE,
+  "startedAt" TIMESTAMP WITH TIME ZONE,
+  "endedAt" TIMESTAMP WITH TIME ZONE,
   last_event_time TIMESTAMP WITH TIME ZONE,  -- Idempotency: track event timestamp
   input JSONB,
   output JSONB,
@@ -80,9 +80,9 @@ CREATE TABLE IF NOT EXISTS task_instances (
   error_instance VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  -- Composite primary key: (instance_id, task_position) uniquely identifies a task
-  -- TaskExecution.id is derived from instanceId + taskPosition (no column needed)
-  PRIMARY KEY (instance_id, task_position),
+  -- Composite primary key: (instance_id, task) uniquely identifies a task
+  -- TaskExecution.id is derived from instanceId + task (no column needed)
+  PRIMARY KEY (instance_id, task),
   CONSTRAINT fk_task_instance_workflow FOREIGN KEY (instance_id) REFERENCES workflow_instances(id) ON DELETE CASCADE
 );
 
@@ -111,8 +111,8 @@ BEGIN
     name,
     version,
     status,
-    start,
-    "end",
+    "startedAt",
+    "endedAt",
     last_update,
     input,
     output,
@@ -158,12 +158,12 @@ BEGIN
     namespace = COALESCE(workflow_instances.namespace, EXCLUDED.namespace),
     name = COALESCE(workflow_instances.name, EXCLUDED.name),
     version = COALESCE(workflow_instances.version, EXCLUDED.version),
-    start = COALESCE(workflow_instances.start, EXCLUDED.start),
+    "startedAt" = COALESCE(workflow_instances."startedAt", EXCLUDED."startedAt"),
     input = COALESCE(workflow_instances.input, EXCLUDED.input),
 
     -- Terminal fields: Preserve if already set (completion data)
     -- Once a workflow completes/faults, these fields should not be cleared
-    "end" = COALESCE(EXCLUDED."end", workflow_instances."end"),
+    "endedAt" = COALESCE(EXCLUDED."endedAt", workflow_instances."endedAt"),
     output = COALESCE(EXCLUDED.output, workflow_instances.output),
     error_type = COALESCE(EXCLUDED.error_type, workflow_instances.error_type),
     error_title = COALESCE(EXCLUDED.error_title, workflow_instances.error_title),
@@ -190,18 +190,18 @@ $$ LANGUAGE plpgsql;
 
 -- Function to normalize task lifecycle events into task_instances.
 --
--- Each logical task execution is uniquely identified by (instance_id, task_position).
+-- Each logical task execution is uniquely identified by (instance_id, task).
 -- Quarkus Flow generates different taskExecutionId values for each lifecycle event
 -- (task.started, task.completed, etc.), so we cannot use it as the primary key.
--- Instead, we use the composite key (instance_id, task_position) which remains stable
+-- Instead, we use the composite key (instance_id, task) which remains stable
 -- across all events for the same task execution.
 --
--- Use INSERT ... ON CONFLICT (instance_id, task_position) DO UPDATE instead of an
+-- Use INSERT ... ON CONFLICT (instance_id, task) DO UPDATE instead of an
 -- UPDATE-first / INSERT-if-not-found pattern. The latter is race-prone under
 -- concurrent ingestion and can produce duplicate-key violations.
 --
 -- Repeated task positions (e.g., loop iterations) remain separate because
--- each iteration has a distinct task_position value.
+-- each iteration has a distinct task value.
 CREATE OR REPLACE FUNCTION normalize_task_event()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -217,10 +217,10 @@ BEGIN
     INSERT INTO task_instances (
       instance_id,
       task_name,
-      task_position,
+      task,
       status,
-      start,
-      "end",
+      "startedAt",
+      "endedAt",
       input,
       output,
       error_type,
@@ -261,7 +261,7 @@ BEGIN
       NEW.time,
       NEW.time
     )
-    ON CONFLICT (instance_id, task_position) DO UPDATE SET
+    ON CONFLICT (instance_id, task) DO UPDATE SET
       -- Keep first non-null values (immutable fields)
       task_name = COALESCE(task_instances.task_name, EXCLUDED.task_name),
 
@@ -273,8 +273,8 @@ BEGIN
       END,
 
       -- Keep first start time, update end time with latest non-null value
-      start = COALESCE(task_instances.start, EXCLUDED.start),
-      "end" = COALESCE(EXCLUDED."end", task_instances."end"),
+      "startedAt" = COALESCE(task_instances."startedAt", EXCLUDED."startedAt"),
+      "endedAt" = COALESCE(EXCLUDED."endedAt", task_instances."endedAt"),
 
       -- Keep first input, update output with latest non-null value
       input = COALESCE(task_instances.input, EXCLUDED.input),
@@ -312,10 +312,10 @@ BEGIN
     INSERT INTO task_instances (
       instance_id,
       task_name,
-      task_position,
+      task,
       status,
-      start,
-      "end",
+      "startedAt",
+      "endedAt",
       input,
       output,
       error_type,
@@ -356,7 +356,7 @@ BEGIN
       NEW.time,
       NEW.time
     )
-    ON CONFLICT (instance_id, task_position) DO UPDATE SET
+    ON CONFLICT (instance_id, task) DO UPDATE SET
       -- Keep first non-null values (immutable fields)
       task_name = COALESCE(task_instances.task_name, EXCLUDED.task_name),
 
@@ -368,8 +368,8 @@ BEGIN
       END,
 
       -- Keep first start time, update end time with latest non-null value
-      start = COALESCE(task_instances.start, EXCLUDED.start),
-      "end" = COALESCE(EXCLUDED."end", task_instances."end"),
+      "startedAt" = COALESCE(task_instances."startedAt", EXCLUDED."startedAt"),
+      "endedAt" = COALESCE(EXCLUDED."endedAt", task_instances."endedAt"),
 
       -- Keep first input, update output with latest non-null value
       input = COALESCE(task_instances.input, EXCLUDED.input),
