@@ -82,8 +82,8 @@ public class WorkflowInstanceGraphQLApiTest {
         workflow1.setName("test-workflow");
         workflow1.setVersion("1.0.0");
         workflow1.setStatus(WorkflowInstanceStatus.COMPLETED);
-        workflow1.setStart(ZonedDateTime.now().minusMinutes(10));
-        workflow1.setEnd(ZonedDateTime.now());
+        workflow1.setStartedAt(ZonedDateTime.now().minusMinutes(10));
+        workflow1.setEndedAt(ZonedDateTime.now());
 
         JsonNode inputJson = MAPPER.readTree("{\"name\":\"John\",\"age\":30}");
         JsonNode outputJson = MAPPER.readTree("{\"result\":\"success\",\"processed\":true}");
@@ -96,10 +96,10 @@ public class WorkflowInstanceGraphQLApiTest {
         TaskInstanceEntity task1 = new TaskInstanceEntity();
         task1.setInstanceId(TEST_WORKFLOW_ID_1);
         task1.setTaskName("validateInput");
-        task1.setTaskPosition("/do/0");
+        task1.setTask("/do/0");
         task1.setStatus("COMPLETED");
-        task1.setStart(ZonedDateTime.now().minusMinutes(10));
-        task1.setEnd(ZonedDateTime.now().minusMinutes(9));
+        task1.setStartedAt(ZonedDateTime.now().minusMinutes(10));
+        task1.setEndedAt(ZonedDateTime.now().minusMinutes(9));
         task1.setInput(MAPPER.readTree("{\"input\":\"validate\"}"));
         task1.setOutput(MAPPER.readTree("{\"valid\":true}"));
         task1.setWorkflowInstance(workflow1);
@@ -108,10 +108,10 @@ public class WorkflowInstanceGraphQLApiTest {
         TaskInstanceEntity task2 = new TaskInstanceEntity();
         task2.setInstanceId(TEST_WORKFLOW_ID_1);
         task2.setTaskName("processData");
-        task2.setTaskPosition("/do/1");
+        task2.setTask("/do/1");
         task2.setStatus("COMPLETED");
-        task2.setStart(ZonedDateTime.now().minusMinutes(9));
-        task2.setEnd(ZonedDateTime.now().minusMinutes(5));
+        task2.setStartedAt(ZonedDateTime.now().minusMinutes(9));
+        task2.setEndedAt(ZonedDateTime.now().minusMinutes(5));
         task2.setInput(MAPPER.readTree("{\"data\":\"process\"}"));
         task2.setOutput(MAPPER.readTree("{\"processed\":true}"));
         task2.setWorkflowInstance(workflow1);
@@ -133,8 +133,8 @@ public class WorkflowInstanceGraphQLApiTest {
         workflow2.setName("test-workflow-failed");
         workflow2.setVersion("1.0.0");
         workflow2.setStatus(WorkflowInstanceStatus.FAULTED);
-        workflow2.setStart(ZonedDateTime.now().minusMinutes(5));
-        workflow2.setEnd(ZonedDateTime.now());
+        workflow2.setStartedAt(ZonedDateTime.now().minusMinutes(5));
+        workflow2.setEndedAt(ZonedDateTime.now());
         workflow2.setInput(MAPPER.readTree("{\"name\":\"Jane\"}"));
 
         ErrorEntity wfError = new ErrorEntity();
@@ -150,10 +150,10 @@ public class WorkflowInstanceGraphQLApiTest {
         TaskInstanceEntity task3 = new TaskInstanceEntity();
         task3.setInstanceId(TEST_WORKFLOW_ID_2);
         task3.setTaskName("failingTask");
-        task3.setTaskPosition("/do/0");
+        task3.setTask("/do/0");
         task3.setStatus("FAULTED");
-        task3.setStart(ZonedDateTime.now().minusMinutes(5));
-        task3.setEnd(ZonedDateTime.now());
+        task3.setStartedAt(ZonedDateTime.now().minusMinutes(5));
+        task3.setEndedAt(ZonedDateTime.now());
         task3.setInput(MAPPER.readTree("{\"action\":\"fail\"}"));
 
         ErrorEntity taskError = new ErrorEntity();

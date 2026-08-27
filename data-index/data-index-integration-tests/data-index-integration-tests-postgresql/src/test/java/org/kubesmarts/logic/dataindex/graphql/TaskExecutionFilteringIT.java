@@ -75,17 +75,17 @@ public class TaskExecutionFilteringIT {
         workflow.setName("filter-test");
         workflow.setVersion("1.0");
         workflow.setStatus(WorkflowInstanceStatus.RUNNING);
-        workflow.setStart(ZonedDateTime.now().minusMinutes(10));
+        workflow.setStartedAt(ZonedDateTime.now().minusMinutes(10));
         em.persist(workflow);
 
         // Task 1: position /do/0
         TaskInstanceEntity task1 = new TaskInstanceEntity();
         task1.setInstanceId(WORKFLOW_ID);
-        task1.setTaskPosition("/do/0");
+        task1.setTask("/do/0");
         task1.setTaskName("task-alpha");
         task1.setStatus("COMPLETED");
-        task1.setStart(ZonedDateTime.now().minusMinutes(9));
-        task1.setEnd(ZonedDateTime.now().minusMinutes(7));
+        task1.setStartedAt(ZonedDateTime.now().minusMinutes(9));
+        task1.setEndedAt(ZonedDateTime.now().minusMinutes(7));
         task1.setInput(MAPPER.readTree("{\"customerId\":\"123\"}"));
         task1.setOutput(MAPPER.readTree("{\"result\":\"success\"}"));
         em.persist(task1);
@@ -93,11 +93,11 @@ public class TaskExecutionFilteringIT {
         // Task 2: position /do/1
         TaskInstanceEntity task2 = new TaskInstanceEntity();
         task2.setInstanceId(WORKFLOW_ID);
-        task2.setTaskPosition("/do/1");
+        task2.setTask("/do/1");
         task2.setTaskName("task-beta");
         task2.setStatus("COMPLETED");
-        task2.setStart(ZonedDateTime.now().minusMinutes(7));
-        task2.setEnd(ZonedDateTime.now().minusMinutes(5));
+        task2.setStartedAt(ZonedDateTime.now().minusMinutes(7));
+        task2.setEndedAt(ZonedDateTime.now().minusMinutes(5));
         task2.setInput(MAPPER.readTree("{\"customerId\":\"456\"}"));
         task2.setOutput(MAPPER.readTree("{\"result\":\"failure\"}"));
         em.persist(task2);
@@ -105,10 +105,10 @@ public class TaskExecutionFilteringIT {
         // Task 3: position /do/2
         TaskInstanceEntity task3 = new TaskInstanceEntity();
         task3.setInstanceId(WORKFLOW_ID);
-        task3.setTaskPosition("/do/2");
+        task3.setTask("/do/2");
         task3.setTaskName("task-gamma");
         task3.setStatus("RUNNING");
-        task3.setStart(ZonedDateTime.now().minusMinutes(5));
+        task3.setStartedAt(ZonedDateTime.now().minusMinutes(5));
         task3.setInput(MAPPER.readTree("{\"customerId\":\"789\"}"));
         em.persist(task3);
 
