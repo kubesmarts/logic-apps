@@ -119,7 +119,7 @@ public class TaskExecutionStorageIT {
         assertNotNull(task, "Task should be found");
         assertEquals(derivedId, task.getId(), "ID should match derived format");
         assertEquals(TEST_WORKFLOW_ID, task.getInstanceId(), "Instance ID should match");
-        assertEquals(TEST_TASK_POSITION_1, task.getTaskPosition(), "Task position should match");
+        assertEquals(TEST_TASK_POSITION_1, task.getTask(), "Task should match");
         assertEquals("task1", task.getTaskName(), "Task name should match");
         assertEquals("COMPLETED", task.getStatus(), "Status should match");
     }
