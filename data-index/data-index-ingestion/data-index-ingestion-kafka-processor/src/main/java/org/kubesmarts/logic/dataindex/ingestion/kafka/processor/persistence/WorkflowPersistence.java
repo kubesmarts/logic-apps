@@ -94,8 +94,8 @@ public class WorkflowPersistence {
         } else {
             stmt.setNull(5, Types.VARCHAR);
         }
-        stmt.setObject(6, Optional.ofNullable(event.getStart()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
-        stmt.setObject(7, Optional.ofNullable(event.getEnd()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
+        stmt.setObject(6, Optional.ofNullable(event.getStartedAt()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
+        stmt.setObject(7, Optional.ofNullable(event.getEndedAt()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
         stmt.setObject(8, Optional.ofNullable(event.getLastUpdate()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
 
         // JSON fields

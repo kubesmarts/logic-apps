@@ -142,10 +142,10 @@ public class TaskPersistence {
 
         stmt.setString(1, event.getInstanceId());
         stmt.setString(2, event.getTaskName());
-        stmt.setString(3, event.getTaskPosition());
+        stmt.setString(3, event.getTask());
         stmt.setString(4, event.getStatus());
-        stmt.setObject(5, Optional.ofNullable(event.getStart()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
-        stmt.setObject(6, Optional.ofNullable(event.getEnd()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
+        stmt.setObject(5, Optional.ofNullable(event.getStartedAt()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
+        stmt.setObject(6, Optional.ofNullable(event.getEndedAt()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
         stmt.setString(7, toJsonString(event.getInput()));
         stmt.setString(8, toJsonString(event.getOutput()));
 
