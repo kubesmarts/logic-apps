@@ -130,7 +130,7 @@ public class WorkflowInstanceEntity extends AbstractEntity {
      * Task executions for this instance.
      * <p>Source: workflow.task.* events aggregated into TaskInstanceEntity records
      */
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "workflowInstance")
+    @OneToMany(mappedBy = "workflowInstance")
     private List<TaskInstanceEntity> taskExecutions;
 
     /**

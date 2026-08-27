@@ -64,19 +64,20 @@ Real-time event normalization - no Event Processor needed!
 │             ▼                               ▼                       │
 │  ┌──────────────────────┐       ┌──────────────────────┐           │
 │  │ workflow_instances   │       │ task_instances       │           │
-│  │ - id (PK)            │       │ - task_execution_id  │           │
-│  │ - namespace          │       │ - instance_id (FK)   │           │
+│  │ - id (PK)            │       │ - instance_id (PK)   │           │
+│  │ - namespace          │       │ - task_position (PK) │           │
 │  │ - name               │       │ - task_name          │           │
-│  │ - version            │       │ - task_position      │           │
-│  │ - status             │       │ - status             │           │
-│  │ - start              │       │ - start              │           │
-│  │ - end                │       │ - end                │           │
-│  │ - input (JSONB)      │       │ - input (JSONB)      │           │
-│  │ - output (JSONB)     │       │ - output (JSONB)     │           │
+│  │ - version            │       │ - status             │           │
+│  │ - status             │       │ - start              │           │
+│  │ - start              │       │ - end                │           │
+│  │ - end                │       │ - input (JSONB)      │           │
+│  │ - input (JSONB)      │       │ - output (JSONB)     │           │
+│  │ - output (JSONB)     │       │ - error_*            │           │
 │  │ - error_*            │       │ - created_at         │           │
 │  │ - created_at         │       │ - updated_at         │           │
-│  │ - updated_at         │       └──────────────────────┘           │
-│  └──────────────────────┘                                          │
+│  │ - updated_at         │       │ - FK: instance_id →  │           │
+│  └──────────────────────┘       │   workflow_instances │           │
+                                  └──────────────────────┘           │
 └───────┬──────────────────────────────────────────────────────────────┘
         │
         │  (JPA queries)
@@ -147,11 +148,14 @@ Extracts fields from `data` JSONB and UPSERTs into `task_instances`:
 INSERT INTO workflow_instances (id) VALUES (data->>'instanceId')
 ON CONFLICT DO NOTHING;
 
--- Then upsert task
-INSERT INTO task_instances (task_execution_id, instance_id, ...)
-VALUES (data->>'taskExecutionId', data->>'instanceId', ...)
-ON CONFLICT (task_execution_id) DO UPDATE SET ...;
+-- Then upsert task using composite key
+INSERT INTO task_instances (instance_id, task_position, task_name, ...)
+VALUES (data->>'instanceId', data->>'taskPosition', data->>'taskName', ...)
+ON CONFLICT (instance_id, task_position) DO UPDATE SET ...;
 ```
+
+**Note:** Composite primary key `(instance_id, task_position)` uniquely identifies tasks.  
+GraphQL `id` is derived as `"instanceId:taskPosition"`.
 
 ## Configuration Files
 

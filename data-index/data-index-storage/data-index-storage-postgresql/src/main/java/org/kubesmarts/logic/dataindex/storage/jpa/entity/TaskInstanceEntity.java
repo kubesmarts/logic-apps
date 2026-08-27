@@ -27,9 +27,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
+import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ForeignKey;
-import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -45,33 +45,25 @@ import jakarta.persistence.Table;
  *
  * <p><b>Event sources (via triggers):</b>
  * <ul>
- *   <li>workflow.task.started → taskExecutionId, taskName, taskPosition, start, input, status
+ *   <li>workflow.task.started → taskName, taskPosition, start, input, status
  *   <li>workflow.task.completed → end, output, status
  *   <li>workflow.task.faulted → end, status
  * </ul>
  *
- * <p>Maps to TaskInstance domain model.
+ * <p>Maps to TaskExecution domain model.
+ * <p>Uses @EmbeddedId for composite primary key to better handle FK on PK column scenario.
  */
 @Entity
 @Table(name = "task_instances")
 public class TaskInstanceEntity extends AbstractEntity {
 
     /**
-     * Task execution ID (primary key).
-     * <p>Source: taskExecutionId from Quarkus Flow events
-     * <p>Extracted by trigger from: data->>'taskExecutionId'
+     * Composite primary key (instance_id, task_position).
+     * <p>Using @EmbeddedId instead of @IdClass for better JPA handling when
+     * instance_id is also a foreign key column.
      */
-    @Id
-    @Column(name = "task_execution_id")
-    private String taskExecutionId;
-
-    /**
-     * Workflow instance ID (foreign key).
-     * <p>Source: instanceId from Quarkus Flow events
-     * <p>Extracted by trigger from: data->>'instanceId'
-     */
-    @Column(name = "instance_id", nullable = false)
-    private String instanceId;
+    @EmbeddedId
+    private TaskInstanceEntityId id;
 
     /**
      * Task name.
@@ -79,14 +71,6 @@ public class TaskInstanceEntity extends AbstractEntity {
      * <p>Extracted by trigger from: data->>'taskName'
      */
     private String taskName;
-
-    /**
-     * Task position in workflow document (JSONPointer).
-     * <p>Source: taskPosition from Quarkus Flow task events
-     * <p>Extracted by trigger from: data->>'taskPosition'
-     * <p>Examples: "do/0/set-0", "fork/branches/0/do/1"
-     */
-    private String taskPosition;
 
     /**
      * Task instance status.
@@ -156,31 +140,51 @@ public class TaskInstanceEntity extends AbstractEntity {
     /**
      * Reference to parent workflow instance.
      * <p>Foreign key relationship to workflow_instances table
+     * <p>Note: instance_id is also part of composite PK, so relationship uses referencedColumnName
      */
     @ManyToOne
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "instance_id", foreignKey = @ForeignKey(name = "fk_task_instance_workflow"), insertable = false, updatable = false)
+    @JoinColumn(name = "instance_id", referencedColumnName = "id", foreignKey = @ForeignKey(name = "fk_task_instance_workflow"), insertable = false, updatable = false)
     private WorkflowInstanceEntity workflowInstance;
 
     @Override
     public String getId() {
-        return taskExecutionId;
+        // Return derived ID from composite key
+        if (id != null && id.getInstanceId() != null && id.getTaskPosition() != null) {
+            return id.getInstanceId() + ":" + id.getTaskPosition();
+        }
+        return null;
     }
 
-    public String getTaskExecutionId() {
-        return taskExecutionId;
+    public TaskInstanceEntityId getCompositeId() {
+        return id;
     }
 
-    public void setTaskExecutionId(String taskExecutionId) {
-        this.taskExecutionId = taskExecutionId;
+    public void setCompositeId(TaskInstanceEntityId id) {
+        this.id = id;
     }
 
+    // Convenience getters/setters for composite key parts (for backward compatibility)
     public String getInstanceId() {
-        return instanceId;
+        return id != null ? id.getInstanceId() : null;
     }
 
     public void setInstanceId(String instanceId) {
-        this.instanceId = instanceId;
+        if (this.id == null) {
+            this.id = new TaskInstanceEntityId();
+        }
+        this.id.setInstanceId(instanceId);
+    }
+
+    public String getTaskPosition() {
+        return id != null ? id.getTaskPosition() : null;
+    }
+
+    public void setTaskPosition(String taskPosition) {
+        if (this.id == null) {
+            this.id = new TaskInstanceEntityId();
+        }
+        this.id.setTaskPosition(taskPosition);
     }
 
     public String getTaskName() {
@@ -189,14 +193,6 @@ public class TaskInstanceEntity extends AbstractEntity {
 
     public void setTaskName(String taskName) {
         this.taskName = taskName;
-    }
-
-    public String getTaskPosition() {
-        return taskPosition;
-    }
-
-    public void setTaskPosition(String taskPosition) {
-        this.taskPosition = taskPosition;
     }
 
     public String getStatus() {
@@ -280,21 +276,19 @@ public class TaskInstanceEntity extends AbstractEntity {
             return false;
         }
         TaskInstanceEntity that = (TaskInstanceEntity) o;
-        return Objects.equals(taskExecutionId, that.taskExecutionId);
+        return Objects.equals(id, that.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(taskExecutionId);
+        return Objects.hash(id);
     }
 
     @Override
     public String toString() {
         return "TaskInstanceEntity{" +
-                "taskExecutionId='" + taskExecutionId + '\'' +
-                ", instanceId='" + instanceId + '\'' +
+                "id=" + id +
                 ", taskName='" + taskName + '\'' +
-                ", taskPosition='" + taskPosition + '\'' +
                 ", status='" + status + '\'' +
                 ", start=" + start +
                 ", end=" + end +

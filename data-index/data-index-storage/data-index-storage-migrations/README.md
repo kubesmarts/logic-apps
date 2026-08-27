@@ -96,10 +96,9 @@ Trigger function extracts:
 
 | JSONB Path (data->>) | task_instances Column | Type | Conversion |
 |----------------------|-----------------------|------|------------|
-| `instanceId` | `instance_id` | VARCHAR(255) | Direct |
-| `taskExecutionId` | `task_execution_id` | VARCHAR(255) | Direct |
+| `instanceId` | `instance_id` | VARCHAR(255) | Direct (PK part 1) |
+| `taskPosition` | `task_position` | VARCHAR(255) | Direct (PK part 2) |
 | `taskName` | `task_name` | VARCHAR(255) | Direct |
-| `taskPosition` | `task_position` | VARCHAR(255) | Direct |
 | `status` | `status` | VARCHAR(50) | Direct |
 | `startTime` | `start` | TIMESTAMP | `to_timestamp(::numeric)` |
 | `endTime` | `end` | TIMESTAMP | `to_timestamp(::numeric)` |

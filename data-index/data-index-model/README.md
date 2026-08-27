@@ -88,7 +88,7 @@ Represents a single task execution within a workflow:
 
 ```java
 public class TaskExecution {
-    private String id;              // Task execution ID (event ID)
+    private String id;              // Derived ID: "instanceId:taskPosition"
     private String instanceId;      // Parent workflow instance ID
     private String taskName;        // Task name from definition
     private String taskPosition;    // Task position (e.g., "/do/0")
@@ -109,10 +109,19 @@ public class TaskExecution {
     public String getInputData() {
         return input != null ? input.toString() : null;
     }
+    
+    // Derived ID from composite key
+    public String getId() {
+        if (id != null) return id;
+        if (instanceId != null && taskPosition != null) {
+            return instanceId + ":" + taskPosition;
+        }
+        return null;
+    }
 }
 ```
 
-**Important:** `id` is the task execution ID (unique per event), NOT a synthetic database ID.
+**Important:** `id` is derived from `(instanceId, taskPosition)` composite key, NOT stored in database.
 
 ### WorkflowInstanceStatus
 

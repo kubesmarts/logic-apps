@@ -140,33 +140,31 @@ public class TaskPersistence {
 
     private void setTaskParameters(PreparedStatement stmt, TaskExecution event) throws SQLException {
 
-        stmt.setString(1, event.getId());
-        stmt.setString(2, event.getInstanceId());
-        stmt.setString(3, event.getTaskName());
-        stmt.setString(4, event.getTaskPosition());
-        stmt.setString(5, event.getStatus());
-        stmt.setObject(6, Optional.ofNullable(event.getStart()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
-        stmt.setObject(7, Optional.ofNullable(event.getEnd()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
-        stmt.setString(8, toJsonString(event.getInput()));
-        stmt.setString(9, toJsonString(event.getOutput()));
-
+        stmt.setString(1, event.getInstanceId());
+        stmt.setString(2, event.getTaskName());
+        stmt.setString(3, event.getTaskPosition());
+        stmt.setString(4, event.getStatus());
+        stmt.setObject(5, Optional.ofNullable(event.getStart()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
+        stmt.setObject(6, Optional.ofNullable(event.getEnd()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
+        stmt.setString(7, toJsonString(event.getInput()));
+        stmt.setString(8, toJsonString(event.getOutput()));
 
         // Error fields
         if (event.getError() != null) {
-            stmt.setString(10, event.getError().getType());
-            stmt.setString(11, event.getError().getTitle());
-            stmt.setString(12, event.getError().getDetail());
-            stmt.setObject(13, event.getError().getStatus());
-            stmt.setString(14, event.getError().getInstance());
+            stmt.setString(9, event.getError().getType());
+            stmt.setString(10, event.getError().getTitle());
+            stmt.setString(11, event.getError().getDetail());
+            stmt.setObject(12, event.getError().getStatus());
+            stmt.setString(13, event.getError().getInstance());
         } else {
+            stmt.setNull(9, java.sql.Types.VARCHAR);
             stmt.setNull(10, java.sql.Types.VARCHAR);
             stmt.setNull(11, java.sql.Types.VARCHAR);
-            stmt.setNull(12, java.sql.Types.VARCHAR);
-            stmt.setNull(13, java.sql.Types.INTEGER);
-            stmt.setNull(14, java.sql.Types.VARCHAR);
+            stmt.setNull(12, java.sql.Types.INTEGER);
+            stmt.setNull(13, java.sql.Types.VARCHAR);
         }
 
-        stmt.setObject(15, Optional.ofNullable(event.getEventTimestamp()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
+        stmt.setObject(14, Optional.ofNullable(event.getEventTimestamp()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
     }
 
     private String toJsonString(JsonNode node) {

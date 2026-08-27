@@ -2,7 +2,61 @@
 
 **Project:** Data Index v1.0.0 for Open Workflow 1.0.0  
 **Status:** Production Ready (MODE 1, MODE 2 & MODE 3)  
-**Last Updated:** 2026-05-29
+**Last Updated:** 2026-08-26
+
+---
+
+## **CRITICAL: Development Process - ASK Before Changing**
+
+**NEVER assume - always ASK when you encounter:**
+
+1. **Multiple solution paths** - Present options with trade-offs, wait for approval
+2. **Bug fixes with design choices** - Explain approaches, get confirmation  
+3. **Architecture or design pattern changes** - Discuss implications first
+4. **Field naming or mapping decisions** - Verify correct approach
+5. **Any change where the "right" way isn't obvious**
+
+**Process:**
+1. **STOP** when you identify an issue or choice
+2. **EXPLAIN** the situation and present options clearly
+3. **WAIT** for explicit approval from the user
+4. **IMPLEMENT** the approved approach
+
+**Example:**
+```
+Found bug: GraphQL filters fail for composite key fields.
+
+Option A: Add shadow properties to entity
+  ✅ GraphQL layer unchanged
+  ❌ Field duplication
+
+Option B: Fix converters to use nested paths  
+  ✅ Cleaner entity
+  ✅ Single source of truth
+  ❌ More converter changes
+
+Which approach should I use?
+```
+
+**Do NOT:**
+- Implement without explaining options
+- Assume you know the best approach
+- Make architectural decisions unilaterally
+- Skip approval for "obvious" fixes
+
+---
+
+## **CRITICAL: Governance and Review Process**
+
+**NEVER push code or create PRs without explicit user approval:**
+
+1. **Test First:** Always run relevant tests before committing
+2. **Commit Locally:** Commit changes to local branch only
+3. **Report Results:** Show test results and summary of changes
+4. **Wait for Approval:** User reviews and decides when to push/create PR
+5. **No Assumptions:** Don't assume code is ready just because it compiles
+
+**This is NOT negotiable. Pushing untested code or creating PRs without approval is a critical error.**
 
 ---
 
@@ -397,32 +451,32 @@ task.completed event: taskExecutionId = 97469968-64b5-3cdd-b809-e58e4b6e3be7
 - ON CONFLICT: `(task_execution_id)` → never matches
 - Result: Always INSERTs new row (4 rows for 2 tasks)
 
-**Solution (V2 Migration):**
+**Current Solution:**
 - Primary key: `(instance_id, task_position)` - composite key
 - ON CONFLICT: `(instance_id, task_position)` → matches on same task
 - Result: UPDATEs existing row on subsequent events (2 rows for 2 tasks)
+- **No task_execution_id column** - ID is derived from composite key
 
 **Rationale:**
 - `(instance_id, task_position)` uniquely identifies a task execution within a workflow
 - Same workflow + same position = same task (regardless of changing taskExecutionId)
 - Enables proper UPSERT behavior despite Quarkus Flow's ID generation
+- TaskExecution.id is derived as `instanceId + ":" + taskPosition`
 
-**Migration:** `V2__fix_task_instances_composite_key.sql`
-- Drops old PK on `task_execution_id`
-- Adds composite PK on `(instance_id, task_position)`
-- Updates trigger function to use composite key for conflict resolution
-- Cleans up existing duplicates (keeps latest by `last_event_time`)
-- Adds index on `task_execution_id` for GraphQL queries by ID
+**Schema (V1):**
+- Composite PK on `(instance_id, task_position)`
+- Trigger function uses composite key for conflict resolution
+- No task_execution_id column (derived in application layer)
 
 **DO:**
 - ✅ Use composite key `(instance_id, task_position)` for task identity
-- ✅ Keep `task_execution_id` as a regular column (still exposed in GraphQL)
+- ✅ Derive TaskExecution.id from `instanceId + ":" + taskPosition`
 - ✅ Trust `task_position` to be stable across task lifecycle
 
 **DON'T:**
-- ❌ Don't rely on `taskExecutionId` for UPSERT logic (it changes per event)
+- ❌ Don't add task_execution_id column to database
+- ❌ Don't rely on Quarkus Flow's taskExecutionId for identity (it changes per event)
 - ❌ Don't assume Quarkus Flow will fix this (working as designed for their use case)
-- ❌ Don't remove `task_execution_id` column (GraphQL API still needs it)
 
 ### Metrics & Observability
 
@@ -474,16 +528,19 @@ data-index.metrics.transform.poll-interval=30s
 
 **Database columns → JPA Entity → GraphQL:**
 ```
-task_instances.task_execution_id → TaskInstanceEntity.taskExecutionId → TaskExecution.id
-task_instances.start             → TaskInstanceEntity.start          → TaskExecution.start (@JsonProperty("startDate"))
-task_instances.end               → TaskInstanceEntity.end            → TaskExecution.end (@JsonProperty("endDate"))
-task_instances.input             → TaskInstanceEntity.input          → TaskExecution.input (@Ignore, exposed via getInputData())
+task_instances.instance_id   → TaskInstanceEntity.instanceId   → TaskExecution.instanceId
+task_instances.task_position → TaskInstanceEntity.taskPosition → TaskExecution.taskPosition
+(derived ID)                 → TaskInstanceEntity.getId()      → TaskExecution.getId() (returns "instanceId:taskPosition")
+task_instances.start         → TaskInstanceEntity.start        → TaskExecution.start (@JsonProperty("startDate"))
+task_instances.end           → TaskInstanceEntity.end          → TaskExecution.end (@JsonProperty("endDate"))
+task_instances.input         → TaskInstanceEntity.input        → TaskExecution.input (@Ignore, exposed via getInputData())
 ```
 
 **IMPORTANT:**
+- TaskExecution.id is derived from instanceId + taskPosition (no database column)
 - Database uses `start`/`end` (reserved SQL keywords, quoted)
 - GraphQL uses `startDate`/`endDate` (via `@JsonProperty`)
-- Never use old names: `enter`/`exit`, `triggerTime`/`leaveTime`
+- Never use old names: `enter`/`exit`, `triggerTime`/`leaveTime`, `taskExecutionId`
 
 ### Error Handling
 

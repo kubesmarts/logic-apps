@@ -94,7 +94,6 @@ public class WorkflowInstanceGraphQLApiTest {
         List<TaskInstanceEntity> tasks1 = new ArrayList<>();
 
         TaskInstanceEntity task1 = new TaskInstanceEntity();
-        task1.setTaskExecutionId("task-1-1");
         task1.setInstanceId(TEST_WORKFLOW_ID_1);
         task1.setTaskName("validateInput");
         task1.setTaskPosition("/do/0");
@@ -107,7 +106,6 @@ public class WorkflowInstanceGraphQLApiTest {
         tasks1.add(task1);
 
         TaskInstanceEntity task2 = new TaskInstanceEntity();
-        task2.setTaskExecutionId("task-1-2");
         task2.setInstanceId(TEST_WORKFLOW_ID_1);
         task2.setTaskName("processData");
         task2.setTaskPosition("/do/1");
@@ -119,8 +117,14 @@ public class WorkflowInstanceGraphQLApiTest {
         task2.setWorkflowInstance(workflow1);
         tasks1.add(task2);
 
-        workflow1.setTaskExecutions(tasks1);
+        // Persist workflow first
         em.persist(workflow1);
+
+        // Persist task instances separately (composite ID entities can't cascade)
+        em.persist(task1);
+        em.persist(task2);
+
+        workflow1.setTaskExecutions(tasks1);
 
         // Create test workflow instance 2 with error
         WorkflowInstanceEntity workflow2 = new WorkflowInstanceEntity();
@@ -144,7 +148,6 @@ public class WorkflowInstanceGraphQLApiTest {
         List<TaskInstanceEntity> tasks2 = new ArrayList<>();
 
         TaskInstanceEntity task3 = new TaskInstanceEntity();
-        task3.setTaskExecutionId("task-2-1");
         task3.setInstanceId(TEST_WORKFLOW_ID_2);
         task3.setTaskName("failingTask");
         task3.setTaskPosition("/do/0");
@@ -164,8 +167,13 @@ public class WorkflowInstanceGraphQLApiTest {
         task3.setWorkflowInstance(workflow2);
         tasks2.add(task3);
 
-        workflow2.setTaskExecutions(tasks2);
+        // Persist workflow first
         em.persist(workflow2);
+
+        // Persist task instance separately (composite ID entities can't cascade)
+        em.persist(task3);
+
+        workflow2.setTaskExecutions(tasks2);
 
         em.flush();
     }
@@ -478,12 +486,61 @@ public class WorkflowInstanceGraphQLApiTest {
                 .post("/graphql")
                 .then()
                 .statusCode(200)
-                .body("data.getWorkflowInstance.taskExecutions[0].id", equalTo("task-2-1"))
+                .body("data.getWorkflowInstance.taskExecutions[0].id", equalTo(TEST_WORKFLOW_ID_2 + ":/do/0"))
                 .body("data.getWorkflowInstance.taskExecutions[0].error.type", equalTo("communication"))
                 .body("data.getWorkflowInstance.taskExecutions[0].error.status", equalTo(500))
                 .body("data.getWorkflowInstance.taskExecutions[0].error.title", equalTo("Internal Server Error"))
                 .body("data.getWorkflowInstance.taskExecutions[0].error.instance", equalTo("/do/0/failingTask"))
                 .body("data.getWorkflowInstance.taskExecutions[0].error.detail", equalTo("{\"code\":500,\"message\":\"API call failed\"}"));
+    }
+
+    /**
+     * Test task execution ordering by enter/exit (mapped to start/end entity fields).
+     * Validates OrderByConverter correctly maps GraphQL enter→start and exit→end.
+     */
+    @Test
+    public void testTaskExecutionOrdering() {
+        // Test ordering by enter (maps to start field)
+        String queryByEnter = """
+            {
+              getTaskExecutions(limit: 10, orderBy: { enter: ASC }) {
+                id
+                taskName
+                startDate
+              }
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(Map.of("query", queryByEnter))
+        .when()
+            .post("/graphql")
+        .then()
+            .statusCode(200)
+            .body("data.getTaskExecutions", notNullValue())
+            .body("data.getTaskExecutions.size()", greaterThan(0));
+
+        // Test ordering by exit (maps to end field)
+        String queryByExit = """
+            {
+              getTaskExecutions(limit: 10, orderBy: { exit: DESC }) {
+                id
+                taskName
+                endDate
+              }
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(Map.of("query", queryByExit))
+        .when()
+            .post("/graphql")
+        .then()
+            .statusCode(200)
+            .body("data.getTaskExecutions", notNullValue())
+            .body("data.getTaskExecutions.size()", greaterThan(0));
     }
 
     /**

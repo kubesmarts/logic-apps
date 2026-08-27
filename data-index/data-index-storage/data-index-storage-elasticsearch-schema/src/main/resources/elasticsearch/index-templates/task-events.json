@@ -31,14 +31,6 @@
             }
           }
         },
-        "taskExecutionId": {
-          "type": "text",
-          "fields": {
-            "keyword": {
-              "type": "keyword"
-            }
-          }
-        },
         "taskPosition": {
           "type": "text",
           "fields": {

@@ -98,10 +98,25 @@ public class TaskExecution {
      */
     private ZonedDateTime eventTimestamp;
 
+    /**
+     * Get derived task execution ID.
+     * <p>ID is derived from instanceId + taskPosition (format: "instanceId:taskPosition")
+     * <p>No database column - computed from composite key
+     */
     public String getId() {
-        return id;
+        if (id != null) {
+            return id;
+        }
+        if (instanceId != null && taskPosition != null) {
+            return instanceId + ":" + taskPosition;
+        }
+        return null;
     }
 
+    /**
+     * Set task execution ID.
+     * <p>For deserialization only - ID is normally derived from instanceId + taskPosition
+     */
     public void setId(String id) {
         this.id = id;
     }
