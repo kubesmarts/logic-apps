@@ -48,15 +48,15 @@ public class FaultedWorkflowIT extends BaseWorkflowLifecycleIT {
             // Verify task is also FAULTED with error
             try (Connection conn = dataSource.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(
-                         "SELECT task_name, task_position, status, error_type, error_status, error_detail " +
-                                 "FROM task_instances WHERE instance_id = ? AND task_position = ? AND status = ?")) {
+                         "SELECT task_name, task, status, error_type, error_status, error_detail " +
+                                 "FROM task_instances WHERE instance_id = ? AND task = ? AND status = ?")) {
                 stmt.setString(1, workflowId);
                 stmt.setString(2 , "do/0/http-0");
                 stmt.setString(3 , "FAILED");
                 try (ResultSet rs = stmt.executeQuery()) {
                     assertThat(rs.next()).isTrue();
                     assertThat(rs.getString("task_name")).isEqualTo("http-0");
-                    assertThat(rs.getString("task_position")).isEqualTo("do/0/http-0");
+                    assertThat(rs.getString("task")).isEqualTo("do/0/http-0");
                     assertThat(rs.getString("status")).isEqualTo("FAILED");
 
                     // Verify task error fields
