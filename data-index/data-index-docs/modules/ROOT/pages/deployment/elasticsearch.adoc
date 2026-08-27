@@ -68,7 +68,7 @@ Before deploying Elasticsearch mode, ensure you have:
 
 === Quick Start with Dev Services
 
-Quarkus Dev Services automatically starts Elasticsearch 8.11.1 in Docker for local development:
+Quarkus Dev Services automatically starts Elasticsearch 9.4.1 in Docker for local development:
 
 [source,bash]
 ----
@@ -79,7 +79,7 @@ cd data-index/data-index-service/data-index-service-elasticsearch
 mvn quarkus:dev
 
 # What happens automatically:
-# 1. Elasticsearch 8.11.1 container starts
+# 1. Elasticsearch 9.4.1 container starts
 # 2. Schema initializer creates ILM policies, index templates, transforms
 # 3. GraphQL API available at http://localhost:8080/graphql
 # 4. GraphQL UI available at http://localhost:8080/q/graphql-ui
@@ -87,7 +87,7 @@ mvn quarkus:dev
 
 **Dev Services features:**
 
-* Auto-starts `docker.elastic.co/elasticsearch/elasticsearch:8.11.1`
+* Auto-starts Elasticsearch (version from Quarkus BOM - currently 9.4.1)
 * Exposes Elasticsearch on random port (check logs for URL)
 * Schema initialization runs automatically
 * Live coding enabled (code changes trigger reload)
@@ -102,8 +102,8 @@ mvn quarkus:dev
 [source,properties]
 ----
 # Elasticsearch Dev Services (enabled in dev mode)
+# Uses version from Quarkus BOM automatically (no image-name override needed)
 %dev.quarkus.elasticsearch.devservices.enabled=true
-%dev.quarkus.elasticsearch.devservices.image-name=docker.elastic.co/elasticsearch/elasticsearch:8.11.1
 %dev.quarkus.elasticsearch.devservices.port=9200
 
 # Schema initialization (enabled in dev, disabled in production)
@@ -152,7 +152,7 @@ metadata:
   name: data-index-es
   namespace: elasticsearch
 spec:
-  version: 8.11.1
+  version: 9.4.1
   nodeSets:
   - name: default
     count: 3
@@ -191,7 +191,7 @@ helm install elasticsearch elastic/elasticsearch \
   --set minimumMasterNodes=2 \
   --set resources.requests.memory=2Gi \
   --set volumeClaimTemplate.resources.requests.storage=10Gi \
-  --version 8.11.1
+  --version 9.4.1
 
 # Wait for pods to be ready
 kubectl wait --namespace elasticsearch \

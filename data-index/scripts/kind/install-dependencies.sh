@@ -172,7 +172,8 @@ spec:
     spec:
       containers:
       - name: elasticsearch
-        image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+        # Version must match Quarkus BOM (currently 9.4.1 from Quarkus 3.39.0)
+        image: docker.elastic.co/elasticsearch/elasticsearch:9.4.1
         env:
         - name: discovery.type
           value: single-node

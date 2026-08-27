@@ -2,10 +2,10 @@ package org.kubesmarts.logic.dataindex.test;
 
 import io.quarkiverse.flow.Flow;
 import io.serverlessworkflow.api.types.Workflow;
-import io.serverlessworkflow.fluent.func.FuncWorkflowBuilder;
+import io.quarkiverse.flow.dsl.FlowWorkflowBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
 
-import static io.serverlessworkflow.fluent.func.dsl.FuncDSL.set;
+import static io.quarkiverse.flow.dsl.FlowDSL.set;
 
 /**
  * Simple workflow defined using Java DSL.
@@ -16,7 +16,7 @@ public class SimpleSetWorkflow extends Flow {
 
     @Override
     public Workflow descriptor() {
-        return FuncWorkflowBuilder.workflow("simple-set")
+        return FlowWorkflowBuilder.workflow("simple-set")
                 .tasks(
                         // Task 1: Set greeting and metadata
                         set("""

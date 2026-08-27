@@ -34,7 +34,6 @@
 
   <properties>
     <java.module.name>org.kubesmarts.logic.workflow.test</java.module.name>
-    <quarkus-flow.version>0.9.0</quarkus-flow.version>
   </properties>
 
   <dependencyManagement>
@@ -56,11 +55,10 @@
   </dependencyManagement>
 
   <dependencies>
-    <!-- Quarkus Flow runtime (local SNAPSHOT) -->
+    <!-- Quarkus Flow runtime -->
     <dependency>
       <groupId>io.quarkiverse.flow</groupId>
       <artifactId>quarkus-flow</artifactId>
-      <version>${quarkus-flow.version}</version>
     </dependency>
 
     <!-- REST support -->

@@ -83,7 +83,7 @@ class ElasticsearchSchemaInitializationIT {
         assertThat(response.indexTemplates()).hasSize(1);
 
         IndexTemplateItem templateItem = response.indexTemplates().get(0);
-        IndexTemplate template = templateItem.indexTemplate();
+        var template = templateItem.indexTemplate();
         assertThat(template).isNotNull();
 
         assertThat(template.indexPatterns()).contains("workflow-events-*");
@@ -162,7 +162,7 @@ class ElasticsearchSchemaInitializationIT {
         assertThat(response.indexTemplates()).hasSize(1);
 
         IndexTemplateItem templateItem = response.indexTemplates().get(0);
-        IndexTemplate template = templateItem.indexTemplate();
+        var template = templateItem.indexTemplate();
         assertThat(template).isNotNull();
 
         assertThat(template.indexPatterns()).contains("workflow-instances");

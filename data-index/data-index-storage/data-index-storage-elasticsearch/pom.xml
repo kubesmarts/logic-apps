@@ -58,17 +58,16 @@
       <artifactId>data-index-model</artifactId>
     </dependency>
 
-    <!-- Elasticsearch client -->
-    <dependency>
-      <groupId>co.elastic.clients</groupId>
-      <artifactId>elasticsearch-java</artifactId>
-      <version>8.11.1</version>
-    </dependency>
-
-    <!-- Quarkus Elasticsearch -->
+    <!-- Quarkus Elasticsearch - Java client for high-level API -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-elasticsearch-java-client</artifactId>
+    </dependency>
+
+    <!-- Quarkus Elasticsearch - REST client for low-level API -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-elasticsearch-rest-client</artifactId>
     </dependency>
 
     <!-- Jackson for JSON -->

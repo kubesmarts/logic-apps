@@ -44,8 +44,8 @@
     <git-commit-id-plugin.version>4.9.10</git-commit-id-plugin.version>
 
     <!-- Data Index specific dependency versions -->
-    <version.org.json>20231013</version.org.json>
-    <version.io.quarkiverse.reactive-messaging-http>2.7.1</version.io.quarkiverse.reactive-messaging-http>
+    <quarkus-flow.version>1.0.0</quarkus-flow.version>
+    <cloudevents.version>4.0.2</cloudevents.version>
 
     <!-- Legacy Kogito dependencies (temporary - will be removed in future phases) -->
     <kogito.version>999-SNAPSHOT</kogito.version>
@@ -53,6 +53,15 @@
 
   <dependencyManagement>
     <dependencies>
+      <!-- Quarkus Flow BOM - provides serverlessworkflow dependency versions -->
+      <dependency>
+        <groupId>io.quarkiverse.flow</groupId>
+        <artifactId>quarkus-flow-bom</artifactId>
+        <version>${quarkus-flow.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
       <!-- Data Index internal modules -->
       <dependency>
         <groupId>org.kubesmarts.logic.apps</groupId>
@@ -124,17 +133,6 @@
         <artifactId>data-index-ingestion-kafka-service</artifactId>
         <version>${project.version}</version>
       </dependency>
-      <!-- Data Index specific dependencies -->
-      <dependency>
-        <groupId>org.json</groupId>
-        <artifactId>json</artifactId>
-        <version>${version.org.json}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.quarkiverse.reactivemessaging.http</groupId>
-        <artifactId>quarkus-reactive-messaging-http</artifactId>
-        <version>${version.io.quarkiverse.reactive-messaging-http}</version>
-      </dependency>
 
       <!-- Persistence Commons API - provides Storage interface abstraction -->
       <dependency>
@@ -143,34 +141,16 @@
         <version>${kogito.version}</version>
       </dependency>
 
-      <!-- Override Elasticsearch Java Client version to match server (8.11.1) -->
-      <!-- Quarkus 3.34.5 uses 9.2.3 by default, which has compatibility issues with ES 8.x -->
-      <dependency>
-        <groupId>co.elastic.clients</groupId>
-        <artifactId>elasticsearch-java</artifactId>
-        <version>8.11.1</version>
-      </dependency>
-      <dependency>
-        <groupId>org.elasticsearch.client</groupId>
-        <artifactId>elasticsearch-rest-client</artifactId>
-        <version>8.11.1</version>
-      </dependency>
-      <dependency>
-        <groupId>org.elasticsearch.client</groupId>
-        <artifactId>elasticsearch-rest-client-sniffer</artifactId>
-        <version>8.11.1</version>
-      </dependency>
-
       <!-- CloudEvents -->
       <dependency>
         <groupId>io.cloudevents</groupId>
         <artifactId>cloudevents-core</artifactId>
-        <version>4.0.2</version>
+        <version>${cloudevents.version}</version>
       </dependency>
       <dependency>
         <groupId>io.cloudevents</groupId>
         <artifactId>cloudevents-json-jackson</artifactId>
-        <version>4.0.2</version>
+        <version>${cloudevents.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -98,13 +98,6 @@
       <artifactId>mockito-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
-
-    <!-- Elasticsearch REST client for test configuration -->
-    <dependency>
-      <groupId>org.elasticsearch.client</groupId>
-      <artifactId>elasticsearch-rest-client</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <build>

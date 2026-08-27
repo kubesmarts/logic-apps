@@ -89,7 +89,7 @@ mvn quarkus:dev
 
 **Dev Services Elasticsearch configuration (MODE 2):**
 
-* Container: `docker.elastic.co/elasticsearch/elasticsearch:8.11.1`
+* Container: Elasticsearch (version from Quarkus BOM - currently 9.4.1)
 * Port: `9200`
 * Protocol: `http`
 * Automatic schema creation (ILM policies, index templates, transforms) on startup
@@ -216,10 +216,8 @@ quarkus.elasticsearch.password=${ELASTICSEARCH_PASSWORD}
 [source,properties]
 ----
 # Enable automatic Elasticsearch container
+# Uses version from Quarkus BOM automatically
 %dev.quarkus.elasticsearch.devservices.enabled=true
-
-# Elasticsearch version
-%dev.quarkus.elasticsearch.devservices.image-name=docker.elastic.co/elasticsearch/elasticsearch:8.11.1
 
 # Port
 %dev.quarkus.elasticsearch.devservices.port=9200

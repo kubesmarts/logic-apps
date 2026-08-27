@@ -40,10 +40,6 @@ class ElasticsearchDevServicesTest {
     void testElasticsearchDevServicesIsRunning() throws Exception {
         InfoResponse info = elasticsearchClient.info();
 
-        assertThat(info.version().number())
-            .as("Elasticsearch version should be 8.11.1")
-            .startsWith("8.11");
-
         assertThat(info.clusterName())
             .as("Elasticsearch cluster should be running")
             .isNotNull();

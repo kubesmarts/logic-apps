@@ -20,14 +20,14 @@ package org.kubesmarts.logic.dataindex.storage.elasticsearch.schema;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import co.elastic.clients.transport.rest_client.RestClientTransport;
+import co.elastic.clients.transport.rest5_client.Rest5ClientTransport;
+import co.elastic.clients.transport.rest5_client.low_level.Node;
+import co.elastic.clients.transport.rest5_client.low_level.Rest5Client;
 import io.quarkus.arc.DefaultBean;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Disposes;
 import jakarta.enterprise.inject.Produces;
-import org.apache.http.HttpHost;
-import org.apache.http.message.BasicHeader;
-import org.elasticsearch.client.RestClient;
+import org.apache.hc.core5.http.HttpHost;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
@@ -43,15 +43,10 @@ public class TestElasticsearchClientProducer {
         String host = hostPort[0];
         int port = hostPort.length > 1 ? Integer.parseInt(hostPort[1]) : 9200;
 
-        RestClient restClient = RestClient
-                .builder(new HttpHost(host, port, "http"))
-                .setDefaultHeaders(new BasicHeader[]{
-                        new BasicHeader("Content-Type", "application/json"),
-                        new BasicHeader("Accept", "application/json")
-                })
-                .build();
+        HttpHost httpHost = new HttpHost("http", host, port);
+        Rest5Client restClient = Rest5Client.builder(new Node(httpHost)).build();
 
-        RestClientTransport transport = new RestClientTransport(
+        Rest5ClientTransport transport = new Rest5ClientTransport(
                 restClient,
                 new JacksonJsonpMapper()
         );
@@ -60,7 +55,7 @@ public class TestElasticsearchClientProducer {
     }
 
     public void dispose(@Disposes ElasticsearchClient client) throws Exception {
-        if (client != null && client._transport() instanceof RestClientTransport transport) {
+        if (client != null && client._transport() instanceof Rest5ClientTransport transport) {
             transport.close();
         }
     }
