@@ -379,7 +379,7 @@ public class ElasticsearchStorageIntegrationTest {
         task.setId(id);
         task.setTaskName(taskName);
         task.setTaskPosition(taskPosition);
-        task.setStart(ZonedDateTime.now());
+        task.setStartedAt(ZonedDateTime.now());
         return task;
     }
 

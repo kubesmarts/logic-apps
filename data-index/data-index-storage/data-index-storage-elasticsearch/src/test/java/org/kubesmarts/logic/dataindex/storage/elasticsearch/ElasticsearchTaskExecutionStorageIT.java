@@ -161,7 +161,7 @@ class ElasticsearchTaskExecutionStorageIT {
         assertThat(retrieved.getTaskName()).isEqualTo("call-service");
         assertThat(retrieved.getTaskPosition()).isEqualTo("/do/0");
         assertThat(retrieved.getStatus()).isEqualTo("RUNNING");
-        assertThat(retrieved.getStart()).isNotNull();
+        assertThat(retrieved.getStartedAt()).isNotNull();
     }
 
     @Test
@@ -182,7 +182,7 @@ class ElasticsearchTaskExecutionStorageIT {
 
         // When: Update the execution
         execution.setStatus("COMPLETED");
-        execution.setEnd(ZonedDateTime.now());
+        execution.setEndedAt(ZonedDateTime.now());
         storage.put(TEST_ID_1, execution);
         waitForRefresh();
 
@@ -190,7 +190,7 @@ class ElasticsearchTaskExecutionStorageIT {
         TaskExecution retrieved = storage.get(TEST_ID_1);
         assertThat(retrieved).isNotNull();
         assertThat(retrieved.getStatus()).isEqualTo("COMPLETED");
-        assertThat(retrieved.getEnd()).isNotNull();
+        assertThat(retrieved.getEndedAt()).isNotNull();
     }
 
     @Test
@@ -430,7 +430,7 @@ class ElasticsearchTaskExecutionStorageIT {
         error.setInstance("error-task-001");
 
         execution.setError(error);
-        execution.setEnd(ZonedDateTime.now());
+        execution.setEndedAt(ZonedDateTime.now());
 
         // When: Put and get the execution
         storage.put(TEST_ID_1, execution);
@@ -593,7 +593,7 @@ class ElasticsearchTaskExecutionStorageIT {
         execution.setTaskName(taskName);
         execution.setTaskPosition(taskPosition);
         execution.setStatus(status);
-        execution.setStart(ZonedDateTime.now());
+        execution.setStartedAt(ZonedDateTime.now());
         return execution;
     }
 
