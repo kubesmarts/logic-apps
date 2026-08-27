@@ -94,21 +94,29 @@ type TaskExecution {
   status: String!
   startDate: String
   endDate: String
-  errorMessage: String
-  inputData: String      # JSON as string
-  outputData: String     # JSON as string
+  error: Error            # Structured error details
+  inputData: String       # JSON as string
+  outputData: String      # JSON as string
+}
+
+type Error {
+  type: String
+  title: String
+  detail: String
+  status: Int
+  instance: String
 }
 ----
 
 **Field descriptions:**
 
-* `id` - Unique task execution identifier
+* `id` - Unique task execution identifier (derived from instanceId:taskPosition)
 * `taskName` - Name of the task (optional)
 * `taskPosition` - JSONPointer identifying task location in workflow (e.g., "/do/0", "/do/1/then/0")
 * `status` - Task status: RUNNING, COMPLETED, FAULTED
 * `startDate` - ISO 8601 timestamp when task started
 * `endDate` - ISO 8601 timestamp when task ended
-* `errorMessage` - Error message if status is FAULTED
+* `error` - Structured error details if status is FAULTED (same Error type as WorkflowInstance)
 * `inputData` - Task input as JSON string
 * `outputData` - Task output as JSON string
 
@@ -215,7 +223,12 @@ Retrieve failed workflows with complete error information:
       taskPosition
       taskName
       status
-      errorMessage
+      error {
+        type
+        title
+        status
+        instance
+      }
     }
   }
 }
@@ -318,22 +331,130 @@ Response:
 }
 ----
 
-== Filtering
+== Filtering and Sorting
 
-The GraphQL API supports filtering on:
+The GraphQL API supports comprehensive filtering and sorting capabilities.
+
+=== Workflow Instance Filters
 
 * **status**: Filter by workflow status (RUNNING, COMPLETED, FAULTED, CANCELLED, SUSPENDED)
-* **name**: Filter by workflow name (exact match)
-* **namespace**: Filter by workflow namespace (exact match)
+* **name**: String filters (eq, like, in)
+* **namespace**: String filters (eq, like, in)
+* **version**: String filters (eq, like, in)
+* **startTime/endTime**: DateTime filters (eq, gt, gte, lt, lte, between)
+* **input/output**: JSON path filtering (filter by nested JSON fields)
+* **error**: Filter by error type, status, title, detail, instance
 
-[TIP]
-====
-*Future enhancements:*
+=== Task Execution Filters
 
-* JSON path filtering (e.g., filter by `input.orderId`)
-* Time range filtering (e.g., startDate between X and Y)
-* Sorting options
+* **taskPosition**: String filters (eq, like, in) - filters by task location in workflow
+* **taskName**: String filters (eq, like, in)
+* **status**: String filters (eq, in)
+* **enter/exit**: DateTime filters (maps to start/end times) - filter by task execution time
+* **inputArgs/outputArgs**: JSON path filtering (filter by task input/output data)
+* **error**: Filter by error details
+
+[NOTE]
 ====
+**Field Name Mappings:**
+
+GraphQL uses backward-compatible field names that map to entity fields internally:
+
+* `enter` → entity `start` field (task start time)
+* `exit` → entity `end` field (task end time)
+* `inputArgs` → entity `input` field
+* `outputArgs` → entity `output` field
+* `taskPosition` → composite key field `id.taskPosition`
+
+These mappings are transparent to API consumers.
+====
+
+=== Sorting
+
+Both workflows and tasks support ordering by most fields:
+
+[source,graphql]
+----
+{
+  getTaskExecutions(
+    orderBy: { enter: DESC }  # Order by start time, newest first
+  ) {
+    taskPosition
+    taskName
+    startDate
+  }
+}
+----
+
+**Supported sort fields:**
+
+* Workflows: `id`, `name`, `namespace`, `version`, `status`, `startTime`, `endTime`, `lastUpdate`
+* Tasks: `id`, `taskName`, `taskPosition`, `enter` (start), `exit` (end)
+
+=== Filter Examples
+
+**Filter by time range:**
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      startTime: { gte: "2026-01-01T00:00:00Z", lt: "2026-02-01T00:00:00Z" }
+      status: { eq: COMPLETED }
+    }
+  ) {
+    id
+    name
+    startDate
+  }
+}
+----
+
+**Filter by JSON field:**
+[source,graphql]
+----
+{
+  getTaskExecutions(
+    filter: {
+      inputArgs: {
+        eq: [{ key: "customerId", value: "customer-123" }]
+      }
+    }
+  ) {
+    taskName
+    inputData
+  }
+}
+----
+
+**Filter by task position:**
+[source,graphql]
+----
+{
+  getTaskExecutions(
+    filter: { taskPosition: { eq: "/do/0" } }
+  ) {
+    id
+    taskPosition
+    taskName
+    status
+  }
+}
+----
+
+**Order by completion time:**
+[source,graphql]
+----
+{
+  getTaskExecutions(
+    orderBy: { exit: ASC }  # Completed tasks, earliest first
+  ) {
+    taskName
+    endDate
+    status
+  }
+}
+----
 
 == Error Handling
 
