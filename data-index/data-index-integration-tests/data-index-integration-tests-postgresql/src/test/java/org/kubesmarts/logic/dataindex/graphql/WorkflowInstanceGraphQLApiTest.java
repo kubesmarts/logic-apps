@@ -495,12 +495,12 @@ public class WorkflowInstanceGraphQLApiTest {
     }
 
     /**
-     * Test task execution ordering by enter/exit (mapped to start/end entity fields).
-     * Validates OrderByConverter correctly maps GraphQL enter→start and exit→end.
+     * Test task execution ordering by enter/exit (mapped to startedAt/endedAt entity fields).
+     * Validates OrderByConverter correctly maps GraphQL enter→startedAt and exit→endedAt.
      */
     @Test
     public void testTaskExecutionOrdering() {
-        // Test ordering by enter (maps to start field)
+        // Test ordering by enter (maps to startedAt field)
         String queryByEnter = """
             {
               getTaskExecutions(limit: 10, orderBy: { enter: ASC }) {
@@ -521,7 +521,7 @@ public class WorkflowInstanceGraphQLApiTest {
             .body("data.getTaskExecutions", notNullValue())
             .body("data.getTaskExecutions.size()", greaterThan(0));
 
-        // Test ordering by exit (maps to end field)
+        // Test ordering by exit (maps to endedAt field)
         String queryByExit = """
             {
               getTaskExecutions(limit: 10, orderBy: { exit: DESC }) {
