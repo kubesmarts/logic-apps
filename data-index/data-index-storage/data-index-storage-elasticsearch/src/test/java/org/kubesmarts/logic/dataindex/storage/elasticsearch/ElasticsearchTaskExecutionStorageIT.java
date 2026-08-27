@@ -159,7 +159,7 @@ class ElasticsearchTaskExecutionStorageIT {
         assertThat(retrieved).isNotNull();
         assertThat(retrieved.getId()).isEqualTo(TEST_ID_1);
         assertThat(retrieved.getTaskName()).isEqualTo("call-service");
-        assertThat(retrieved.getTaskPosition()).isEqualTo("/do/0");
+        assertThat(retrieved.getTask()).isEqualTo("/do/0");
         assertThat(retrieved.getStatus()).isEqualTo("RUNNING");
         assertThat(retrieved.getStartedAt()).isNotNull();
     }
@@ -480,11 +480,11 @@ class ElasticsearchTaskExecutionStorageIT {
 
         assertThat(retrieved1).isNotNull();
         assertThat(retrieved1.getId()).isEqualTo(compositeId1);
-        assertThat(retrieved1.getTaskPosition()).isEqualTo(taskPosition1);
+        assertThat(retrieved1.getTask()).isEqualTo(taskPosition1);
 
         assertThat(retrieved2).isNotNull();
         assertThat(retrieved2.getId()).isEqualTo(compositeId2);
-        assertThat(retrieved2.getTaskPosition()).isEqualTo(taskPosition2);
+        assertThat(retrieved2.getTask()).isEqualTo(taskPosition2);
     }
 
     @Test
@@ -591,7 +591,7 @@ class ElasticsearchTaskExecutionStorageIT {
         TaskExecution execution = new TaskExecution();
         execution.setId(id);
         execution.setTaskName(taskName);
-        execution.setTaskPosition(taskPosition);
+        execution.setTask(taskPosition);
         execution.setStatus(status);
         execution.setStartedAt(ZonedDateTime.now());
         return execution;
