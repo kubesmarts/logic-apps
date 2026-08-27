@@ -158,8 +158,8 @@ public class ElasticsearchTaskExecutionStorage implements TaskExecutionStorage {
             if (result == null) {
                 LOGGER.warn("Task execution found but deserialization returned null for id: {}", id);
             } else {
-                LOGGER.info("Successfully retrieved task execution: id={}, taskName={}, taskPosition={}",
-                        result.getId(), result.getTaskName(), result.getTaskPosition());
+                LOGGER.info("Successfully retrieved task execution: id={}, taskName={}, task={}",
+                        result.getId(), result.getTaskName(), result.getTask());
             }
             return result;
 
