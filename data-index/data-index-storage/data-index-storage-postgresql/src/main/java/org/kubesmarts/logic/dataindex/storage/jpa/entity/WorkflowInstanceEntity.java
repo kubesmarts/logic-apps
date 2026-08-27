@@ -291,8 +291,8 @@ public class WorkflowInstanceEntity extends AbstractEntity {
                 ", name='" + name + '\'' +
                 ", version='" + version + '\'' +
                 ", status=" + status +
-                ", start=" + start +
-                ", end=" + end +
+                ", startedAt=" + startedAt +
+                ", endedAt=" + endedAt +
                 '}';
     }
 }
