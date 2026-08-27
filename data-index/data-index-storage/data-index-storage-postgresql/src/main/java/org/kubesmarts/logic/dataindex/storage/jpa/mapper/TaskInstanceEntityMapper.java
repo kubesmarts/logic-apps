@@ -37,20 +37,15 @@ public interface TaskInstanceEntityMapper {
     /**
      * Convert JPA entity to domain model.
      * Used when reading from database to return via GraphQL API.
-     * ID is derived from instanceId + taskPosition in both entity and model.
+     * ID is derived from instanceId + task in both entity and model.
+     * Field names match between entity and model (Open Workflow alignment).
      */
-    @Mapping(target = "start", source = "start")
-    @Mapping(target = "end", source = "end")
-    @Mapping(target = "input", source = "input")
-    @Mapping(target = "output", source = "output")
     TaskExecution toModel(TaskInstanceEntity entity);
 
     /**
      * Convert domain model to JPA entity.
      * Used when writing to database (though Data Index v1.0.0 is read-only, this may be used for tests).
      */
-    @Mapping(target = "instanceId", source = "instanceId")
-    @Mapping(target = "taskPosition", source = "taskPosition")
     @Mapping(target = "workflowInstance", ignore = true) // Will be set by relationship
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -61,7 +56,7 @@ public interface TaskInstanceEntityMapper {
      * Useful for merge operations.
      */
     @Mapping(target = "instanceId", ignore = true) // Primary key, don't update
-    @Mapping(target = "taskPosition", ignore = true) // Primary key, don't update
+    @Mapping(target = "task", ignore = true) // Primary key, don't update
     @Mapping(target = "workflowInstance", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

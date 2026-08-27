@@ -64,10 +64,10 @@ public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskInstanc
 
     /**
      * Get task execution by derived ID.
-     * <p>ID format: "instanceId:taskPosition"
-     * <p>Parses the composite ID and queries by both instanceId and taskPosition.
+     * <p>ID format: "instanceId:task"
+     * <p>Parses the composite ID and queries by both instanceId and task.
      *
-     * @param id Derived ID in format "instanceId:taskPosition"
+     * @param id Derived ID in format "instanceId:task"
      * @return TaskExecution or null if not found
      */
     @Override
@@ -76,20 +76,20 @@ public class TaskExecutionJPAStorage extends AbstractStorage<String, TaskInstanc
             return null;
         }
 
-        // Parse composite ID: "instanceId:taskPosition"
+        // Parse composite ID: "instanceId:task"
         int separatorIndex = id.indexOf(':');
         if (separatorIndex == -1 || separatorIndex == 0 || separatorIndex == id.length() - 1) {
-            throw new IllegalArgumentException("Invalid task execution ID format. Expected 'instanceId:taskPosition', got: " + id);
+            throw new IllegalArgumentException("Invalid task execution ID format. Expected 'instanceId:task', got: " + id);
         }
 
         String instanceId = id.substring(0, separatorIndex);
-        String taskPosition = id.substring(separatorIndex + 1);
+        String task = id.substring(separatorIndex + 1);
 
         // Query by composite key (embedded ID path)
         List<TaskInstanceEntity> entities = em
-                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.id.instanceId = :instanceId AND t.id.taskPosition = :taskPosition", TaskInstanceEntity.class)
+                .createQuery("SELECT t FROM TaskInstanceEntity t WHERE t.id.instanceId = :instanceId AND t.id.task = :task", TaskInstanceEntity.class)
                 .setParameter("instanceId", instanceId)
-                .setParameter("taskPosition", taskPosition)
+                .setParameter("task", task)
                 .setMaxResults(1)
                 .getResultList();
 

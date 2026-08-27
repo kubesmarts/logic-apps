@@ -103,16 +103,16 @@ public class FilterConverter {
         // String filters
         addStringFilters(result, "id", filter.getId());
         addStringFilters(result, "taskName", filter.getTaskName());
-        // taskPosition is part of composite key (@EmbeddedId) - use nested path
-        addStringFilters(result, "id.taskPosition", filter.getTaskPosition());
+        // task is part of composite key (@EmbeddedId) - use nested path
+        addStringFilters(result, "id.task", filter.getTaskPosition());
 
-        // DateTime filters (map GraphQL field names to entity field names)
-        addDateTimeFilters(result, "start", filter.getEnter());  // enter → start
-        addDateTimeFilters(result, "end", filter.getExit());      // exit → end
+        // DateTime filters
+        addDateTimeFilters(result, "startedAt", filter.getEnter());  // enter → startedAt (backward compat GraphQL field)
+        addDateTimeFilters(result, "endedAt", filter.getExit());     // exit → endedAt (backward compat GraphQL field)
 
-        // JSON filters (map GraphQL field names to entity field names)
-        addJsonFilters(result, "input", filter.getInputArgs());   // inputArgs → input
-        addJsonFilters(result, "output", filter.getOutputArgs()); // outputArgs → output
+        // JSON filters
+        addJsonFilters(result, "input", filter.getInputArgs());   // inputArgs → input (backward compat GraphQL field)
+        addJsonFilters(result, "output", filter.getOutputArgs()); // outputArgs → output (backward compat GraphQL field)
 
         // Error filters
         addErrorFilters(result, filter.getError());
