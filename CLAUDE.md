@@ -524,23 +524,38 @@ data-index.metrics.transform.poll-interval=30s
 - NOT industry standard (custom scalar preferred, but complex)
 - JSON is opaque to GraphQL (no field-level selection)
 
-### 3. Field Names - Critical Mapping
+### 3. Field Names - Open Workflow Alignment
 
-**Database columns → JPA Entity → GraphQL:**
+**✅ ALIGNED WITH OPEN WORKFLOW 1.0.0 SPECIFICATION**
+
+All field names match the Open Workflow lifecycle event specification exactly:
+
+**Database columns → JPA Entity → GraphQL (Tasks):**
 ```
-task_instances.instance_id   → TaskInstanceEntity.instanceId   → TaskExecution.instanceId
-task_instances.task_position → TaskInstanceEntity.taskPosition → TaskExecution.taskPosition
-(derived ID)                 → TaskInstanceEntity.getId()      → TaskExecution.getId() (returns "instanceId:taskPosition")
-task_instances.start         → TaskInstanceEntity.start        → TaskExecution.start (@JsonProperty("startDate"))
-task_instances.end           → TaskInstanceEntity.end          → TaskExecution.end (@JsonProperty("endDate"))
-task_instances.input         → TaskInstanceEntity.input        → TaskExecution.input (@Ignore, exposed via getInputData())
+task_instances.instance_id → TaskInstanceEntity.instanceId → TaskExecution.instanceId
+task_instances.task        → TaskInstanceEntity.task       → TaskExecution.task
+(derived ID)               → TaskInstanceEntity.getId()    → TaskExecution.getId() (returns "instanceId:task")
+task_instances.startedAt   → TaskInstanceEntity.startedAt  → TaskExecution.startedAt
+task_instances.endedAt     → TaskInstanceEntity.endedAt    → TaskExecution.endedAt
+task_instances.input       → TaskInstanceEntity.input      → TaskExecution.input (@Ignore, exposed via getInputData())
+task_instances.output      → TaskInstanceEntity.output     → TaskExecution.output (@Ignore, exposed via getOutputData())
+```
+
+**Database columns → JPA Entity → GraphQL (Workflows):**
+```
+workflow_instances.startedAt → WorkflowInstanceEntity.startedAt → WorkflowInstance.startedAt
+workflow_instances.endedAt   → WorkflowInstanceEntity.endedAt   → WorkflowInstance.endedAt
 ```
 
 **IMPORTANT:**
-- TaskExecution.id is derived from instanceId + taskPosition (no database column)
-- Database uses `start`/`end` (reserved SQL keywords, quoted)
-- GraphQL uses `startDate`/`endDate` (via `@JsonProperty`)
-- Never use old names: `enter`/`exit`, `triggerTime`/`leaveTime`, `taskExecutionId`
+- TaskExecution.id is derived from instanceId + task (no database column)
+- Field names match OW spec: `task` (JSON Pointer), `startedAt`, `endedAt`
+- Generic `endedAt` stores completedAt/faultedAt/cancelledAt (status field indicates which)
+- No more @JsonProperty mapping needed (names match across all layers)
+- **Backward compatibility:** GraphQL filters still accept `enter`/`exit`/`inputArgs`/`outputArgs` but these map to new field names
+
+**Open Workflow Spec Reference:**
+- https://github.com/open-workflow-specification/specification/blob/main/dsl-reference.md#lifecycle-events
 
 ### Error Handling
 
