@@ -6,6 +6,46 @@
 
 ---
 
+## **CRITICAL: Development Process - ASK Before Changing**
+
+**NEVER assume - always ASK when you encounter:**
+
+1. **Multiple solution paths** - Present options with trade-offs, wait for approval
+2. **Bug fixes with design choices** - Explain approaches, get confirmation  
+3. **Architecture or design pattern changes** - Discuss implications first
+4. **Field naming or mapping decisions** - Verify correct approach
+5. **Any change where the "right" way isn't obvious**
+
+**Process:**
+1. **STOP** when you identify an issue or choice
+2. **EXPLAIN** the situation and present options clearly
+3. **WAIT** for explicit approval from the user
+4. **IMPLEMENT** the approved approach
+
+**Example:**
+```
+Found bug: GraphQL filters fail for composite key fields.
+
+Option A: Add shadow properties to entity
+  ✅ GraphQL layer unchanged
+  ❌ Field duplication
+
+Option B: Fix converters to use nested paths  
+  ✅ Cleaner entity
+  ✅ Single source of truth
+  ❌ More converter changes
+
+Which approach should I use?
+```
+
+**Do NOT:**
+- Implement without explaining options
+- Assume you know the best approach
+- Make architectural decisions unilaterally
+- Skip approval for "obvious" fixes
+
+---
+
 ## **CRITICAL: Governance and Review Process**
 
 **NEVER push code or create PRs without explicit user approval:**
