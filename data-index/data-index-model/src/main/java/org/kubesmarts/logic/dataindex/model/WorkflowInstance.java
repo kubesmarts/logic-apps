@@ -305,8 +305,8 @@ public class WorkflowInstance {
                 ", name='" + name + '\'' +
                 ", version='" + version + '\'' +
                 ", status=" + status +
-                ", start=" + start +
-                ", end=" + end +
+                ", startedAt=" + startedAt +
+                ", endedAt=" + endedAt +
                 ", lastUpdate=" + lastUpdate +
                 ", input=" + input +
                 ", output=" + output +
