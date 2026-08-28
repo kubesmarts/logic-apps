@@ -59,7 +59,7 @@
     <version.com.graphql-java-extended-scalars>24.0</version.com.graphql-java-extended-scalars>
     <version.org.mapstruct>1.6.3</version.org.mapstruct>
     <version.org.skyscreamer>1.5.1</version.org.skyscreamer>
-    <version.io.smallrye.reactive.mutiny-zero>1.1.1</version.io.smallrye.reactive.mutiny-zero>
+    <version.io.smallrye.reactive.mutiny-zero>1.3.0</version.io.smallrye.reactive.mutiny-zero>
     <version.org.testcontainers>2.0.5</version.org.testcontainers>
     <version.org.assertj>3.27.7</version.org.assertj>
     <version.org.slf4j>2.0.12</version.org.slf4j>
