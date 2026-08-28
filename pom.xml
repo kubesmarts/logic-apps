@@ -62,7 +62,7 @@
     <version.io.smallrye.reactive.mutiny-zero>1.1.1</version.io.smallrye.reactive.mutiny-zero>
     <version.org.testcontainers>2.0.5</version.org.testcontainers>
     <version.org.assertj>3.27.7</version.org.assertj>
-    <version.org.slf4j>2.0.12</version.org.slf4j>
+    <version.org.slf4j>2.0.18</version.org.slf4j>
 
     <!-- Maven plugins -->
     <version.maven-compiler-plugin>3.13.0</version.maven-compiler-plugin>
