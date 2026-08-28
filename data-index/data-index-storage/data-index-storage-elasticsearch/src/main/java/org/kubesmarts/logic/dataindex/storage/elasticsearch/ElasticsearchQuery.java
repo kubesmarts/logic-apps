@@ -205,19 +205,19 @@ public class ElasticsearchQuery<T> implements Query<T> {
                 break;
 
             case GT:
-                boolQuery.must(m -> m.range(r -> r.field(attribute).gt(toJsonData(value))));
+                boolQuery.must(m -> m.range(r -> r.untyped(u -> u.field(attribute).gt(toJsonData(value)))));
                 break;
 
             case GTE:
-                boolQuery.must(m -> m.range(r -> r.field(attribute).gte(toJsonData(value))));
+                boolQuery.must(m -> m.range(r -> r.untyped(u -> u.field(attribute).gte(toJsonData(value)))));
                 break;
 
             case LT:
-                boolQuery.must(m -> m.range(r -> r.field(attribute).lt(toJsonData(value))));
+                boolQuery.must(m -> m.range(r -> r.untyped(u -> u.field(attribute).lt(toJsonData(value)))));
                 break;
 
             case LTE:
-                boolQuery.must(m -> m.range(r -> r.field(attribute).lte(toJsonData(value))));
+                boolQuery.must(m -> m.range(r -> r.untyped(u -> u.field(attribute).lte(toJsonData(value)))));
                 break;
 
             case IS_NULL:
@@ -231,10 +231,10 @@ public class ElasticsearchQuery<T> implements Query<T> {
             case BETWEEN:
                 if (value instanceof List<?> values) {
                     if (values.size() == 2) {
-                        boolQuery.must(m -> m.range(r -> r
+                        boolQuery.must(m -> m.range(r -> r.untyped(u -> u
                                 .field(attribute)
                                 .gte(toJsonData(values.get(0)))
-                                .lte(toJsonData(values.get(1)))));
+                                .lte(toJsonData(values.get(1))))));
                     }
                 }
                 break;

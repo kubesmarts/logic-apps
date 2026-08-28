@@ -40,8 +40,8 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.build.outputTimestamp>2026-04-13T00:00:00Z</project.build.outputTimestamp>
 
-    <!-- Quarkus - upgraded to match Quarkus Flow 0.9.0 compatibility -->
-    <quarkus.platform.version>3.34.5</quarkus.platform.version>
+    <!-- Quarkus - latest stable version -->
+    <quarkus.platform.version>3.39.1</quarkus.platform.version>
     <version.io.quarkus>${quarkus.platform.version}</version.io.quarkus>
 
     <!-- Persistence Commons API version (legacy, minimal dependency) -->
@@ -60,10 +60,9 @@
     <version.org.mapstruct>1.6.3</version.org.mapstruct>
     <version.org.skyscreamer>1.5.1</version.org.skyscreamer>
     <version.io.smallrye.reactive.mutiny-zero>1.1.1</version.io.smallrye.reactive.mutiny-zero>
-    <version.org.testcontainers>2.0.4</version.org.testcontainers>
+    <version.org.testcontainers>2.0.5</version.org.testcontainers>
     <version.org.assertj>3.27.7</version.org.assertj>
     <version.org.slf4j>2.0.12</version.org.slf4j>
-    <version.io.serverlessworkflow>7.22.1.Final</version.io.serverlessworkflow>
 
     <!-- Maven plugins -->
     <version.maven-compiler-plugin>3.13.0</version.maven-compiler-plugin>
@@ -86,14 +85,6 @@
         <groupId>io.quarkus.platform</groupId>
         <artifactId>quarkus-bom</artifactId>
         <version>${quarkus.platform.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>io.serverlessworkflow</groupId>
-        <artifactId>serverlessworkflow-bom</artifactId>
-        <version>${version.io.serverlessworkflow}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

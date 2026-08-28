@@ -520,8 +520,8 @@ data-index.storage.skip-init-schema=false
 data-index.elasticsearch.schema.init.enabled=true
 
 # Dev Services (auto-starts Elasticsearch in dev mode)
+# Uses version from Quarkus BOM automatically (no image-name override needed)
 %dev.quarkus.elasticsearch.devservices.enabled=true
-%dev.quarkus.elasticsearch.devservices.image-name=docker.elastic.co/elasticsearch/elasticsearch:8.11.0
 ----
 
 === FluentBit DaemonSet
