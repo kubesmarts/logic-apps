@@ -231,33 +231,46 @@ curl http://localhost:8080/q/metrics | grep data_index_transform
 ## Architecture (MODE 3 - Kafka)
 
 ```
-Quarkus Flow → Kafka (CloudEvents, topic: flow-lifecycle-out)
-                      ↓ (SmallRye Reactive Messaging)
-              KafkaLifecycleConsumer (event type routing)
-                      ↓ (Mapper → WorkflowInstanceEvent / TaskExecutionEvent)
-              WorkflowEventProcessor / TaskExecutionProcessor
+Quarkus Flow → Kafka (CloudEvents: binary or structured, topic: flow-lifecycle-out)
+                      ↓ (SmallRye Reactive Messaging - batch mode)
+              KafkaLifecycleConsumer (manual CloudEvent reconstruction + event type routing)
+                      ↓ (Mapper: CloudEvent + LifecycleEvent → WorkflowInstance / TaskExecution)
+              WorkflowEventProcessor / TaskExecutionProcessor (batch processing)
                       ↓
-              WorkflowPersistence / TaskPersistence (JDBC UPSERT)
+              WorkflowPersistence / TaskPersistence (JDBC batch UPSERT)
                       ↓
               PostgreSQL normalized tables
-                      ↓ (JPA/Hibernate)
+                      ↓ (JPA/Hibernate for query service)
               GraphQL API (SmallRye GraphQL)
 
    (failed records → dead-letter topic: data-index-events-dlq)
 ```
 
 **Key Components:**
-- **KafkaLifecycleConsumer** - Consumes CloudEvents (`io.cloudevents.CloudEvent`), validates them, and routes by event type prefix via `LifecycleEventUtils.isWorkflow()` / `isTask()`
-- **Mapper** - Maps a `CloudEvent` + `LifecycleEvent` payload into a `WorkflowInstanceEvent` or `TaskExecutionEvent`
+- **KafkaLifecycleConsumer** - Batch Kafka consumer, manually reconstructs `CloudEvent` objects from headers (binary) or JSON (structured), validates CE spec compliance, routes by event type
+- **Mapper** - Maps `CloudEvent` + `LifecycleEvent` payload into domain model (`WorkflowInstance` or `TaskExecution`)
 - **EventProcessor<T>** - Generic processing interface; implemented by `WorkflowEventProcessor` and `TaskExecutionProcessor`
-- **WorkflowPersistence** - UPSERT to workflow_instances with field-level idempotency
-- **TaskPersistence** - UPSERT to task_instances with FK violation recovery (savepoint + placeholder workflow), ON CONFLICT `(instance_id, task_position)`
+- **WorkflowPersistence** - Batch JDBC UPSERT to workflow_instances with field-level idempotency
+- **TaskPersistence** - Batch JDBC UPSERT to task_instances with FK violation recovery (savepoint + placeholder workflow), ON CONFLICT `(instance_id, task_position)`
 - **Dead-letter queue** - Records that fail processing throw `ProcessEventFailedException` and are routed to the `data-index-events-dlq` topic
+
+**CloudEvents Support:**
+- **Binary mode** (default): CE attributes in Kafka headers (`ce_type`, `ce_time`, etc.), data in message body
+- **Structured mode**: Full CloudEvent JSON envelope in message body
+- Auto-detection per record (checks for `ce_type` header presence)
+- Both modes supported for customer flexibility
+
+**Batch Processing Architecture:**
+- Consumes up to 1000 Kafka records per poll for high throughput (configurable)
+- Manual CloudEvent reconstruction required (batch mode bypasses SmallRye's automatic extraction)
+- DB writes in configurable batches (`data-index.ingestion.db-batch-size=1000`)
+- Trade-off: Higher throughput vs manual CE handling (acceptable for high-volume workflow environments)
 
 **NOT used in MODE 3:**
 - ❌ FluentBit (events come from Kafka, not log files)
 - ❌ PostgreSQL triggers (normalization done in Java via JDBC)
 - ❌ Raw event tables (writes directly to normalized tables)
+- ❌ SmallRye automatic CloudEvent extraction (requires per-message mode, lower throughput)
 
 ---
 
