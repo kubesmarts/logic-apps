@@ -107,13 +107,11 @@ public class BatchProcessingIT extends BaseWorkflowLifecycleIT {
 
         // Publish 50 workflow events rapidly (should be consumed in one or few batches)
         int workflowCount = 50;
-        List<String> workflowIds = new ArrayList<>();
         ZonedDateTime baseTime = ZonedDateTime.now(ZoneOffset.UTC);
 
         log.info("Publishing {} workflow events rapidly...", workflowCount);
         for (int i = 0; i < workflowCount; i++) {
             String instanceId = "batch-wf-" + i + "-" + UUID.randomUUID();
-            workflowIds.add(instanceId);
 
             var data = Map.of(
                     "name", instanceId,
@@ -364,11 +362,9 @@ public class BatchProcessingIT extends BaseWorkflowLifecycleIT {
         // Create 3 workflows with multiple events each
         int workflowCount = 3;
         int eventsPerWorkflow = 5; // started, 3 tasks, completed
-        List<String> workflowIds = new ArrayList<>();
 
         for (int w = 0; w < workflowCount; w++) {
             String instanceId = "concurrent-wf-" + w + "-" + UUID.randomUUID();
-            workflowIds.add(instanceId);
             ZonedDateTime startTime = ZonedDateTime.now(ZoneOffset.UTC);
 
             // Workflow started

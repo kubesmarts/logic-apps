@@ -213,38 +213,42 @@ public class BinaryCloudEventExtractionIT extends BaseWorkflowLifecycleIT {
 
         String dataJson = mapper.writeValueAsString(data);
 
-        // Create record with INCOMPLETE headers (missing ce_type - required)
+        // Create record with INCOMPLETE headers (missing ce_id - required for binary mode)
         ProducerRecord<String, String> record = new ProducerRecord<>(
                 "flow-lifecycle-out",
                 instanceId,
                 dataJson
         );
 
-        // Add some headers but NOT ce_type (required)
+        // Add ce_type to trigger binary mode, but omit ce_id (required)
         record.headers().add(new RecordHeader("ce_specversion", "1.0".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader("ce_type",
+                "io.serverlessworkflow.workflow.started.v1".getBytes(StandardCharsets.UTF_8)));
         record.headers().add(new RecordHeader("ce_source", "binary-test".getBytes(StandardCharsets.UTF_8)));
-        record.headers().add(new RecordHeader("ce_id", UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)));
-        // Missing: ce_type, ce_time
+        record.headers().add(new RecordHeader("ce_time", Instant.now().toString().getBytes(StandardCharsets.UTF_8)));
+        // Missing: ce_id (required for binary mode)
 
-        log.info("Publishing binary CloudEvent with missing ce_type header...");
+        log.info("Publishing binary CloudEvent with missing ce_id header...");
         producer.send(record).get();
         producer.flush();
 
-        // Wait a bit to ensure consumer had a chance to process
-        Thread.sleep(5000);
+        // Verify workflow was NOT persisted (binary mode validation should have failed)
+        await().atMost(Duration.ofSeconds(10))
+                .pollInterval(Duration.ofMillis(500))
+                .during(Duration.ofSeconds(5))
+                .untilAsserted(() -> {
+                    try (Connection conn = dataSource.getConnection();
+                         PreparedStatement stmt = conn.prepareStatement(
+                                 "SELECT COUNT(*) as count FROM workflow_instances WHERE id = ?")) {
+                        stmt.setString(1, instanceId);
+                        ResultSet rs = stmt.executeQuery();
+                        assertThat(rs.next()).isTrue();
+                        int count = rs.getInt("count");
+                        assertThat(count).isZero();
+                    }
+                });
 
-        // Verify workflow was NOT persisted (validation should have failed)
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(
-                     "SELECT COUNT(*) as count FROM workflow_instances WHERE id = ?")) {
-            stmt.setString(1, instanceId);
-            ResultSet rs = stmt.executeQuery();
-            assertThat(rs.next()).isTrue();
-            int count = rs.getInt("count");
-            assertThat(count).isZero();
-            log.info("✓ Workflow NOT persisted (missing headers rejected as expected)");
-        }
-
+        log.info("✓ Workflow NOT persisted (missing binary-mode headers rejected as expected)");
         log.info("✅ Missing headers error handling test passed");
     }
 
@@ -282,21 +286,23 @@ public class BinaryCloudEventExtractionIT extends BaseWorkflowLifecycleIT {
         producer.send(record).get();
         producer.flush();
 
-        // Wait a bit to ensure consumer had a chance to process
-        Thread.sleep(5000);
-
         // Verify workflow was NOT persisted (timestamp parsing should have failed)
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(
-                     "SELECT COUNT(*) as count FROM workflow_instances WHERE id = ?")) {
-            stmt.setString(1, instanceId);
-            ResultSet rs = stmt.executeQuery();
-            assertThat(rs.next()).isTrue();
-            int count = rs.getInt("count");
-            assertThat(count).isZero();
-            log.info("✓ Workflow NOT persisted (malformed timestamp rejected as expected)");
-        }
+        await().atMost(Duration.ofSeconds(10))
+                .pollInterval(Duration.ofMillis(500))
+                .during(Duration.ofSeconds(5))
+                .untilAsserted(() -> {
+                    try (Connection conn = dataSource.getConnection();
+                         PreparedStatement stmt = conn.prepareStatement(
+                                 "SELECT COUNT(*) as count FROM workflow_instances WHERE id = ?")) {
+                        stmt.setString(1, instanceId);
+                        ResultSet rs = stmt.executeQuery();
+                        assertThat(rs.next()).isTrue();
+                        int count = rs.getInt("count");
+                        assertThat(count).isZero();
+                    }
+                });
 
+        log.info("✓ Workflow NOT persisted (malformed timestamp rejected as expected)");
         log.info("✅ Malformed timestamp error handling test passed");
     }
 
