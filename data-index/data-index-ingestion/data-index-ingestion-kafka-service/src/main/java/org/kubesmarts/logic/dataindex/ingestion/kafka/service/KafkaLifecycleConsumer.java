@@ -55,7 +55,33 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-
+/**
+ * High-throughput Kafka consumer for Quarkus Flow lifecycle events.
+ *
+ * <p><b>Architecture:</b> Batch consumption with manual CloudEvent reconstruction.
+ *
+ * <p><b>Why batch mode?</b>
+ * - Processes up to 1000 Kafka records per poll (configurable)
+ * - DB writes in batches (reduces transaction overhead)
+ * - Critical for high-volume workflow environments (multiple concurrent workflows)
+ *
+ * <p><b>Why manual CloudEvent reconstruction?</b>
+ * - SmallRye's automatic CloudEvent extraction (via {@code CloudEventMetadata}) only works in per-message mode
+ * - Batch mode requires manual extraction from Kafka headers (binary) or JSON (structured)
+ * - Trade-off: Higher throughput vs manual CE handling (acceptable for high-volume environments)
+ *
+ * <p><b>CloudEvents Support:</b>
+ * <ul>
+ *   <li><b>Binary mode</b> (default): CE attributes in Kafka headers ({@code ce_type}, {@code ce_time}, etc.), data in body</li>
+ *   <li><b>Structured mode</b>: Full CloudEvent JSON envelope in message body</li>
+ *   <li>Auto-detection per record (checks for {@code ce_type} header presence)</li>
+ * </ul>
+ *
+ * <p><b>Performance:</b>
+ * - Kafka batch size: SmallRye default (max.poll.records)
+ * - DB batch size: {@code data-index.ingestion.db-batch-size} (default: 1000)
+ * - CloudEvent reconstruction overhead: negligible compared to DB operations
+ */
 @ApplicationScoped
 public class KafkaLifecycleConsumer {
 
@@ -205,6 +231,29 @@ public class KafkaLifecycleConsumer {
         return value.getBytes(StandardCharsets.UTF_8);
     }
 
+    /**
+     * Validates and reconstructs a CloudEvent from a Kafka record.
+     *
+     * <p>Supports both CloudEvents content modes:
+     * <ul>
+     *   <li><b>Binary mode</b> (default): CE attributes in Kafka headers, data in message body</li>
+     *   <li><b>Structured mode</b>: Full CloudEvent JSON envelope in message body</li>
+     * </ul>
+     *
+     * <p><b>Why manual reconstruction?</b>
+     * <ul>
+     *   <li>Batch mode ({@code Message<ConsumerRecords<...>>}) bypasses SmallRye's automatic CE extraction</li>
+     *   <li>SmallRye's {@code CloudEventMetadata} only works in per-message mode</li>
+     *   <li>Manual reconstruction provides: CloudEvents spec validation, uniform abstraction, future-proof field extraction</li>
+     *   <li>Currently used fields: {@code time} (→ event_timestamp), {@code type} (→ event routing)</li>
+     *   <li>Reconstruction overhead is negligible compared to DB UPSERT operations</li>
+     * </ul>
+     *
+     * @param record Kafka consumer record
+     * @return Validated CloudEvent object
+     * @throws JsonProcessingException if JSON parsing fails
+     * @throws IllegalArgumentException if CloudEvent is invalid (missing type/time)
+     */
     private CloudEvent validateCloudEvent(ConsumerRecord<String, String> record) throws JsonProcessingException {
         if (record.value() == null || record.value().isEmpty()) {
             throw new IllegalArgumentException("Event record consumed at offset %s, from partition %s is null or empty."
@@ -213,7 +262,7 @@ public class KafkaLifecycleConsumer {
 
         CloudEvent cloudEvent;
 
-        // Check if this is binary CloudEvents mode (CE attributes in Kafka headers)
+        // Auto-detect CloudEvents mode: binary (headers) vs structured (JSON envelope)
         if (isBinaryCloudEvent(record)) {
             cloudEvent = buildCloudEventFromBinaryMode(record);
         } else {
@@ -233,18 +282,33 @@ public class KafkaLifecycleConsumer {
         return cloudEvent;
     }
 
+    /**
+     * Detects binary CloudEvents mode by checking for {@code ce_type} header.
+     *
+     * @param record Kafka consumer record
+     * @return true if binary mode (CE attributes in headers), false if structured mode (JSON envelope)
+     */
     private boolean isBinaryCloudEvent(ConsumerRecord<String, String> record) {
         // Binary mode has CE attributes in Kafka headers (ce_type, ce_source, etc.)
         Header typeHeader = record.headers().lastHeader("ce_type");
         return typeHeader != null;
     }
 
+    /**
+     * Reconstructs a CloudEvent object from binary mode (CE attributes in Kafka headers).
+     *
+     * <p>Quarkus Flow default mode: {@code mp.messaging.outgoing.flow-lifecycle-out.cloud-events=false}
+     *
+     * @param record Kafka consumer record with CloudEvent attributes in headers
+     * @return CloudEvent object
+     * @throws JsonProcessingException if data payload JSON parsing fails
+     * @throws IllegalArgumentException if required headers are missing
+     */
     private CloudEvent buildCloudEventFromBinaryMode(ConsumerRecord<String, String> record) throws JsonProcessingException {
         // Extract CE attributes from Kafka headers
         String type = getHeaderValue(record, "ce_type");
         String source = getHeaderValue(record, "ce_source");
         String id = getHeaderValue(record, "ce_id");
-        String specVersion = getHeaderValue(record, "ce_specversion");
         String time = getHeaderValue(record, "ce_time");
 
         if (type == null || source == null || id == null) {
@@ -271,25 +335,5 @@ public class KafkaLifecycleConsumer {
     private String getHeaderValue(ConsumerRecord<String, String> record, String headerName) {
         Header header = record.headers().lastHeader(headerName);
         return header != null ? new String(header.value(), StandardCharsets.UTF_8) : null;
-    }
-
-    private void handleWorkflowEvent(CloudEvent cloudEvent, WorkflowCEData data) {
-        try {
-            WorkflowInstance workflow = Mapper.mapWorkflowInstanceEvent(cloudEvent, data, jackson);
-            workflowEventProcessor.process(workflow);
-        } catch (Exception e) {
-            log.error("Error while processing CloudEvent (workflow) with ID: {}", data.getName(), e);
-            throw new ProcessEventFailedException("Failed to process CloudEvent with ID: " + data.getName(), e);
-        }
-    }
-
-    private void handleTaskEvent(CloudEvent cloudEvent, TaskCEData data) {
-        try {
-            TaskExecution taskExecution = Mapper.mapTaskExecutionEvent(cloudEvent, data, jackson);
-            taskExecutionProcessor.process(taskExecution);
-        } catch (Exception e) {
-            log.error("Error while processing CloudEvent (task) with ID: {}", cloudEvent.getId(), e);
-            throw new ProcessEventFailedException("Failed to process CloudEvent with ID: " + cloudEvent.getId(), e);
-        }
     }
 }

@@ -86,20 +86,61 @@ cluster details.
 ```
 Quarkus Flow (workflow runtime)
     |
-    CloudEvents to Kafka (topic: flow-lifecycle-out)
+    CloudEvents to Kafka (binary or structured mode, topic: flow-lifecycle-out)
     |
-    KafkaLifecycleConsumer (SmallRye Reactive Messaging)
+    KafkaLifecycleConsumer (SmallRye Reactive Messaging - batch mode)
     |
-    CloudEvent validation + payload mapping (Mapper: CloudEvent + LifecycleEvent -> WorkflowInstanceEvent / TaskExecutionEvent)
+    Manual CloudEvent reconstruction (binary: headers → CE object, structured: JSON → CE object)
     |
-    WorkflowEventProcessor / TaskExecutionProcessor
+    CloudEvent validation + payload mapping (Mapper: CloudEvent + LifecycleEvent -> WorkflowInstance / TaskExecution)
     |
-    WorkflowPersistence / TaskPersistence (JDBC UPSERT with OffsetDateTime in UTC)
+    WorkflowEventProcessor / TaskExecutionProcessor (batch processing)
+    |
+    WorkflowPersistence / TaskPersistence (JDBC batch UPSERT with OffsetDateTime in UTC)
     |
     workflow_instances / task_instances (normalized tables, TIMESTAMP WITH TIME ZONE)
 
     (records that fail processing -> dead-letter topic: data-index-events-dlq)
 ```
+
+### CloudEvents Format Support
+
+The ingestion service supports **both CloudEvents content modes**:
+
+**Binary Mode (default)**:
+- CloudEvent attributes → Kafka headers (`ce_type`, `ce_source`, `ce_time`, etc.)
+- Event data payload → Kafka message body (JSON)
+- Quarkus Flow default when `mp.messaging.outgoing.flow-lifecycle-out.cloud-events=false` (or unset)
+
+**Structured Mode**:
+- Full CloudEvent envelope → Kafka message body (JSON with `specversion`, `type`, `source`, `data`, etc.)
+- No CloudEvent headers
+- Quarkus Flow when `mp.messaging.outgoing.flow-lifecycle-out.cloud-events=true`
+
+**Auto-detection**: The consumer inspects each record for `ce_type` header to distinguish modes.
+
+### Why Manual CloudEvent Reconstruction?
+
+Unlike SmallRye's automatic CloudEvent extraction (which only works in per-message mode), this service uses **batch consumption** for high throughput:
+
+**Batch Mode Trade-offs**:
+- ✅ **High throughput**: Process up to 1000 Kafka records per poll
+- ✅ **Efficient DB writes**: Batch UPSERT reduces transaction overhead
+- ✅ **Better for high-volume workflows**: Multiple concurrent workflows generating thousands of events/sec
+- ⚠️ **Manual CloudEvent handling**: Must reconstruct CloudEvent objects from headers (binary) or JSON (structured)
+
+**Per-Message Mode Alternative** (not used):
+- ✅ Automatic CloudEvent extraction via `CloudEventMetadata`
+- ❌ One DB transaction per event (high overhead at scale)
+- ❌ Lower throughput under load
+
+**Why reconstruct CloudEvent objects?**
+1. **Validation**: CloudEventBuilder ensures events comply with CloudEvents spec
+2. **Abstraction**: Uniform interface regardless of binary vs structured mode
+3. **Future-proof**: Easy to extract additional CE attributes (`source`, `id`, extensions) if needed
+4. **Currently used fields**: `time` (→ `event_timestamp`), `type` (→ event routing)
+
+The overhead of CloudEvent reconstruction is negligible compared to DB UPSERT operations.
 
 ### Module Structure
 
@@ -115,9 +156,8 @@ The Kafka ingestion service is composed of two Maven modules:
    - `ProcessEventFailedException.java` - Thrown on processing failure (triggers DLQ)
 
 2. **data-index-ingestion-kafka-service**: Quarkus application
-   - `KafkaLifecycleConsumer.java` - Reactive Messaging consumer (validates and routes by event type)
-   - `Mapper.java` - Maps `CloudEvent` + `LifecycleEvent` to processor event types
-   - `LifecycleEvent.java` - CloudEvent data payload model
+   - `KafkaLifecycleConsumer.java` - Batch Kafka consumer, manually reconstructs CloudEvents from headers/JSON
+   - `Mapper.java` - Maps `CloudEvent` + `LifecycleEvent` to domain model (`WorkflowInstance` / `TaskExecution`)
    - `HealthChecks.java` - Kubernetes health probes
    - `application.properties` - Kafka, database, messaging, and dead-letter-queue configuration
 
@@ -155,8 +195,16 @@ The Kafka ingestion service is composed of two Maven modules:
 | `quarkus.datasource.jdbc.url` | (dev services) | PostgreSQL connection |
 | `mp.messaging.incoming.data-index-events.topic` | `flow-lifecycle-out` | Kafka topic name |
 | `mp.messaging.incoming.data-index-events.group.id` | `data-index-ingestion` | Kafka consumer group |
-| `mp.messaging.incoming.data-index-events.dead-letter-queue.topic` | `data-index-events-dlq` | Dead letter queue topic |
+| `mp.messaging.incoming.data-index-events.batch` | `true` | Enable batch consumption (required for high throughput) |
+| `mp.messaging.incoming.data-index-events.cloud-events` | `false` | Disable SmallRye auto-extraction (manual handling for batch mode) |
+| `data-index.ingestion.db-batch-size` | `1000` | Max workflows/tasks per DB transaction |
 | `mp.messaging.incoming.data-index-events.auto.offset.reset` | `earliest` | Offset reset strategy |
+| `mp.messaging.outgoing.data-index-events-dlq.topic` | `data-index-events-dlq` | Dead letter queue topic |
+
+**CloudEvents Mode Compatibility**:
+- Supports both binary and structured CloudEvents (auto-detected per record)
+- Producer configures mode via `mp.messaging.outgoing.flow-lifecycle-out.cloud-events=true|false`
+- Consumer auto-detects by presence of `ce_type` header (binary) vs JSON envelope (structured)
 
 See `src/main/resources/application.properties` for full configuration.
 
