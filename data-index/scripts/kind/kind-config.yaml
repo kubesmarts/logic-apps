@@ -1,0 +1,22 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  # Single control-plane node (can run workloads)
+  - role: control-plane
+    extraPortMappings:
+    # GraphQL API (data-index-service NodePort)
+    - containerPort: 30080
+      hostPort: 30080
+      protocol: TCP
+    # PostgreSQL (for local access)
+    - containerPort: 30432
+      hostPort: 30432
+      protocol: TCP
+    # Elasticsearch (for local access)
+    - containerPort: 30920
+      hostPort: 30920
+      protocol: TCP
+    # Kafka (MODE 3 - for local debugging access)
+    - containerPort: 30900
+      hostPort: 30900
+      protocol: TCP

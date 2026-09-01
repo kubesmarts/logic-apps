@@ -236,8 +236,12 @@ create_secret() {
             --dry-run=client -o yaml | kubectl apply -f -
         log_info "✓ PostgreSQL Secret created"
     elif [[ "$MODE" == "elasticsearch" ]]; then
-        # No authentication for simple Elasticsearch deployment
-        log_info "✓ Elasticsearch has no authentication (test mode)"
+        # Create dummy secret (deployment references it but doesn't use it for Elasticsearch)
+        kubectl create secret generic data-index-secret \
+            --namespace data-index \
+            --from-literal=QUARKUS_DATASOURCE_PASSWORD=unused \
+            --dry-run=client -o yaml | kubectl apply -f -
+        log_info "✓ Dummy secret created (Elasticsearch has no authentication)"
     fi
 }
 
@@ -312,7 +316,7 @@ spec:
         - name: QUARKUS_LOG_CATEGORY_ORG_KUBESMARTS_LOGIC_LEVEL
           value: "DEBUG"
         - name: ELASTICSEARCH_HOST
-          value: "elasticsearch.elasticsearch.svc.cluster.local"
+          value: "data-index-es-http.elasticsearch.svc.cluster.local"
         - name: ELASTICSEARCH_PORT
           value: "9200"
         - name: ELASTICSEARCH_PROTOCOL
@@ -330,12 +334,16 @@ spec:
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /q/health/ready
             port: 8080
-          initialDelaySeconds: 20
+          initialDelaySeconds: 30
           periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service

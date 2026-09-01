@@ -45,8 +45,9 @@ cd "${PROJECT_ROOT}"
 
 MAVEN_EXTRA_ARGS=""
 if [[ "${MODE:-}" == "kafka" ]]; then
-    MAVEN_EXTRA_ARGS="-Pkafka -Dquarkus.profile=kafka"
-    log_info "  Kafka profile: -Pkafka -Dquarkus.profile=kafka"
+    # Build-time properties MUST be passed as -D flags (not via Maven profile <properties>)
+    MAVEN_EXTRA_ARGS="-Pkafka -Dquarkus.profile=kafka -Dquarkus.flow.messaging.defaults-enabled=true -Dquarkus.flow.messaging.lifecycle-enabled=true"
+    log_info "  Kafka profile: -Pkafka with build-time messaging config"
     log_info "  Events will be published to Kafka topic: flow-lifecycle-out"
 fi
 
@@ -127,14 +128,18 @@ spec:
           httpGet:
             path: /q/health/live
             port: 8080
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /q/health/ready
             port: 8080
-          initialDelaySeconds: 20
+          initialDelaySeconds: 50
           periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
@@ -160,22 +165,15 @@ if [[ "${MODE:-}" == "kafka" ]]; then
     log_step "Patching Deployment with Kafka env vars..."
     kubectl patch deployment workflow-test-app -n workflows --type=json -p='[
       {"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"QUARKUS_PROFILE","value":"kafka"}},
+      {"op":"replace","path":"/spec/template/spec/containers/0/env/3/value","value":"false"},
       {"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"KAFKA_BOOTSTRAP_SERVERS","value":"kafka.kafka.svc.cluster.local:9092"}},
       {"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"MP_MESSAGING_CONNECTOR_SMALLRYE_KAFKA_BOOTSTRAP_SERVERS","value":"kafka.kafka.svc.cluster.local:9092"}}
     ]'
-    log_info "✓ Kafka env vars patched"
+    log_info "✓ Kafka env vars patched (structured logging disabled)"
 fi
 
 log_step "Waiting for deployment to be ready..."
-kubectl wait --namespace workflows \
-  --for=condition=available deployment/workflow-test-app \
-  --timeout=180s
-
-log_step "Waiting for pod to be ready..."
-kubectl wait --namespace workflows \
-  --for=condition=ready pod \
-  --selector=app=workflow-test-app \
-  --timeout=180s
+kubectl rollout status deployment/workflow-test-app -n workflows --timeout=180s
 
 echo ""
 log_info "=========================================="

@@ -15,12 +15,27 @@ on:
       - 'data-index/**'
       - 'persistence-commons/**'
       - '.github/workflows/data-index-integration-tests.yml'
+  workflow_dispatch:
 
 jobs:
-  integration-test:
-    name: KIND Integration Tests
+  e2e-test:
+    name: E2E - ${{ matrix.mode.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - name: MODE 1 (PostgreSQL + FluentBit + Triggers)
+            script: test-mode1-e2e.sh
+            id: mode1
+          - name: MODE 2 (Elasticsearch + FluentBit + Transforms)
+            script: test-mode2-e2e.sh
+            id: mode2
+          - name: MODE 3 (Kafka + CloudEvents + Processors)
+            script: test-mode3-e2e.sh
+            id: mode3
 
     steps:
       - name: Checkout code
@@ -38,9 +53,10 @@ jobs:
           mvn -B clean install -DskipTests \
             --no-transfer-progress
 
-      - name: Build container images
+      - name: Build MODE 1 images (PostgreSQL backend)
+        if: matrix.mode.id == 'mode1' || matrix.mode.id == 'mode3'
         run: |
-          # Build data-index-service-postgresql (production: no Flyway)
+          # Build data-index-service-postgresql
           mvn -B package -DskipTests \
             -pl data-index/data-index-service/data-index-service-postgresql \
             -am \
@@ -54,163 +70,134 @@ jobs:
             -Dquarkus.container-image.build=true \
             --no-transfer-progress
 
+      - name: Build MODE 2 images (Elasticsearch backend)
+        if: matrix.mode.id == 'mode2'
+        run: |
+          # Build data-index-service-elasticsearch
+          mvn -B package -DskipTests \
+            -pl data-index/data-index-service/data-index-service-elasticsearch \
+            -am \
+            -Dquarkus.container-image.build=true \
+            --no-transfer-progress
+
+          # Build workflow-test-app
+          mvn -B package -DskipTests \
+            -pl data-index/workflow-test-app \
+            -Dquarkus.container-image.build=true \
+            --no-transfer-progress
+
+      - name: Build MODE 3 images (Kafka ingestion)
+        if: matrix.mode.id == 'mode3'
+        run: |
+          # Build data-index-ingestion-kafka-service
+          mvn -B package -DskipTests \
+            -pl data-index/data-index-ingestion/data-index-ingestion-kafka-service \
+            -am \
+            -Dquarkus.container-image.build=true \
+            --no-transfer-progress
+
       - name: Set up KIND cluster
         uses: helm/kind-action@v1.10.0
         with:
           cluster_name: data-index-test
+          config: data-index/scripts/kind/kind-config.yaml
           wait: 3m
 
-      - name: Load container images into KIND
+      - name: Load MODE 1 images into KIND
+        if: matrix.mode.id == 'mode1'
         run: |
           kind load docker-image kubesmarts/data-index-service-postgresql:999-SNAPSHOT \
             --name data-index-test
           kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT \
             --name data-index-test
 
-      - name: Install PostgreSQL
+      - name: Load MODE 2 images into KIND
+        if: matrix.mode.id == 'mode2'
         run: |
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm repo update
+          kind load docker-image kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT \
+            --name data-index-test
+          kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT \
+            --name data-index-test
 
-          kubectl create namespace postgresql
-
-          helm install postgresql bitnami/postgresql \
-            --version 18.6.7 \
-            --namespace postgresql \
-            --set auth.username=dataindex \
-            --set auth.password=dataindex123 \
-            --set auth.database=dataindex \
-            --set primary.persistence.enabled=false \
-            --wait --timeout=5m
-
-      - name: Initialize database schema
+      - name: Load MODE 3 images into KIND
+        if: matrix.mode.id == 'mode3'
         run: |
-          # Wait for PostgreSQL to be ready
-          kubectl wait --namespace postgresql \
-            --for=condition=ready pod \
-            --selector=app.kubernetes.io/name=postgresql \
-            --timeout=300s
+          kind load docker-image kubesmarts/data-index-service-postgresql:999-SNAPSHOT \
+            --name data-index-test
+          kind load docker-image kubesmarts/data-index-ingestion-kafka-service:999-SNAPSHOT \
+            --name data-index-test
+          kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT \
+            --name data-index-test
 
-          # Additional wait for PostgreSQL to fully initialize
-          sleep 5
-
-          # Copy migration SQL to pod
-          kubectl cp \
-            data-index/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql \
-            postgresql/postgresql-0:/tmp/schema.sql
-
-          # Execute schema creation
-          kubectl exec -n postgresql postgresql-0 -- \
-            env PGPASSWORD=dataindex123 \
-            psql -h localhost -U dataindex -d dataindex \
-            -f /tmp/schema.sql
-
-          # Verify tables created
-          echo "Verifying database schema..."
-          kubectl exec -n postgresql postgresql-0 -- \
-            env PGPASSWORD=dataindex123 \
-            psql -h localhost -U dataindex -d dataindex \
-            -c '\dt'
-
-      - name: Deploy Data Index service
+      - name: Run E2E test script
         run: |
-          SKIP_IMAGE_BUILD=true SKIP_DB_INIT=true \
-            bash data-index/scripts/kind/deploy-data-index.sh postgresql
-
-      - name: Deploy FluentBit
-        run: |
-          kubectl create namespace logging
-
-          # Generate ConfigMap from source files
-          cd data-index/scripts/fluentbit
-          ./generate-configmap.sh postgresql postgresql/kubernetes/configmap.yaml
-          cd -
-
-          # Apply ConfigMap and DaemonSet
-          kubectl apply -f data-index/scripts/fluentbit/postgresql/kubernetes/configmap.yaml
-          kubectl apply -f data-index/scripts/fluentbit/postgresql/kubernetes/daemonset.yaml
-
-          # Wait for FluentBit to be ready
-          kubectl wait --namespace logging \
-            --for=condition=ready pod \
-            --selector=app=workflows-fluent-bit-mode1 \
-            --timeout=120s
-
-      - name: Deploy workflow test app
-        run: |
-          bash data-index/scripts/kind/deploy-workflow-app.sh
-
-      - name: Test E2E workflow execution and GraphQL API
-        run: |
-          # Port forward data-index service
-          kubectl port-forward -n data-index svc/data-index-service 8080:8080 &
-          sleep 5
-
-          # Port forward workflow test app
-          kubectl port-forward -n workflows svc/workflow-test-app 8082:8080 &
-          sleep 5
-
-          # Execute a workflow
-          echo "Executing workflow..."
-          curl -X POST http://localhost:8082/test-workflows/simple-set \
-            -H "Content-Type: application/json" \
-            -d '{"test": "github-actions"}' \
-            --fail-with-body
-
-          # Wait for events to be processed
-          sleep 10
-
-          # Query GraphQL API
-          echo "Querying GraphQL API..."
-          RESPONSE=$(curl -s http://localhost:8080/graphql \
-            -H "Content-Type: application/json" \
-            -d '{"query":"{ getWorkflowInstances(limit: 1) { id name status inputData outputData } }"}')
-
-          echo "GraphQL Response: $RESPONSE"
-
-          # Verify response contains data
-          if ! echo "$RESPONSE" | grep -q '"data"'; then
-            echo "ERROR: GraphQL query failed"
-            echo "$RESPONSE"
-            exit 1
-          fi
-
-          # Verify workflow was created
-          if ! echo "$RESPONSE" | grep -q '"name":"simple-set"'; then
-            echo "ERROR: Workflow instance not found"
-            echo "$RESPONSE"
-            exit 1
-          fi
-
-          echo "✅ E2E integration tests passed!"
+          cd data-index/scripts/kind
+          bash ${{ matrix.mode.script }}
 
       - name: Collect logs on failure
         if: failure()
         run: |
-          echo "=== PostgreSQL Logs ==="
-          kubectl logs -n postgresql -l app.kubernetes.io/name=postgresql --tail=100 || true
+          echo "=== All Pods ==="
+          kubectl get pods --all-namespaces
 
-          echo "=== Data Index Logs ==="
+          echo ""
+          echo "=== All Services ==="
+          kubectl get svc --all-namespaces
+
+          echo ""
+          if [ "${{ matrix.mode.id }}" == "mode1" ] || [ "${{ matrix.mode.id }}" == "mode3" ]; then
+            echo "=== PostgreSQL Logs ==="
+            kubectl logs -n postgresql -l app=postgresql --tail=100 || true
+          fi
+
+          echo ""
+          if [ "${{ matrix.mode.id }}" == "mode2" ]; then
+            echo "=== Elasticsearch Logs ==="
+            kubectl logs -n elasticsearch -l app=elasticsearch --tail=100 || true
+          fi
+
+          echo ""
+          if [ "${{ matrix.mode.id }}" == "mode3" ]; then
+            echo "=== Kafka Logs ==="
+            kubectl logs -n kafka kafka-0 --tail=100 || true
+
+            echo ""
+            echo "=== Ingestion Service Logs ==="
+            kubectl logs -n data-index -l app=data-index-ingestion-kafka-service --tail=100 || true
+          fi
+
+          echo ""
+          echo "=== Data Index Service Logs ==="
           kubectl logs -n data-index -l app=data-index-service --tail=100 || true
 
-          echo "=== FluentBit Logs ==="
-          kubectl logs -n logging -l app=workflows-fluent-bit-mode1 --tail=100 || true
+          echo ""
+          if [ "${{ matrix.mode.id }}" == "mode1" ] || [ "${{ matrix.mode.id }}" == "mode2" ]; then
+            echo "=== FluentBit Logs ==="
+            kubectl logs -n logging -l app=workflows-fluent-bit-${{ matrix.mode.id }} --tail=100 || true
+          fi
 
+          echo ""
           echo "=== Workflow App Logs ==="
           kubectl logs -n workflows -l app=workflow-test-app --tail=100 || true
-
-          echo "=== Database Tables ==="
-          kubectl exec -n postgresql postgresql-0 -- \
-            env PGPASSWORD=dataindex123 \
-            psql -h localhost -U dataindex -d dataindex -c '\dt' || true
-
-          echo "=== Raw Events Count ==="
-          kubectl exec -n postgresql postgresql-0 -- \
-            env PGPASSWORD=dataindex123 \
-            psql -h localhost -U dataindex -d dataindex \
-            -c 'SELECT COUNT(*) FROM workflow_events_raw;' || true
 
       - name: Cleanup
         if: always()
         run: |
           kind delete cluster --name data-index-test || true
+
+  summary:
+    name: All Tests Summary
+    runs-on: ubuntu-latest
+    needs: e2e-test
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.e2e-test.result }}" == "success" ]; then
+            echo "✅ All E2E tests passed!"
+            exit 0
+          else
+            echo "❌ Some E2E tests failed"
+            exit 1
+          fi

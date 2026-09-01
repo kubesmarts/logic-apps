@@ -966,6 +966,147 @@ curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_star
 * Existing Elasticsearch infrastructure
 * Auto-scaling storage desired
 
+== End-to-End Testing
+
+=== Local KIND Cluster Test
+
+Run the complete MODE 2 e2e test suite to verify the entire pipeline:
+
+[source,bash]
+----
+cd data-index/scripts/kind
+./test-mode2-e2e.sh
+----
+
+**What this tests:**
+
+1. ✓ KIND cluster creation and configuration
+2. ✓ Elasticsearch deployment (StatefulSet, no ECK operator)
+3. ✓ Data Index service deployment (Elasticsearch backend)
+4. ✓ Schema initialization (ILM policies, index templates, transforms)
+5. ✓ FluentBit DaemonSet deployment and configuration
+6. ✓ Test workflow execution
+7. ✓ Event flow through complete pipeline
+8. ✓ Raw events collection in Elasticsearch
+9. ✓ ES Transform normalization
+10. ✓ GraphQL API returning normalized data
+11. ✓ Idempotency (replay events don't create duplicates)
+
+**Pipeline flow verified:**
+
+[source,text]
+----
+Quarkus Flow → stdout → K8s logs → FluentBit → Elasticsearch (raw)
+                                                      ↓
+                                            ES Transform (1s)
+                                                      ↓
+                                            Elasticsearch (normalized)
+                                                      ↓
+                                            GraphQL API
+----
+
+**Test output example:**
+
+[source,text]
+----
+[INFO] Starting MODE 2 (Elasticsearch) End-to-End Test
+
+[STEP] Creating KIND cluster...
+[INFO] ✓ Cluster ready
+
+[STEP] Installing Elasticsearch (direct StatefulSet)...
+[INFO] ✓ Elasticsearch ready
+
+[STEP] Deploying Data Index Service (Elasticsearch mode)...
+[INFO] ✓ Data Index ready
+
+[STEP] Waiting for Elasticsearch schema initialization...
+[INFO] Verifying ILM policy...
+[INFO] Verifying index templates...
+[INFO] Verifying ES Transforms...
+[INFO] ✓ Schema initialized
+
+[STEP] Deploying FluentBit (Elasticsearch mode)...
+[INFO] ✓ FluentBit deployed
+
+[STEP] Deploying test workflow application...
+[INFO] ✓ Workflow app deployed
+
+[STEP] Waiting for events to flow through the pipeline...
+[INFO] Triggering workflow execution...
+[INFO] ✓ Found 8 raw events
+[INFO] Waiting for ES Transform to normalize events...
+[INFO] ✓ Found 1 normalized workflow instances
+[INFO] ✓ Events flowing correctly through ES Transform pipeline
+
+[STEP] Verifying GraphQL API...
+[INFO] ✓ Found workflow: 01KQ...
+[INFO] ✓ GraphQL API verified
+
+[STEP] Verifying idempotency (replay events)...
+[INFO] Current workflow count: 1
+[INFO] After replay count: 1
+[INFO] ✓ Idempotency verified (no duplicate instances)
+
+[INFO] ==========================================
+[INFO] MODE 2 E2E Test Complete!
+[INFO] ==========================================
+
+Pipeline Flow:
+  Quarkus Flow → stdout → FluentBit → Elasticsearch → ES Transform → GraphQL
+
+Verification Results:
+  ✓ Elasticsearch cluster running
+  ✓ Data Index service deployed
+  ✓ Schema initialized (ILM, templates, transforms)
+  ✓ FluentBit collecting events
+  ✓ Raw events in Elasticsearch
+  ✓ ES Transform normalizing events
+  ✓ GraphQL API responding
+  ✓ Idempotency working
+
+Access Points:
+  - GraphQL API:   http://localhost:30080/graphql
+  - GraphQL UI:    http://localhost:30080/q/graphql-ui
+  - Elasticsearch: http://localhost:30920
+
+[INFO] ✓ All tests passed!
+----
+
+**Manual verification steps:**
+
+[source,bash]
+----
+# View Elasticsearch indices
+curl http://localhost:30920/_cat/indices?v
+
+# View raw workflow events
+curl http://localhost:30920/workflow-events-*/_search?pretty
+
+# View normalized workflow instances
+curl http://localhost:30920/workflow-instances/_search?pretty
+
+# Check transform status
+curl http://localhost:30920/_transform/workflow-instances-transform/_stats?pretty
+
+# Query GraphQL API
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ getWorkflowInstances { id name status } }"}'
+----
+
+**Test duration:** ~5-7 minutes (includes cluster creation, Elasticsearch startup, schema init, event processing)
+
+**Cleanup:**
+
+[source,bash]
+----
+# Delete the test cluster
+kind delete cluster --name data-index-test
+----
+
+See xref:deployment/kind-local.adoc[Local Development with KIND] for manual setup steps and troubleshooting.
+
 == Next Steps
 
 * xref:deployment/postgresql.adoc[PostgreSQL Deployment] - Alternative storage backend

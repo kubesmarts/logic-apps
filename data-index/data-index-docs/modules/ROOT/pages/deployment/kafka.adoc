@@ -291,6 +291,201 @@ Common causes:
 | Security | Disk files | Disk files | Kafka (SSL/SASL capable)
 |===
 
+== End-to-End Testing
+
+=== Local KIND Cluster Test
+
+Run the complete MODE 3 e2e test suite to verify the entire Kafka ingestion pipeline:
+
+[source,bash]
+----
+cd data-index/scripts/kind
+./test-mode3-e2e.sh
+----
+
+**What this tests:**
+
+1. ✓ KIND cluster creation and configuration
+2. ✓ PostgreSQL deployment (normalized storage)
+3. ✓ Kafka broker deployment (KRaft single-node)
+4. ✓ Data Index query service deployment (PostgreSQL backend)
+5. ✓ Kafka ingestion service deployment
+6. ✓ Workflow test app deployment (Kafka profile)
+7. ✓ Test workflow execution via REST API
+8. ✓ CloudEvents published to Kafka topic
+9. ✓ Ingestion service consumption from Kafka
+10. ✓ Event normalization to PostgreSQL
+11. ✓ GraphQL API returning normalized data
+12. ✓ Idempotency (replaying events doesn't create duplicates)
+
+**Pipeline flow verified:**
+
+[source,text]
+----
+workflow-test-app (Kafka profile)
+        ↓
+    Kafka topic: flow-lifecycle-out (CloudEvents)
+        ↓
+    data-index-ingestion-kafka-service
+        ↓
+    PostgreSQL (workflow_instances, task_instances)
+        ↓
+    Data Index GraphQL API
+----
+
+**Test output example:**
+
+[source,text]
+----
+[INFO] ==========================================
+[INFO] MODE 3 (Kafka) End-to-End Integration Test
+[INFO] ==========================================
+
+[STEP] Creating KIND cluster...
+[INFO] ✓ Cluster ready
+
+[STEP] Creating namespaces...
+[INFO] ✓ Namespaces ready
+
+[STEP] Installing PostgreSQL...
+[INFO] ✓ PostgreSQL ready
+
+[STEP] Schema will be applied by Flyway on ingestion service startup
+[INFO] ✓ Schema initialization delegated to Flyway
+
+[STEP] Installing Kafka (KRaft single-node)...
+[INFO] Waiting for Kafka to be ready (this may take ~60 seconds)...
+[INFO] ✓ Kafka broker accepting connections
+[INFO] ✓ Kafka ready at kafka.kafka.svc.cluster.local:9092
+
+[STEP] Deploying data-index-service (postgresql query backend)...
+[INFO] ✓ Query service ready at http://localhost:30080/graphql
+
+[STEP] Deploying data-index-ingestion-kafka-service...
+[INFO] ✓ Ingestion service ready and consuming from Kafka
+
+[STEP] Deploying workflow-test-app (Kafka profile)...
+[INFO] ✓ workflow-test-app ready (publishing to Kafka)
+
+[STEP] Executing test workflows via REST API...
+[INFO] Triggering simple-set workflow...
+[INFO]   → HTTP 200: simple-set workflow triggered
+[INFO] ✓ Workflows triggered — events are now in Kafka topic 'flow-lifecycle-out'
+
+[STEP] Verifying events in Kafka topic 'flow-lifecycle-out'...
+[INFO] ✓ Found 10 messages in flow-lifecycle-out
+
+[STEP] Verifying normalized data in PostgreSQL...
+[INFO] ✓ Found 2 normalized workflow instance(s)
+[INFO]   Task instances: 4
+[INFO] Sample workflow instance:
+ id                                   | name        | status    | has_start
+--------------------------------------+-------------+-----------+-----------
+ 01KQ7X...                           | simple-set  | COMPLETED | t
+[INFO] ✓ Normalization verified
+
+[STEP] Verifying GraphQL API returns normalized data...
+[INFO]   Sample workflow from GraphQL: 01KQ7X...
+[INFO] ✓ GraphQL API verified
+
+[STEP] Verifying idempotency (re-triggering same workflow)...
+[INFO]   Workflow count before re-trigger: 2
+[INFO]   Workflow count after re-trigger: 2
+[INFO] ✓ Idempotency verified (no unexpected duplicates)
+
+[INFO] ==========================================
+[INFO] MODE 3 (Kafka) E2E Test Complete!
+[INFO] ==========================================
+
+Pipeline:
+  workflow-test-app → Kafka (flow-lifecycle-out) → ingestion-service → PostgreSQL → GraphQL
+
+Results:
+  ✓ Kafka broker running
+  ✓ Workflow events published as CloudEvents
+  ✓ Ingestion service consumed and normalized events
+  ✓ PostgreSQL: 2 workflow instance(s), 4 task instance(s)
+  ✓ GraphQL API returning data
+
+Access Points:
+  GraphQL API:  http://localhost:30080/graphql
+  GraphQL UI:   http://localhost:30080/q/graphql-ui
+  PostgreSQL:   postgresql://dataindex:dataindex123@localhost:30432/dataindex
+  Kafka:        localhost:30900 (NodePort, for tools like kcat)
+
+[INFO] ✅ All MODE 3 tests passed!
+----
+
+**Manual verification steps:**
+
+[source,bash]
+----
+# Watch live Kafka events
+kubectl exec -n kafka kafka-0 -- \
+  /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic flow-lifecycle-out \
+  --from-beginning
+
+# Check consumer group lag
+kubectl exec -n kafka kafka-0 -- \
+  /opt/kafka/bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --describe --group data-index-ingestion
+
+# Query PostgreSQL directly
+kubectl exec -n postgresql postgresql-0 -- \
+  env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
+  -c "SELECT id, name, status FROM workflow_instances;"
+
+# Query GraphQL API
+curl http://localhost:30080/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ getWorkflowInstances { id name status } }"}'
+----
+
+**Test duration:** ~6-8 minutes (includes cluster creation, Kafka startup, event publishing and consumption)
+
+**CloudEvents verification:**
+
+The test verifies that workflow events are published as https://cloudevents.io/[CloudEvents^] to Kafka:
+
+[source,bash]
+----
+# Inspect a CloudEvent
+kubectl exec -n kafka kafka-0 -- \
+  /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic flow-lifecycle-out \
+  --max-messages 1 | jq
+
+# Expected structure:
+{
+  "specversion": "1.0",
+  "type": "io.serverlessworkflow.workflow.started.v1",
+  "source": "workflow-test-app",
+  "id": "01KQ7X...",
+  "time": "2026-08-31T10:30:00Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "workflowInstanceId": "01KQ7X...",
+    "workflowName": "simple-set",
+    "status": "RUNNING",
+    ...
+  }
+}
+----
+
+**Cleanup:**
+
+[source,bash]
+----
+# Delete the test cluster
+kind delete cluster --name data-index-test
+----
+
+See xref:deployment/kind-local.adoc[Local Development with KIND] for manual setup steps and troubleshooting.
+
 == Next Steps
 
 * xref:architecture/kafka-mode.adoc[Learn about MODE 3 architecture]

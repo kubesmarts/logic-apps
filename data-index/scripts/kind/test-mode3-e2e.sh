@@ -127,7 +127,7 @@ install_postgresql() {
 
     kubectl wait --namespace postgresql \
         --for=condition=ready pod \
-        --selector=app=postgresql \
+        --selector=app.kubernetes.io/name=postgresql \
         --timeout=300s
 
     log_info "✓ PostgreSQL ready"
@@ -217,17 +217,15 @@ deploy_ingestion_service() {
 deploy_workflow_app() {
     log_step "Deploying workflow-test-app (Kafka profile)..."
 
+    # MODE 3 requires the app to be built with -Pkafka (build-time config)
+    # so we must delete and redeploy with the Kafka-enabled image
     if kubectl get deployment -n workflows workflow-test-app &>/dev/null; then
-        log_info "workflow-test-app already deployed, restarting for Kafka config..."
-        kubectl rollout restart deployment/workflow-test-app -n workflows
-    else
-        MODE=kafka "${SCRIPT_DIR}/deploy-workflow-app.sh"
+        log_info "Deleting existing workflow-test-app to rebuild with Kafka profile..."
+        kubectl delete deployment -n workflows workflow-test-app --wait=false
+        kubectl delete svc -n workflows workflow-test-app --wait=false
     fi
 
-    kubectl wait --namespace workflows \
-        --for=condition=available deployment/workflow-test-app \
-        --timeout=300s
-
+    MODE=kafka "${SCRIPT_DIR}/deploy-workflow-app.sh"
     log_info "✓ workflow-test-app ready (publishing to Kafka)"
 }
 
@@ -271,6 +269,22 @@ execute_workflows() {
 verify_kafka_events() {
     log_step "Verifying events in Kafka topic 'flow-lifecycle-out'..."
 
+    # First, check if topic exists
+    log_info "Checking if topic 'flow-lifecycle-out' exists..."
+    if ! kubectl exec -n kafka kafka-0 -- \
+        /opt/kafka/bin/kafka-topics.sh \
+        --bootstrap-server localhost:9092 \
+        --list 2>/dev/null | grep -q "^flow-lifecycle-out$"; then
+        log_error "Topic 'flow-lifecycle-out' does not exist!"
+        log_info "Available topics:"
+        kubectl exec -n kafka kafka-0 -- \
+            /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server localhost:9092 \
+            --list 2>/dev/null || true
+        exit 1
+    fi
+    log_info "✓ Topic 'flow-lifecycle-out' exists"
+
     local found=false
     for i in {1..20}; do
         local count
@@ -279,6 +293,9 @@ verify_kafka_events() {
             --broker-list localhost:9092 \
             --topic flow-lifecycle-out \
             --time -1 2>/dev/null | awk -F: 'BEGIN{s=0}{s+=$3}END{print s}' || echo 0)
+
+        # Trim whitespace and newlines
+        count=$(echo "${count}" | tr -d '\n' | tr -d ' ')
 
         if [[ "${count}" -gt 0 ]]; then
             log_info "✓ Found ${count} messages in flow-lifecycle-out"

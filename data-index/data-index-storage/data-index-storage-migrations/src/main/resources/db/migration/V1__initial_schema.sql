@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS workflow_instances (
   name VARCHAR(255),
   version VARCHAR(255),
   status VARCHAR(50),
-  "startedAt" TIMESTAMP WITH TIME ZONE,
-  "endedAt" TIMESTAMP WITH TIME ZONE,
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE,
   last_update TIMESTAMP WITH TIME ZONE,
   last_event_time TIMESTAMP WITH TIME ZONE,  -- Idempotency: track event timestamp
   input JSONB,
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS workflow_instances (
 
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_namespace_name ON workflow_instances (namespace, name);
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_status ON workflow_instances (status);
-CREATE INDEX IF NOT EXISTS idx_workflow_instances_startedAt ON workflow_instances ("startedAt" DESC);
+CREATE INDEX IF NOT EXISTS idx_workflow_instances_startedAt ON workflow_instances (started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_last_event_time ON workflow_instances (last_event_time DESC);
 
 CREATE TABLE IF NOT EXISTS task_instances (
@@ -68,8 +68,8 @@ CREATE TABLE IF NOT EXISTS task_instances (
   task_name VARCHAR(255),
   task VARCHAR(255) NOT NULL,
   status VARCHAR(50),
-  "startedAt" TIMESTAMP WITH TIME ZONE,
-  "endedAt" TIMESTAMP WITH TIME ZONE,
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE,
   last_event_time TIMESTAMP WITH TIME ZONE,  -- Idempotency: track event timestamp
   input JSONB,
   output JSONB,
@@ -111,8 +111,8 @@ BEGIN
     name,
     version,
     status,
-    "startedAt",
-    "endedAt",
+    started_at,
+    ended_at,
     last_update,
     input,
     output,
@@ -158,12 +158,12 @@ BEGIN
     namespace = COALESCE(workflow_instances.namespace, EXCLUDED.namespace),
     name = COALESCE(workflow_instances.name, EXCLUDED.name),
     version = COALESCE(workflow_instances.version, EXCLUDED.version),
-    "startedAt" = COALESCE(workflow_instances."startedAt", EXCLUDED."startedAt"),
+    started_at = COALESCE(workflow_instances.started_at, EXCLUDED.started_at),
     input = COALESCE(workflow_instances.input, EXCLUDED.input),
 
     -- Terminal fields: Preserve if already set (completion data)
     -- Once a workflow completes/faults, these fields should not be cleared
-    "endedAt" = COALESCE(EXCLUDED."endedAt", workflow_instances."endedAt"),
+    ended_at = COALESCE(EXCLUDED.ended_at, workflow_instances.ended_at),
     output = COALESCE(EXCLUDED.output, workflow_instances.output),
     error_type = COALESCE(EXCLUDED.error_type, workflow_instances.error_type),
     error_title = COALESCE(EXCLUDED.error_title, workflow_instances.error_title),
@@ -219,8 +219,8 @@ BEGIN
       task_name,
       task,
       status,
-      "startedAt",
-      "endedAt",
+      started_at,
+      ended_at,
       input,
       output,
       error_type,
@@ -273,8 +273,8 @@ BEGIN
       END,
 
       -- Keep first start time, update end time with latest non-null value
-      "startedAt" = COALESCE(task_instances."startedAt", EXCLUDED."startedAt"),
-      "endedAt" = COALESCE(EXCLUDED."endedAt", task_instances."endedAt"),
+      started_at = COALESCE(task_instances.started_at, EXCLUDED.started_at),
+      ended_at = COALESCE(EXCLUDED.ended_at, task_instances.ended_at),
 
       -- Keep first input, update output with latest non-null value
       input = COALESCE(task_instances.input, EXCLUDED.input),
@@ -314,8 +314,8 @@ BEGIN
       task_name,
       task,
       status,
-      "startedAt",
-      "endedAt",
+      started_at,
+      ended_at,
       input,
       output,
       error_type,
@@ -368,8 +368,8 @@ BEGIN
       END,
 
       -- Keep first start time, update end time with latest non-null value
-      "startedAt" = COALESCE(task_instances."startedAt", EXCLUDED."startedAt"),
-      "endedAt" = COALESCE(EXCLUDED."endedAt", task_instances."endedAt"),
+      started_at = COALESCE(task_instances.started_at, EXCLUDED.started_at),
+      ended_at = COALESCE(EXCLUDED.ended_at, task_instances.ended_at),
 
       -- Keep first input, update output with latest non-null value
       input = COALESCE(task_instances.input, EXCLUDED.input),

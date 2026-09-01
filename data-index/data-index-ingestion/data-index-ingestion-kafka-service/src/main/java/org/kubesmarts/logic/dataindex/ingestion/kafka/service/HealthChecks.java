@@ -20,61 +20,33 @@ import io.smallrye.health.api.Wellness;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
-import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 import org.eclipse.microprofile.health.Liveness;
 import org.eclipse.microprofile.health.Readiness;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.Statement;
-
+/**
+ * Health checks for Kafka Ingestion Service.
+ *
+ * Note: Quarkus automatically provides datasource and Kafka consumer health checks.
+ * These are lightweight checks that don't perform blocking I/O on the event loop.
+ */
 @Unremovable
 @ApplicationScoped
 public class HealthChecks {
 
-    private static final Logger log = LoggerFactory.getLogger(HealthChecks.class);
-    final DataSource dataSource;
-
-    public HealthChecks(DataSource dataSource) {
-        this.dataSource = dataSource;
-    }
-
     @Liveness
     public HealthCheck livenessCheck() {
-        return () -> getDatabaseHealthCheck(HealthCheckResponse.named("Kafka Ingestion Service - liveness check"));
+        return () -> HealthCheckResponse
+                .named("Kafka Ingestion Service - liveness")
+                .up()
+                .build();
     }
 
     @Readiness
     public HealthCheck readinessCheck() {
-        HealthCheckResponseBuilder builder = HealthCheckResponse.named("Kafka Ingestion Service - readiness check");
-        return () -> getDatabaseHealthCheck(builder);
-    }
-
-    private HealthCheckResponse getDatabaseHealthCheck(HealthCheckResponseBuilder builder) {
-        try {
-            try (Connection conn = dataSource.getConnection();
-                 Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery("SELECT 1")) {
-                if (rs.next()) {
-                    return builder.up()
-                            .withData("database", "connected")
-                            .build();
-                } else {
-                    return builder.down()
-                            .withData("database", "disconnected")
-                            .build();
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error while connecting to database", e);
-            return builder
-                    .down()
-                    .withData("database", "error: " + e.getMessage())
-                    .build();
-        }
+        return () -> HealthCheckResponse
+                .named("Kafka Ingestion Service - readiness")
+                .up()
+                .build();
     }
 
     @Wellness

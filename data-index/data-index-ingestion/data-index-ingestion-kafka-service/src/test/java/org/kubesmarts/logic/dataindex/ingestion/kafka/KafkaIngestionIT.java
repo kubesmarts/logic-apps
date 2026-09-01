@@ -119,12 +119,12 @@ public class KafkaIngestionIT extends BaseWorkflowLifecycleIT {
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
-                     "SELECT status, \"endedAt\", output FROM workflow_instances WHERE id = ?")) {
+                     "SELECT status, ended_at, output FROM workflow_instances WHERE id = ?")) {
             stmt.setString(1, instanceId);
             try (ResultSet rs = stmt.executeQuery()) {
                 assertThat(rs.next()).isTrue();
                 assertThat(rs.getString("status")).isEqualTo("COMPLETED");
-                assertThat(rs.getTimestamp("endedAt")).isNotNull();
+                assertThat(rs.getTimestamp("ended_at")).isNotNull();
                 assertThat(rs.getString("output")).contains("result");
             }
         }
@@ -150,7 +150,7 @@ public class KafkaIngestionIT extends BaseWorkflowLifecycleIT {
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
-                     "SELECT input, \"startedAt\" FROM workflow_instances WHERE id = ?")) {
+                     "SELECT input, started_at FROM workflow_instances WHERE id = ?")) {
             stmt.setString(1, instanceId);
             try (ResultSet rs = stmt.executeQuery()) {
                 assertThat(rs.next()).isTrue();
@@ -215,14 +215,14 @@ public class KafkaIngestionIT extends BaseWorkflowLifecycleIT {
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
-                     "SELECT status, task_name, \"endedAt\" FROM task_instances WHERE task_name = ? AND status = ?")) {
+                     "SELECT status, task_name, ended_at FROM task_instances WHERE task_name = ? AND status = ?")) {
             stmt.setString(1, taskName);
             stmt.setString(2, "COMPLETED");
             try (ResultSet rs = stmt.executeQuery()) {
                 assertThat(rs.next()).isTrue();
                 assertThat(rs.getString("status")).isEqualTo("COMPLETED");
                 assertThat(rs.getString("task_name")).isEqualTo(taskName);
-                assertThat(rs.getTimestamp("endedAt")).isNotNull();
+                assertThat(rs.getTimestamp("ended_at")).isNotNull();
             }
         }
     }
@@ -275,7 +275,7 @@ public class KafkaIngestionIT extends BaseWorkflowLifecycleIT {
         await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
             try (Connection conn = dataSource.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(
-                         "SELECT status, input, output, \"startedAt\" FROM workflow_instances WHERE id = ?")) {
+                         "SELECT status, input, output, started_at FROM workflow_instances WHERE id = ?")) {
                 stmt.setString(1, instanceId);
                 try (ResultSet rs = stmt.executeQuery()) {
                     assertThat(rs.next()).isTrue();
