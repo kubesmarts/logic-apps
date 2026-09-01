@@ -74,7 +74,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: fluent-bit
-        image: fluent/fluent-bit:3.0
+        image: fluent/fluent-bit:3.2
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false

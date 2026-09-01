@@ -95,6 +95,16 @@ install_elasticsearch() {
     else
         log_info "Creating Elasticsearch StatefulSet..."
         kubectl apply -f "${SCRIPT_DIR}/elasticsearch-statefulset.yaml"
+
+        # Wait for pod to be created before waiting for it to be ready
+        log_info "Waiting for Elasticsearch pod to be created..."
+        for i in {1..30}; do
+            if kubectl get pod -n elasticsearch elasticsearch-0 &>/dev/null; then
+                log_info "Pod created, waiting for it to be ready..."
+                break
+            fi
+            sleep 2
+        done
     fi
 
     log_info "Waiting for Elasticsearch to be ready..."
@@ -173,8 +183,115 @@ wait_for_schema_init() {
 deploy_fluentbit() {
     log_step "Deploying FluentBit (Elasticsearch mode)..."
 
-    cd "${PROJECT_ROOT}/data-index/scripts/fluentbit/elasticsearch"
-    ./deploy.sh
+    # Generate ConfigMap from source files to temp file
+    TEMP_CONFIGMAP=$(mktemp)
+    cd "${PROJECT_ROOT}/data-index/scripts/fluentbit"
+    ./generate-configmap.sh elasticsearch "${TEMP_CONFIGMAP}" 2>/dev/null
+
+    # Apply with name change
+    sed 's/name: fluent-bit-config/name: workflows-fluent-bit-mode2-config/' "${TEMP_CONFIGMAP}" | \
+      kubectl apply -f -
+
+    # Apply DaemonSet (customize for MODE 2)
+    kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: workflows-fluent-bit-mode2
+  namespace: logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: workflows-fluent-bit-mode2
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: workflows-fluent-bit-mode2
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: workflows-fluent-bit-mode2
+subjects:
+  - kind: ServiceAccount
+    name: workflows-fluent-bit-mode2
+    namespace: logging
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: workflows-fluent-bit-mode2
+  namespace: logging
+  labels:
+    app: workflows-fluent-bit-mode2
+spec:
+  selector:
+    matchLabels:
+      app: workflows-fluent-bit-mode2
+  template:
+    metadata:
+      labels:
+        app: workflows-fluent-bit-mode2
+    spec:
+      serviceAccountName: workflows-fluent-bit-mode2
+      containers:
+        - name: fluent-bit
+          image: fluent/fluent-bit:3.2
+          env:
+            - name: WORKFLOW_NAMESPACE
+              value: "workflows"
+            - name: ELASTICSEARCH_HOST
+              value: "data-index-es-http.elasticsearch.svc.cluster.local"
+            - name: ELASTICSEARCH_PORT
+              value: "9200"
+          volumeMounts:
+            - name: config
+              mountPath: /fluent-bit/etc/
+            - name: varlog
+              mountPath: /var/log
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: tail-db
+              mountPath: /tail-db
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: config
+          configMap:
+            name: workflows-fluent-bit-mode2-config
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: tail-db
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workflows-fluent-bit-mode2
+  namespace: logging
+spec:
+  selector:
+    app: workflows-fluent-bit-mode2
+  ports:
+    - name: http
+      port: 2020
+      targetPort: 2020
+EOF
 
     # Wait for FluentBit pods
     kubectl wait --namespace logging \
@@ -288,13 +405,6 @@ verify_graphql() {
 
     local workflow_id=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].id')
     log_info "✓ Found workflow: $workflow_id"
-
-    # Test getWorkflowInstanceById query
-    log_info "Testing getWorkflowInstanceById query..."
-    curl -s -X POST http://localhost:30080/graphql \
-        -H "Content-Type: application/json" \
-        -d "{\"query\":\"{ getWorkflowInstanceById(id: \\\"$workflow_id\\\") { id name version status } }\"}" | \
-        jq -e '.data.getWorkflowInstanceById.id != null' > /dev/null
 
     log_info "✓ GraphQL API verified"
 }

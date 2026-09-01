@@ -18,7 +18,12 @@ package org.kubesmarts.logic.dataindex.ingestion.kafka.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cloudevents.CloudEvent;
+import io.cloudevents.CloudEventData;
+import io.cloudevents.core.builder.CloudEventBuilder;
+import io.cloudevents.core.data.BytesCloudEventData;
+import io.cloudevents.core.data.PojoCloudEventData;
 import io.cloudevents.jackson.JsonCloudEventData;
+import org.apache.kafka.common.header.Header;
 import io.serverlessworkflow.impl.lifecycle.ce.TaskCEData;
 import io.serverlessworkflow.impl.lifecycle.ce.WorkflowCEData;
 import io.smallrye.reactive.messaging.MutinyEmitter;
@@ -87,16 +92,35 @@ public class KafkaLifecycleConsumer {
         for (ConsumerRecord<String, String> record : records.getPayload()) {
             try {
                 CloudEvent cloudEvent = validateCloudEvent(record);
-    
-                JsonCloudEventData cloudEventData = (JsonCloudEventData) cloudEvent.getData();
-                if (cloudEventData == null || cloudEventData.getNode() == null) {
-                    throw new IllegalArgumentException("The CloudEvent data node consumed at offset %s from partition %s is null or empty."
+
+                CloudEventData cloudEventData = cloudEvent.getData();
+                if (cloudEventData == null) {
+                    throw new IllegalArgumentException("The CloudEvent data consumed at offset %s from partition %s is null or empty."
                             .formatted(record.offset(), record.partition()));
                 }
-    
+
                 Class<?> eventClass = LifecycleEventUtils.getEventClass(cloudEvent.getType());
-                Object data = jackson.convertValue(cloudEventData.getNode(), eventClass);
-    
+                Object data;
+
+                // Handle both binary mode (BytesCloudEventData) and structured mode (JsonCloudEventData)
+                if (cloudEventData instanceof BytesCloudEventData bytesData) {
+                    // Binary mode: data is raw bytes of JSON payload
+                    String dataJson = new String(bytesData.toBytes(), StandardCharsets.UTF_8);
+                    data = jackson.readValue(dataJson, eventClass);
+                } else if (cloudEventData instanceof JsonCloudEventData jsonData) {
+                    // Structured mode: data is already parsed as JsonNode
+                    if (jsonData.getNode().isTextual()) {
+                        // Data is a JSON string, parse it first
+                        String dataJson = jsonData.getNode().asText();
+                        data = jackson.readValue(dataJson, eventClass);
+                    } else {
+                        // Data is already a parsed JSON object
+                        data = jackson.convertValue(jsonData.getNode(), eventClass);
+                    }
+                } else {
+                    throw new IllegalArgumentException("Unsupported CloudEventData type: " + cloudEventData.getClass().getName());
+                }
+
                 if (data instanceof TaskCEData taskData) {
                     taskExecutions.add(mapTaskEvent(cloudEvent, taskData));
                 } else if (data instanceof WorkflowCEData workflowData) {
@@ -186,7 +210,17 @@ public class KafkaLifecycleConsumer {
             throw new IllegalArgumentException("Event record consumed at offset %s, from partition %s is null or empty."
                     .formatted(record.topic(), record.partition()));
         }
-        CloudEvent cloudEvent = jackson.readValue(record.value(), CloudEvent.class);
+
+        CloudEvent cloudEvent;
+
+        // Check if this is binary CloudEvents mode (CE attributes in Kafka headers)
+        if (isBinaryCloudEvent(record)) {
+            cloudEvent = buildCloudEventFromBinaryMode(record);
+        } else {
+            // Structured mode: full CloudEvent JSON in message body
+            cloudEvent = jackson.readValue(record.value(), CloudEvent.class);
+        }
+
         if (cloudEvent == null || cloudEvent.getType() == null) {
             log.error("The CloudEvent consumed at offset '{}', from partition '{}' is null or has a null type.", record.offset(), record.partition());
             throw new IllegalArgumentException("CloudEvent type is null or empty.");
@@ -197,6 +231,46 @@ public class KafkaLifecycleConsumer {
             throw new IllegalArgumentException("CloudEvent time is null.");
         }
         return cloudEvent;
+    }
+
+    private boolean isBinaryCloudEvent(ConsumerRecord<String, String> record) {
+        // Binary mode has CE attributes in Kafka headers (ce_type, ce_source, etc.)
+        Header typeHeader = record.headers().lastHeader("ce_type");
+        return typeHeader != null;
+    }
+
+    private CloudEvent buildCloudEventFromBinaryMode(ConsumerRecord<String, String> record) throws JsonProcessingException {
+        // Extract CE attributes from Kafka headers
+        String type = getHeaderValue(record, "ce_type");
+        String source = getHeaderValue(record, "ce_source");
+        String id = getHeaderValue(record, "ce_id");
+        String specVersion = getHeaderValue(record, "ce_specversion");
+        String time = getHeaderValue(record, "ce_time");
+
+        if (type == null || source == null || id == null) {
+            throw new IllegalArgumentException("Binary CloudEvent missing required headers (ce_type, ce_source, or ce_id)");
+        }
+
+        // Data payload is in the message value (JSON string of lifecycle event)
+        String dataJson = record.value();
+
+        // Build CloudEvent with data as JsonCloudEventData
+        CloudEventBuilder builder = CloudEventBuilder.v1()
+                .withType(type)
+                .withSource(java.net.URI.create(source))
+                .withId(id)
+                .withData("application/json", bytes(dataJson));
+
+        if (time != null) {
+            builder.withTime(java.time.OffsetDateTime.parse(time));
+        }
+
+        return builder.build();
+    }
+
+    private String getHeaderValue(ConsumerRecord<String, String> record, String headerName) {
+        Header header = record.headers().lastHeader(headerName);
+        return header != null ? new String(header.value(), StandardCharsets.UTF_8) : null;
     }
 
     private void handleWorkflowEvent(CloudEvent cloudEvent, WorkflowCEData data) {

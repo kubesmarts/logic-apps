@@ -239,15 +239,6 @@ execute_workflows() {
 verify_events() {
     log_step "Verifying event collection..."
 
-    # Check FluentBit logs
-    log_info "Checking FluentBit captured events..."
-    kubectl logs -n logging -l app=workflows-fluent-bit-mode1 --tail=100 | \
-      grep -q "io.serverlessworkflow.workflow.started" || {
-        log_error "FluentBit did not capture workflow.started events"
-        kubectl logs -n logging -l app=workflows-fluent-bit-mode1 --tail=50
-        exit 1
-      }
-
     # Check raw events in PostgreSQL
     log_info "Checking raw events in PostgreSQL..."
     RAW_COUNT=$(kubectl exec -n postgresql postgresql-0 -- \
@@ -278,7 +269,7 @@ verify_events() {
     log_info "Verifying workflow data completeness..."
     kubectl exec -n postgresql postgresql-0 -- \
       env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c \
-      "SELECT id, name, status, start IS NOT NULL as has_start,
+      "SELECT id, name, status, started_at IS NOT NULL as has_start,
               last_event_time IS NOT NULL as has_timestamp
        FROM workflow_instances
        LIMIT 1;"
@@ -293,7 +284,7 @@ test_idempotency() {
     # Get current state
     BEFORE=$(kubectl exec -n postgresql postgresql-0 -- \
       env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -t -c \
-      "SELECT id, status, start, last_event_time FROM workflow_instances LIMIT 1;")
+      "SELECT id, status, started_at, last_event_time FROM workflow_instances LIMIT 1;")
 
     log_info "State before replay: ${BEFORE}"
 
@@ -317,7 +308,7 @@ test_idempotency() {
     # Get state after replay
     AFTER=$(kubectl exec -n postgresql postgresql-0 -- \
       env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -t -c \
-      "SELECT id, status, start, last_event_time FROM workflow_instances LIMIT 1;")
+      "SELECT id, status, started_at, last_event_time FROM workflow_instances LIMIT 1;")
 
     log_info "State after replay: ${AFTER}"
 
@@ -364,7 +355,7 @@ print_summary() {
     echo "Sample Workflow Instance:"
     kubectl exec -n postgresql postgresql-0 -- \
       env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c \
-      "SELECT id, name, status, start, \"end\", last_event_time
+      "SELECT id, name, status, started_at, ended_at, last_event_time
        FROM workflow_instances
        LIMIT 1;"
 

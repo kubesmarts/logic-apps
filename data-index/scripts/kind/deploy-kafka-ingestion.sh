@@ -103,6 +103,27 @@ build_and_load() {
     log_info "✓ Image loaded"
 }
 
+create_kafka_topics() {
+    log_step "Creating Kafka topics..."
+
+    # Create topics before deploying consumer to avoid health check failures
+    kubectl exec -n kafka kafka-0 -- \
+        /opt/kafka/bin/kafka-topics.sh \
+        --bootstrap-server localhost:9092 \
+        --create --if-not-exists \
+        --topic flow-lifecycle-out \
+        --partitions 1 --replication-factor 1 || true
+
+    kubectl exec -n kafka kafka-0 -- \
+        /opt/kafka/bin/kafka-topics.sh \
+        --bootstrap-server localhost:9092 \
+        --create --if-not-exists \
+        --topic data-index-events-dlq \
+        --partitions 1 --replication-factor 1 || true
+
+    log_info "✓ Kafka topics created"
+}
+
 deploy_ingestion_service() {
     log_step "Deploying data-index-ingestion-kafka-service..."
 
@@ -163,6 +184,9 @@ spec:
               value: "INFO"
             - name: QUARKUS_LOG_CATEGORY_ORG_KUBESMARTS_LOGIC_LEVEL
               value: "DEBUG"
+            # Disable Flyway migrations at startup (migrations are run manually by deploy script)
+            - name: QUARKUS_FLYWAY_MIGRATE_AT_START
+              value: "false"
           resources:
             requests:
               memory: "256Mi"
@@ -174,14 +198,18 @@ spec:
             httpGet:
               path: /q/health/live
               port: 8080
-            initialDelaySeconds: 30
+            initialDelaySeconds: 75
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /q/health/ready
               port: 8080
-            initialDelaySeconds: 20
+            initialDelaySeconds: 75
             periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
@@ -251,6 +279,7 @@ main() {
 
     check_prerequisites
     build_and_load
+    create_kafka_topics
     deploy_ingestion_service
     wait_for_ready
     print_info

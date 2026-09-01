@@ -113,6 +113,13 @@
       <artifactId>awaitility</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Quarkus Flow for end-to-end testing of lifecycle event consumption -->
+    <dependency>
+      <groupId>io.quarkiverse.flow</groupId>
+      <artifactId>quarkus-flow</artifactId>
+      <version>${quarkus-flow.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

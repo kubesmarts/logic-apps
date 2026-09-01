@@ -127,6 +127,20 @@
           <artifactId>quarkus-messaging-kafka</artifactId>
         </dependency>
       </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-maven-plugin</artifactId>
+            <configuration>
+              <properties>
+                <quarkus.flow.messaging.defaults-enabled>true</quarkus.flow.messaging.defaults-enabled>
+                <quarkus.flow.messaging.lifecycle-enabled>true</quarkus.flow.messaging.lifecycle-enabled>
+              </properties>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
   <build>

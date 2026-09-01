@@ -127,7 +127,7 @@ install_postgresql() {
 
     kubectl wait --namespace postgresql \
         --for=condition=ready pod \
-        --selector=app=postgresql \
+        --selector=app.kubernetes.io/name=postgresql \
         --timeout=300s
 
     log_info "✓ PostgreSQL ready"
@@ -217,17 +217,15 @@ deploy_ingestion_service() {
 deploy_workflow_app() {
     log_step "Deploying workflow-test-app (Kafka profile)..."
 
+    # MODE 3 requires the app to be built with -Pkafka (build-time config)
+    # so we must delete and redeploy with the Kafka-enabled image
     if kubectl get deployment -n workflows workflow-test-app &>/dev/null; then
-        log_info "workflow-test-app already deployed, restarting for Kafka config..."
-        kubectl rollout restart deployment/workflow-test-app -n workflows
-    else
-        MODE=kafka "${SCRIPT_DIR}/deploy-workflow-app.sh"
+        log_info "Deleting existing workflow-test-app to rebuild with Kafka profile..."
+        kubectl delete deployment -n workflows workflow-test-app --wait=false
+        kubectl delete svc -n workflows workflow-test-app --wait=false
     fi
 
-    kubectl wait --namespace workflows \
-        --for=condition=available deployment/workflow-test-app \
-        --timeout=300s
-
+    MODE=kafka "${SCRIPT_DIR}/deploy-workflow-app.sh"
     log_info "✓ workflow-test-app ready (publishing to Kafka)"
 }
 
@@ -266,31 +264,37 @@ execute_workflows() {
     log_info "✓ Workflows triggered — events are now in Kafka topic 'flow-lifecycle-out'"
 }
 
-# ── Step 10: Verify Kafka events ──────────────────────────────────────────────
+# ── Step 10: Verify ingestion service health ────────────────────────────────
+# Workflow execution is async - workflows triggered by HTTP POST execute in background.
+# Instead of polling Kafka topic (race condition), we verify:
+#   1. Ingestion service is healthy and consuming from Kafka
+#   2. PostgreSQL contains normalized data (ultimate proof MODE 3 works)
 
-verify_kafka_events() {
-    log_step "Verifying events in Kafka topic 'flow-lifecycle-out'..."
+verify_ingestion_service_health() {
+    log_step "Verifying ingestion service is consuming from Kafka..."
 
-    local found=false
-    for i in {1..20}; do
-        local count
-        count=$(kubectl exec -n kafka kafka-0 -- \
-            /opt/kafka/bin/kafka-run-class.sh kafka.tools.GetOffsetShell \
-            --broker-list localhost:9092 \
-            --topic flow-lifecycle-out \
-            --time -1 2>/dev/null | awk -F: 'BEGIN{s=0}{s+=$3}END{print s}' || echo 0)
+    # Check consumer group exists and is consuming
+    log_info "Checking consumer group 'data-index-ingestion'..."
+    if kubectl exec -n kafka kafka-0 -- \
+        /opt/kafka/bin/kafka-consumer-groups.sh \
+        --bootstrap-server localhost:9092 \
+        --list 2>/dev/null | grep -q "data-index-ingestion"; then
+        log_info "✓ Consumer group 'data-index-ingestion' is active"
+    else
+        log_error "Consumer group 'data-index-ingestion' not found"
+        exit 1
+    fi
 
-        if [[ "${count}" -gt 0 ]]; then
-            log_info "✓ Found ${count} messages in flow-lifecycle-out"
-            found=true
-            break
-        fi
-        log_info "Attempt $i/20: No messages yet, waiting..."
-        sleep 3
-    done
+    # Check ingestion service health
+    local pod_name
+    pod_name=$(kubectl get pod -n data-index -l app=data-index-ingestion-kafka-service \
+        -o jsonpath='{.items[0].metadata.name}')
 
-    if [[ "${found}" != "true" ]]; then
-        log_error "No messages found in flow-lifecycle-out after 60 seconds"
+    if kubectl exec -n data-index "${pod_name}" -- \
+        curl -s http://localhost:8080/q/health 2>/dev/null | grep -qE '"status"\s*:\s*"UP"'; then
+        log_info "✓ Ingestion service is healthy"
+    else
+        log_error "Ingestion service health check failed"
         exit 1
     fi
 }
@@ -300,10 +304,12 @@ verify_kafka_events() {
 verify_postgresql_normalization() {
     log_step "Verifying normalized data in PostgreSQL..."
 
-    # Wait for the ingestion service to consume and commit events
-    log_info "Waiting up to 30s for ingestion service to normalize events..."
+    # Wait for async workflow execution + Kafka ingestion + PostgreSQL normalization
+    # Workflow execution is async: HTTP POST returns immediately, workflow runs in background
+    # Timeline: HTTP 200 → workflow executes → events to Kafka → ingestion consumes → PostgreSQL
+    log_info "Waiting up to 60s for complete pipeline (workflow execution + ingestion)..."
     local found=false
-    for i in {1..15}; do
+    for i in {1..30}; do
         local wf_count
         wf_count=$(kubectl exec -n postgresql postgresql-0 -- \
             env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -t -c \
@@ -314,7 +320,7 @@ verify_postgresql_normalization() {
             found=true
             break
         fi
-        log_info "Attempt $i/15: Waiting for ingestion to normalize events..."
+        log_info "Attempt $i/30: Waiting for async workflow execution + ingestion..."
         sleep 2
     done
 
@@ -335,7 +341,7 @@ verify_postgresql_normalization() {
     log_info "Sample workflow instance:"
     kubectl exec -n postgresql postgresql-0 -- \
         env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c \
-        "SELECT id, name, status, start IS NOT NULL AS has_start
+        "SELECT id, name, status, started_at IS NOT NULL AS has_start
          FROM workflow_instances
          LIMIT 3;"
 
@@ -479,7 +485,7 @@ main() {
     deploy_ingestion_service
     deploy_workflow_app
     execute_workflows
-    verify_kafka_events
+    verify_ingestion_service_health
     verify_postgresql_normalization
     verify_graphql
     verify_idempotency

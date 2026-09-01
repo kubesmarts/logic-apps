@@ -91,17 +91,17 @@ public class WorkflowInstanceEntity extends AbstractEntity {
     /**
      * Instance start time.
      * <p>Source: startTime from workflow.instance.started event
-     * <p>Column: 'startedAt' (Open Workflow spec field name)
+     * <p>Column: 'started_at' (PostgreSQL snake_case convention)
      */
-    @Column(name = "\"startedAt\"")
+    @Column(name = "started_at")
     private ZonedDateTime startedAt;
 
     /**
      * Instance end time (terminal timestamp).
      * <p>Source: endTime from workflow.instance.completed/faulted/cancelled events
-     * <p>Column: 'endedAt' (generic terminal timestamp, status indicates which terminal state)
+     * <p>Column: 'ended_at' (PostgreSQL snake_case convention, generic terminal timestamp)
      */
-    @Column(name = "\"endedAt\"")
+    @Column(name = "ended_at")
     private ZonedDateTime endedAt;
 
     /**
