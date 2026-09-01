@@ -286,8 +286,12 @@ verify_ingestion_service_health() {
     fi
 
     # Check ingestion service health
-    if kubectl exec -n data-index -l app=data-index-ingestion-kafka-service -- \
-        curl -s http://localhost:8080/q/health | grep -q '"status":"UP"'; then
+    local pod_name
+    pod_name=$(kubectl get pod -n data-index -l app=data-index-ingestion-kafka-service \
+        -o jsonpath='{.items[0].metadata.name}')
+
+    if kubectl exec -n data-index "${pod_name}" -- \
+        curl -s http://localhost:8080/q/health 2>/dev/null | grep -qE '"status"\s*:\s*"UP"'; then
         log_info "✓ Ingestion service is healthy"
     else
         log_error "Ingestion service health check failed"
@@ -337,7 +341,7 @@ verify_postgresql_normalization() {
     log_info "Sample workflow instance:"
     kubectl exec -n postgresql postgresql-0 -- \
         env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c \
-        "SELECT id, name, status, start IS NOT NULL AS has_start
+        "SELECT id, name, status, started_at IS NOT NULL AS has_start
          FROM workflow_instances
          LIMIT 3;"
 
