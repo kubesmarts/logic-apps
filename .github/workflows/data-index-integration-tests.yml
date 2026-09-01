@@ -39,10 +39,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -97,7 +97,7 @@ jobs:
             --no-transfer-progress
 
       - name: Set up KIND cluster
-        uses: helm/kind-action@v1.10.0
+        uses: helm/kind-action@v1.14.0
         with:
           cluster_name: data-index-test
           config: data-index/scripts/kind/kind-config.yaml
