@@ -45,7 +45,7 @@
 
     <!-- Data Index specific dependency versions -->
     <quarkus-flow.version>1.0.0</quarkus-flow.version>
-    <cloudevents.version>4.0.2</cloudevents.version>
+    <cloudevents.version>5.0.0</cloudevents.version>
 
     <!-- Legacy Kogito dependencies (temporary - will be removed in future phases) -->
     <kogito.version>999-SNAPSHOT</kogito.version>
