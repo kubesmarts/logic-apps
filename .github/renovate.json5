@@ -1,0 +1,144 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommitTypeAll(chore)",
+    ":dependencyDashboard"
+  ],
+
+  // Schedule: Weekly on Monday at 9am UTC (same as Dependabot)
+  "schedule": ["before 9am on Monday"],
+  "timezone": "UTC",
+
+  // Limit open PRs to avoid overwhelming reviewers
+  "prConcurrentLimit": 10,
+
+  // Auto-merge patch updates for non-critical dependencies (optional - remove if you prefer manual review)
+  "packageRules": [
+    // ========================================================================
+    // Maven Dependencies
+    // ========================================================================
+    {
+      "description": "Group Quarkus platform updates together",
+      "matchManagers": ["maven"],
+      "matchPackagePatterns": ["^io\\.quarkus"],
+      "groupName": "Quarkus dependencies",
+      "labels": ["dependencies", "java", "quarkus"],
+      "commitMessagePrefix": "chore(deps):",
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Group test dependencies together",
+      "matchManagers": ["maven"],
+      "matchPackagePatterns": [
+        "^org\\.junit",
+        "^org\\.assertj",
+        "^org\\.testcontainers",
+        "^org\\.mockito"
+      ],
+      "groupName": "Test dependencies",
+      "labels": ["dependencies", "java", "test"],
+      "commitMessagePrefix": "chore(deps):",
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Group workflow dependencies together",
+      "matchManagers": ["maven"],
+      "matchPackagePatterns": ["^io\\.serverlessworkflow"],
+      "groupName": "Workflow dependencies",
+      "labels": ["dependencies", "java", "workflow"],
+      "commitMessagePrefix": "chore(deps):",
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Major Maven updates - review carefully",
+      "matchManagers": ["maven"],
+      "matchUpdateTypes": ["major"],
+      "labels": ["dependencies", "java", "major-update"],
+      "commitMessagePrefix": "chore(deps):",
+      "automerge": false
+    },
+    {
+      "description": "Minor/Patch Maven updates - can auto-merge if tests pass",
+      "matchManagers": ["maven"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "labels": ["dependencies", "java"],
+      "commitMessagePrefix": "chore(deps):",
+      "automerge": false  // Set to true if you want auto-merge after CI passes
+    },
+
+    // ========================================================================
+    // GitHub Actions
+    // ========================================================================
+    {
+      "description": "GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "labels": ["dependencies", "github-actions"],
+      "commitMessagePrefix": "chore(ci):",
+      "automerge": false
+    },
+
+    // ========================================================================
+    // Docker Images
+    // ========================================================================
+    {
+      "description": "Docker image updates",
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "labels": ["dependencies", "docker"],
+      "commitMessagePrefix": "chore(docker):",
+      "automerge": false
+    }
+  ],
+
+  // ========================================================================
+  // Custom Regex Managers - Track non-standard dependencies
+  // ========================================================================
+  "regexManagers": [
+    {
+      "description": "Vector image version in Maven properties",
+      "fileMatch": ["^data-index/collectors/pom\\.xml$"],
+      "matchStrings": [
+        "<vector\\.version>(?<currentValue>.*?)</vector\\.version>"
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "timberio/vector",
+      "versioningTemplate": "docker",
+      "extractVersionTemplate": "^(?<version>.+?)(?:-distroless-libc)?$"
+    }
+  ],
+
+  // ========================================================================
+  // Maven-specific configuration
+  // ========================================================================
+  "maven": {
+    // Ignore snapshot versions
+    "ignoreDeps": ["*-SNAPSHOT"]
+  },
+
+  // ========================================================================
+  // Vulnerability Alerts
+  // ========================================================================
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security", "dependencies"]
+  },
+
+  // ========================================================================
+  // PR Configuration
+  // ========================================================================
+  "prCreation": "immediate",  // Create PRs as soon as updates are found
+  "prHourlyLimit": 2,        // Max 2 PRs per hour to avoid spam
+  "semanticCommits": "enabled",
+  "commitMessageAction": "Update",
+  "commitMessageTopic": "{{depName}}",
+  "commitMessageExtra": "to {{newVersion}}",
+
+  // ========================================================================
+  // Ignore Patterns
+  // ========================================================================
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/target/**",
+    "**/.mvn/**"
+  ]
+}
