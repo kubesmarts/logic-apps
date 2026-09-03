@@ -48,7 +48,6 @@ class VectorConfigValidationIT {
     @Test
     void mode2ElasticsearchConfigIsValid() throws Exception {
         Path configPath = getConfigPath("mode2-elasticsearch/vector.yaml");
-        assertThat(configPath).exists();
 
         // Basic structure validation
         String configContent = Files.readString(configPath);

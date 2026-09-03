@@ -58,7 +58,7 @@ Before deploying Elasticsearch mode, ensure you have:
 
 3. **Container images built**
    - Data Index service: `kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT`
-   - Vector: `timberio/vector:latest-alpine`
+   - Vector: `timberio/vector:0.41.1-distroless-libc` (version managed in `data-index/collectors/pom.xml`)
 
 4. **Vector RBAC permissions**
    - Service account with pod metadata read access
