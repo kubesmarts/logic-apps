@@ -34,10 +34,16 @@ class VectorConfigValidationIT {
 
     // Vector image from Maven property (passed via system property)
     // See pom.xml: <vector.image>timberio/vector:${vector.version}-distroless-libc</vector.image>
-    private static final String VECTOR_IMAGE = System.getProperty(
-            "vector.image",
-            "timberio/vector:0.41.1-distroless-libc"
-    );
+    private static final String VECTOR_IMAGE = System.getProperty("vector.image");
+
+    static {
+        if (VECTOR_IMAGE == null) {
+            throw new IllegalStateException(
+                "vector.image system property is required. " +
+                "Set it in pom.xml <systemPropertyVariables> or via -Dvector.image=timberio/vector:x.y.z"
+            );
+        }
+    }
 
     @Test
     void mode2ElasticsearchConfigIsValid() throws Exception {
