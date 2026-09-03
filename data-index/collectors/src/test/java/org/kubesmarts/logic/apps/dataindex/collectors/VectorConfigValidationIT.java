@@ -1,14 +1,16 @@
 package org.kubesmarts.logic.apps.dataindex.collectors;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.utility.MountableFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -28,6 +30,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
  * </ul>
  */
 class VectorConfigValidationIT {
+    private static final Logger LOGGER = LoggerFactory.getLogger(VectorConfigValidationIT.class);
 
     private static final String COLLECTORS_BASE_PATH = "../vector";
 
@@ -74,64 +77,56 @@ class VectorConfigValidationIT {
     }
 
     /**
-     * Validates Vector config by running Docker container directly.
+     * Validates Vector config using Testcontainers.
      *
-     * <p><strong>Why not Testcontainers?</strong> While Testcontainers is generally more reliable,
-     * this is a legitimate edge case where direct Docker execution is actually the better choice:
-     *
+     * <p>Runs Vector's validate command in a container:
      * <ul>
-     *   <li>One-shot validation command (container exits immediately)</li>
-     *   <li>Non-standard exit code 78 (warnings) needs to be accepted</li>
-     *   <li>Distroless image has no shell/sleep commands for keep-alive</li>
-     *   <li>Testcontainers' OneShotStartupCheckStrategy only accepts exit code 0</li>
-     * </ul>
-     *
-     * <p>This approach:
-     * <ul>
-     *   <li>Runs {@code docker run --rm vector validate} directly via ProcessBuilder</li>
-     *   <li>Captures both stdout/stderr for comprehensive validation feedback</li>
-     *   <li>Handles exit codes 0 (success) and 78 (warnings) gracefully</li>
-     *   <li>Docker failures produce clear error messages from ProcessBuilder</li>
+     *   <li>Mounts config file to /etc/vector/vector.yaml</li>
+     *   <li>Provides required environment variables</li>
+     *   <li>Accepts exit codes 0 (success) or 78 (warnings)</li>
+     *   <li>Verifies no "Failed to load" errors in output</li>
      * </ul>
      *
      * @param configPath path to Vector YAML config file
      */
     private void validateWithVectorContainer(Path configPath) throws Exception {
-        // Run Vector validation via Docker
-        ProcessBuilder pb = new ProcessBuilder(
-                "docker", "run", "--rm",
-                "-e", "NODE_NAME=test-node",
-                "-e", "WORKFLOW_NAMESPACE=workflows",
-                "-e", "ELASTICSEARCH_HOST=elasticsearch.test.svc",
-                "-e", "ELASTICSEARCH_PORT=9200",
-                "-v", configPath.toAbsolutePath() + ":/etc/vector/vector.yaml:ro",
-                VECTOR_IMAGE,
-                "validate", "--config-yaml", "/etc/vector/vector.yaml"
-        );
+        try (GenericContainer<?> vector = new GenericContainer<>(VECTOR_IMAGE)
+                .withCopyFileToContainer(
+                        MountableFile.forHostPath(configPath),
+                        "/etc/vector/vector.yaml"
+                )
+                .withEnv("NODE_NAME", "test-node")
+                .withEnv("WORKFLOW_NAMESPACE", "workflows")
+                .withEnv("ELASTICSEARCH_HOST", "elasticsearch.test.svc")
+                .withEnv("ELASTICSEARCH_PORT", "9200")
+                .withCommand("validate", "--config-yaml", "/etc/vector/vector.yaml")
+                .waitingFor(Wait.forLogMessage(".*", 1))) {
 
-        pb.redirectErrorStream(true);
-        Process process = pb.start();
+            vector.start();
 
-        // Read output
-        String output;
-        try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            output = reader.lines().collect(Collectors.joining("\n"));
+            // Get container logs
+            String logs = vector.getLogs();
+            LOGGER.debug("Vector validation output:\n{}", logs);
+
+            // Get exit code via inspect
+            Long exitCode = vector.getDockerClient()
+                    .inspectContainerCmd(vector.getContainerId())
+                    .exec()
+                    .getState()
+                    .getExitCodeLong();
+
+            // Check validation succeeded
+            // Exit code 0 = success, 78 = loaded with warnings (acceptable)
+            assertThat(exitCode)
+                    .as("Vector validation should succeed (exit 0) or load with warnings (exit 78)\nImage: %s\nLogs:\n%s",
+                            VECTOR_IMAGE, logs)
+                    .isIn(0L, 78L);
+
+            // Make sure there are no errors (warnings are OK)
+            assertThat(logs)
+                    .as("Vector config should not have errors (warnings are OK)")
+                    .doesNotContain("Failed to load");
         }
-
-        // Wait for completion
-        int exitCode = process.waitFor();
-
-        // Check validation succeeded
-        // Exit code 0 = success, 78 = loaded with warnings (acceptable)
-        assertThat(exitCode)
-                .as("Vector validation should succeed (exit 0) or load with warnings (exit 78)\nImage: %s\nOutput:\n%s",
-                        VECTOR_IMAGE, output)
-                .isIn(0, 78);
-
-        // Make sure there are no errors (warnings are OK)
-        assertThat(output)
-                .as("Vector config should not have errors (warnings are OK)")
-                .doesNotContain("Failed to load");
     }
 
     /**
