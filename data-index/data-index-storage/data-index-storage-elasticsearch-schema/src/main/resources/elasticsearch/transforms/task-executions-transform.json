@@ -86,6 +86,14 @@
           "reduce_script": "for (s in states) { if (s != null) { return s } } return null"
         }
       },
+      "task": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.taskPosition != null) { state.value = '/' + params._source.taskPosition }",
+          "combine_script": "return state.value",
+          "reduce_script": "for (s in states) { if (s != null) { return s } } return null"
+        }
+      },
       "taskName": {
         "scripted_metric": {
           "init_script": "state.value = null",
@@ -102,13 +110,13 @@
           "reduce_script": "def max = ['status': null, 'priority': 0]; for (s in states) { if (s != null && s.priority > max.priority) { max = s } } return max.status"
         }
       },
-      "startDate": {
+      "startedAt": {
         "scripted_metric": {
           "init_script": {
             "source": "state.val = null"
           },
           "map_script": {
-            "source": "if (params._source.containsKey('startTime') && params._source.startTime != null) { long ts = Math.round(((Number)params._source.startTime).doubleValue() * 1000.0); if (state.val == null || ts < state.val) { state.val = ts; } }"
+            "source": "if (params._source.containsKey('startTime') && params._source.startTime != null) { long ts = ((Number)params._source.startTime).longValue(); if (state.val == null || ts < state.val) { state.val = ts; } }"
           },
           "combine_script": {
             "source": "return state.val"
@@ -118,13 +126,13 @@
           }
         }
       },
-      "endDate": {
+      "endedAt": {
         "scripted_metric": {
           "init_script": {
             "source": "state.val = null"
           },
           "map_script": {
-            "source": "if (params._source.containsKey('endTime') && params._source.endTime != null) { long ts = Math.round(((Number)params._source.endTime).doubleValue() * 1000.0); if (state.val == null || ts > state.val) { state.val = ts; } }"
+            "source": "if (params._source.containsKey('endTime') && params._source.endTime != null) { long ts = ((Number)params._source.endTime).longValue(); if (state.val == null || ts > state.val) { state.val = ts; } }"
           },
           "combine_script": {
             "source": "return state.val"
@@ -158,7 +166,7 @@
           "reduce_script": "def latest = ['data': null, 'ts': '']; for (s in states) { if (s != null && s.get('ts') != null && s.ts.compareTo(latest.ts) > 0) { latest = s } } return latest.data"
         }
       },
-      "last_update": {
+      "lastUpdate": {
         "max": {
           "field": "@timestamp"
         }

@@ -49,6 +49,11 @@ if [[ "${MODE:-}" == "kafka" ]]; then
     MAVEN_EXTRA_ARGS="-Pkafka -Dquarkus.profile=kafka -Dquarkus.flow.messaging.defaults-enabled=true -Dquarkus.flow.messaging.lifecycle-enabled=true"
     log_info "  Kafka profile: -Pkafka with build-time messaging config"
     log_info "  Events will be published to Kafka topic: flow-lifecycle-out"
+elif [[ "${MODE:-}" == "elasticsearch" ]]; then
+    # Elasticsearch mode: Use epoch-millis timestamp format (recommended by Quarkus Flow for ES)
+    MAVEN_EXTRA_ARGS="-Dquarkus.profile=elasticsearch"
+    log_info "  Elasticsearch profile: epoch-millis timestamp format"
+    log_info "  Events will be written to stdout (collected by Vector)"
 fi
 
 mvn clean package -pl data-index/workflow-test-app -am \
@@ -160,7 +165,7 @@ spec:
     name: http
 EOF
 
-# Patch Deployment with Kafka env vars when MODE=kafka
+# Patch Deployment with MODE-specific env vars
 if [[ "${MODE:-}" == "kafka" ]]; then
     log_step "Patching Deployment with Kafka env vars..."
     kubectl patch deployment workflow-test-app -n workflows --type=json -p='[
@@ -170,6 +175,12 @@ if [[ "${MODE:-}" == "kafka" ]]; then
       {"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"MP_MESSAGING_CONNECTOR_SMALLRYE_KAFKA_BOOTSTRAP_SERVERS","value":"kafka.kafka.svc.cluster.local:9092"}}
     ]'
     log_info "✓ Kafka env vars patched (structured logging disabled)"
+elif [[ "${MODE:-}" == "elasticsearch" ]]; then
+    log_step "Patching Deployment with Elasticsearch profile..."
+    kubectl patch deployment workflow-test-app -n workflows --type=json -p='[
+      {"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"QUARKUS_PROFILE","value":"elasticsearch"}}
+    ]'
+    log_info "✓ Elasticsearch profile set (timestamp format: epoch-millis)"
 fi
 
 log_step "Waiting for deployment to be ready..."

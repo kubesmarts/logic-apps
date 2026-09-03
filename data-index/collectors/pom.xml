@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.kubesmarts.logic.apps</groupId>
+    <artifactId>data-index</artifactId>
+    <version>999-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>data-index-collectors</artifactId>
+  <name>KubeSmarts Logic Apps :: Data Index :: Collectors</name>
+  <description>
+    Log collector reference configurations (Vector, FluentBit).
+
+    This module serves dual purpose:
+    1. Go module: Provides configs for logic-operator via go.mod
+    2. Maven module: Tests validate configs work correctly
+  </description>
+
+  <properties>
+    <!-- Vector image version for integration tests -->
+    <!-- Renovate automatically upgrades this via regex manager in .github/renovate.json5 -->
+    <vector.version>0.41.1</vector.version>
+    <vector.image>timberio/vector:${vector.version}-distroless-libc</vector.image>
+
+    <!-- Testcontainers version managed by Quarkus BOM -->
+  </properties>
+
+  <dependencies>
+    <!-- JUnit 5 -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- AssertJ for fluent assertions -->
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Testcontainers for Vector validation (version from Quarkus BOM) -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- SLF4J simple logger for tests (version from Quarkus BOM) -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Surefire for unit tests -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+
+      <!-- Failsafe for integration tests -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <!-- Pass Vector image to tests as system property -->
+          <systemPropertyVariables>
+            <vector.image>${vector.image}</vector.image>
+            <vector.version>${vector.version}</vector.version>
+            <!-- Use standard Java logging (not JBoss LogManager) -->
+            <java.util.logging.manager>java.util.logging.LogManager</java.util.logging.manager>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+      <!-- Skip deployment - configs consumed via Go module, not Maven Central -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+    </plugins>
+
+    <!-- Test resources include Vector configs from same directory -->
+    <testResources>
+      <testResource>
+        <directory>src/test/resources</directory>
+      </testResource>
+      <testResource>
+        <directory>vector</directory>
+        <targetPath>vector-configs</targetPath>
+      </testResource>
+    </testResources>
+  </build>
+</project>

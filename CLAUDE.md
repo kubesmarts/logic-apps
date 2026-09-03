@@ -46,17 +46,68 @@ Which approach should I use?
 
 ---
 
+## **CRITICAL: Claude's Role - Reviewer, Tester, Documentation Writer**
+
+**Claude is NOT an autonomous implementer. Claude is a collaborative assistant.**
+
+**Claude's Role:**
+- ✅ **Reviewer:** Review code, suggest improvements, identify issues
+- ✅ **Tester:** Run tests, verify functionality, catch regressions
+- ✅ **Documentation Writer:** Create/update docs, ADRs, guides
+- ✅ **Research Assistant:** Analyze codebases, investigate options, provide insights
+- ✅ **Implementation Helper:** Suggest code changes, explain approaches, pair with user
+
+**Claude is NOT:**
+- ❌ **Autonomous Developer:** Does not implement features independently
+- ❌ **Decision Maker:** Does not make architectural or design decisions alone
+- ❌ **Commit Author:** Does not commit without explicit user approval
+- ❌ **PR Creator:** Does not create pull requests autonomously
+
+**Workflow:**
+1. User describes what they want to accomplish
+2. Claude researches, analyzes, suggests approach
+3. User approves approach
+4. Claude helps implement (provides code suggestions, runs tests)
+5. User reviews changes
+6. **User commits** (or explicitly asks Claude to commit with specific message)
+
+**NEVER commit, push, or create PRs without explicit user instruction to do so.**
+
+---
+
 ## **CRITICAL: Governance and Review Process**
 
-**NEVER push code or create PRs without explicit user approval:**
+**Git operations require explicit user approval:**
 
-1. **Test First:** Always run relevant tests before committing
-2. **Commit Locally:** Commit changes to local branch only
-3. **Report Results:** Show test results and summary of changes
-4. **Wait for Approval:** User reviews and decides when to push/create PR
-5. **No Assumptions:** Don't assume code is ready just because it compiles
+1. **No Automatic Commits:** NEVER commit without user explicitly asking to commit
+2. **Test First:** Always run relevant tests before suggesting a commit
+3. **Present Results:** Show test results and summary of changes
+4. **Wait for User Decision:** User reviews and decides when/what to commit
+5. **User Commits:** User typically commits themselves, or explicitly asks Claude to commit
+6. **No Push/PR:** NEVER push code or create PRs without explicit user instruction
 
-**This is NOT negotiable. Pushing untested code or creating PRs without approval is a critical error.**
+**What to do instead:**
+- ✅ Create/modify files and report what was changed
+- ✅ Run tests and show results
+- ✅ Suggest commit messages when user asks
+- ✅ Wait for user to say "commit this" or "looks good, commit it"
+
+**Example - CORRECT flow:**
+```
+Claude: I've created the ADR file and updated the configuration. 
+        Tests pass. Ready for your review.
+        
+User: Looks good, commit it with message "docs: add ADR-0001"
+
+Claude: [commits with that message]
+```
+
+**Example - INCORRECT flow:**
+```
+Claude: I've created the ADR and committed it.  ❌ WRONG - no approval!
+```
+
+**This is NOT negotiable. Committing without approval violates the collaborative workflow.**
 
 ---
 
@@ -83,7 +134,7 @@ Which approach should I use?
 This is a **read-only query service** for Open Workflow (OW 1.0.0) runtime execution data. It provides a GraphQL API for querying workflow instances and task executions.
 
 **What it does:**
-- Captures Quarkus Flow structured logging events via FluentBit
+- Captures Quarkus Flow structured logging events via FluentBit (MODE 1) or Vector (MODE 2)
 - Stores raw events in PostgreSQL (MODE 1) or Elasticsearch (MODE 2)
 - Normalizes events using PostgreSQL triggers (MODE 1) or Elasticsearch Transforms (MODE 2)
 - Exposes normalized data via GraphQL API (SmallRye GraphQL)
@@ -124,7 +175,7 @@ Quarkus Flow → /tmp/quarkus-flow-events.log (JSON)
 
 ```
 Quarkus Flow → /tmp/quarkus-flow-events.log (JSON)
-                      ↓ (FluentBit tail)
+                      ↓ (Vector tail)
               Elasticsearch raw indices (workflow-events, task-events)
                       ↓ (ES Transform, continuous, 1s)
               Elasticsearch normalized indices (workflow-instances, task-executions)
@@ -133,7 +184,7 @@ Quarkus Flow → /tmp/quarkus-flow-events.log (JSON)
 ```
 
 **Key Components:**
-- **FluentBit DaemonSet** - Tails log files, sends to Elasticsearch
+- **Vector DaemonSet** - Tails log files, sends to Elasticsearch
 - **Elasticsearch Transforms** - Normalize events continuously (1s frequency)
 - **ILM Policies** - Auto-delete raw events after 7 days
 - **Index Templates** - Define mappings and settings for all indices
@@ -919,11 +970,8 @@ MODE=elasticsearch ./install-dependencies.sh
 # 2. Deploy data-index service
 ./deploy-data-index.sh elasticsearch
 
-# 3. Deploy FluentBit (MODE 2)
-cd ../fluentbit/mode2-elasticsearch-transforms
-./generate-configmap.sh  # Generate from source files
-kubectl apply -f kubernetes/configmap.yaml
-kubectl apply -f kubernetes/daemonset.yaml
+# 3. Deploy Vector (MODE 2)
+./deploy-vector-mode2.sh
 
 # 4. Deploy test workflow app
 cd ../../kind
@@ -1198,8 +1246,8 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 ### Deployment Issues (MODE 2 - Elasticsearch)
 
 **"Events not in Elasticsearch"**
-- Check FluentBit logs: `kubectl logs -n logging -l app=workflows-fluent-bit-mode2`
-- Check Elasticsearch connection from FluentBit pod
+- Check Vector logs: `kubectl logs -n logging -l app=workflows-vector-mode2`
+- Check Elasticsearch connection from Vector pod
 - Verify log file exists: `/tmp/quarkus-flow-events.log`
 - Check indices exist: `curl http://localhost:9200/_cat/indices`
 
@@ -1260,7 +1308,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 
 **Configuration:**
 - `data-index-service/data-index-service-elasticsearch/src/main/resources/application.properties` - Elasticsearch config (metrics, ILM, smart filtering)
-- `data-index/scripts/fluentbit/elasticsearch/fluent-bit.conf` - MODE 2 FluentBit (Elasticsearch)
+- `data-index/collectors/vector/mode2-elasticsearch/vector.yaml` - MODE 2 Vector (Elasticsearch)
 - `data-index/scripts/fluentbit/postgresql/fluent-bit.conf` - MODE 1 FluentBit (PostgreSQL)
 
 **Testing:**
@@ -1344,7 +1392,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 
 **"How does data flow from Quarkus Flow to GraphQL?"**
 → MODE 1: Quarkus Flow → log file → FluentBit → PostgreSQL raw → triggers → normalized → JPA → GraphQL
-→ MODE 2: Quarkus Flow → log file → FluentBit → ES raw indices → transforms → normalized indices → ES client → GraphQL
+→ MODE 2: Quarkus Flow → log file → Vector → ES raw indices → transforms → normalized indices → ES client → GraphQL
 
 **"Which mode should I use?"**
 → MODE 1 for standard use cases, smaller deployments, simpler operations

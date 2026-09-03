@@ -40,8 +40,8 @@ error_handler() {
     log_info "Collecting debug information..."
 
     echo ""
-    log_info "FluentBit logs:"
-    kubectl logs -n logging -l app=workflows-fluent-bit-mode2 --tail=50 || true
+    log_info "Vector logs:"
+    kubectl logs -n logging -l app=workflows-vector-mode2 --tail=50 || true
 
     echo ""
     log_info "Workflow app logs:"
@@ -179,18 +179,26 @@ wait_for_schema_init() {
     log_info "✓ Schema initialized"
 }
 
-# Step 6: Deploy FluentBit (Elasticsearch mode)
-deploy_fluentbit() {
-    log_step "Deploying FluentBit (Elasticsearch mode)..."
+# Step 6: Deploy Vector (Elasticsearch mode)
+deploy_vector() {
+    log_step "Deploying Vector (Elasticsearch mode)..."
 
-    # Generate ConfigMap from source files to temp file
-    TEMP_CONFIGMAP=$(mktemp)
-    cd "${PROJECT_ROOT}/data-index/scripts/fluentbit"
-    ./generate-configmap.sh elasticsearch "${TEMP_CONFIGMAP}" 2>/dev/null
+    "${SCRIPT_DIR}/deploy-vector-mode2.sh"
 
-    # Apply with name change
-    sed 's/name: fluent-bit-config/name: workflows-fluent-bit-mode2-config/' "${TEMP_CONFIGMAP}" | \
-      kubectl apply -f -
+    kubectl wait --namespace logging \
+        --for=condition=ready pod \
+        --selector=app=workflows-vector-mode2 \
+        --timeout=120s
+
+    log_info "✓ Vector deployed"
+}
+
+# Legacy: Deploy FluentBit (DEPRECATED - kept for reference only)
+deploy_fluentbit_legacy() {
+    log_step "Deploying FluentBit (Elasticsearch mode - DEPRECATED)..."
+
+    # This function is kept for reference but not used
+    # Use deploy_vector() instead
 
     # Apply DaemonSet (customize for MODE 2)
     kubectl apply -f - <<EOF
@@ -310,7 +318,7 @@ deploy_workflow_app() {
         log_info "Workflow app already deployed, restarting..."
         kubectl rollout restart deployment/workflow-test-app -n workflows
     else
-        "${SCRIPT_DIR}/deploy-workflow-app.sh"
+        MODE=elasticsearch "${SCRIPT_DIR}/deploy-workflow-app.sh"
     fi
 
     kubectl wait --namespace workflows \
@@ -395,18 +403,51 @@ verify_graphql() {
         -H "Content-Type: application/json" \
         -d '{"query":"{ __schema { queryType { name } } }"}' | jq -e '.data.__schema.queryType.name == "Query"' > /dev/null
 
-    # Test getWorkflowInstances query
-    log_info "Testing getWorkflowInstances query..."
+    # Test getWorkflowInstances query with all critical fields
+    log_info "Testing getWorkflowInstances query with full field validation..."
     local result=$(curl -s -X POST http://localhost:30080/graphql \
         -H "Content-Type: application/json" \
-        -d '{"query":"{ getWorkflowInstances { id name status } }"}')
+        -d '{"query":"{ getWorkflowInstances { id name status startedAt endedAt taskExecutions { id task taskName status startedAt endedAt } } }"}')
 
+    # Verify workflow count > 0
     echo "$result" | jq -e '.data.getWorkflowInstances | length > 0' > /dev/null
 
     local workflow_id=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].id')
     log_info "✓ Found workflow: $workflow_id"
 
-    log_info "✓ GraphQL API verified"
+    # Verify status field is not null (bug fix verification)
+    local status=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].status')
+    if [[ "$status" == "null" ]]; then
+        log_error "Status field is null (should be COMPLETED/RUNNING/etc)"
+        return 1
+    fi
+    log_info "✓ Status field populated: $status"
+
+    # Verify timestamps are valid (not year 58644 bug)
+    local started_at=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].startedAt')
+    if [[ "$started_at" == *"58644"* ]]; then
+        log_error "Timestamp bug detected: $started_at (should be year 2026)"
+        return 1
+    fi
+    log_info "✓ Timestamps correct: $started_at"
+
+    # Verify task executions nested correctly
+    local task_count=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].taskExecutions | length')
+    if [[ "$task_count" -eq 0 ]]; then
+        log_error "No task executions found"
+        return 1
+    fi
+    log_info "✓ Task executions nested: $task_count tasks"
+
+    # Verify task field (JSON Pointer) is populated
+    local task_pointer=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].taskExecutions[0].task')
+    if [[ "$task_pointer" == "null" ]]; then
+        log_error "Task field is null (should be JSON Pointer like /do/0/set-0)"
+        return 1
+    fi
+    log_info "✓ Task field populated: $task_pointer"
+
+    log_info "✓ GraphQL API verified (all fields correct)"
 }
 
 # Step 10: Verify idempotency
@@ -503,7 +544,7 @@ main() {
     install_elasticsearch
     deploy_data_index
     wait_for_schema_init
-    deploy_fluentbit
+    deploy_vector
     deploy_workflow_app
     wait_for_events
     verify_graphql

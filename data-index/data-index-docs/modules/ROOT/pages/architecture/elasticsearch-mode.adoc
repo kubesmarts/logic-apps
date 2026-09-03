@@ -12,7 +12,7 @@ MODE 2 provides the same GraphQL API as MODE 1 (PostgreSQL), but with Elasticsea
 
 == Overview
 
-Elasticsearch MODE 2 uses **Elasticsearch Transforms** for real-time event normalization. Raw events from FluentBit are continuously aggregated into normalized indices, providing sub-second query performance with full-text search capabilities.
+Elasticsearch MODE 2 uses **Elasticsearch Transforms** for real-time event normalization. Raw events from Vector are continuously aggregated into normalized indices, providing sub-second query performance with full-text search capabilities.
 
 **Key advantages:**
 
@@ -36,7 +36,7 @@ Elasticsearch MODE 2 uses **Elasticsearch Transforms** for real-time event norma
 ----
 Quarkus Flow App
     ↓ (structured logging → stdout)
-FluentBit DaemonSet
+Vector DaemonSet
     ↓ (tail Kubernetes logs, filter JSON events)
 Elasticsearch Raw Indices
     ↓ (ES Transform - continuous, 1s frequency)
@@ -48,7 +48,7 @@ GraphQL API (SmallRye GraphQL)
 == Data Flow
 
 1. **Quarkus Flow emits events** - Structured JSON logs to stdout
-2. **FluentBit collects** - Tails Kubernetes container logs, filters events by `eventType` field
+2. **Vector collects** - Tails Kubernetes container logs, filters events by `eventType` field
 3. **Routes by event type** - Workflow events vs task events
 4. **INSERT to raw indices** - Date-based indices with ILM policies
    * `workflow-events-2026.04.27`
@@ -68,7 +68,7 @@ Elasticsearch Transforms provide **continuous aggregation** of raw events into n
 
 === Why ES Transforms?
 
-FluentBit's architecture (direct Elasticsearch output) makes ES Transforms the natural choice:
+Vector's architecture (direct Elasticsearch output) makes ES Transforms the natural choice:
 
 * **Built-in Elasticsearch feature** - No additional services needed
 * **Continuous processing** - Runs automatically every 1 second
@@ -524,72 +524,61 @@ data-index.elasticsearch.schema.init.enabled=true
 %dev.quarkus.elasticsearch.devservices.enabled=true
 ----
 
-=== FluentBit DaemonSet
+=== Vector DaemonSet
 
-FluentBit configuration for Elasticsearch output:
+Vector configuration for Elasticsearch output:
 
-[source,conf]
+[source,yaml]
 ----
-[INPUT]
-    Name              tail
-    Path              /var/log/containers/*_${WORKFLOW_NAMESPACE}_*.log
-    Parser            cri
-    Tag               kube.*
-    Refresh_Interval  5
-    Mem_Buf_Limit     5MB
+sources:
+  kubernetes_logs:
+    type: kubernetes_logs
+    namespace_labels:
+      - "kubernetes.io/metadata.name=${WORKFLOW_NAMESPACE}"
 
-[FILTER]
-    Name              parser
-    Match             kube.*
-    Key_Name          log
-    Parser            json
-    Reserve_Data      On
+transforms:
+  parse_json:
+    type: remap
+    inputs: [kubernetes_logs]
+    source: |
+      # Parse container log JSON
+      . = parse_json!(.message)
 
-[FILTER]
-    Name              grep
-    Match             kube.*
-    Regex             eventType ^io\.serverlessworkflow\.
+      # Add Elasticsearch @timestamp field for Transform smart filtering
+      ."@timestamp" = now()
 
-[FILTER]
-    Name          rewrite_tag
-    Match         kube.*
-    Rule          $eventType ^io\.serverlessworkflow\.workflow\. workflow.instance false
+  filter_workflow_events:
+    type: filter
+    inputs: [parse_json]
+    condition: |
+      starts_with!(.eventType, "io.serverlessworkflow.")
 
-[FILTER]
-    Name          rewrite_tag
-    Match         kube.*
-    Rule          $eventType ^io\.serverlessworkflow\.task\. workflow.task false
+  route_events:
+    type: route
+    inputs: [filter_workflow_events]
+    route:
+      workflow: |
+        starts_with!(.eventType, "io.serverlessworkflow.workflow.")
+      task: |
+        starts_with!(.eventType, "io.serverlessworkflow.task.")
 
-[OUTPUT]
-    Name            es
-    Match           workflow.instance
-    Host            ${ELASTICSEARCH_HOST}
-    Port            ${ELASTICSEARCH_PORT}
-    Index           workflow-events
-    Logstash_Format On
-    Logstash_Prefix workflow-events
-    Logstash_DateFormat %Y.%m.%d
-    Retry_Limit     5
-    Suppress_Type_Name On
-    tls             ${ELASTICSEARCH_TLS}
-    tls.verify      ${ELASTICSEARCH_TLS_VERIFY}
+sinks:
+  elasticsearch_workflows:
+    type: elasticsearch
+    inputs: [route_events.workflow]
+    endpoint: "http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"
+    index: "workflow-events-%Y.%m.%d"
+    mode: bulk
 
-[OUTPUT]
-    Name            es
-    Match           workflow.task
-    Host            ${ELASTICSEARCH_HOST}
-    Port            ${ELASTICSEARCH_PORT}
-    Index           task-events
-    Logstash_Format On
-    Logstash_Prefix task-events
-    Logstash_DateFormat %Y.%m.%d
-    Retry_Limit     5
-    Suppress_Type_Name On
-    tls             ${ELASTICSEARCH_TLS}
-    tls.verify      ${ELASTICSEARCH_TLS_VERIFY}
+  elasticsearch_tasks:
+    type: elasticsearch
+    inputs: [route_events.task]
+    endpoint: "http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"
+    index: "task-events-%Y.%m.%d"
+    mode: bulk
 ----
 
-Location: `data-index/scripts/fluentbit/mode2-elasticsearch-transforms/fluent-bit.conf`
+Location: `data-index/collectors/vector/mode2-elasticsearch/vector.yaml`
 
 == Scaling Considerations
 

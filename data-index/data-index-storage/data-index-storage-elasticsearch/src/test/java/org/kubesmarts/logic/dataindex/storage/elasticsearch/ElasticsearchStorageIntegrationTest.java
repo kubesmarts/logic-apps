@@ -202,60 +202,6 @@ public class ElasticsearchStorageIntegrationTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("Nested JSON field querying needs additional index mapping configuration")
-    public void testQueryByJsonInputField() throws Exception {
-        // Given
-        WorkflowInstance wf1 = createWorkflowInstance("wf-1", "greeting", WorkflowInstanceStatus.RUNNING);
-        wf1.setInput(objectMapper.readTree("{\"customerId\": \"customer-123\"}"));
-
-        WorkflowInstance wf2 = createWorkflowInstance("wf-2", "greeting", WorkflowInstanceStatus.RUNNING);
-        wf2.setInput(objectMapper.readTree("{\"customerId\": \"customer-456\"}"));
-
-        workflowStorage.put("wf-1", wf1);
-        workflowStorage.put("wf-2", wf2);
-        waitForRefresh();
-
-        // When
-        TestAttributeFilter<String> filter = new TestAttributeFilter<>("input.customerId", EQUAL, "customer-123");
-        filter.setJson(true);
-
-        List<WorkflowInstance> results = workflowStorage.query()
-                .filter(List.of(filter))
-                .execute();
-
-        // Then
-        assertThat(results).hasSize(1);
-        assertThat(results.get(0).getId()).isEqualTo("wf-1");
-    }
-
-    @Test
-    @org.junit.jupiter.api.Disabled("Nested JSON field querying needs additional index mapping configuration")
-    public void testQueryByJsonOutputField() throws Exception {
-        // Given
-        WorkflowInstance wf1 = createWorkflowInstance("wf-1", "greeting", WorkflowInstanceStatus.COMPLETED);
-        wf1.setOutput(objectMapper.readTree("{\"status\": \"approved\"}"));
-
-        WorkflowInstance wf2 = createWorkflowInstance("wf-2", "greeting", WorkflowInstanceStatus.COMPLETED);
-        wf2.setOutput(objectMapper.readTree("{\"status\": \"rejected\"}"));
-
-        workflowStorage.put("wf-1", wf1);
-        workflowStorage.put("wf-2", wf2);
-        waitForRefresh();
-
-        // When
-        TestAttributeFilter<String> filter = new TestAttributeFilter<>("output.status", EQUAL, "approved");
-        filter.setJson(true);
-
-        List<WorkflowInstance> results = workflowStorage.query()
-                .filter(List.of(filter))
-                .execute();
-
-        // Then
-        assertThat(results).hasSize(1);
-        assertThat(results.get(0).getId()).isEqualTo("wf-1");
-    }
-
-    @Test
     public void testQueryWithPagination() {
         // Given
         for (int i = 0; i < 10; i++) {

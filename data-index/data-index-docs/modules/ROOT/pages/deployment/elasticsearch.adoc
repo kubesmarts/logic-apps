@@ -10,13 +10,13 @@ The Elasticsearch storage backend is fully implemented and production ready. Use
 
 == Overview
 
-Elasticsearch mode (MODE 2) uses **ES Transform-based normalization** for continuous aggregation of workflow events. FluentBit captures events from container logs and writes to Elasticsearch raw indices, then ES Transforms aggregate them into normalized indices for GraphQL queries.
+Elasticsearch mode (MODE 2) uses **ES Transform-based normalization** for continuous aggregation of workflow events. Vector captures events from container logs and writes to Elasticsearch raw indices, then ES Transforms aggregate them into normalized indices for GraphQL queries.
 
 **Architecture:**
 
 [source,text]
 ----
-Quarkus Flow Apps → Container Logs → FluentBit DaemonSet
+Quarkus Flow Apps → Container Logs → Vector DaemonSet
                                            ↓
                                     Elasticsearch (raw indices)
                                            ↓ (ES Transform ~1s)
@@ -58,9 +58,9 @@ Before deploying Elasticsearch mode, ensure you have:
 
 3. **Container images built**
    - Data Index service: `kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT`
-   - FluentBit: `fluent/fluent-bit:latest`
+   - Vector: `timberio/vector:latest-alpine`
 
-4. **FluentBit RBAC permissions**
+4. **Vector RBAC permissions**
    - Service account with pod metadata read access
    - ClusterRole for Kubernetes API access
 
@@ -410,11 +410,11 @@ curl -s http://localhost:9200/_transform/workflow-instances-transform | jq
 curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_start
 ----
 
-=== Step 4: Deploy FluentBit DaemonSet
+=== Step 4: Deploy Vector DaemonSet
 
-FluentBit captures workflow events from container logs and sends them to Elasticsearch.
+Vector captures workflow events from container logs and sends them to Elasticsearch.
 
-**Create FluentBit namespace and RBAC:**
+**Create Vector namespace and RBAC:**
 
 [source,bash]
 ----
@@ -425,13 +425,13 @@ kubectl apply -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: fluent-bit
+  name: vector
   namespace: logging
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: fluent-bit
+  name: vector
 rules:
 - apiGroups: [""]
   resources:
@@ -443,48 +443,48 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: fluent-bit
+  name: vector
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: fluent-bit
+  name: vector
 subjects:
 - kind: ServiceAccount
-  name: fluent-bit
+  name: vector
   namespace: logging
 EOF
 ----
 
-**Deploy FluentBit using provided scripts:**
+**Deploy Vector using provided scripts:**
 
 [source,bash]
 ----
-cd data-index/scripts/fluentbit/elasticsearch
+cd data-index/scripts/kind
 
-# Option 1: Quick deploy (uses existing ConfigMap)
-./deploy.sh
-
-# Option 2: Regenerate ConfigMap from source files
-./deploy.sh regenerate
+# Deploy Vector DaemonSet for MODE 2
+./deploy-vector-mode2.sh
 
 # Verify deployment
-kubectl get pods -n logging -l app=workflows-fluent-bit-mode2
-kubectl logs -n logging -l app=workflows-fluent-bit-mode2 --tail=50
+kubectl get pods -n logging -l app=workflows-vector-mode2
+kubectl logs -n logging -l app=workflows-vector-mode2 --tail=50
 ----
 
 **Manual deployment (alternative):**
 
 [source,bash]
 ----
-# Generate ConfigMap
-./generate-configmap.sh
+cd data-index/collectors/vector/mode2-elasticsearch
 
-# Apply ConfigMap and DaemonSet
-kubectl apply -f kubernetes/configmap.yaml
+# Generate ConfigMap from vector.yaml
+kubectl create configmap workflows-vector-mode2-config \
+  --from-file=vector.yaml \
+  --namespace logging
+
+# Apply DaemonSet
 kubectl apply -f kubernetes/daemonset.yaml
 
 # Wait for DaemonSet to be ready
-kubectl rollout status daemonset/workflows-fluent-bit-mode2 -n logging
+kubectl rollout status daemonset/workflows-vector-mode2 -n logging
 ----
 
 **Environment variables (configure in DaemonSet):**
@@ -498,13 +498,9 @@ env:
   value: "elasticsearch.elasticsearch.svc.cluster.local"
 - name: ELASTICSEARCH_PORT
   value: "9200"
-- name: ELASTICSEARCH_TLS
-  value: "Off"  # Set to "On" for HTTPS
-- name: ELASTICSEARCH_TLS_VERIFY
-  value: "Off"  # Set to "On" to verify certificates
 ----
 
-For detailed FluentBit configuration, see: `scripts/fluentbit/elasticsearch/README.md`
+For detailed Vector configuration, see: `data-index/collectors/vector/mode2-elasticsearch/README.md`
 
 === Step 5: Deploy Test Workflow Application
 
@@ -578,67 +574,65 @@ QUARKUS_ELASTICSEARCH_PASSWORD=<from-secret>
 DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA=true  # Disable in production
 ----
 
-=== FluentBit Configuration
+=== Vector Configuration
 
-Key configuration sections in `fluent-bit.conf`:
+Key configuration sections in `vector.yaml`:
 
-**Input (container logs):**
+**Source (Kubernetes logs):**
 
-[source,conf]
+[source,yaml]
 ----
-[INPUT]
-    Name              tail
-    Path              /var/log/containers/*_${WORKFLOW_NAMESPACE}_*.log
-    Parser            cri
-    Tag               kube.*
-    Refresh_Interval  5
-    Mem_Buf_Limit     5MB
+sources:
+  kubernetes_logs:
+    type: kubernetes_logs
+    namespace_labels:
+      - "kubernetes.io/metadata.name=${WORKFLOW_NAMESPACE}"
 ----
 
-**Filter (extract workflow events):**
+**Transform (filter workflow events):**
 
-[source,conf]
+[source,yaml]
 ----
-[FILTER]
-    Name              grep
-    Match             kube.*
-    Regex             eventType ^io\.serverlessworkflow\.
+transforms:
+  filter_workflow_events:
+    type: filter
+    inputs: [parse_json]
+    condition: |
+      starts_with!(.eventType, "io.serverlessworkflow.")
 
-[FILTER]
-    Name          rewrite_tag
-    Match         kube.*
-    Rule          $eventType ^io\.serverlessworkflow\.workflow\. workflow.instance false
-----
-
-**Output (Elasticsearch):**
-
-[source,conf]
-----
-[OUTPUT]
-    Name            es
-    Match           workflow.instance
-    Host            ${ELASTICSEARCH_HOST}
-    Port            ${ELASTICSEARCH_PORT}
-    Index           workflow-instance-events-raw
-    Logstash_Format On
-    Logstash_Prefix workflow-instance-events-raw
-    Logstash_DateFormat %Y.%m.%d
-    Retry_Limit     5
+  route_events:
+    type: route
+    inputs: [filter_workflow_events]
+    route:
+      workflow: |
+        starts_with!(.eventType, "io.serverlessworkflow.workflow.")
 ----
 
-For full configuration details, see: `scripts/fluentbit/elasticsearch/README.md`
+**Sink (Elasticsearch):**
+
+[source,yaml]
+----
+sinks:
+  elasticsearch_workflows:
+    type: elasticsearch
+    inputs: [route_events.workflow]
+    endpoint: "http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"
+    index: "workflow-events-%Y.%m.%d"
+    mode: bulk
+----
+
+For full configuration details, see: `data-index/collectors/vector/mode2-elasticsearch/README.md`
 
 == Verification
 
-=== Verify FluentBit Event Capture
+=== Verify Vector Event Capture
 
 [source,bash]
 ----
-# Check FluentBit logs
-kubectl logs -n logging -l app=workflows-fluent-bit-mode2 | grep "workflow.started"
+# Check Vector logs
+kubectl logs -n logging -l app=workflows-vector-mode2 | grep "workflow.started"
 
-# Should see events like:
-# [workflow.instance] {"instanceId":"123","eventType":"io.serverlessworkflow.workflow.started",...}
+# Should see events being processed
 ----
 
 === Verify Raw Events in Elasticsearch
@@ -702,25 +696,25 @@ open http://localhost:8080/q/graphql-ui
 
 == Monitoring
 
-=== FluentBit Metrics
+=== Vector Metrics
 
-FluentBit exposes Prometheus metrics:
+Vector exposes Prometheus metrics:
 
 [source,bash]
 ----
-# Port-forward to FluentBit pod
-kubectl port-forward -n logging <pod-name> 2020:2020 &
+# Port-forward to Vector pod
+kubectl port-forward -n logging <pod-name> 9598:9598 &
 
 # View metrics
-curl http://localhost:2020/api/v1/metrics/prometheus
+curl http://localhost:9598/metrics
 ----
 
 **Key metrics:**
 
-* `fluentbit_input_records_total` - Records read from logs
-* `fluentbit_output_records_total` - Records sent to Elasticsearch
-* `fluentbit_output_errors_total` - Elasticsearch errors
-* `fluentbit_output_retries_total` - Retry attempts
+* `vector_component_received_events_total` - Events received from Kubernetes logs
+* `vector_component_sent_events_total` - Events sent to Elasticsearch
+* `vector_component_errors_total` - Errors during processing
+* `vector_sink_retries_total` - Retry attempts
 
 === Elasticsearch Monitoring
 
@@ -754,21 +748,21 @@ curl http://localhost:8080/q/metrics
 
 === No Events in Elasticsearch
 
-**Check 1: FluentBit is running**
+**Check 1: Vector is running**
 
 [source,bash]
 ----
-kubectl get pods -n logging -l app=workflows-fluent-bit-mode2
+kubectl get pods -n logging -l app=workflows-vector-mode2
 ----
 
-**Check 2: FluentBit can read container logs**
+**Check 2: Vector can read container logs**
 
 [source,bash]
 ----
 kubectl exec -n logging <pod-name> -- ls -la /var/log/containers/*_workflows_*.log
 ----
 
-**Check 3: FluentBit is parsing events**
+**Check 3: Vector is parsing events**
 
 [source,bash]
 ----
@@ -895,9 +889,9 @@ curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_star
 
 === Monitoring & Alerting
 
-* **Prometheus scraping**: Enable for FluentBit and Data Index
+* **Prometheus scraping**: Enable for Vector and Data Index
 * **Alert on**:
-  - FluentBit output errors
+  - Vector output errors
   - Transform failures
   - Elasticsearch cluster health
   - Data Index service availability
@@ -909,7 +903,7 @@ curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_star
 * **Elasticsearch shards**: Adjust based on data volume (default: 3 per index)
 * **Transform frequency**: Balance latency vs resource usage (default: 1s)
 * **ILM retention**: Adjust raw event retention period (default: 7 days)
-* **FluentBit buffer**: Increase for high event volume
+* **Vector buffer**: Increase for high event volume
 * **Data Index resources**: Scale based on query load
 
 == Comparison with PostgreSQL Mode
@@ -984,7 +978,7 @@ cd data-index/scripts/kind
 2. ✓ Elasticsearch deployment (StatefulSet, no ECK operator)
 3. ✓ Data Index service deployment (Elasticsearch backend)
 4. ✓ Schema initialization (ILM policies, index templates, transforms)
-5. ✓ FluentBit DaemonSet deployment and configuration
+5. ✓ Vector DaemonSet deployment and configuration
 6. ✓ Test workflow execution
 7. ✓ Event flow through complete pipeline
 8. ✓ Raw events collection in Elasticsearch
@@ -996,7 +990,7 @@ cd data-index/scripts/kind
 
 [source,text]
 ----
-Quarkus Flow → stdout → K8s logs → FluentBit → Elasticsearch (raw)
+Quarkus Flow → stdout → K8s logs → Vector → Elasticsearch (raw)
                                                       ↓
                                             ES Transform (1s)
                                                       ↓
@@ -1026,8 +1020,8 @@ Quarkus Flow → stdout → K8s logs → FluentBit → Elasticsearch (raw)
 [INFO] Verifying ES Transforms...
 [INFO] ✓ Schema initialized
 
-[STEP] Deploying FluentBit (Elasticsearch mode)...
-[INFO] ✓ FluentBit deployed
+[STEP] Deploying Vector (Elasticsearch mode)...
+[INFO] ✓ Vector deployed
 
 [STEP] Deploying test workflow application...
 [INFO] ✓ Workflow app deployed
@@ -1053,13 +1047,13 @@ Quarkus Flow → stdout → K8s logs → FluentBit → Elasticsearch (raw)
 [INFO] ==========================================
 
 Pipeline Flow:
-  Quarkus Flow → stdout → FluentBit → Elasticsearch → ES Transform → GraphQL
+  Quarkus Flow → stdout → Vector → Elasticsearch → ES Transform → GraphQL
 
 Verification Results:
   ✓ Elasticsearch cluster running
   ✓ Data Index service deployed
   ✓ Schema initialized (ILM, templates, transforms)
-  ✓ FluentBit collecting events
+  ✓ Vector collecting events
   ✓ Raw events in Elasticsearch
   ✓ ES Transform normalizing events
   ✓ GraphQL API responding
