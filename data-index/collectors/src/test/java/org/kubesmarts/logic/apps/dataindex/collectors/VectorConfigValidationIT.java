@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
-import org.testcontainers.DockerClientFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -89,18 +88,15 @@ class VectorConfigValidationIT {
      *
      * <p>This approach:
      * <ul>
-     *   <li>Uses Testcontainers' DockerClientFactory for Docker detection/compatibility</li>
      *   <li>Runs {@code docker run --rm vector validate} directly via ProcessBuilder</li>
      *   <li>Captures both stdout/stderr for comprehensive validation feedback</li>
      *   <li>Handles exit codes 0 (success) and 78 (warnings) gracefully</li>
+     *   <li>Docker failures produce clear error messages from ProcessBuilder</li>
      * </ul>
      *
      * @param configPath path to Vector YAML config file
      */
     private void validateWithVectorContainer(Path configPath) throws Exception {
-        // Verify Docker is available (same check Testcontainers uses)
-        DockerClientFactory.instance().client();
-
         // Run Vector validation via Docker
         ProcessBuilder pb = new ProcessBuilder(
                 "docker", "run", "--rm",
