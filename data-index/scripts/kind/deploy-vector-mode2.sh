@@ -124,6 +124,11 @@ spec:
               value: "${ELASTICSEARCH_HOST}"
             - name: ELASTICSEARCH_PORT
               value: "${ELASTICSEARCH_PORT}"
+            # Debug events - TESTING ONLY
+            # Enables stdout logging of all events (generates ~43GB/day at 1000 events/sec)
+            # Remove this in production or set to "false"
+            - name: DEBUG_EVENTS
+              value: "true"
           volumeMounts:
             - name: config
               mountPath: /etc/vector

@@ -227,53 +227,47 @@ wait_for_events() {
         -H "Content-Type: application/json" \
         -d '{"name":"test-execution"}' > /dev/null || true
 
-    log_info "Waiting 30 seconds for workflow execution and event collection..."
-    sleep 30
-
     # Clean up port-forward
     kill $PF_PID 2>/dev/null || true
 
-    # Check raw events in Elasticsearch
-    log_info "Checking raw events in Elasticsearch..."
-    local raw_count=0
-    for i in {1..30}; do
-        raw_count=$(curl -s -X GET "http://localhost:30920/workflow-events-*/_count" 2>/dev/null | jq -r '.count // 0')
-        if [[ "$raw_count" -gt 0 ]]; then
-            log_info "✓ Found $raw_count raw events"
-            break
-        fi
-        log_info "Attempt $i/30: No events yet, waiting..."
-        sleep 2
-    done
+    # Wait for events to flow through:
+    # - Workflow execution completes (~1s)
+    # - Logs written to stdout (immediate)
+    # - Vector collects and buffers (bulk mode)
+    # - Vector flushes to Elasticsearch (variable, depends on buffer size/timeout)
+    # - ES Transform processes events (1s frequency)
+    # - GraphQL API can query normalized data
+    log_info "Waiting 30 seconds for pipeline: execution → Vector → ES Transform → GraphQL..."
+    sleep 30
 
-    if [[ "$raw_count" -eq 0 ]]; then
-        log_error "No raw events found in Elasticsearch after 60 seconds"
-        return 1
-    fi
+    log_info "Checking GraphQL API for workflow instances..."
 
-    # Wait for ES Transform to process events
-    log_info "Waiting for ES Transform to normalize events (1s frequency + delay)..."
-    sleep 10
-
-    # Check normalized instances
-    log_info "Checking normalized workflow instances..."
     local instance_count=0
     for i in {1..30}; do
-        instance_count=$(curl -s -X GET "http://localhost:30920/workflow-instances/_count" 2>/dev/null | jq -r '.count // 0')
+        # Query GraphQL API directly (the actual user-facing interface)
+        local result=$(curl -s -X POST http://localhost:30080/graphql \
+            -H "Content-Type: application/json" \
+            -d '{"query":"{ getWorkflowInstances { id } }"}' 2>/dev/null)
+
+        instance_count=$(echo "$result" | jq -r '.data.getWorkflowInstances | length // 0' 2>/dev/null || echo "0")
+
         if [[ "$instance_count" -gt 0 ]]; then
-            log_info "✓ Found $instance_count normalized workflow instances"
+            log_info "✓ Found $instance_count workflow instances via GraphQL API"
             break
         fi
-        log_info "Attempt $i/30: No normalized instances yet, waiting for transform..."
+
+        log_info "Attempt $i/60: No workflow instances yet, waiting..."
         sleep 2
     done
 
     if [[ "$instance_count" -eq 0 ]]; then
-        log_error "No normalized instances found after transform processing"
+        log_error "No workflow instances found via GraphQL after 120 seconds"
+        log_info "Debug info - Elasticsearch indices:"
+        curl -s "http://localhost:30920/_cat/indices?v" || true
         return 1
     fi
 
-    log_info "✓ Events flowing correctly through ES Transform pipeline"
+    log_info "✓ Events flowing correctly through Vector → Elasticsearch → Transform → GraphQL pipeline"
 }
 
 # Step 9: Verify GraphQL API

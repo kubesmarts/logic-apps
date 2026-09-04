@@ -117,6 +117,20 @@ transforms:
         type: vrl
         source: starts_with(string!(.eventType), "io.serverlessworkflow.task.")
 
+  # Debug filter - only pass events if DEBUG_EVENTS=true
+  # Controlled by environment variable for troubleshooting
+  # WARNING: At 1000 events/sec, generates ~43GB/day of logs
+  debug_filter:
+    type: filter
+    inputs:
+      - route_by_type.workflow_events
+      - route_by_type.task_events
+    condition:
+      type: vrl
+      source: |
+        debug_enabled = get_env_var("DEBUG_EVENTS") ?? "false"
+        to_bool(debug_enabled) ?? false
+
 # ============================================================================
 # SINKS: Elasticsearch Raw Indices
 # ============================================================================
@@ -194,16 +208,29 @@ sinks:
       type: disk
       max_size: 268435488  # 256 MiB
 
-  # Debug sink - logs events to stdout (useful for troubleshooting)
-  # Only enable in debug mode (set LOG_LEVEL=debug)
-  # In production, this should be disabled via operator templating
+  # ============================================================================
+  # DEBUG SINK - Troubleshooting Only
+  # ============================================================================
+  #
+  # Logs all workflow/task events to stdout for troubleshooting.
+  # DISABLED BY DEFAULT - controlled by DEBUG_EVENTS environment variable.
+  #
+  # WARNING: At high event rates, this generates massive log volumes:
+  #   - 1,000 events/sec = ~43 GB/day
+  #   - 10,000 events/sec = ~430 GB/day
+  #
+  # To enable for troubleshooting:
+  #   kubectl set env daemonset/workflows-vector-mode2 -n logging DEBUG_EVENTS=true
+  #   kubectl logs -n logging -l app=workflows-vector-mode2 -f
+  #
+  # To disable:
+  #   kubectl set env daemonset/workflows-vector-mode2 -n logging DEBUG_EVENTS-
   debug_stdout:
     type: console
     inputs:
-      - route_by_type.workflow_events
-      - route_by_type.task_events
+      - debug_filter
     encoding:
-      codec: json  # Console sink supports codec
+      codec: json
 
   # Export internal metrics to Prometheus
   prometheus_metrics:
@@ -233,6 +260,10 @@ api:
 #   - ELASTICSEARCH_HOST: Elasticsearch hostname (default: elasticsearch.data-index.svc.cluster.local)
 #   - ELASTICSEARCH_PORT: Elasticsearch port (default: 9200)
 #   - NODE_NAME: Kubernetes node name (set by DaemonSet downward API)
+#   - DEBUG_EVENTS: Enable stdout logging of events (default: false)
+#       * ONLY FOR TROUBLESHOOTING - disabled in production
+#       * Set to "true" to enable: kubectl set env daemonset/workflows-vector-mode2 DEBUG_EVENTS=true
+#       * WARNING: At 1000 events/sec, generates ~43GB/day of logs
 #
 # What stays the same (handled by Elasticsearch):
 #   - Elasticsearch Transforms: Aggregate raw events into normalized indices
