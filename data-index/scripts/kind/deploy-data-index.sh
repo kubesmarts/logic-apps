@@ -315,6 +315,8 @@ spec:
           value: "INFO"
         - name: QUARKUS_LOG_CATEGORY_ORG_KUBESMARTS_LOGIC_LEVEL
           value: "DEBUG"
+        - name: QUARKUS_PROFILE
+          value: "prod"
         - name: ELASTICSEARCH_HOST
           value: "data-index-es-http.elasticsearch.svc.cluster.local"
         - name: ELASTICSEARCH_PORT

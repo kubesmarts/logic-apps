@@ -1,7 +1,16 @@
-= FluentBit Configuration
+= FluentBit Configuration (MODE 1 - PostgreSQL)
 :page-aliases:
 
-Configure FluentBit to collect workflow events from Quarkus Flow applications.
+[NOTE]
+====
+**MODE 1 (PostgreSQL) ONLY**
+
+This configuration guide applies to MODE 1 (PostgreSQL) deployments only.
+
+**MODE 2 (Elasticsearch)** now uses Vector instead of FluentBit. See xref:deployment/vector-config.adoc[Vector Configuration] for MODE 2.
+====
+
+Configure FluentBit to collect workflow events from Quarkus Flow applications and send them to PostgreSQL.
 
 == Container Runtime Detection
 
@@ -184,11 +193,11 @@ After the CRI/Docker parser extracts the `log` field, you need a second parser f
     Preserve_Key      Off
 ----
 
-== Output Configuration by Storage Backend
+== Output Configuration
 
-FluentBit output configuration depends on your storage backend choice.
+FluentBit output configuration for PostgreSQL MODE 1.
 
-=== PostgreSQL Output (MODE 1)
+=== PostgreSQL Output
 
 FluentBit uses Lua script (`flatten-event.lua`) to route events and PostgreSQL output plugin.
 
@@ -226,93 +235,28 @@ FluentBit uses Lua script (`flatten-event.lua`) to route events and PostgreSQL o
 * Routes task events (e.g., `io.serverlessworkflow.task.started.v1`) to tag `task.*`
 * Flattens nested Kubernetes metadata for easier querying
 
-See: `scripts/fluentbit/postgresql/` for complete PostgreSQL mode configuration.
+See: `data-index/scripts/fluentbit/postgresql/` for complete PostgreSQL mode configuration.
 
-=== Elasticsearch Output (MODE 2)
+[NOTE]
+====
+**MODE 2 (Elasticsearch) uses Vector**
 
-FluentBit uses rewrite_tag filters for routing and Elasticsearch output plugin.
+Elasticsearch deployments (MODE 2) have migrated to Vector for log collection.
 
-**Elasticsearch output configuration:**
-
-[source,conf]
-----
-[OUTPUT]
-    Name            es
-    Match           workflow.instance
-    Host            ${ELASTICSEARCH_HOST}
-    Port            ${ELASTICSEARCH_PORT}
-    Index           workflow-instance-events-raw
-    Type            _doc
-    Logstash_Format On
-    Logstag_Prefix workflow-instance-events-raw
-    Logstash_DateFormat %Y.%m.%d
-    Retry_Limit     5
-    Suppress_Type_Name On
-    tls             ${ELASTICSEARCH_TLS}
-    tls.verify      ${ELASTICSEARCH_TLS_VERIFY}
-
-[OUTPUT]
-    Name            es
-    Match           workflow.task
-    Host            ${ELASTICSEARCH_HOST}
-    Port            ${ELASTICSEARCH_PORT}
-    Index           task-execution-events-raw
-    Type            _doc
-    Logstash_Format On
-    Logstash_Prefix task-execution-events-raw
-    Logstash_DateFormat %Y.%m.%d
-    Retry_Limit     5
-    Suppress_Type_Name On
-    tls             ${ELASTICSEARCH_TLS}
-    tls.verify      ${ELASTICSEARCH_TLS_VERIFY}
-----
-
-**Event routing (rewrite_tag filters):**
-
-[source,conf]
-----
-[FILTER]
-    Name          rewrite_tag
-    Match         flow.events
-    Rule          $eventType ^io\.serverlessworkflow\.workflow\. workflow.instance false
-    Emitter_Mem_Buf_Limit 10M
-
-[FILTER]
-    Name          rewrite_tag
-    Match         flow.events
-    Rule          $eventType ^io\.serverlessworkflow\.task\. workflow.task false
-    Emitter_Mem_Buf_Limit 10M
-----
-
-**Index naming:**
-
-* Workflow events → `workflow-instance-events-raw-YYYY.MM.DD`
-* Task events → `task-execution-events-raw-YYYY.MM.DD`
-* Date-based rollover enables ILM management (automatic deletion after retention period)
-
-**Elasticsearch Transform normalization:**
-
-After FluentBit writes raw events to Elasticsearch, Transforms aggregate them:
-
-* `workflow-instance-events-raw-*` → `workflow-instances` (normalized index)
-* `task-execution-events-raw-*` → `task-executions` (normalized index)
-
-See: `scripts/fluentbit/elasticsearch/` for complete Elasticsearch mode configuration.
+See xref:deployment/vector-config.adoc[Vector Configuration] for MODE 2 configuration details.
+====
 
 === Debugging FluentBit Output
 
-**Check which output is configured:**
+**Check output configuration:**
 
 [source,bash]
 ----
-# PostgreSQL mode
-kubectl get configmap -n logging workflows-fluent-bit-config -o yaml | grep -A 10 "\[OUTPUT\]"
-
-# Elasticsearch mode
+# PostgreSQL mode (MODE 1)
 kubectl get configmap -n logging workflows-fluent-bit-config -o yaml | grep -A 10 "\[OUTPUT\]"
 ----
 
-**PostgreSQL mode errors:**
+**PostgreSQL connection errors:**
 
 [source,bash]
 ----
@@ -325,20 +269,7 @@ kubectl logs -n logging -l app=workflows-fluent-bit | grep -i pgsql
 # - "relation does not exist" → Table not created
 ----
 
-**Elasticsearch mode errors:**
-
-[source,bash]
-----
-# Check FluentBit logs for Elasticsearch connection issues
-kubectl logs -n logging -l app=workflows-fluent-bit | grep -i elasticsearch
-
-# Common errors:
-# - "connection refused" → Elasticsearch service not reachable
-# - "unauthorized" → Incorrect credentials
-# - "index creation failed" → Index template misconfiguration
-----
-
-**Lua script debugging (PostgreSQL mode only):**
+**Lua script debugging:**
 
 [source,bash]
 ----
@@ -423,7 +354,7 @@ curl -X POST http://localhost:8082/test-workflows/simple-set \
 kubectl logs -n logging -l app=workflows-fluent-bit --tail=100 | grep -E "stdout|eventType"
 ----
 
-=== Verify PostgreSQL Storage (MODE 1)
+=== Verify PostgreSQL Storage
 
 [source,bash]
 ----
@@ -439,25 +370,6 @@ kubectl exec -n postgresql postgresql-0 -- \
 ----
 
 Expected: Count should increase after triggering workflows, and normalized table should contain workflow instances.
-
-=== Verify Elasticsearch Storage (MODE 2)
-
-[source,bash]
-----
-# Port-forward to Elasticsearch
-kubectl port-forward -n elasticsearch svc/elasticsearch 9200:9200 &
-
-# Check raw events index
-curl -s http://localhost:9200/workflow-instance-events-raw-*/_count | jq .
-
-# Check normalized index (after transform runs, ~1s delay)
-curl -s http://localhost:9200/workflow-instances/_search?size=5 | jq '.hits.hits[]._source'
-
-# Check transform status
-curl -s http://localhost:9200/_transform/workflow-instance-transform | jq '.transforms[0].stats'
-----
-
-Expected: Raw events index count should increase immediately, normalized index populated after ~1 second delay.
 
 == KIND-Specific Notes
 

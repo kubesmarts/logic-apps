@@ -215,6 +215,7 @@
     <module>data-index-storage</module>
     <module>data-index-service</module>
     <module>data-index-integration-tests</module>
+    <module>collectors</module>
     <module>data-index-docs</module>
     <module>workflow-test-app</module>
     <module>data-index-ingestion</module>

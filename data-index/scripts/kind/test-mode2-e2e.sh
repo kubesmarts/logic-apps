@@ -40,8 +40,8 @@ error_handler() {
     log_info "Collecting debug information..."
 
     echo ""
-    log_info "FluentBit logs:"
-    kubectl logs -n logging -l app=workflows-fluent-bit-mode2 --tail=50 || true
+    log_info "Vector logs:"
+    kubectl logs -n logging -l app=workflows-vector-mode2 --tail=50 || true
 
     echo ""
     log_info "Workflow app logs:"
@@ -179,127 +179,18 @@ wait_for_schema_init() {
     log_info "✓ Schema initialized"
 }
 
-# Step 6: Deploy FluentBit (Elasticsearch mode)
-deploy_fluentbit() {
-    log_step "Deploying FluentBit (Elasticsearch mode)..."
+# Step 6: Deploy Vector (Elasticsearch mode)
+deploy_vector() {
+    log_step "Deploying Vector (Elasticsearch mode)..."
 
-    # Generate ConfigMap from source files to temp file
-    TEMP_CONFIGMAP=$(mktemp)
-    cd "${PROJECT_ROOT}/data-index/scripts/fluentbit"
-    ./generate-configmap.sh elasticsearch "${TEMP_CONFIGMAP}" 2>/dev/null
+    "${SCRIPT_DIR}/deploy-vector-mode2.sh"
 
-    # Apply with name change
-    sed 's/name: fluent-bit-config/name: workflows-fluent-bit-mode2-config/' "${TEMP_CONFIGMAP}" | \
-      kubectl apply -f -
-
-    # Apply DaemonSet (customize for MODE 2)
-    kubectl apply -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: workflows-fluent-bit-mode2
-  namespace: logging
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: workflows-fluent-bit-mode2
-rules:
-  - apiGroups: [""]
-    resources: ["pods", "namespaces"]
-    verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: workflows-fluent-bit-mode2
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: workflows-fluent-bit-mode2
-subjects:
-  - kind: ServiceAccount
-    name: workflows-fluent-bit-mode2
-    namespace: logging
----
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: workflows-fluent-bit-mode2
-  namespace: logging
-  labels:
-    app: workflows-fluent-bit-mode2
-spec:
-  selector:
-    matchLabels:
-      app: workflows-fluent-bit-mode2
-  template:
-    metadata:
-      labels:
-        app: workflows-fluent-bit-mode2
-    spec:
-      serviceAccountName: workflows-fluent-bit-mode2
-      containers:
-        - name: fluent-bit
-          image: fluent/fluent-bit:3.2
-          env:
-            - name: WORKFLOW_NAMESPACE
-              value: "workflows"
-            - name: ELASTICSEARCH_HOST
-              value: "data-index-es-http.elasticsearch.svc.cluster.local"
-            - name: ELASTICSEARCH_PORT
-              value: "9200"
-          volumeMounts:
-            - name: config
-              mountPath: /fluent-bit/etc/
-            - name: varlog
-              mountPath: /var/log
-            - name: varlibdockercontainers
-              mountPath: /var/lib/docker/containers
-              readOnly: true
-            - name: tail-db
-              mountPath: /tail-db
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 256Mi
-      volumes:
-        - name: config
-          configMap:
-            name: workflows-fluent-bit-mode2-config
-        - name: varlog
-          hostPath:
-            path: /var/log
-        - name: varlibdockercontainers
-          hostPath:
-            path: /var/lib/docker/containers
-        - name: tail-db
-          emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: workflows-fluent-bit-mode2
-  namespace: logging
-spec:
-  selector:
-    app: workflows-fluent-bit-mode2
-  ports:
-    - name: http
-      port: 2020
-      targetPort: 2020
-EOF
-
-    # Wait for FluentBit pods
     kubectl wait --namespace logging \
         --for=condition=ready pod \
-        --selector=app=workflows-fluent-bit-mode2 \
+        --selector=app=workflows-vector-mode2 \
         --timeout=120s
 
-    log_info "✓ FluentBit deployed"
+    log_info "✓ Vector deployed"
 }
 
 # Step 7: Deploy test workflow application
@@ -310,7 +201,7 @@ deploy_workflow_app() {
         log_info "Workflow app already deployed, restarting..."
         kubectl rollout restart deployment/workflow-test-app -n workflows
     else
-        "${SCRIPT_DIR}/deploy-workflow-app.sh"
+        MODE=elasticsearch "${SCRIPT_DIR}/deploy-workflow-app.sh"
     fi
 
     kubectl wait --namespace workflows \
@@ -336,53 +227,47 @@ wait_for_events() {
         -H "Content-Type: application/json" \
         -d '{"name":"test-execution"}' > /dev/null || true
 
-    log_info "Waiting 30 seconds for workflow execution and event collection..."
-    sleep 30
-
     # Clean up port-forward
     kill $PF_PID 2>/dev/null || true
 
-    # Check raw events in Elasticsearch
-    log_info "Checking raw events in Elasticsearch..."
-    local raw_count=0
-    for i in {1..30}; do
-        raw_count=$(curl -s -X GET "http://localhost:30920/workflow-events-*/_count" 2>/dev/null | jq -r '.count // 0')
-        if [[ "$raw_count" -gt 0 ]]; then
-            log_info "✓ Found $raw_count raw events"
-            break
-        fi
-        log_info "Attempt $i/30: No events yet, waiting..."
-        sleep 2
-    done
+    # Wait for events to flow through:
+    # - Workflow execution completes (~1s)
+    # - Logs written to stdout (immediate)
+    # - Vector collects and buffers (bulk mode)
+    # - Vector flushes to Elasticsearch (variable, depends on buffer size/timeout)
+    # - ES Transform processes events (1s frequency)
+    # - GraphQL API can query normalized data
+    log_info "Waiting 30 seconds for pipeline: execution → Vector → ES Transform → GraphQL..."
+    sleep 30
 
-    if [[ "$raw_count" -eq 0 ]]; then
-        log_error "No raw events found in Elasticsearch after 60 seconds"
-        return 1
-    fi
+    log_info "Checking GraphQL API for workflow instances..."
 
-    # Wait for ES Transform to process events
-    log_info "Waiting for ES Transform to normalize events (1s frequency + delay)..."
-    sleep 10
-
-    # Check normalized instances
-    log_info "Checking normalized workflow instances..."
     local instance_count=0
     for i in {1..30}; do
-        instance_count=$(curl -s -X GET "http://localhost:30920/workflow-instances/_count" 2>/dev/null | jq -r '.count // 0')
+        # Query GraphQL API directly (the actual user-facing interface)
+        local result=$(curl -s -X POST http://localhost:30080/graphql \
+            -H "Content-Type: application/json" \
+            -d '{"query":"{ getWorkflowInstances { id } }"}' 2>/dev/null)
+
+        instance_count=$(echo "$result" | jq -r '.data.getWorkflowInstances | length // 0' 2>/dev/null || echo "0")
+
         if [[ "$instance_count" -gt 0 ]]; then
-            log_info "✓ Found $instance_count normalized workflow instances"
+            log_info "✓ Found $instance_count workflow instances via GraphQL API"
             break
         fi
-        log_info "Attempt $i/30: No normalized instances yet, waiting for transform..."
+
+        log_info "Attempt $i/60: No workflow instances yet, waiting..."
         sleep 2
     done
 
     if [[ "$instance_count" -eq 0 ]]; then
-        log_error "No normalized instances found after transform processing"
+        log_error "No workflow instances found via GraphQL after 120 seconds"
+        log_info "Debug info - Elasticsearch indices:"
+        curl -s "http://localhost:30920/_cat/indices?v" || true
         return 1
     fi
 
-    log_info "✓ Events flowing correctly through ES Transform pipeline"
+    log_info "✓ Events flowing correctly through Vector → Elasticsearch → Transform → GraphQL pipeline"
 }
 
 # Step 9: Verify GraphQL API
@@ -395,18 +280,51 @@ verify_graphql() {
         -H "Content-Type: application/json" \
         -d '{"query":"{ __schema { queryType { name } } }"}' | jq -e '.data.__schema.queryType.name == "Query"' > /dev/null
 
-    # Test getWorkflowInstances query
-    log_info "Testing getWorkflowInstances query..."
+    # Test getWorkflowInstances query with all critical fields
+    log_info "Testing getWorkflowInstances query with full field validation..."
     local result=$(curl -s -X POST http://localhost:30080/graphql \
         -H "Content-Type: application/json" \
-        -d '{"query":"{ getWorkflowInstances { id name status } }"}')
+        -d '{"query":"{ getWorkflowInstances { id name status startedAt endedAt taskExecutions { id task taskName status startedAt endedAt } } }"}')
 
+    # Verify workflow count > 0
     echo "$result" | jq -e '.data.getWorkflowInstances | length > 0' > /dev/null
 
     local workflow_id=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].id')
     log_info "✓ Found workflow: $workflow_id"
 
-    log_info "✓ GraphQL API verified"
+    # Verify status field is not null (bug fix verification)
+    local status=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].status')
+    if [[ "$status" == "null" ]]; then
+        log_error "Status field is null (should be COMPLETED/RUNNING/etc)"
+        return 1
+    fi
+    log_info "✓ Status field populated: $status"
+
+    # Verify timestamps are valid (not year 58644 bug)
+    local started_at=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].startedAt')
+    if [[ "$started_at" == *"58644"* ]]; then
+        log_error "Timestamp bug detected: $started_at (should be year 2026)"
+        return 1
+    fi
+    log_info "✓ Timestamps correct: $started_at"
+
+    # Verify task executions nested correctly
+    local task_count=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].taskExecutions | length')
+    if [[ "$task_count" -eq 0 ]]; then
+        log_error "No task executions found"
+        return 1
+    fi
+    log_info "✓ Task executions nested: $task_count tasks"
+
+    # Verify task field (JSON Pointer) is populated
+    local task_pointer=$(echo "$result" | jq -r '.data.getWorkflowInstances[0].taskExecutions[0].task')
+    if [[ "$task_pointer" == "null" ]]; then
+        log_error "Task field is null (should be JSON Pointer like /do/0/set-0)"
+        return 1
+    fi
+    log_info "✓ Task field populated: $task_pointer"
+
+    log_info "✓ GraphQL API verified (all fields correct)"
 }
 
 # Step 10: Verify idempotency
@@ -503,7 +421,7 @@ main() {
     install_elasticsearch
     deploy_data_index
     wait_for_schema_init
-    deploy_fluentbit
+    deploy_vector
     deploy_workflow_app
     wait_for_events
     verify_graphql

@@ -30,7 +30,7 @@ jobs:
           - name: MODE 1 (PostgreSQL + FluentBit + Triggers)
             script: test-mode1-e2e.sh
             id: mode1
-          - name: MODE 2 (Elasticsearch + FluentBit + Transforms)
+          - name: MODE 2 (Elasticsearch + Vector + Transforms)
             script: test-mode2-e2e.sh
             id: mode2
           - name: MODE 3 (Kafka + CloudEvents + Processors)
@@ -171,9 +171,15 @@ jobs:
           kubectl logs -n data-index -l app=data-index-service --tail=100 || true
 
           echo ""
-          if [ "${{ matrix.mode.id }}" == "mode1" ] || [ "${{ matrix.mode.id }}" == "mode2" ]; then
-            echo "=== FluentBit Logs ==="
-            kubectl logs -n logging -l app=workflows-fluent-bit-${{ matrix.mode.id }} --tail=100 || true
+          if [ "${{ matrix.mode.id }}" == "mode1" ]; then
+            echo "=== FluentBit Logs (MODE 1) ==="
+            kubectl logs -n logging -l app=workflows-fluent-bit-mode1 --tail=100 || true
+          fi
+
+          echo ""
+          if [ "${{ matrix.mode.id }}" == "mode2" ]; then
+            echo "=== Vector Logs (MODE 2) ==="
+            kubectl logs -n logging -l app=workflows-vector-mode2 --tail=100 || true
           fi
 
           echo ""

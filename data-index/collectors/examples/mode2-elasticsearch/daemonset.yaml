@@ -1,0 +1,270 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: data-index-vector-mode2
+  namespace: data-index
+  labels:
+    app: data-index-vector
+    component: elasticsearch
+    mode: mode2
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: data-index-vector-mode2
+  labels:
+    app: data-index-vector
+    component: elasticsearch
+    mode: mode2
+rules:
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - pods
+      - nodes
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: data-index-vector-mode2
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: data-index-vector-mode2
+subjects:
+  - kind: ServiceAccount
+    name: data-index-vector-mode2
+    namespace: data-index
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: data-index-vector-mode2
+  namespace: data-index
+  labels:
+    app: data-index-vector
+    component: elasticsearch
+    mode: mode2
+spec:
+  selector:
+    matchLabels:
+      app: data-index-vector
+      mode: mode2
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: data-index-vector
+        component: elasticsearch
+        mode: mode2
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9598"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: data-index-vector-mode2
+      hostNetwork: false
+      dnsPolicy: ClusterFirst
+
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+      - name: vector
+        # Vector official image
+        # Production: Use specific version tag (not latest)
+        image: timberio/vector:0.41.1-distroless-libc
+        imagePullPolicy: IfNotPresent
+
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+              - ALL
+
+        # Ports
+        ports:
+        - name: metrics
+          containerPort: 9598
+          protocol: TCP
+
+        # Environment variables
+        env:
+        # Kubernetes metadata
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+        # Workflow application configuration
+        - name: WORKFLOW_NAMESPACE
+          value: "workflows"
+
+        # Elasticsearch connection (MODE 2: Elasticsearch Transform normalization)
+        # TEMPLATE: logic-operator should customize these values
+        - name: ELASTICSEARCH_HOST
+          value: "elasticsearch.data-index.svc.cluster.local"
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+
+        # Vector configuration
+        - name: VECTOR_CONFIG
+          value: "/etc/vector/vector.yaml"
+
+        # Logging level (info, debug, trace)
+        - name: LOG_LEVEL
+          value: "info"
+
+        # Volume mounts
+        volumeMounts:
+        # Vector configuration
+        - name: config
+          mountPath: /etc/vector
+          readOnly: true
+
+        # Kubernetes log directories
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+
+        # Vector data directory (checkpoints, buffers)
+        - name: data-dir
+          mountPath: /vector-data-dir
+
+        # Resource limits
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+
+        # Liveness probe
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9598
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # Readiness probe
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 9598
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+
+      # Volumes
+      volumes:
+      # Vector configuration (from ConfigMap)
+      - name: config
+        configMap:
+          name: data-index-vector-mode2-config
+
+      # Kubernetes log directories (hostPath required for DaemonSet)
+      - name: varlog
+        hostPath:
+          path: /var/log
+          type: Directory
+
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+          type: DirectoryOrCreate
+
+      # Vector data directory (checkpoints, disk buffers)
+      - name: data-dir
+        emptyDir: {}
+
+      # Tolerations (run on all nodes, including control plane)
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+
+      # Priority
+      priorityClassName: system-node-critical
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-index-vector-mode2
+  namespace: data-index
+  labels:
+    app: data-index-vector
+    component: elasticsearch
+    mode: mode2
+spec:
+  type: ClusterIP
+  selector:
+    app: data-index-vector
+    mode: mode2
+  ports:
+  - name: metrics
+    port: 9598
+    targetPort: 9598
+    protocol: TCP
+
+---
+# ConfigMap for Vector configuration
+# NOTE: This should be generated by logic-operator from vector.yaml template
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-index-vector-mode2-config
+  namespace: data-index
+  labels:
+    app: data-index-vector
+    component: elasticsearch
+    mode: mode2
+data:
+  vector.yaml: |
+    # This is a placeholder - logic-operator should generate this from:
+    # github.com/kubesmarts/logic-apps/data-index/collectors/vector/mode2-elasticsearch/vector.yaml
+    #
+    # The operator will:
+    # 1. Load vector.yaml from embedded configs
+    # 2. Template environment-specific values (ELASTICSEARCH_HOST, etc.)
+    # 3. Create this ConfigMap with the templated config
+    #
+    # DO NOT edit this manually in production - managed by logic-operator
