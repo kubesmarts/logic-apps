@@ -72,9 +72,4 @@ public class AbstractJPAStorageFetcher<K, E extends AbstractEntity, V> implement
     public void clear() {
         em.createQuery("DELETE from " + entityName).executeUpdate();
     }
-
-    public Multi<K> objectRemovedListener() {
-        // Read-only query service - no removal tracking needed
-        return Multi.createFrom().empty();
-    }
 }
