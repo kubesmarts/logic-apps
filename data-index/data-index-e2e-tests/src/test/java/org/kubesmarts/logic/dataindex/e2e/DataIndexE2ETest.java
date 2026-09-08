@@ -15,9 +15,10 @@
  */
 package org.kubesmarts.logic.dataindex.e2e;
 
-import io.restassured.RestAssured;
-import io.restassured.http.ContentType;
-import io.restassured.response.Response;
+import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,9 +26,9 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
+import io.restassured.response.Response;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,20 +36,23 @@ import static org.awaitility.Awaitility.await;
 
 /**
  * E2E tests for Data Index - runs for all modes (MODE 1, MODE 2, MODE 3).
- *
+ * <p>
  * Mode is selected via system property: -De2e.mode=mode1|mode2|mode3
- *
+ * <p>
  * The same tests run for all modes, verifying:
  * - GraphQL schema
  * - Workflow queries
  * - Task queries
  * - Full lifecycle (trigger → ingestion → storage → GraphQL)
- *
+ * <p>
  * Each mode has different ingestion paths but same GraphQL API:
  * - MODE 1: FluentBit → PostgreSQL triggers → GraphQL
  * - MODE 2: Vector → Elasticsearch transforms → GraphQL
  * - MODE 3: Kafka → Ingestion Service → PostgreSQL → GraphQL
- *
+ * <p>
+ * Infrastructure validation (ES health, indices, transforms, etc.) is done
+ * by the E2E scripts BEFORE running tests. Tests assume infrastructure is ready.
+ * <p>
  * Tests are ONLY enabled when e2e.mode system property is set.
  * This prevents them from running during regular Maven builds.
  */
@@ -279,7 +283,7 @@ public class DataIndexE2ETest {
         int timeoutSeconds = "mode2".equals(mode) ? 60 : 30;
 
         log.info("Waiting for workflow instance {} to appear (mode: {}, timeout: {}s)...",
-                 instanceId, mode, timeoutSeconds);
+                instanceId, mode, timeoutSeconds);
 
         await()
                 .atMost(Duration.ofSeconds(timeoutSeconds))

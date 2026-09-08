@@ -66,7 +66,10 @@ main() {
     log_step "Step 5: Component Status"
     kubectl get pods --all-namespaces | grep -E "(NAMESPACE|elasticsearch|data-index|vector|workflow)" || true
 
-    log_step "Step 6: Running Java E2E Tests"
+    log_step "Step 6: Verify Infrastructure Ready"
+    bash "${SCRIPT_DIR}/verify-infrastructure.sh" mode2
+
+    log_step "Step 7: Running Java E2E Tests"
     cd "${PROJECT_ROOT}/data-index/data-index-e2e-tests"
     mvn clean test -De2e.skip=false -De2e.mode=mode2
 

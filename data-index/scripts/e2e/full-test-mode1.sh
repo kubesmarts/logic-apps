@@ -130,8 +130,12 @@ main() {
     echo ""
     kubectl get pods --all-namespaces | grep -E "(NAMESPACE|postgresql|data-index|fluentbit|workflow)" || true
 
-    # 6. Run Java E2E tests
-    log_step "Step 6: Running Java E2E Tests"
+    # 6. Verify infrastructure ready
+    log_step "Step 6: Verify Infrastructure Ready"
+    bash "${SCRIPT_DIR}/verify-infrastructure.sh" mode1
+
+    # 7. Run Java E2E tests
+    log_step "Step 7: Running Java E2E Tests"
 
     log_info "Navigating to E2E tests module..."
     cd "${PROJECT_ROOT}/data-index/data-index-e2e-tests"

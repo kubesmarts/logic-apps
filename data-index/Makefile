@@ -25,9 +25,39 @@ GREEN := \033[0;32m
 NC := \033[0m
 
 help: ## Show this help message
-	@echo "$(BLUE)Data Index - Available targets:$(NC)"
+	@echo "$(BLUE)╔════════════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(BLUE)║  Data Index - E2E Testing                                      ║$(NC)"
+	@echo "$(BLUE)╚════════════════════════════════════════════════════════════════╝$(NC)"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
+	@echo "$(GREEN)Main Commands (what you typically run):$(NC)"
+	@echo "  $(GREEN)make test-mode1$(NC)   Full MODE 1 E2E (PostgreSQL + FluentBit + Triggers)"
+	@echo "  $(GREEN)make test-mode2$(NC)   Full MODE 2 E2E (Elasticsearch + Vector + Transforms)"
+	@echo "  $(GREEN)make test-mode3$(NC)   Full MODE 3 E2E (Kafka + CloudEvents + Processors)"
+	@echo "  $(GREEN)make clean$(NC)        Delete KIND cluster"
+	@echo ""
+	@echo "$(GREEN)Quick Test (reuse existing cluster, skip rebuild):$(NC)"
+	@echo "  make quick-mode1    Deploy + test MODE 1 (no rebuild)"
+	@echo "  make quick-mode2    Deploy + test MODE 2 (no rebuild)"
+	@echo "  make quick-mode3    Deploy + test MODE 3 (no rebuild)"
+	@echo ""
+	@echo "$(GREEN)Advanced (for debugging):$(NC)"
+	@echo "  make setup-mode1    Just setup cluster + build MODE 1 images"
+	@echo "  make setup-mode2    Just setup cluster + build MODE 2 images"
+	@echo "  make setup-mode3    Just setup cluster + build MODE 3 images"
+	@echo "  make deploy-mode1   Just deploy MODE 1 (cluster must exist)"
+	@echo "  make deploy-mode2   Just deploy MODE 2 (cluster must exist)"
+	@echo "  make deploy-mode3   Just deploy MODE 3 (cluster must exist)"
+	@echo "  make e2e-mode1      Just run tests (MODE 1 must be deployed)"
+	@echo "  make e2e-mode2      Just run tests (MODE 2 must be deployed)"
+	@echo "  make e2e-mode3      Just run tests (MODE 3 must be deployed)"
+	@echo "  make status         Show pod status"
+	@echo "  make logs-*         Show logs (data-index, ingestion, fluentbit, vector)"
+	@echo "  make graphql-ui     Open GraphQL UI in browser"
+	@echo ""
+	@echo "$(GREEN)Shortcuts:$(NC)"
+	@echo "  make m1             Alias for test-mode1"
+	@echo "  make m2             Alias for test-mode2"
+	@echo "  make m3             Alias for test-mode3"
 	@echo ""
 
 clean: ## Delete KIND cluster
@@ -69,13 +99,13 @@ quick-mode2: deploy-mode2 e2e-mode2  ## Quick MODE 2 test (deploy + test, no reb
 quick-mode3: deploy-mode3 e2e-mode3  ## Quick MODE 3 test (deploy + test, no rebuild)
 
 e2e-mode1: ## Run MODE 1 E2E tests only (assumes deployed)
-	@cd data-index-e2e-tests && mvn test -De2e.mode=mode1
+	@cd data-index-e2e-tests && mvn test -De2e.skip=false -De2e.mode=mode1
 
 e2e-mode2: ## Run MODE 2 E2E tests only (assumes deployed)
-	@cd data-index-e2e-tests && mvn test -De2e.mode=mode2
+	@cd data-index-e2e-tests && mvn test -De2e.skip=false -De2e.mode=mode2
 
 e2e-mode3: ## Run MODE 3 E2E tests only (assumes deployed)
-	@cd data-index-e2e-tests && mvn test -De2e.mode=mode3
+	@cd data-index-e2e-tests && mvn test -De2e.skip=false -De2e.mode=mode3
 
 deploy-mode1: ## Deploy MODE 1 to existing cluster
 	@echo "$(BLUE)==> Deploying MODE 1$(NC)"
