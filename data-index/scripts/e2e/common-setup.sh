@@ -89,49 +89,67 @@ main() {
     local BUILD_MODE="${MODE:-all}"
     log_info "Build mode: ${BUILD_MODE}"
 
-    # Always build workflow test app (used by all modes)
-    # MODE 3 requires Kafka profile for messaging support
-    log_info "Building workflow-test-app..."
-    if [[ "${BUILD_MODE}" == "mode3" ]]; then
-        log_info "  → Using Kafka profile for MODE 3"
-        (cd "${PROJECT_ROOT}/data-index/workflow-test-app" && \
-            mvn clean package -DskipTests -Pkafka \
-            -Dquarkus.container-image.build=true \
-            -Dquarkus.container-image.tag=999-SNAPSHOT)
-    else
-        (cd "${PROJECT_ROOT}/data-index/workflow-test-app" && \
-            mvn clean package -DskipTests -Dquarkus.container-image.build=true \
-            -Dquarkus.container-image.tag=999-SNAPSHOT)
-    fi
-    kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT --name "${CLUSTER_NAME}"
+    # Build from data-index reactor root to resolve inter-module dependencies
+    # Use -pl (project list) and -am (also make dependencies) to build only what's needed
 
     # Build PostgreSQL variant (MODE 1 and MODE 3)
     if [[ "${BUILD_MODE}" == "all" || "${BUILD_MODE}" == "mode1" || "${BUILD_MODE}" == "mode3" ]]; then
-        log_info "Building data-index-service-postgresql..."
-        (cd "${PROJECT_ROOT}/data-index/data-index-service" && \
-            mvn clean package -DskipTests -Ppostgresql \
-            -Dquarkus.container-image.build=true \
-            -Dquarkus.container-image.tag=999-SNAPSHOT)
+        log_info "Building data-index-service-postgresql + workflow-test-app (PostgreSQL reactor)..."
+
+        # Build both service and workflow-test-app together in reactor
+        # This ensures workflow-test-app can resolve its test dependencies
+        if [[ "${BUILD_MODE}" == "mode3" ]]; then
+            log_info "  → Using Kafka profile for workflow-test-app (MODE 3)"
+            (cd "${PROJECT_ROOT}/data-index" && \
+                mvn clean package -DskipTests \
+                -pl data-index-service/data-index-service-postgresql,workflow-test-app \
+                -am \
+                -Ppostgresql \
+                -Pkafka \
+                -Dquarkus.container-image.build=true \
+                -Dquarkus.container-image.tag=999-SNAPSHOT)
+        else
+            (cd "${PROJECT_ROOT}/data-index" && \
+                mvn clean package -DskipTests \
+                -pl data-index-service/data-index-service-postgresql,workflow-test-app \
+                -am \
+                -Ppostgresql \
+                -Dquarkus.container-image.build=true \
+                -Dquarkus.container-image.tag=999-SNAPSHOT)
+        fi
+
         kind load docker-image kubesmarts/data-index-service-postgresql:999-SNAPSHOT --name "${CLUSTER_NAME}"
+        kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT --name "${CLUSTER_NAME}"
     fi
 
     # Build Elasticsearch variant (MODE 2 only)
     if [[ "${BUILD_MODE}" == "all" || "${BUILD_MODE}" == "mode2" ]]; then
-        log_info "Building data-index-service-elasticsearch..."
-        (cd "${PROJECT_ROOT}/data-index/data-index-service" && \
-            mvn clean package -DskipTests -Pelasticsearch \
+        log_info "Building data-index-service-elasticsearch + workflow-test-app (Elasticsearch reactor)..."
+
+        (cd "${PROJECT_ROOT}/data-index" && \
+            mvn clean package -DskipTests \
+            -pl data-index-service/data-index-service-elasticsearch,workflow-test-app \
+            -am \
+            -Pelasticsearch \
             -Dquarkus.container-image.build=true \
             -Dquarkus.container-image.tag=999-SNAPSHOT \
             -Dquarkus.container-image.name=data-index-service-elasticsearch)
+
         kind load docker-image kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT --name "${CLUSTER_NAME}"
+        kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT --name "${CLUSTER_NAME}"
     fi
 
     # Build Kafka Ingestion Service (MODE 3 only)
     if [[ "${BUILD_MODE}" == "all" || "${BUILD_MODE}" == "mode3" ]]; then
         log_info "Building data-index-ingestion-kafka-service..."
-        (cd "${PROJECT_ROOT}/data-index/data-index-ingestion/data-index-ingestion-kafka-service" && \
-            mvn clean package -DskipTests -Dquarkus.container-image.build=true \
+
+        (cd "${PROJECT_ROOT}/data-index" && \
+            mvn clean package -DskipTests \
+            -pl data-index-ingestion/data-index-ingestion-kafka-service \
+            -am \
+            -Dquarkus.container-image.build=true \
             -Dquarkus.container-image.tag=999-SNAPSHOT)
+
         kind load docker-image kubesmarts/data-index-ingestion-kafka-service:999-SNAPSHOT --name "${CLUSTER_NAME}"
     fi
 
