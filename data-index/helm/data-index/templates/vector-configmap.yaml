@@ -1,0 +1,18 @@
+{{- if .Values.vector.enabled }}
+{{/*
+Vector ConfigMap
+Embeds vector.yaml configuration.
+*/}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vector-config
+  namespace: logging
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: vector
+data:
+  vector.yaml: |
+{{ .Files.Get "configs/vector/vector.yaml" | indent 4 }}
+{{- end }}

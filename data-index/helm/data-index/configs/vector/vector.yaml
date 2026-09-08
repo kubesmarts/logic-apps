@@ -1,0 +1,283 @@
+# ============================================================================
+# Vector Configuration - MODE 2: Elasticsearch Transform-based Normalization
+# ============================================================================
+#
+# Validation: Vector does not have a reliable JSON Schema for IDE validation
+# - Use Vector CLI: `vector validate --config-yaml vector.yaml`
+# - Or our Maven tests: `mvn test -pl collectors`
+# - Vector documentation: https://vector.dev/docs/reference/configuration/
+#
+# Purpose: Capture Quarkus Flow structured logs from container stdout
+#          Elasticsearch Transform aggregates raw events into normalized indices
+#
+# Pipeline:
+#   Quarkus Flow → stdout → K8s /var/log/containers/ → Vector kubernetes_logs →
+#   Parse JSON events → Filter workflow events → Route by event type →
+#   Elasticsearch INSERT (raw indices) → Elasticsearch Transform → Normalized indices
+#
+# Consumed by: logic-operator (templates this config with environment-specific values)
+# Maintained by: data-index (guarantees this config works correctly)
+#
+# ============================================================================
+
+# Data directory for checkpointing
+# In production, DaemonSet mounts an emptyDir at this path
+data_dir: /tmp/vector
+
+# ============================================================================
+# SOURCES: Kubernetes Logs
+# ============================================================================
+#
+# Vector's kubernetes_logs source automatically:
+# - Tails /var/log/containers/*.log
+# - Parses container runtime format (CRI/Docker)
+# - Enriches with Kubernetes metadata (pod, namespace, labels)
+#
+sources:
+  # Kubernetes container logs
+  kubernetes_logs:
+    type: kubernetes_logs
+
+    # Filter by namespace using field selector
+    # Only tail logs from workflow namespace (set via environment variable in DaemonSet)
+    extra_field_selector: "metadata.namespace=${WORKFLOW_NAMESPACE}"
+
+    # Auto-merge partial logs (multi-line)
+    auto_partial_merge: true
+
+    # Self node name (set by DaemonSet env var)
+    self_node_name: "${NODE_NAME}"
+
+  # Internal metrics for Prometheus export
+  internal_metrics:
+    type: internal_metrics
+
+# ============================================================================
+# TRANSFORMS: Parse and Route Events
+# ============================================================================
+
+transforms:
+  # Parse JSON log line
+  parse_json:
+    type: remap
+    inputs:
+      - kubernetes_logs
+    source: |
+      # Parse the log message as JSON
+      # Silently drop non-JSON lines (regular app logs like INFO, DEBUG, etc.)
+      parsed, err = parse_json(.message)
+      if err != null {
+        abort
+      }
+
+      # Merge parsed fields into event (infallible merge)
+      . = merge!(., parsed)
+
+  # Filter only workflow events (by eventType field)
+  # Keeps events with eventType starting with "io.serverlessworkflow."
+  # Filters out regular application logs (info, debug, etc.)
+  filter_workflow_events:
+    type: filter
+    inputs:
+      - parse_json
+    condition:
+      type: vrl
+      source: starts_with(string!(.eventType), "io.serverlessworkflow.")
+
+  # Add metadata (already have K8s metadata from source)
+  enrich_metadata:
+    type: remap
+    inputs:
+      - filter_workflow_events
+    source: |
+      # Copy K8s metadata to top-level fields for easier access
+      .pod_name = .kubernetes.pod_name
+      .namespace = .kubernetes.pod_namespace
+
+      # Add Elasticsearch @timestamp field (ingestion time)
+      # Used by ES Transforms for smart filtering (recent vs old events)
+      # This is DIFFERENT from the event's .timestamp field (occurrence time):
+      #   - @timestamp = when Vector ingested this event (now)
+      #   - timestamp = when the workflow event occurred (from Quarkus Flow)
+      ."@timestamp" = now()
+
+  # Route events by type (workflow vs task)
+  route_by_type:
+    type: route
+    inputs:
+      - enrich_metadata
+    route:
+      # Route workflow events
+      workflow_events:
+        type: vrl
+        source: starts_with(string!(.eventType), "io.serverlessworkflow.workflow.")
+
+      # Route task events
+      task_events:
+        type: vrl
+        source: starts_with(string!(.eventType), "io.serverlessworkflow.task.")
+
+  # Debug filter - only pass events if DEBUG_EVENTS=true
+  # Controlled by environment variable for troubleshooting
+  # WARNING: At 1000 events/sec, generates ~43GB/day of logs
+  debug_filter:
+    type: filter
+    inputs:
+      - route_by_type.workflow_events
+      - route_by_type.task_events
+    condition:
+      type: vrl
+      source: |
+        debug_enabled = get_env_var("DEBUG_EVENTS") ?? "false"
+        to_bool(debug_enabled) ?? false
+
+# ============================================================================
+# SINKS: Elasticsearch Raw Indices
+# ============================================================================
+
+sinks:
+  # Workflow events → workflow-events-YYYY.MM.DD
+  elasticsearch_workflow:
+    type: elasticsearch
+    inputs:
+      - route_by_type.workflow_events
+
+    # Elasticsearch connection (set via environment variables in DaemonSet)
+    endpoints:
+      - "http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"
+
+    # Index with date-based rollover (managed by ILM)
+    mode: bulk
+    bulk:
+      index: "workflow-events-%Y.%m.%d"
+      action: create
+
+    # Compression
+    compression: gzip
+
+    # Retry configuration
+    request:
+      retry_attempts: 5
+      retry_initial_backoff_secs: 1
+      retry_max_duration_secs: 300
+      # Adaptive Request Concurrency (ARC) - Vector's smart batching
+      concurrency: adaptive
+
+    # Health check
+    healthcheck:
+      enabled: true
+
+    # Buffer configuration
+    buffer:
+      type: disk
+      max_size: 268435488  # 256 MiB
+
+  # Task events → task-events-YYYY.MM.DD
+  elasticsearch_task:
+    type: elasticsearch
+    inputs:
+      - route_by_type.task_events
+
+    # Elasticsearch connection (set via environment variables in DaemonSet)
+    endpoints:
+      - "http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"
+
+    # Index with date-based rollover (managed by ILM)
+    mode: bulk
+    bulk:
+      index: "task-events-%Y.%m.%d"
+      action: create
+
+    # Compression
+    compression: gzip
+
+    # Retry configuration
+    request:
+      retry_attempts: 5
+      retry_initial_backoff_secs: 1
+      retry_max_duration_secs: 300
+      # Adaptive Request Concurrency (ARC)
+      concurrency: adaptive
+
+    # Health check
+    healthcheck:
+      enabled: true
+
+    # Buffer configuration
+    buffer:
+      type: disk
+      max_size: 268435488  # 256 MiB
+
+  # ============================================================================
+  # DEBUG SINK - Troubleshooting Only
+  # ============================================================================
+  #
+  # Logs all workflow/task events to stdout for troubleshooting.
+  # DISABLED BY DEFAULT - controlled by DEBUG_EVENTS environment variable.
+  #
+  # WARNING: At high event rates, this generates massive log volumes:
+  #   - 1,000 events/sec = ~43 GB/day
+  #   - 10,000 events/sec = ~430 GB/day
+  #
+  # To enable for troubleshooting:
+  #   kubectl set env daemonset/workflows-vector-mode2 -n logging DEBUG_EVENTS=true
+  #   kubectl logs -n logging -l app=workflows-vector-mode2 -f
+  #
+  # To disable:
+  #   kubectl set env daemonset/workflows-vector-mode2 -n logging DEBUG_EVENTS-
+  debug_stdout:
+    type: console
+    inputs:
+      - debug_filter
+    encoding:
+      codec: json
+
+  # Export internal metrics to Prometheus
+  prometheus_metrics:
+    type: prometheus_exporter
+    inputs:
+      - internal_metrics
+    address: "0.0.0.0:9598"
+    default_namespace: vector
+
+# ============================================================================
+# OBSERVABILITY
+# ============================================================================
+
+# Expose HTTP API on :8686 for health checks
+# Prometheus metrics exposed via prometheus_exporter sink on :9598
+api:
+  enabled: true
+  address: "0.0.0.0:8686"
+  playground: false
+
+# ============================================================================
+# NOTES
+# ============================================================================
+#
+# Environment Variables (templated by logic-operator):
+#   - WORKFLOW_NAMESPACE: Namespace to tail logs from (default: workflows)
+#   - ELASTICSEARCH_HOST: Elasticsearch hostname (default: elasticsearch.data-index.svc.cluster.local)
+#   - ELASTICSEARCH_PORT: Elasticsearch port (default: 9200)
+#   - NODE_NAME: Kubernetes node name (set by DaemonSet downward API)
+#   - DEBUG_EVENTS: Enable stdout logging of events (default: false)
+#       * ONLY FOR TROUBLESHOOTING - disabled in production
+#       * Set to "true" to enable: kubectl set env daemonset/workflows-vector-mode2 DEBUG_EVENTS=true
+#       * WARNING: At 1000 events/sec, generates ~43GB/day of logs
+#
+# What stays the same (handled by Elasticsearch):
+#   - Elasticsearch Transforms: Aggregate raw events into normalized indices
+#   - ILM Policies: Auto-delete raw events after retention period
+#   - Index Templates: Define mappings and settings
+#
+# What this config does:
+#   ✅ Tails Kubernetes container logs
+#   ✅ Parses CRI/Docker format automatically
+#   ✅ Enriches with Kubernetes metadata
+#   ✅ Filters workflow events (by eventType field)
+#   ✅ Routes by event type (workflow vs task)
+#   ✅ Sends to Elasticsearch raw indices with date rollover
+#   ✅ Uses smart batching (ARC) for performance
+#   ✅ Exposes Prometheus metrics
+#
+# ============================================================================

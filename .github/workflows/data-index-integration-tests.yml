@@ -28,13 +28,13 @@ jobs:
       matrix:
         mode:
           - name: MODE 1 (PostgreSQL + FluentBit + Triggers)
-            script: test-mode1-e2e.sh
+            script: full-test-mode1.sh
             id: mode1
           - name: MODE 2 (Elasticsearch + Vector + Transforms)
-            script: test-mode2-e2e.sh
+            script: full-test-mode2.sh
             id: mode2
           - name: MODE 3 (Kafka + CloudEvents + Processors)
-            script: test-mode3-e2e.sh
+            script: full-test-mode3.sh
             id: mode3
 
     steps:
@@ -48,91 +48,15 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build project
-        run: |
-          mvn -B clean install -DskipTests \
-            --no-transfer-progress
-
-      - name: Build MODE 1 images (PostgreSQL backend)
-        if: matrix.mode.id == 'mode1' || matrix.mode.id == 'mode3'
-        run: |
-          # Build data-index-service-postgresql
-          mvn -B package -DskipTests \
-            -pl data-index/data-index-service/data-index-service-postgresql \
-            -am \
-            -DskipFlyway=true \
-            -Dquarkus.container-image.build=true \
-            --no-transfer-progress
-
-          # Build workflow-test-app
-          mvn -B package -DskipTests \
-            -pl data-index/workflow-test-app \
-            -Dquarkus.container-image.build=true \
-            --no-transfer-progress
-
-      - name: Build MODE 2 images (Elasticsearch backend)
-        if: matrix.mode.id == 'mode2'
-        run: |
-          # Build data-index-service-elasticsearch
-          mvn -B package -DskipTests \
-            -pl data-index/data-index-service/data-index-service-elasticsearch \
-            -am \
-            -Dquarkus.container-image.build=true \
-            --no-transfer-progress
-
-          # Build workflow-test-app
-          mvn -B package -DskipTests \
-            -pl data-index/workflow-test-app \
-            -Dquarkus.container-image.build=true \
-            --no-transfer-progress
-
-      - name: Build MODE 3 images (Kafka ingestion)
-        if: matrix.mode.id == 'mode3'
-        run: |
-          # Build data-index-ingestion-kafka-service
-          mvn -B package -DskipTests \
-            -pl data-index/data-index-ingestion/data-index-ingestion-kafka-service \
-            -am \
-            -Dquarkus.container-image.build=true \
-            --no-transfer-progress
-
-      - name: Set up KIND cluster
-        uses: helm/kind-action@v1.14.0
+      - name: Install Helm
+        uses: azure/setup-helm@v4
         with:
-          cluster_name: data-index-test
-          config: data-index/scripts/kind/kind-config.yaml
-          wait: 3m
+          version: 'latest'
 
-      - name: Load MODE 1 images into KIND
-        if: matrix.mode.id == 'mode1'
+      - name: Run Helm-based E2E test
         run: |
-          kind load docker-image kubesmarts/data-index-service-postgresql:999-SNAPSHOT \
-            --name data-index-test
-          kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT \
-            --name data-index-test
-
-      - name: Load MODE 2 images into KIND
-        if: matrix.mode.id == 'mode2'
-        run: |
-          kind load docker-image kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT \
-            --name data-index-test
-          kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT \
-            --name data-index-test
-
-      - name: Load MODE 3 images into KIND
-        if: matrix.mode.id == 'mode3'
-        run: |
-          kind load docker-image kubesmarts/data-index-service-postgresql:999-SNAPSHOT \
-            --name data-index-test
-          kind load docker-image kubesmarts/data-index-ingestion-kafka-service:999-SNAPSHOT \
-            --name data-index-test
-          kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT \
-            --name data-index-test
-
-      - name: Run E2E test script
-        run: |
-          cd data-index/scripts/kind
-          bash ${{ matrix.mode.script }}
+          cd data-index
+          bash scripts/e2e/${{ matrix.mode.script }}
 
       - name: Collect logs on failure
         if: failure()
@@ -163,23 +87,23 @@ jobs:
 
             echo ""
             echo "=== Ingestion Service Logs ==="
-            kubectl logs -n data-index -l app=data-index-ingestion-kafka-service --tail=100 || true
+            kubectl logs -l app=data-index-ingestion --tail=100 || true
           fi
 
           echo ""
           echo "=== Data Index Service Logs ==="
-          kubectl logs -n data-index -l app=data-index-service --tail=100 || true
+          kubectl logs -l app=data-index-service --tail=100 || true
 
           echo ""
           if [ "${{ matrix.mode.id }}" == "mode1" ]; then
             echo "=== FluentBit Logs (MODE 1) ==="
-            kubectl logs -n logging -l app=workflows-fluent-bit-mode1 --tail=100 || true
+            kubectl logs -n logging -l app=fluentbit --tail=100 || true
           fi
 
           echo ""
           if [ "${{ matrix.mode.id }}" == "mode2" ]; then
             echo "=== Vector Logs (MODE 2) ==="
-            kubectl logs -n logging -l app=workflows-vector-mode2 --tail=100 || true
+            kubectl logs -n logging -l app=vector --tail=100 || true
           fi
 
           echo ""

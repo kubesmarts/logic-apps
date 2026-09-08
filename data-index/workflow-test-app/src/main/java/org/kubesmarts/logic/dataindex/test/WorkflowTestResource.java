@@ -45,8 +45,13 @@ public class WorkflowTestResource {
     @Produces(MediaType.APPLICATION_JSON)
     public CompletableFuture<Map<String, Object>> executeHelloWorld(Map<String, Object> input) {
         Log.info("Executing hello-world workflow with input: " + input);
-        return helloWorld.instance(input).start()
-                .thenApply(model -> model.asMap().orElseThrow());
+        var instance = helloWorld.instance(input);
+        String instanceId = instance.id();
+        return instance.start()
+                .thenApply(model -> Map.of(
+                        "id", instanceId,
+                        "output", model.asMap().orElse(Map.of())
+                ));
     }
 
     @POST

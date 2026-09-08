@@ -1,0 +1,28 @@
+{{- if .Values.fluentbit.enabled }}
+{{/*
+FluentBit ConfigMap - MODE 1
+
+Contains FluentBit configuration files:
+- fluent-bit.conf: Main configuration
+- parsers.conf: CRI parser for Kubernetes logs
+- flatten-event.lua: Lua script to route events by type
+
+NOTE: FluentBit is temporary for MODE 1. Will migrate to Vector (issue #63).
+*/}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentbit-config
+  namespace: logging
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: fluentbit
+data:
+  fluent-bit.conf: |
+{{ .Files.Get "configs/fluentbit/fluent-bit.conf" | indent 4 }}
+  parsers.conf: |
+{{ .Files.Get "configs/fluentbit/parsers.conf" | indent 4 }}
+  flatten-event.lua: |
+{{ .Files.Get "configs/fluentbit/flatten-event.lua" | indent 4 }}
+{{- end }}

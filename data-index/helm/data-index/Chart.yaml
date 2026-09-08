@@ -1,0 +1,25 @@
+apiVersion: v2
+name: data-index
+description: Data Index - Read-only query service for Open Workflow runtime execution data
+type: application
+version: 1.0.0
+appVersion: "999-SNAPSHOT"
+
+keywords:
+  - workflow
+  - openworkflow
+  - data-index
+  - graphql
+
+maintainers:
+  - name: KubeSmarts Engineering
+    email: ricardozanini@gmail.com
+
+sources:
+  - https://github.com/kubesmarts/logic-apps
+
+# Minimum Kubernetes version
+kubeVersion: ">=1.24.0-0"
+
+# Dependencies (none - we deploy everything ourselves)
+# dependencies: []

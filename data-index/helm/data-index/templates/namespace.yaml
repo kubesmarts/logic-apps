@@ -1,0 +1,60 @@
+{{/*
+Namespace - Common for all modes
+
+Creates the following namespaces:
+NOTE: data-index namespace is created by Helm (--create-namespace flag)
+- logging: For log collectors (FluentBit/Vector)
+- workflows: For workflow test applications
+- Backend-specific namespace (postgresql/elasticsearch/kafka)
+*/}}
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    mode: {{ .Values.mode }}
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workflows
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    mode: {{ .Values.mode }}
+
+{{- if .Values.postgresql.enabled }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: postgresql
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    mode: {{ .Values.mode }}
+{{- end }}
+
+{{- if .Values.elasticsearch.enabled }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elasticsearch
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    mode: {{ .Values.mode }}
+{{- end }}
+
+{{- if .Values.kafka.enabled }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    mode: {{ .Values.mode }}
+{{- end }}
