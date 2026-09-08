@@ -104,7 +104,6 @@ main() {
                 mvn clean package -DskipTests \
                 -pl data-index-service/data-index-service-postgresql,workflow-test-app \
                 -am \
-                -Ppostgresql \
                 -Pkafka \
                 -Dquarkus.container-image.build=true \
                 -Dquarkus.container-image.tag=999-SNAPSHOT)
@@ -113,7 +112,6 @@ main() {
                 mvn clean package -DskipTests \
                 -pl data-index-service/data-index-service-postgresql,workflow-test-app \
                 -am \
-                -Ppostgresql \
                 -Dquarkus.container-image.build=true \
                 -Dquarkus.container-image.tag=999-SNAPSHOT)
         fi
@@ -130,10 +128,8 @@ main() {
             mvn clean package -DskipTests \
             -pl data-index-service/data-index-service-elasticsearch,workflow-test-app \
             -am \
-            -Pelasticsearch \
             -Dquarkus.container-image.build=true \
-            -Dquarkus.container-image.tag=999-SNAPSHOT \
-            -Dquarkus.container-image.name=data-index-service-elasticsearch)
+            -Dquarkus.container-image.tag=999-SNAPSHOT)
 
         kind load docker-image kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT --name "${CLUSTER_NAME}"
         kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT --name "${CLUSTER_NAME}"
