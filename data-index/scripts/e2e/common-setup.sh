@@ -98,19 +98,20 @@ main() {
 
         # Build both service and workflow-test-app together in reactor
         # This ensures workflow-test-app can resolve its test dependencies
+        # Build from root reactor to ensure persistence-commons-api is rebuilt
         if [[ "${BUILD_MODE}" == "mode3" ]]; then
             log_info "  → Using Kafka profile for workflow-test-app (MODE 3)"
-            (cd "${PROJECT_ROOT}/data-index" && \
+            (cd "${PROJECT_ROOT}" && \
                 mvn clean package -DskipTests \
-                -pl data-index-service/data-index-service-postgresql,workflow-test-app \
+                -pl data-index/data-index-service/data-index-service-postgresql,data-index/workflow-test-app \
                 -am \
                 -Pkafka \
                 -Dquarkus.container-image.build=true \
                 -Dquarkus.container-image.tag=999-SNAPSHOT)
         else
-            (cd "${PROJECT_ROOT}/data-index" && \
+            (cd "${PROJECT_ROOT}" && \
                 mvn clean package -DskipTests \
-                -pl data-index-service/data-index-service-postgresql,workflow-test-app \
+                -pl data-index/data-index-service/data-index-service-postgresql,data-index/workflow-test-app \
                 -am \
                 -Dquarkus.container-image.build=true \
                 -Dquarkus.container-image.tag=999-SNAPSHOT)
@@ -124,9 +125,10 @@ main() {
     if [[ "${BUILD_MODE}" == "all" || "${BUILD_MODE}" == "mode2" ]]; then
         log_info "Building data-index-service-elasticsearch + workflow-test-app (Elasticsearch reactor)..."
 
-        (cd "${PROJECT_ROOT}/data-index" && \
+        # Build from root reactor to ensure persistence-commons-api is rebuilt
+        (cd "${PROJECT_ROOT}" && \
             mvn clean package -DskipTests \
-            -pl data-index-service/data-index-service-elasticsearch,workflow-test-app \
+            -pl data-index/data-index-service/data-index-service-elasticsearch,data-index/workflow-test-app \
             -am \
             -Dquarkus.container-image.build=true \
             -Dquarkus.container-image.tag=999-SNAPSHOT)
@@ -139,9 +141,10 @@ main() {
     if [[ "${BUILD_MODE}" == "all" || "${BUILD_MODE}" == "mode3" ]]; then
         log_info "Building data-index-ingestion-kafka-service..."
 
-        (cd "${PROJECT_ROOT}/data-index" && \
+        # Build from root reactor to ensure persistence-commons-api is rebuilt
+        (cd "${PROJECT_ROOT}" && \
             mvn clean package -DskipTests \
-            -pl data-index-ingestion/data-index-ingestion-kafka-service \
+            -pl data-index/data-index-ingestion/data-index-ingestion-kafka-service \
             -am \
             -Dquarkus.container-image.build=true \
             -Dquarkus.container-image.tag=999-SNAPSHOT)
