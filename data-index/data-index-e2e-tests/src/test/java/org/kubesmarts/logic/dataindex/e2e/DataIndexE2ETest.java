@@ -271,11 +271,18 @@ public class DataIndexE2ETest {
      * MODE 2 needs extra time for Elasticsearch transform delay (1s frequency + buffer).
      */
     protected void waitForWorkflowInstance(String instanceId) {
-        log.info("Waiting for workflow instance {} to appear...", instanceId);
+        // MODE 2 needs more time due to transform delays in CI environments
+        // - Workflow app logs event to file
+        // - Vector tails and sends to Elasticsearch (delay)
+        // - Transform runs (1s frequency + processing time)
+        // - Data becomes available via GraphQL
+        int timeoutSeconds = "mode2".equals(mode) ? 60 : 30;
 
-        // All modes use same 30s timeout (sufficient for MODE 2 transforms)
+        log.info("Waiting for workflow instance {} to appear (mode: {}, timeout: {}s)...",
+                 instanceId, mode, timeoutSeconds);
+
         await()
-                .atMost(Duration.ofSeconds(30))
+                .atMost(Duration.ofSeconds(timeoutSeconds))
                 .pollInterval(2, TimeUnit.SECONDS)
                 .until(() -> {
                     String query = String.format(
