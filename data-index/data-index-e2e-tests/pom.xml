@@ -94,10 +94,11 @@ limitations under the License.
             <scope>test</scope>
         </dependency>
 
-        <!-- Commons Logging (required by REST Assured's HTTP client) -->
+        <!-- SLF4J bridge for commons-logging (Apache HTTP Client uses commons-logging API) -->
+        <!-- This redirects all commons-logging calls to SLF4J, unifying logging -->
         <dependency>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

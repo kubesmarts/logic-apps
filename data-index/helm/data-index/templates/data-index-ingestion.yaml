@@ -59,9 +59,15 @@ spec:
             - name: QUARKUS_DATASOURCE_JDBC_URL
               value: "jdbc:{{ include "data-index.postgresql.connectionString" . }}"
             - name: QUARKUS_DATASOURCE_USERNAME
-              value: {{ .Values.postgresql.username | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" (include "data-index.fullname" .)) }}
+                  key: postgres-username
             - name: QUARKUS_DATASOURCE_PASSWORD
-              value: {{ .Values.postgresql.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" (include "data-index.fullname" .)) }}
+                  key: postgres-password
             # Kafka configuration
             - name: KAFKA_BOOTSTRAP_SERVERS
               value: {{ include "data-index.kafka.bootstrapServers" . | quote }}

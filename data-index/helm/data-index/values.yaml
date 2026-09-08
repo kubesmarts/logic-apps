@@ -43,7 +43,22 @@ postgresql:
   # Database configuration
   database: dataindex
   username: dataindex
-  password: dataindex
+
+  # ⚠️  SECURITY WARNING ⚠️
+  # The password field below is for TESTING ONLY and should NEVER be used in production.
+  # For production deployments, use ONE of these secure approaches:
+  #   1. Set existingSecret to reference a pre-created Kubernetes Secret
+  #   2. Override password at install time: --set postgresql.password=SECURE_PASSWORD
+  #   3. Use encrypted secrets (sealed-secrets, external-secrets, etc.)
+  password: "dataindex-test-only-insecure"
+
+  # Use existing Kubernetes Secret for credentials (RECOMMENDED for production)
+  # If set, the chart will not create a Secret and will use this one instead.
+  # Secret must contain keys: postgres-username, postgres-password
+  # Example: kubectl create secret generic my-db-secret \
+  #            --from-literal=postgres-username=dataindex \
+  #            --from-literal=postgres-password=SECURE_RANDOM_PASSWORD
+  existingSecret: ""
 
   # Service configuration
   service:

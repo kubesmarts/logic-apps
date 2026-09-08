@@ -78,24 +78,24 @@ No port-forwarding needed!
 |----------|---------|-------------|
 | `e2e.graphql.url` | `http://localhost:30080/graphql` | Data Index GraphQL API URL |
 | `e2e.workflow.url` | `http://localhost:30082` | Workflow Test App URL |
-| `e2e.mode` | `mode1` | Deployment mode (mode1, mode2, mode3) |
-| `e2e.skip` | `false` | Skip E2E tests entirely |
+| `e2e.mode` | *(required)* | Deployment mode (mode1, mode2, mode3) |
+| `e2e.skip` | `true` | Skip E2E tests (must set to `false` to run) |
 
 ## Test Structure
 
 ```
 data-index-e2e-tests/
-├── BaseE2ETest.java           # Shared utilities (GraphQL, wait helpers)
-├── Mode1PostgresqlTest.java   # MODE 1 specific tests
-├── Mode2ElasticsearchTest.java # MODE 2 specific tests
-└── Mode3KafkaTest.java        # MODE 3 specific tests
+└── DataIndexE2ETest.java      # All E2E tests (runs for all modes)
 ```
 
-Each test class:
-- Uses `@EnabledIf` to run only for its mode
-- Verifies GraphQL API works
-- Tests workflow lifecycle end-to-end
-- Validates mode-specific components
+The test class:
+- Uses `@EnabledIfSystemProperty` to run only when `e2e.mode` is set
+- Contains 4 tests that run for all modes:
+  - `testGraphQLSchemaIntrospection` - Verify GraphQL schema
+  - `testQueryWorkflowInstances` - Query workflow instances
+  - `testQueryTaskExecutions` - Query task executions  
+  - `testWorkflowLifecycle` - Full workflow trigger → GraphQL query
+- Mode-specific behavior (e.g., longer timeout for MODE 2 transforms)
 
 ## What Tests Verify
 
@@ -149,22 +149,27 @@ Each test class:
 
 ## Development
 
-Add new test:
-1. Create test class extending `BaseE2ETest`
-2. Add `@EnabledIf` condition for mode
-3. Use helper methods: `executeGraphQL()`, `triggerWorkflow()`, `waitForWorkflowInstance()`
+Add new test to `DataIndexE2ETest.java`:
 
-Example:
 ```java
-@EnabledIf("isMode1")
-public class MyCustomTest extends BaseE2ETest {
-    static boolean isMode1() {
-        return "mode1".equalsIgnoreCase(System.getProperty("e2e.mode"));
-    }
+@Test
+public void testMyNewFeature() {
+    log.info("Testing my new feature...");
     
-    @Test
-    public void testCustomScenario() {
-        // Your test here
-    }
+    // Use helper methods
+    String instanceId = triggerWorkflow("my-workflow");
+    waitForWorkflowInstance(instanceId);
+    
+    String query = "{ getWorkflowInstance(id: \"" + instanceId + "\") { ... } }";
+    Response response = executeGraphQL(query);
+    
+    // Assertions
+    response.then().statusCode(200);
+    assertThat(response.jsonPath().getString("data.getWorkflowInstance.id"))
+        .isEqualTo(instanceId);
+    
+    log.info("✓ My new feature test successful");
 }
 ```
+
+The test will automatically run for all modes (MODE 1, MODE 2, MODE 3).

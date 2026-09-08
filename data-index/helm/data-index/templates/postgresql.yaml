@@ -61,9 +61,15 @@ spec:
             - name: POSTGRES_DB
               value: {{ .Values.postgresql.database | quote }}
             - name: POSTGRES_USER
-              value: {{ .Values.postgresql.username | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" (include "data-index.fullname" .)) }}
+                  key: postgres-username
             - name: POSTGRES_PASSWORD
-              value: {{ .Values.postgresql.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" (include "data-index.fullname" .)) }}
+                  key: postgres-password
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           livenessProbe:

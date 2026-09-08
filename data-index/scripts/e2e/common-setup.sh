@@ -167,9 +167,9 @@ main() {
     log_success "✓ Setup complete! Ready to run MODE-specific tests."
     echo ""
     log_info "Next steps:"
-    echo "  - MODE 1: bash data-index/scripts/e2e/test-helm-mode1.sh"
-    echo "  - MODE 2: bash data-index/scripts/e2e/test-helm-mode2.sh"
-    echo "  - MODE 3: bash data-index/scripts/e2e/test-helm-mode3.sh"
+    echo "  - MODE 1: bash scripts/e2e/full-test-mode1.sh"
+    echo "  - MODE 2: bash scripts/e2e/full-test-mode2.sh"
+    echo "  - MODE 3: bash scripts/e2e/full-test-mode3.sh"
     echo ""
 }
 

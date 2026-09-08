@@ -64,9 +64,15 @@ spec:
             - name: QUARKUS_DATASOURCE_JDBC_URL
               value: "jdbc:{{ include "data-index.postgresql.connectionString" . }}"
             - name: QUARKUS_DATASOURCE_USERNAME
-              value: {{ .Values.postgresql.username | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" (include "data-index.fullname" .)) }}
+                  key: postgres-username
             - name: QUARKUS_DATASOURCE_PASSWORD
-              value: {{ .Values.postgresql.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" (include "data-index.fullname" .)) }}
+                  key: postgres-password
             # Enable Flyway migrations (disabled by default in prod mode)
             - name: QUARKUS_FLYWAY_MIGRATE_AT_START
               value: "true"
