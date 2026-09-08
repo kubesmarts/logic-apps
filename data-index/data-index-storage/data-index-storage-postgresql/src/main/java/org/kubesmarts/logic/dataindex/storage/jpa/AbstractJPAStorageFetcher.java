@@ -19,6 +19,7 @@
 package org.kubesmarts.logic.dataindex.storage.jpa;
 
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.kubesmarts.logic.dataindex.storage.jpa.entity.AbstractEntity;
@@ -70,5 +71,10 @@ public class AbstractJPAStorageFetcher<K, E extends AbstractEntity, V> implement
     @Transactional
     public void clear() {
         em.createQuery("DELETE from " + entityName).executeUpdate();
+    }
+
+    public Consumer<V> objectRemovedListener() {
+        // Read-only query service - no removal tracking needed
+        return null;
     }
 }

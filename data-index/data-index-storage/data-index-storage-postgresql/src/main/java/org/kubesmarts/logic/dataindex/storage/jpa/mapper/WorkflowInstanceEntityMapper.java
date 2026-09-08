@@ -42,6 +42,8 @@ public interface WorkflowInstanceEntityMapper {
      * Convert JPA entity to domain model.
      * Used when reading from database to return via GraphQL API.
      */
+    @Mapping(target = "workflow", ignore = true)
+    @Mapping(target = "eventTimestamp", ignore = true)
     WorkflowInstance toModel(WorkflowInstanceEntity entity);
 
     /**
@@ -49,6 +51,8 @@ public interface WorkflowInstanceEntityMapper {
      * Used when writing to database (though Data Index v1.0.0 is read-only, this may be used for tests).
      */
     @Mapping(source = "taskExecutions", target = "taskExecutions")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     WorkflowInstanceEntity toEntity(WorkflowInstance model);
 
     /**
@@ -56,6 +60,8 @@ public interface WorkflowInstanceEntityMapper {
      * Useful for merge operations.
      */
     @Mapping(source = "taskExecutions", target = "taskExecutions")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     void updateEntityFromModel(WorkflowInstance model, @MappingTarget WorkflowInstanceEntity entity);
 
     /**

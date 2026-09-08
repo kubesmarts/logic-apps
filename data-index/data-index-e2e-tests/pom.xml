@@ -33,8 +33,9 @@ limitations under the License.
         <!-- Test configuration (can be overridden via -D flags) -->
         <e2e.graphql.url>http://localhost:30080/graphql</e2e.graphql.url>
         <e2e.workflow.url>http://localhost:30082</e2e.workflow.url>
-        <e2e.mode>mode1</e2e.mode>
-        <e2e.skip>false</e2e.skip>
+        <!-- e2e.mode has no default - must be explicitly set via -De2e.mode=mode1|mode2|mode3 -->
+        <!-- Tests are skipped by default - only run when explicitly enabled -->
+        <e2e.skip>true</e2e.skip>
     </properties>
 
     <dependencies>

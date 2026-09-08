@@ -40,6 +40,7 @@ public interface TaskInstanceEntityMapper {
      * ID is derived from instanceId + task in both entity and model.
      * Field names match between entity and model (Open Workflow alignment).
      */
+    @Mapping(target = "eventTimestamp", ignore = true)
     TaskExecution toModel(TaskInstanceEntity entity);
 
     /**
@@ -47,6 +48,7 @@ public interface TaskInstanceEntityMapper {
      * Used when writing to database (though Data Index v1.0.0 is read-only, this may be used for tests).
      */
     @Mapping(target = "workflowInstance", ignore = true) // Will be set by relationship
+    @Mapping(target = "compositeId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     TaskInstanceEntity toEntity(TaskExecution model);
@@ -58,6 +60,7 @@ public interface TaskInstanceEntityMapper {
     @Mapping(target = "instanceId", ignore = true) // Primary key, don't update
     @Mapping(target = "task", ignore = true) // Primary key, don't update
     @Mapping(target = "workflowInstance", ignore = true)
+    @Mapping(target = "compositeId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntityFromModel(TaskExecution model, @MappingTarget TaskInstanceEntity entity);

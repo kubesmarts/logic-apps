@@ -21,6 +21,7 @@ import io.restassured.response.Response;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +48,11 @@ import static org.awaitility.Awaitility.await;
  * - MODE 1: FluentBit → PostgreSQL triggers → GraphQL
  * - MODE 2: Vector → Elasticsearch transforms → GraphQL
  * - MODE 3: Kafka → Ingestion Service → PostgreSQL → GraphQL
+ *
+ * Tests are ONLY enabled when e2e.mode system property is set.
+ * This prevents them from running during regular Maven builds.
  */
+@EnabledIfSystemProperty(named = "e2e.mode", matches = "mode[123]")
 public class DataIndexE2ETest {
 
     protected static final Logger log = LoggerFactory.getLogger(DataIndexE2ETest.class);
@@ -252,6 +257,9 @@ public class DataIndexE2ETest {
         if (instanceId == null) {
             // Try alternative field names
             instanceId = response.jsonPath().getString("instance.id");
+            assertThat(instanceId)
+                    .as("Workflow test app response must contain an instance id (field 'id' or 'instance.id')")
+                    .isNotBlank();
         }
 
         log.info("Workflow triggered: {} (instanceId: {})", workflowName, instanceId);

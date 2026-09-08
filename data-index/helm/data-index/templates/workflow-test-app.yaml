@@ -65,9 +65,6 @@ spec:
             # Override default port (8082) to standard 8080
             - name: QUARKUS_HTTP_PORT
               value: "8080"
-            # Quarkus Flow structured logging (emits JSON events to stdout)
-            - name: QUARKUS_FLOW_STRUCTURED_LOGGING_ENABLED
-              value: "true"
             - name: QUARKUS_FLOW_STRUCTURED_LOGGING_EVENTS
               value: "workflow.*"
             - name: QUARKUS_FLOW_STRUCTURED_LOGGING_INCLUDE_WORKFLOW_PAYLOADS

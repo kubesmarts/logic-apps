@@ -137,7 +137,7 @@ main() {
     cd "${PROJECT_ROOT}/data-index/data-index-e2e-tests"
 
     log_info "Running MODE 1 E2E tests..."
-    mvn clean test \
+    mvn clean test -De2e.skip=false \
         -De2e.mode=mode1 \
         -De2e.graphql.url=http://localhost:30080/graphql \
         -De2e.workflow.url=http://localhost:30082

@@ -42,7 +42,7 @@ metadata:
     app: elasticsearch
 spec:
   serviceName: elasticsearch
-  replicas: {{ .Values.elasticsearch.replicas }}
+  replicas: {{ .Values.elasticsearch.replicas | default 1 }}
   selector:
     matchLabels:
       app: elasticsearch
