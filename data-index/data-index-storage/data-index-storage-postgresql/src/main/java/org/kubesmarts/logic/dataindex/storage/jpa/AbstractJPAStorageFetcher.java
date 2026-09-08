@@ -19,13 +19,13 @@
 package org.kubesmarts.logic.dataindex.storage.jpa;
 
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.kubesmarts.logic.dataindex.storage.jpa.entity.AbstractEntity;
 import org.kie.kogito.persistence.api.StorageFetcher;
 import org.kie.kogito.persistence.api.query.Query;
 
+import io.smallrye.mutiny.Multi;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -73,8 +73,8 @@ public class AbstractJPAStorageFetcher<K, E extends AbstractEntity, V> implement
         em.createQuery("DELETE from " + entityName).executeUpdate();
     }
 
-    public Consumer<V> objectRemovedListener() {
+    public Multi<K> objectRemovedListener() {
         // Read-only query service - no removal tracking needed
-        return null;
+        return Multi.createFrom().empty();
     }
 }
