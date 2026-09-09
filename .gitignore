@@ -67,3 +67,6 @@ superpowers/
 
 # Graphify knowledge graph - commit everything (CI will keep it updated)
 # .graphify/ directory is tracked (includes graph.html, graph.json, cache, etc)
+# But exclude runtime metadata files (machine-specific paths)
+.graphify/.graphify_python
+.graphify/.graphify_root

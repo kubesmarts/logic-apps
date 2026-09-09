@@ -45,7 +45,8 @@ jobs:
       - name: Check for changes
         id: check_changes
         run: |
-          if git diff --quiet .graphify/; then
+          # Use git status to catch both modified and untracked files
+          if [ -z "$(git status --porcelain .graphify/)" ]; then
             echo "No changes to commit"
             echo "changes=false" >> $GITHUB_OUTPUT
           else
