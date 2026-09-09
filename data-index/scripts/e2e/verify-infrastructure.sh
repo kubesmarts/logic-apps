@@ -170,10 +170,17 @@ verify_mode3_infrastructure() {
         return 1
     fi
 
-    # 5. Check Kafka is reachable (basic check)
-    log_info "Checking Kafka connectivity..."
-    kubectl exec -n kafka kafka-0 -- kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null
-    log_success "Kafka is reachable"
+    # 5. Check Kafka pod is running
+    # Note: Kafka connectivity is already verified by the Ingestion service health check above
+    # which shows Kafka channels (data-index-events, data-index-events-dlq) as [OK]
+    log_info "Checking Kafka pod status..."
+    KAFKA_STATUS=$(kubectl get pod -n kafka kafka-0 -o jsonpath='{.status.phase}' 2>/dev/null || echo "NotFound")
+    if [ "$KAFKA_STATUS" = "Running" ]; then
+        log_success "Kafka pod is running"
+    else
+        log_error "Kafka pod is not running (status: $KAFKA_STATUS)"
+        return 1
+    fi
 
     log_success "MODE 3 infrastructure verification complete"
 }
