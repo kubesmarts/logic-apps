@@ -236,8 +236,15 @@ public class TransformFieldMappingTest {
         // Force refresh
         client.indices().refresh(r -> r.index(indexName));
 
-        // Wait for transform
-        Thread.sleep(5000);
+        // Manually trigger transform if needed (usually already running)
+        try {
+            client.transform().startTransform(s -> s.transformId("task-executions-transform"));
+        } catch (Exception e) {
+            // Transform already running - this is fine
+        }
+
+        // Wait for transform to process (transforms run every 1s, but may take longer in CI)
+        Thread.sleep(10000);
 
         // When: querying task-executions index by composite ID
         String expectedTaskId = testInstanceId + ":" + taskPosition;

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright 2024 KubeSmarts Authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index</artifactId>
+        <version>999-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>data-index-e2e-tests</artifactId>
+    <name>KubeSmarts Logic Apps :: Data Index :: E2E Tests</name>
+    <description>End-to-end tests for Data Index Helm deployments (assumes running Kubernetes cluster)</description>
+
+    <properties>
+        <!-- Test configuration (can be overridden via -D flags) -->
+        <e2e.graphql.url>http://localhost:30080/graphql</e2e.graphql.url>
+        <e2e.workflow.url>http://localhost:30082</e2e.workflow.url>
+        <!-- e2e.mode has no default - must be explicitly set via -De2e.mode=mode1|mode2|mode3 -->
+        <!-- Tests are skipped by default - only run when explicitly enabled -->
+        <e2e.skip>true</e2e.skip>
+    </properties>
+
+    <dependencies>
+        <!-- Domain model for GraphQL response mapping -->
+        <dependency>
+            <groupId>org.kubesmarts.logic.apps</groupId>
+            <artifactId>data-index-model</artifactId>
+        </dependency>
+
+        <!-- JUnit 5 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- REST Assured for HTTP/GraphQL calls -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JSON processing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Awaitility for async verification -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- AssertJ for fluent assertions -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JBoss Logmanager (required by Surefire for JUnit) -->
+        <dependency>
+            <groupId>org.jboss.logmanager</groupId>
+            <artifactId>jboss-logmanager</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- SLF4J bridge for commons-logging (Apache HTTP Client uses commons-logging API) -->
+        <!-- This redirects all commons-logging calls to SLF4J, unifying logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>${e2e.skip}</skipTests>
+                    <systemPropertyVariables>
+                        <e2e.graphql.url>${e2e.graphql.url}</e2e.graphql.url>
+                        <e2e.workflow.url>${e2e.workflow.url}</e2e.workflow.url>
+                        <e2e.mode>${e2e.mode}</e2e.mode>
+                    </systemPropertyVariables>
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

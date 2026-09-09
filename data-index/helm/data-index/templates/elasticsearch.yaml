@@ -1,0 +1,122 @@
+{{- if .Values.elasticsearch.enabled }}
+{{/*
+Elasticsearch
+Single-node deployment for testing.
+Production: Use ECK operator or Bitnami Elasticsearch chart.
+*/}}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: elasticsearch
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: elasticsearch
+spec:
+  type: {{ .Values.elasticsearch.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.elasticsearch.service.port }}
+      targetPort: 9200
+      protocol: TCP
+      {{- if and (eq .Values.elasticsearch.service.type "NodePort") .Values.elasticsearch.service.nodePort }}
+      nodePort: {{ .Values.elasticsearch.service.nodePort }}
+      {{- end }}
+    - name: transport
+      port: 9300
+      targetPort: 9300
+      protocol: TCP
+  selector:
+    app: elasticsearch
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: elasticsearch
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: elasticsearch
+spec:
+  serviceName: elasticsearch
+  replicas: {{ .Values.elasticsearch.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        mode: {{ .Values.mode }}
+    spec:
+      containers:
+        - name: elasticsearch
+          image: "{{ .Values.elasticsearch.image.repository }}:{{ .Values.elasticsearch.image.tag }}"
+          imagePullPolicy: {{ .Values.elasticsearch.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 9200
+              protocol: TCP
+            - name: transport
+              containerPort: 9300
+              protocol: TCP
+          env:
+            # Single-node discovery
+            - name: discovery.type
+              value: single-node
+            # Disable security for testing
+            - name: xpack.security.enabled
+              value: "false"
+            # JVM heap size
+            - name: ES_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health?wait_for_status=yellow&timeout=5s
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.elasticsearch.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+      {{- if not .Values.elasticsearch.persistence.enabled }}
+      # No persistence - using emptyDir for testing
+      # Data will be lost when pod is deleted
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+  {{- if .Values.elasticsearch.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- if .Values.elasticsearch.persistence.storageClass }}
+        storageClassName: {{ .Values.elasticsearch.persistence.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.elasticsearch.persistence.size }}
+  {{- end }}
+{{- end }}

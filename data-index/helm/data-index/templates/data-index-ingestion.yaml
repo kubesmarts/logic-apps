@@ -1,0 +1,99 @@
+{{- if .Values.dataIndexIngestion.enabled }}
+{{/*
+Data Index Ingestion Service (MODE 3 only)
+Consumes CloudEvents from Kafka and writes to PostgreSQL.
+*/}}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-index-ingestion
+  namespace: {{ include "data-index.namespace" . }}
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: data-index-ingestion
+spec:
+  type: {{ .Values.dataIndexIngestion.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.dataIndexIngestion.service.port }}
+      targetPort: 8080
+      protocol: TCP
+      {{- if and (eq .Values.dataIndexIngestion.service.type "NodePort") .Values.dataIndexIngestion.service.nodePort }}
+      nodePort: {{ .Values.dataIndexIngestion.service.nodePort }}
+      {{- end }}
+  selector:
+    app: data-index-ingestion
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-index-ingestion
+  namespace: {{ include "data-index.namespace" . }}
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: data-index-ingestion
+spec:
+  replicas: {{ .Values.dataIndexIngestion.replicas }}
+  selector:
+    matchLabels:
+      app: data-index-ingestion
+  template:
+    metadata:
+      labels:
+        app: data-index-ingestion
+        mode: {{ .Values.mode }}
+    spec:
+      containers:
+        - name: ingestion
+          image: "{{ .Values.dataIndexIngestion.image.repository }}:{{ .Values.dataIndexIngestion.image.tag }}"
+          imagePullPolicy: {{ .Values.dataIndexIngestion.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # PostgreSQL configuration
+            - name: QUARKUS_DATASOURCE_JDBC_URL
+              value: "jdbc:{{ include "data-index.postgresql.connectionString" . }}"
+            - name: QUARKUS_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" (include "data-index.fullname" .)) }}
+                  key: postgres-username
+            - name: QUARKUS_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" (include "data-index.fullname" .)) }}
+                  key: postgres-password
+            # Kafka configuration
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ include "data-index.kafka.bootstrapServers" . | quote }}
+            # Ingestion configuration
+            - name: QUARKUS_HTTP_PORT
+              value: "8080"
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.dataIndexIngestion.resources | nindent 12 }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,165 @@
+{{- if .Values.kafka.enabled }}
+{{/*
+Kafka
+Single-broker deployment for testing.
+Production: Use Strimzi operator or Bitnami Kafka chart.
+*/}}
+
+---
+# Headless service for StatefulSet pod DNS
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  namespace: kafka
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: kafka
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service
+  ports:
+    - name: kafka
+      port: {{ .Values.kafka.service.port }}
+      targetPort: 9092
+      protocol: TCP
+    - name: controller
+      port: 9093
+      targetPort: 9093
+      protocol: TCP
+  selector:
+    app: kafka
+
+---
+# Regular service for stable cluster access
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: kafka
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: kafka
+spec:
+  type: {{ .Values.kafka.service.type }}
+  ports:
+    - name: kafka
+      port: {{ .Values.kafka.service.port }}
+      targetPort: 9092
+      protocol: TCP
+      {{- if and (eq .Values.kafka.service.type "NodePort") .Values.kafka.service.nodePort }}
+      nodePort: {{ .Values.kafka.service.nodePort }}
+      {{- end }}
+  selector:
+    app: kafka
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: kafka
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: kafka
+spec:
+  serviceName: kafka-headless
+  replicas: {{ .Values.kafka.replicas }}
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+        mode: {{ .Values.mode }}
+    spec:
+      containers:
+        - name: kafka
+          image: "{{ .Values.kafka.image.repository }}:{{ .Values.kafka.image.tag }}"
+          imagePullPolicy: {{ .Values.kafka.image.pullPolicy }}
+          ports:
+            - name: kafka
+              containerPort: 9092
+              protocol: TCP
+          env:
+            # KRaft mode (apache/kafka env vars - no KAFKA_CFG_ prefix)
+            - name: KAFKA_NODE_ID
+              value: "0"
+            - name: KAFKA_PROCESS_ROLES
+              value: "broker,controller"
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: "0@kafka-0.kafka-headless.kafka.svc.cluster.local:9093"
+            - name: KAFKA_LISTENERS
+              value: "PLAINTEXT://:9092,CONTROLLER://:9093"
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: "PLAINTEXT://kafka.kafka.svc.cluster.local:9092"
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: "CONTROLLER"
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: "PLAINTEXT"
+            # Auto-create topics
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+            # Replication factors (single node)
+            - name: KAFKA_DEFAULT_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            # Log directory
+            - name: KAFKA_LOG_DIRS
+              value: "/var/lib/kafka/data"
+            # Fixed cluster ID for KRaft
+            - name: CLUSTER_ID
+              value: "MkU3OEVBNTcwNTJENDM2Qk"
+          livenessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.kafka.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
+      {{- if not .Values.kafka.persistence.enabled }}
+      # No persistence - using emptyDir for testing
+      # Data will be lost when pod is deleted
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+  {{- if .Values.kafka.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- if .Values.kafka.persistence.storageClass }}
+        storageClassName: {{ .Values.kafka.persistence.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.kafka.persistence.size }}
+  {{- end }}
+{{- end }}

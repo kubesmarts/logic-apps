@@ -1,0 +1,60 @@
+# ============================================================================
+# MODE 1: PostgreSQL + FluentBit + Triggers
+# ============================================================================
+#
+# Override values for MODE 1 deployment.
+# Base values are in values.yaml - only specify differences here.
+#
+# Architecture:
+#   Quarkus Flow → stdout → FluentBit → PostgreSQL raw tables →
+#   PostgreSQL triggers → Normalized tables → GraphQL API
+#
+# ============================================================================
+
+mode: mode1
+
+# PostgreSQL backend - already enabled in base values.yaml
+# No need to override unless changing defaults
+postgresql:
+  enabled: true
+  # Use NodePort for easy testing in KIND
+  service:
+    type: NodePort
+
+# Elasticsearch - disabled for MODE 1
+elasticsearch:
+  enabled: false
+
+# Kafka - disabled for MODE 1
+kafka:
+  enabled: false
+
+# FluentBit - already enabled in base values.yaml
+fluentbit:
+  enabled: true
+  config: mode1-postgresql
+
+# Vector - disabled for MODE 1
+vector:
+  enabled: false
+
+# Data Index Service - PostgreSQL variant
+dataIndex:
+  image:
+    repository: kubesmarts/data-index-service-postgresql
+    tag: "999-SNAPSHOT"
+  storage: postgresql
+  # Use NodePort for easy testing in KIND
+  service:
+    type: NodePort
+
+# Data Index Ingestion - disabled for MODE 1 (no Kafka)
+dataIndexIngestion:
+  enabled: false
+
+# Workflow Test App - enabled
+workflowApp:
+  enabled: true
+  # Use NodePort for easy testing in KIND
+  service:
+    type: NodePort

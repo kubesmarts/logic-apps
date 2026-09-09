@@ -87,6 +87,30 @@
       "labels": ["dependencies", "docker"],
       "commitMessagePrefix": "chore(docker):",
       "automerge": false
+    },
+    {
+      "description": "Group Vector updates across all files (Maven + Helm)",
+      "matchPackageNames": ["timberio/vector"],
+      "groupName": "Vector",
+      "labels": ["dependencies", "vector"],
+      "commitMessagePrefix": "chore(deps):",
+      "automerge": false
+    },
+    {
+      "description": "Group Elasticsearch updates across all files (Helm + shell scripts)",
+      "matchPackageNames": ["docker.elastic.co/elasticsearch/elasticsearch"],
+      "groupName": "Elasticsearch",
+      "labels": ["dependencies", "elasticsearch"],
+      "commitMessagePrefix": "chore(deps):",
+      "automerge": false
+    },
+    {
+      "description": "Group Kafka updates across all files (Helm)",
+      "matchPackageNames": ["apache/kafka"],
+      "groupName": "Kafka",
+      "labels": ["dependencies", "kafka"],
+      "commitMessagePrefix": "chore(deps):",
+      "automerge": false
     }
   ],
 
@@ -104,6 +128,47 @@
       "depNameTemplate": "timberio/vector",
       "versioningTemplate": "docker",
       "extractVersionTemplate": "^(?<version>.+?)(?:-distroless-libc)?$"
+    },
+    {
+      "description": "Vector image version in Helm values",
+      "fileMatch": ["^data-index/helm/data-index/values.*\\.yaml$"],
+      "matchStrings": [
+        "# renovate: datasource=docker depName=timberio/vector\\n\\s+tag: \"(?<currentValue>.*?)\""
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "timberio/vector",
+      "versioningTemplate": "docker",
+      "extractVersionTemplate": "^(?<version>.+?)(?:-distroless-libc)?$"
+    },
+    {
+      "description": "Elasticsearch image version in Helm values",
+      "fileMatch": ["^data-index/helm/data-index/values.*\\.yaml$"],
+      "matchStrings": [
+        "# renovate: datasource=docker depName=docker\\.elastic\\.co/elasticsearch/elasticsearch\\n\\s+tag: \"(?<currentValue>.*?)\""
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "docker.elastic.co/elasticsearch/elasticsearch",
+      "versioningTemplate": "docker"
+    },
+    {
+      "description": "Elasticsearch image version in shell scripts and YAML manifests",
+      "fileMatch": ["^data-index/scripts/.*\\.(sh|yaml)$"],
+      "matchStrings": [
+        "image: docker\\.elastic\\.co/elasticsearch/elasticsearch:(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "docker.elastic.co/elasticsearch/elasticsearch",
+      "versioningTemplate": "docker"
+    },
+    {
+      "description": "Kafka image version in Helm values",
+      "fileMatch": ["^data-index/helm/data-index/values.*\\.yaml$"],
+      "matchStrings": [
+        "# renovate: datasource=docker depName=apache/kafka\\n\\s+tag: \"(?<currentValue>.*?)\""
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "apache/kafka",
+      "versioningTemplate": "docker"
     }
   ],
 

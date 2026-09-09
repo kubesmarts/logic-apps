@@ -1,0 +1,116 @@
+{{- if .Values.workflowApp.enabled }}
+{{/*
+Workflow Test Application
+
+Quarkus Flow application that emits structured logging events.
+Used for E2E testing of the Data Index pipeline.
+*/}}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workflow-test-app
+  namespace: workflows
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: workflow-test-app
+spec:
+  type: {{ .Values.workflowApp.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.workflowApp.service.port }}
+      targetPort: 8080
+      protocol: TCP
+      {{- if and (eq .Values.workflowApp.service.type "NodePort") .Values.workflowApp.service.nodePort }}
+      nodePort: {{ .Values.workflowApp.service.nodePort }}
+      {{- end }}
+  selector:
+    app: workflow-test-app
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workflow-test-app
+  namespace: workflows
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: workflow-test-app
+spec:
+  replicas: {{ .Values.workflowApp.replicas }}
+  selector:
+    matchLabels:
+      app: workflow-test-app
+  template:
+    metadata:
+      labels:
+        app: workflow-test-app
+        mode: {{ .Values.mode }}
+    spec:
+      containers:
+        - name: workflow-app
+          image: "{{ .Values.workflowApp.image.repository }}:{{ .Values.workflowApp.image.tag }}"
+          imagePullPolicy: {{ .Values.workflowApp.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # Workflow app emits logs to stdout (captured by FluentBit/Vector)
+            - name: QUARKUS_LOG_CONSOLE_ENABLE
+              value: "true"
+            - name: QUARKUS_LOG_CONSOLE_JSON
+              value: "false"
+            # Override default port (8082) to standard 8080
+            - name: QUARKUS_HTTP_PORT
+              value: "8080"
+            - name: QUARKUS_FLOW_STRUCTURED_LOGGING_EVENTS
+              value: "workflow.*"
+            - name: QUARKUS_FLOW_STRUCTURED_LOGGING_INCLUDE_WORKFLOW_PAYLOADS
+              value: "true"
+            - name: QUARKUS_FLOW_STRUCTURED_LOGGING_INCLUDE_TASK_PAYLOADS
+              value: "false"
+            {{- if eq .Values.mode "mode2" }}
+            # MODE 2: Elasticsearch requires epoch-millis (long) format
+            # FluentBit (MODE 1) can handle any format, but epoch-millis is also fine
+            - name: QUARKUS_FLOW_STRUCTURED_LOGGING_TIMESTAMP_FORMAT
+              value: "epoch-millis"
+            {{- end }}
+            {{- if eq .Values.mode "mode3" }}
+            # MODE 3: Kafka event streaming
+            # Activate 'kafka' Quarkus profile (has all Kafka config in application.properties)
+            - name: QUARKUS_PROFILE
+              value: "kafka"
+            # Kafka broker address
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.kafka.svc.cluster.local:9092"
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+{{- end }}

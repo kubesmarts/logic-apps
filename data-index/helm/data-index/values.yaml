@@ -1,0 +1,332 @@
+# ============================================================================
+# Data Index Helm Chart - Default Values
+# ============================================================================
+#
+# This file contains common defaults for all deployment modes.
+# Mode-specific overrides are in values-mode{1,2,3}.yaml files.
+#
+# Deployment modes:
+#   MODE 1: PostgreSQL + FluentBit + Triggers
+#   MODE 2: Elasticsearch + Vector + Transforms
+#   MODE 3: Kafka + Processors + PostgreSQL
+#
+# ============================================================================
+
+# Deployment mode (mode1, mode2, or mode3)
+# This determines which components are deployed
+mode: mode1
+
+# Global settings
+global:
+  # Image pull policy for all containers
+  imagePullPolicy: IfNotPresent
+
+  # Image pull secrets (if using private registry)
+  imagePullSecrets: []
+
+  # Namespace where Data Index will be deployed
+  # If not specified, uses Helm release namespace
+  namespace: ""
+
+# ============================================================================
+# Storage Backends
+# ============================================================================
+
+# PostgreSQL backend (MODE 1 and MODE 3)
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "15"
+    pullPolicy: IfNotPresent
+
+  # Database configuration
+  database: dataindex
+  username: dataindex
+
+  # ⚠️  SECURITY WARNING ⚠️
+  # The password field below is for TESTING ONLY and should NEVER be used in production.
+  # For production deployments, use ONE of these secure approaches:
+  #   1. Set existingSecret to reference a pre-created Kubernetes Secret
+  #   2. Override password at install time: --set postgresql.password=SECURE_PASSWORD
+  #   3. Use encrypted secrets (sealed-secrets, external-secrets, etc.)
+  password: "dataindex-test-only-insecure"
+
+  # Use existing Kubernetes Secret for credentials (RECOMMENDED for production)
+  # If set, the chart will not create a Secret and will use this one instead.
+  # Secret must contain keys: postgres-username, postgres-password
+  # Example: kubectl create secret generic my-db-secret \
+  #            --from-literal=postgres-username=dataindex \
+  #            --from-literal=postgres-password=SECURE_RANDOM_PASSWORD
+  existingSecret: ""
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 5432
+    nodePort: 30432  # Used when service.type=NodePort
+
+  # Resource limits (adjust for production)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Persistence (disabled for testing, enable for production)
+  persistence:
+    enabled: false
+    storageClass: ""
+    size: 10Gi
+
+# Elasticsearch backend (MODE 2)
+elasticsearch:
+  enabled: false
+  image:
+    repository: docker.elastic.co/elasticsearch/elasticsearch
+    # Version must match Quarkus BOM (9.4.1 from Quarkus 3.39.0)
+    # renovate: datasource=docker depName=docker.elastic.co/elasticsearch/elasticsearch
+    tag: "9.4.1"
+    pullPolicy: IfNotPresent
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 9200
+    nodePort: 30920  # Used when service.type=NodePort
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+  # Persistence (disabled for testing)
+  persistence:
+    enabled: false
+    storageClass: ""
+    size: 20Gi
+
+# Kafka (MODE 3)
+kafka:
+  enabled: false
+  image:
+    repository: apache/kafka
+    # renovate: datasource=docker depName=apache/kafka
+    tag: "3.9.0"
+    pullPolicy: IfNotPresent
+
+  # Single replica for testing
+  replicas: 1
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 9092
+    nodePort: 30092  # Used when service.type=NodePort
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  # Topic configuration
+  topics:
+    lifecycleEvents: "flow-lifecycle-out"
+    deadLetterQueue: "data-index-events-dlq"
+
+  # Persistence (disabled for testing)
+  persistence:
+    enabled: false
+    storageClass: ""
+    size: 10Gi
+
+# ============================================================================
+# Log Collectors
+# ============================================================================
+
+# FluentBit (MODE 1)
+fluentbit:
+  enabled: true
+  image:
+    repository: fluent/fluent-bit
+    tag: "3.1.4"
+    pullPolicy: IfNotPresent
+
+  # Configuration mode (mode1-postgresql)
+  config: mode1-postgresql
+
+  # Namespace to tail logs from
+  workflowNamespace: workflows
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# Vector (MODE 2)
+vector:
+  enabled: false
+  image:
+    repository: timberio/vector
+    # renovate: datasource=docker depName=timberio/vector
+    tag: "0.41.1-distroless-libc"
+    pullPolicy: IfNotPresent
+
+  # Configuration mode (mode2-elasticsearch)
+  config: mode2-elasticsearch
+
+  # Namespace to tail logs from
+  workflowNamespace: workflows
+
+  # Debug events (logs all events to stdout - testing only)
+  debugEvents: "false"
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# ============================================================================
+# Data Index Service
+# ============================================================================
+
+dataIndex:
+  # Image configuration (set per mode in values-mode{1,2,3}.yaml)
+  image:
+    repository: kubesmarts/data-index-service-postgresql
+    tag: "999-SNAPSHOT"
+    pullPolicy: IfNotPresent
+
+  # Storage backend (postgresql or elasticsearch)
+  storage: postgresql
+
+  # Replicas
+  replicas: 1
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+    nodePort: 30080  # Used when service.type=NodePort
+
+  # GraphQL API configuration
+  graphql:
+    enabled: true
+    path: /graphql
+    ui:
+      enabled: true
+      path: /q/graphql-ui
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  # Health checks
+  # Elasticsearch needs more time to connect on startup
+  livenessProbe:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+  readinessProbe:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 10
+
+# Data Index Ingestion Service (MODE 3 only)
+dataIndexIngestion:
+  enabled: false
+  image:
+    repository: kubesmarts/data-index-ingestion-kafka-service
+    tag: "999-SNAPSHOT"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+    nodePort: 30081  # Used when service.type=NodePort
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# ============================================================================
+# Workflow Test Application
+# ============================================================================
+
+workflowApp:
+  enabled: true
+  image:
+    repository: kubesmarts/workflow-test-app
+    tag: "999-SNAPSHOT"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+    nodePort: 30082  # Used when service.type=NodePort
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Health checks
+  livenessProbe:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 5

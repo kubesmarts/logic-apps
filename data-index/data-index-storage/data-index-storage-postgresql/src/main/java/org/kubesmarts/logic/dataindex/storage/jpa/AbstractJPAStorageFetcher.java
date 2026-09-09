@@ -25,6 +25,7 @@ import org.kubesmarts.logic.dataindex.storage.jpa.entity.AbstractEntity;
 import org.kie.kogito.persistence.api.StorageFetcher;
 import org.kie.kogito.persistence.api.query.Query;
 
+import io.smallrye.mutiny.Multi;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;

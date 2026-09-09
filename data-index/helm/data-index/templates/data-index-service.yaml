@@ -1,0 +1,107 @@
+{{/*
+Data Index Service
+
+Main GraphQL API service for querying workflow execution data.
+Image and configuration vary by mode:
+- MODE 1: PostgreSQL backend
+- MODE 2: Elasticsearch backend
+- MODE 3: PostgreSQL backend (with Kafka ingestion)
+*/}}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-index-service
+  namespace: {{ include "data-index.namespace" . }}
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: data-index-service
+spec:
+  type: {{ .Values.dataIndex.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.dataIndex.service.port }}
+      targetPort: 8080
+      protocol: TCP
+      {{- if and (eq .Values.dataIndex.service.type "NodePort") .Values.dataIndex.service.nodePort }}
+      nodePort: {{ .Values.dataIndex.service.nodePort }}
+      {{- end }}
+  selector:
+    app: data-index-service
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-index-service
+  namespace: {{ include "data-index.namespace" . }}
+  labels:
+    {{- include "data-index.labels" . | nindent 4 }}
+    app: data-index-service
+spec:
+  replicas: {{ .Values.dataIndex.replicas }}
+  selector:
+    matchLabels:
+      app: data-index-service
+  template:
+    metadata:
+      labels:
+        app: data-index-service
+        mode: {{ .Values.mode }}
+    spec:
+      containers:
+        - name: data-index
+          image: "{{ .Values.dataIndex.image.repository }}:{{ .Values.dataIndex.image.tag }}"
+          imagePullPolicy: {{ .Values.dataIndex.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- if eq .Values.dataIndex.storage "postgresql" }}
+            # PostgreSQL configuration (MODE 1 and MODE 3)
+            - name: QUARKUS_DATASOURCE_JDBC_URL
+              value: "jdbc:{{ include "data-index.postgresql.connectionString" . }}"
+            - name: QUARKUS_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" (include "data-index.fullname" .)) }}
+                  key: postgres-username
+            - name: QUARKUS_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" (include "data-index.fullname" .)) }}
+                  key: postgres-password
+            # Enable Flyway migrations (disabled by default in prod mode)
+            - name: QUARKUS_FLYWAY_MIGRATE_AT_START
+              value: "true"
+            # Allow Flyway to work with non-empty schema (raw tables created by FluentBit)
+            - name: QUARKUS_FLYWAY_BASELINE_ON_MIGRATE
+              value: "true"
+            # Baseline at version 0 so V1 migration still runs
+            - name: QUARKUS_FLYWAY_BASELINE_VERSION
+              value: "0"
+            {{- else if eq .Values.dataIndex.storage "elasticsearch" }}
+            # Elasticsearch configuration (MODE 2)
+            # Application uses these to build connection string
+            - name: ELASTICSEARCH_HOST
+              value: "elasticsearch.elasticsearch.svc.cluster.local"
+            - name: ELASTICSEARCH_PORT
+              value: "9200"
+            - name: ELASTICSEARCH_PROTOCOL
+              value: "http"
+            {{- end }}
+            # GraphQL configuration
+            - name: QUARKUS_SMALLRYE_GRAPHQL_UI_ENABLE
+              value: {{ .Values.dataIndex.graphql.ui.enabled | quote }}
+          livenessProbe:
+            {{- toYaml .Values.dataIndex.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.dataIndex.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.dataIndex.resources | nindent 12 }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}

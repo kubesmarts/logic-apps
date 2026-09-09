@@ -1,0 +1,64 @@
+# ============================================================================
+# MODE 3: Kafka + PostgreSQL + Data Index Ingestion Service
+# ============================================================================
+#
+# Override values for MODE 3 deployment.
+# Base values are in values.yaml - only specify differences here.
+#
+# Architecture:
+#   Quarkus Flow → Kafka (CloudEvents) → Data Index Ingestion Service →
+#   PostgreSQL → Data Index Service (GraphQL API)
+#
+# ============================================================================
+
+mode: mode3
+
+# PostgreSQL backend - enabled (same as MODE 1)
+postgresql:
+  enabled: true
+  # Use NodePort for easy testing in KIND
+  service:
+    type: NodePort
+
+# Elasticsearch - disabled for MODE 3
+elasticsearch:
+  enabled: false
+
+# Kafka - enabled for MODE 3
+kafka:
+  enabled: true
+  # Use NodePort for easy testing in KIND
+  service:
+    type: NodePort
+
+# FluentBit - disabled for MODE 3
+fluentbit:
+  enabled: false
+
+# Vector - disabled for MODE 3
+vector:
+  enabled: false
+
+# Data Index Service - PostgreSQL variant (query side)
+dataIndex:
+  image:
+    repository: kubesmarts/data-index-service-postgresql
+    tag: "999-SNAPSHOT"
+  storage: postgresql
+  # Use NodePort for easy testing in KIND
+  service:
+    type: NodePort
+
+# Data Index Ingestion - enabled for MODE 3 (Kafka → PostgreSQL)
+dataIndexIngestion:
+  enabled: true
+  # Use NodePort for easy testing in KIND
+  service:
+    type: NodePort
+
+# Workflow Test App - enabled
+workflowApp:
+  enabled: true
+  # Use NodePort for easy testing in KIND
+  service:
+    type: NodePort

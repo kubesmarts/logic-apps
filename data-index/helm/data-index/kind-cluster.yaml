@@ -1,0 +1,53 @@
+# ============================================================================
+# KIND Cluster Configuration for Data Index Testing
+# ============================================================================
+#
+# This configuration creates a single-node KIND cluster with port mappings
+# for all NodePort services used across MODE 1, MODE 2, and MODE 3.
+#
+# Usage:
+#   kind create cluster --name data-index-test --config kind-cluster.yaml
+#
+# ============================================================================
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # Data Index Service (GraphQL API)
+      # Mapped from NodePort 30080 to host localhost:30080
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP
+
+      # Data Index Ingestion Service (MODE 3 only)
+      # Mapped from NodePort 30081 to host localhost:30081
+      - containerPort: 30081
+        hostPort: 30081
+        protocol: TCP
+
+      # Workflow Test App
+      # Mapped from NodePort 30082 to host localhost:30082
+      - containerPort: 30082
+        hostPort: 30082
+        protocol: TCP
+
+      # PostgreSQL (MODE 1 and MODE 3)
+      # Mapped from NodePort 30432 to host localhost:30432
+      - containerPort: 30432
+        hostPort: 30432
+        protocol: TCP
+
+      # Kafka (MODE 3 only)
+      # Mapped from NodePort 30092 to host localhost:30092
+      - containerPort: 30092
+        hostPort: 30092
+        protocol: TCP
+
+      # Elasticsearch (MODE 2 only)
+      # Mapped from NodePort 30920 to host localhost:30920
+      - containerPort: 30920
+        hostPort: 30920
+        protocol: TCP

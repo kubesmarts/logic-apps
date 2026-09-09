@@ -1,0 +1,398 @@
+/*
+ * Copyright 2024 KubeSmarts Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.kubesmarts.logic.dataindex.e2e;
+
+import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
+import io.restassured.response.Response;
+
+import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+/**
+ * E2E tests for Data Index - runs for all modes (MODE 1, MODE 2, MODE 3).
+ * <p>
+ * Mode is selected via system property: -De2e.mode=mode1|mode2|mode3
+ * <p>
+ * The same tests run for all modes, verifying:
+ * - GraphQL schema
+ * - Workflow queries
+ * - Task queries
+ * - Full lifecycle (trigger → ingestion → storage → GraphQL)
+ * <p>
+ * Each mode has different ingestion paths but same GraphQL API:
+ * - MODE 1: FluentBit → PostgreSQL triggers → GraphQL
+ * - MODE 2: Vector → Elasticsearch transforms → GraphQL
+ * - MODE 3: Kafka → Ingestion Service → PostgreSQL → GraphQL
+ * <p>
+ * Infrastructure validation (ES health, indices, transforms, etc.) is done
+ * by the E2E scripts BEFORE running tests. Tests assume infrastructure is ready.
+ * <p>
+ * Tests are ONLY enabled when e2e.mode system property is set.
+ * This prevents them from running during regular Maven builds.
+ */
+@EnabledIfSystemProperty(named = "e2e.mode", matches = "mode[123]")
+public class DataIndexE2ETest {
+
+    protected static final Logger log = LoggerFactory.getLogger(DataIndexE2ETest.class);
+
+    protected static String graphqlUrl;
+    protected static String workflowUrl;
+    protected static String mode;
+
+    @BeforeAll
+    public static void setupE2E() {
+        // Read configuration from system properties (set by Maven)
+        graphqlUrl = System.getProperty("e2e.graphql.url", "http://localhost:30080/graphql");
+        workflowUrl = System.getProperty("e2e.workflow.url", "http://localhost:30082");
+        mode = System.getProperty("e2e.mode", "mode1");
+
+        log.info("E2E Test Configuration:");
+        log.info("  GraphQL URL: {}", graphqlUrl);
+        log.info("  Workflow URL: {}", workflowUrl);
+        log.info("  Mode: {}", mode);
+
+        RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
+    }
+
+    @BeforeEach
+    public void setup() {
+        waitForGraphQLReady();
+    }
+
+    // ========================================================================
+    // E2E Tests (common for all modes)
+    // ========================================================================
+
+    @Test
+    public void testGraphQLSchemaIntrospection() {
+        log.info("Testing GraphQL schema introspection...");
+
+        Response response = executeGraphQL("{ __schema { queryType { name } } }");
+
+        response.then()
+                .statusCode(200);
+
+        String queryTypeName = response.jsonPath().getString("data.__schema.queryType.name");
+        assertThat(queryTypeName).isEqualTo("Query");
+
+        log.info("✓ GraphQL schema introspection successful");
+    }
+
+    @Test
+    public void testQueryWorkflowInstances() {
+        log.info("Testing getWorkflowInstances query...");
+
+        String query = """
+                {
+                  getWorkflowInstances {
+                    id
+                    name
+                    version
+                    status
+                  }
+                }
+                """;
+
+        Response response = executeGraphQL(query);
+
+        response.then()
+                .statusCode(200);
+
+        assertThat(response.jsonPath().getList("data.getWorkflowInstances"))
+                .isNotNull();
+
+        log.info("✓ getWorkflowInstances query successful");
+    }
+
+    @Test
+    public void testQueryTaskExecutions() {
+        log.info("Testing getTaskExecutions query...");
+
+        String query = """
+                {
+                  getTaskExecutions {
+                    id
+                    task
+                    status
+                  }
+                }
+                """;
+
+        Response response = executeGraphQL(query);
+
+        response.then()
+                .statusCode(200);
+
+        assertThat(response.jsonPath().getList("data.getTaskExecutions"))
+                .isNotNull();
+
+        log.info("✓ getTaskExecutions query successful");
+    }
+
+    @Test
+    public void testWorkflowLifecycle() {
+        log.info("Testing full workflow lifecycle...");
+
+        // Trigger workflow
+        String instanceId = triggerWorkflow("hello-world");
+
+        // Wait for event to be processed (mode-specific timing)
+        waitForWorkflowInstance(instanceId);
+
+        // Verify workflow instance data
+        String query = String.format("""
+                {
+                  getWorkflowInstance(id: "%s") {
+                    id
+                    name
+                    status
+                    startedAt
+                  }
+                }
+                """, instanceId);
+
+        Response response = executeGraphQL(query);
+
+        response.then()
+                .statusCode(200);
+
+        assertThat(response.jsonPath().getString("data.getWorkflowInstance.id"))
+                .isEqualTo(instanceId);
+        assertThat(response.jsonPath().getString("data.getWorkflowInstance.name"))
+                .isNotEmpty();
+        assertThat(response.jsonPath().getString("data.getWorkflowInstance.status"))
+                .isIn("CREATED", "RUNNING", "COMPLETED");
+
+        log.info("✓ Full workflow lifecycle verified");
+    }
+
+    // ========================================================================
+    // Helper Methods
+    // ========================================================================
+
+    /**
+     * Execute GraphQL query and return response.
+     */
+    protected Response executeGraphQL(String query) {
+        return given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("query", query))
+                .when()
+                .post(graphqlUrl);
+    }
+
+    /**
+     * Execute GraphQL query with variables.
+     */
+    protected Response executeGraphQL(String query, Map<String, Object> variables) {
+        return given()
+                .contentType(ContentType.JSON)
+                .body(Map.of(
+                        "query", query,
+                        "variables", variables
+                ))
+                .when()
+                .post(graphqlUrl);
+    }
+
+    /**
+     * Wait for GraphQL API to be available.
+     */
+    protected void waitForGraphQLReady() {
+        log.info("Waiting for GraphQL API to be ready...");
+        await()
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(2, TimeUnit.SECONDS)
+                .until(() -> {
+                    try {
+                        Response response = executeGraphQL("{ __schema { queryType { name } } }");
+                        return response.statusCode() == 200;
+                    } catch (Exception e) {
+                        log.debug("GraphQL not ready yet: {}", e.getMessage());
+                        return false;
+                    }
+                });
+        log.info("GraphQL API is ready");
+    }
+
+    /**
+     * Trigger a workflow execution via workflow test app.
+     */
+    protected String triggerWorkflow(String workflowName) {
+        log.info("Triggering workflow: {}", workflowName);
+
+        // Workflow test app endpoints: /test-workflows/{workflow-name}
+        Response response = given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("message", "test"))
+                .when()
+                .post(workflowUrl + "/test-workflows/" + workflowName);
+
+        response.then().statusCode(200);
+
+        // Extract workflow instance ID from response
+        String instanceId = response.jsonPath().getString("id");
+        if (instanceId == null) {
+            // Try alternative field names
+            instanceId = response.jsonPath().getString("instance.id");
+            assertThat(instanceId)
+                    .as("Workflow test app response must contain an instance id (field 'id' or 'instance.id')")
+                    .isNotBlank();
+        }
+
+        log.info("Workflow triggered: {} (instanceId: {})", workflowName, instanceId);
+        return instanceId;
+    }
+
+    /**
+     * Wait for workflow instance to appear in GraphQL API.
+     * MODE 2 needs extra time for Elasticsearch transform delay (1s frequency + buffer).
+     */
+    protected void waitForWorkflowInstance(String instanceId) {
+        // MODE 2 needs more time due to transform delays in CI environments
+        // - Workflow app logs event to file
+        // - Vector tails and sends to Elasticsearch (delay)
+        // - Transform runs (1s frequency + processing time)
+        // - Data becomes available via GraphQL
+        int timeoutSeconds = "mode2".equals(mode) ? 60 : 30;
+
+        log.info("Waiting for workflow instance {} to appear (mode: {}, timeout: {}s)...",
+                instanceId, mode, timeoutSeconds);
+
+        try {
+            await()
+                    .atMost(Duration.ofSeconds(timeoutSeconds))
+                    .pollInterval(2, TimeUnit.SECONDS)
+                    .until(() -> {
+                        String query = String.format(
+                                "{ getWorkflowInstance(id: \"%s\") { id name status } }",
+                                instanceId
+                        );
+                        Response response = executeGraphQL(query);
+                        if (response.statusCode() != 200) {
+                            return false;
+                        }
+                        Object getWorkflowInstance = response.jsonPath().get("data.getWorkflowInstance");
+                        return getWorkflowInstance != null;
+                    });
+            log.info("Workflow instance {} found", instanceId);
+        } catch (org.awaitility.core.ConditionTimeoutException e) {
+            log.error("Workflow instance {} did not appear within {}s", instanceId, timeoutSeconds);
+
+            // Run diagnostics for MODE 2 to identify where the pipeline is broken
+            if ("mode2".equals(mode)) {
+                runMode2Diagnostics(instanceId);
+            }
+
+            throw e;
+        }
+    }
+
+    /**
+     * Run diagnostics for MODE 2 when workflow instance doesn't appear.
+     * Checks each stage of the data pipeline to identify the bottleneck.
+     */
+    protected void runMode2Diagnostics(String instanceId) {
+        log.error("===== MODE 2 Pipeline Diagnostics =====");
+
+        String esUrl = "http://localhost:30920";
+
+        // 1. Check raw events index
+        try {
+            Response rawResponse = given().get(esUrl + "/workflow-events/_count");
+            if (rawResponse.statusCode() == 200) {
+                int count = rawResponse.jsonPath().getInt("count");
+                log.error("  Raw workflow-events: {} documents", count);
+                if (count == 0) {
+                    log.error("  → ISSUE: No raw events found. Vector may not be sending data to Elasticsearch.");
+                }
+            } else {
+                log.error("  Failed to query workflow-events index: HTTP {}", rawResponse.statusCode());
+            }
+        } catch (Exception ex) {
+            log.error("  Failed to check workflow-events: {}", ex.getMessage());
+        }
+
+        // 2. Check normalized index
+        try {
+            Response normResponse = given().get(esUrl + "/workflow-instances/_count");
+            if (normResponse.statusCode() == 200) {
+                int count = normResponse.jsonPath().getInt("count");
+                log.error("  Normalized workflow-instances: {} documents", count);
+                if (count == 0) {
+                    log.error("  → ISSUE: No normalized instances. Transform may not be processing events.");
+                }
+            } else {
+                log.error("  Failed to query workflow-instances index: HTTP {}", normResponse.statusCode());
+            }
+        } catch (Exception ex) {
+            log.error("  Failed to check workflow-instances: {}", ex.getMessage());
+        }
+
+        // 3. Check transform stats
+        try {
+            Response transformResponse = given().get(esUrl + "/_transform/workflow-instances-transform/_stats");
+            if (transformResponse.statusCode() == 200) {
+                String state = transformResponse.jsonPath().getString("transforms[0].state");
+                long docsProcessed = transformResponse.jsonPath().getLong("transforms[0].stats.documents_processed");
+                long docsIndexed = transformResponse.jsonPath().getLong("transforms[0].stats.documents_indexed");
+                log.error("  Transform: state={}, processed={}, indexed={}", state, docsProcessed, docsIndexed);
+
+                if (!"started".equals(state) && !"indexing".equals(state)) {
+                    log.error("  → ISSUE: Transform is not running (state: {})", state);
+                }
+                if (docsProcessed == 0) {
+                    log.error("  → ISSUE: Transform has processed 0 documents");
+                }
+            }
+        } catch (Exception ex) {
+            log.error("  Failed to check transform: {}", ex.getMessage());
+        }
+
+        // 4. Search for specific instance in raw events
+        try {
+            String searchQuery = String.format("{\"query\":{\"term\":{\"id\":\"%s\"}}}", instanceId);
+            Response searchResponse = given()
+                    .contentType(ContentType.JSON)
+                    .body(searchQuery)
+                    .post(esUrl + "/workflow-events/_search");
+            if (searchResponse.statusCode() == 200) {
+                int hits = searchResponse.jsonPath().getInt("hits.total.value");
+                log.error("  Instance {} in raw events: {} hits", instanceId, hits);
+                if (hits == 0) {
+                    log.error("  → ISSUE: No raw events for this instance. Workflow app may not be logging.");
+                }
+            }
+        } catch (Exception ex) {
+            log.error("  Failed to search for instance: {}", ex.getMessage());
+        }
+
+        log.error("===== End of Diagnostics =====");
+    }
+}
