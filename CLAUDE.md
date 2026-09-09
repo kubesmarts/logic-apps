@@ -2,7 +2,7 @@
 
 **Project:** Data Index v1.0.0 for Open Workflow 1.0.0  
 **Status:** Production Ready (MODE 1, MODE 2 & MODE 3)  
-**Last Updated:** 2026-08-26
+**Last Updated:** 2026-09-09
 
 ---
 
@@ -143,6 +143,51 @@ This is a **read-only query service** for Open Workflow (OW 1.0.0) runtime execu
 - Does NOT execute workflows (that's Quarkus Flow's job)
 - Does NOT modify workflow state (read-only)
 - Does NOT use polling/Event Processor (removed in Phase 1)
+
+---
+
+## Knowledge Graph (graphify)
+
+**A complete knowledge graph of this codebase is available** at `.graphify/` (symlinked to `graphify-out/`).
+
+**What it contains:**
+- **1,743 nodes** - All code entities, documentation concepts, architecture diagrams
+- **3,949 edges** - Relationships between components (calls, imports, references)
+- **129 communities** - Detected clusters of related functionality
+- **AST extraction** - 1,504 code nodes from structural analysis (imports, calls, class relationships)
+- **Semantic extraction** - 240 doc/diagram nodes from 86 files (architecture, deployment modes, decisions)
+
+**Key outputs:**
+- `graphify-out/graph.html` - Interactive visualization (open in browser)
+- `graphify-out/graph.json` - Raw graph data (3.6MB)
+- `graphify-out/GRAPH_REPORT.md` - Analysis report with god nodes, surprising connections
+
+**How to use:**
+```bash
+# Query the graph
+graphify query "How do MODE 1, MODE 2, and MODE 3 converge on the same GraphQL API?"
+
+# Open interactive visualization
+open graphify-out/graph.html
+
+# Update after code changes
+graphify --update
+```
+
+**God nodes (most connected - core abstractions):**
+1. `WorkflowInstance` (77 edges) - Central domain model
+2. `TaskExecution` (75 edges) - Task execution abstraction
+3. `AttributeFilter` (59 edges) - Query filter interface
+4. `WorkflowInstanceEntity` (55 edges) - JPA/PostgreSQL entity
+5. `TaskInstanceEntity` (54 edges) - JPA/PostgreSQL entity
+
+**Use the graph to:**
+- Understand cross-module dependencies
+- Find all usages of a component across storage backends
+- Trace data flow from log ingestion → normalization → GraphQL
+- Identify architectural boundaries between MODE 1/2/3
+
+**Cost:** 576,976 input tokens (~$0.07 with Gemini Flash, ~$1.73 with Claude)
 
 ---
 
@@ -1366,6 +1411,11 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 
 ## Questions? Check These First
 
+**"How do I understand the codebase architecture?"**
+→ Use the knowledge graph: `graphify query "your question"` or open `graphify-out/graph.html`
+→ See god nodes (WorkflowInstance, TaskExecution, AttributeFilter) for core abstractions
+→ Trace data flow across all three modes in the interactive visualization
+
 **"How do I expose a new field in GraphQL?"**
 → MODE 1: Add to JPA entity → Add to domain model → MapStruct auto-maps
 → MODE 2: Add to index template → Add to transform → Add to domain model → Mapper maps
@@ -1406,6 +1456,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 
 ## Remember
 
+- **Knowledge graph available** - Use `graphify query` or `graphify-out/graph.html` to explore architecture
 - **Read-only** - We don't modify workflow state
 - **Two modes** - PostgreSQL (triggers) or Elasticsearch (transforms)
 - **No Event Processor** - MODE 1 uses triggers, MODE 2 uses transforms

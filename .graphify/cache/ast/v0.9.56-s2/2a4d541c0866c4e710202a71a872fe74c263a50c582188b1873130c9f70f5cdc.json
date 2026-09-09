@@ -1,0 +1,1 @@
+{"nodes": [{"id": "pkg_org_kie_kogito_persistence_commons", "label": "org.kie.kogito:persistence-commons", "file_type": "code", "type": "package", "ecosystem": "maven", "source_file": "persistence-commons/pom.xml", "source_location": "L1"}], "edges": []}

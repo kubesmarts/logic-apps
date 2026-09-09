@@ -1,0 +1,1 @@
+{"nodes": [{"id": "pkg_github_com_kubesmarts_logic_apps_data_index_collectors", "label": "github.com/kubesmarts/logic-apps/data-index/collectors", "file_type": "code", "type": "package", "ecosystem": "go", "source_file": "data-index/collectors/go.mod", "source_location": "L1"}], "edges": []}

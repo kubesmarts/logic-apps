@@ -1,0 +1,2 @@
+# Graphify knowledge graph generator
+graphifyy>=0.9.56
