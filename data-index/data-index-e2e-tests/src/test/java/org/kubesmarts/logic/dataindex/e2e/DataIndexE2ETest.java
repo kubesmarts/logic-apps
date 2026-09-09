@@ -285,21 +285,114 @@ public class DataIndexE2ETest {
         log.info("Waiting for workflow instance {} to appear (mode: {}, timeout: {}s)...",
                 instanceId, mode, timeoutSeconds);
 
-        await()
-                .atMost(Duration.ofSeconds(timeoutSeconds))
-                .pollInterval(2, TimeUnit.SECONDS)
-                .until(() -> {
-                    String query = String.format(
-                            "{ getWorkflowInstance(id: \"%s\") { id name status } }",
-                            instanceId
-                    );
-                    Response response = executeGraphQL(query);
-                    if (response.statusCode() != 200) {
-                        return false;
-                    }
-                    Object getWorkflowInstance = response.jsonPath().get("data.getWorkflowInstance");
-                    return getWorkflowInstance != null;
-                });
-        log.info("Workflow instance {} found", instanceId);
+        try {
+            await()
+                    .atMost(Duration.ofSeconds(timeoutSeconds))
+                    .pollInterval(2, TimeUnit.SECONDS)
+                    .until(() -> {
+                        String query = String.format(
+                                "{ getWorkflowInstance(id: \"%s\") { id name status } }",
+                                instanceId
+                        );
+                        Response response = executeGraphQL(query);
+                        if (response.statusCode() != 200) {
+                            return false;
+                        }
+                        Object getWorkflowInstance = response.jsonPath().get("data.getWorkflowInstance");
+                        return getWorkflowInstance != null;
+                    });
+            log.info("Workflow instance {} found", instanceId);
+        } catch (org.awaitility.core.ConditionTimeoutException e) {
+            log.error("Workflow instance {} did not appear within {}s", instanceId, timeoutSeconds);
+
+            // Run diagnostics for MODE 2 to identify where the pipeline is broken
+            if ("mode2".equals(mode)) {
+                runMode2Diagnostics(instanceId);
+            }
+
+            throw e;
+        }
+    }
+
+    /**
+     * Run diagnostics for MODE 2 when workflow instance doesn't appear.
+     * Checks each stage of the data pipeline to identify the bottleneck.
+     */
+    protected void runMode2Diagnostics(String instanceId) {
+        log.error("===== MODE 2 Pipeline Diagnostics =====");
+
+        String esUrl = "http://localhost:30920";
+
+        // 1. Check raw events index
+        try {
+            Response rawResponse = given().get(esUrl + "/workflow-events/_count");
+            if (rawResponse.statusCode() == 200) {
+                int count = rawResponse.jsonPath().getInt("count");
+                log.error("  Raw workflow-events: {} documents", count);
+                if (count == 0) {
+                    log.error("  → ISSUE: No raw events found. Vector may not be sending data to Elasticsearch.");
+                }
+            } else {
+                log.error("  Failed to query workflow-events index: HTTP {}", rawResponse.statusCode());
+            }
+        } catch (Exception ex) {
+            log.error("  Failed to check workflow-events: {}", ex.getMessage());
+        }
+
+        // 2. Check normalized index
+        try {
+            Response normResponse = given().get(esUrl + "/workflow-instances/_count");
+            if (normResponse.statusCode() == 200) {
+                int count = normResponse.jsonPath().getInt("count");
+                log.error("  Normalized workflow-instances: {} documents", count);
+                if (count == 0) {
+                    log.error("  → ISSUE: No normalized instances. Transform may not be processing events.");
+                }
+            } else {
+                log.error("  Failed to query workflow-instances index: HTTP {}", normResponse.statusCode());
+            }
+        } catch (Exception ex) {
+            log.error("  Failed to check workflow-instances: {}", ex.getMessage());
+        }
+
+        // 3. Check transform stats
+        try {
+            Response transformResponse = given().get(esUrl + "/_transform/workflow-instances-transform/_stats");
+            if (transformResponse.statusCode() == 200) {
+                String state = transformResponse.jsonPath().getString("transforms[0].state");
+                long docsProcessed = transformResponse.jsonPath().getLong("transforms[0].stats.documents_processed");
+                long docsIndexed = transformResponse.jsonPath().getLong("transforms[0].stats.documents_indexed");
+                log.error("  Transform: state={}, processed={}, indexed={}", state, docsProcessed, docsIndexed);
+
+                if (!"started".equals(state) && !"indexing".equals(state)) {
+                    log.error("  → ISSUE: Transform is not running (state: {})", state);
+                }
+                if (docsProcessed == 0) {
+                    log.error("  → ISSUE: Transform has processed 0 documents");
+                }
+            }
+        } catch (Exception ex) {
+            log.error("  Failed to check transform: {}", ex.getMessage());
+        }
+
+        // 4. Search for specific instance in raw events
+        try {
+            String searchQuery = String.format("{\"query\":{\"term\":{\"id\":\"%s\"}}}", instanceId);
+            Response searchResponse = given()
+                    .contentType(ContentType.JSON)
+                    .body(searchQuery)
+                    .post(esUrl + "/workflow-events/_search");
+            if (searchResponse.statusCode() == 200) {
+                int hits = searchResponse.jsonPath().getInt("hits.total.value");
+                log.error("  Instance {} in raw events: {} hits", instanceId, hits);
+                if (hits == 0) {
+                    log.error("  → ISSUE: No raw events for this instance. Workflow app may not be logging.");
+                }
+            }
+        } catch (Exception ex) {
+            log.error("  Failed to search for instance: {}", ex.getMessage());
+        }
+
+        log.error("===== End of Diagnostics =====");
     }
 }
