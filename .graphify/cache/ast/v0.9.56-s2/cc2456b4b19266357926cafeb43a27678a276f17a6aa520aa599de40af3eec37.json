@@ -1,0 +1,1 @@
+{"nodes": [{"id": "pkg_data_index_service", "label": "data-index-service", "file_type": "code", "type": "package", "ecosystem": "maven", "source_file": "data-index/data-index-service/pom.xml", "source_location": "L1"}], "edges": []}
