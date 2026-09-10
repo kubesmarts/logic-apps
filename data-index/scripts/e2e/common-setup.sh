@@ -89,8 +89,10 @@ main() {
     local BUILD_MODE="${MODE:-all}"
     log_info "Build mode: ${BUILD_MODE}"
 
-    # Build from data-index reactor root to resolve inter-module dependencies
-    # Use -pl (project list) and -am (also make dependencies) to build only what's needed
+    # Build from the reactor root to resolve inter-module dependencies.
+    # Use -pl (project list) + -am (also make dependencies) to build only what's needed.
+    # Use `install` (not `package`) so the SNAPSHOT artifacts (data-index-model, ...)
+    # land in ~/.m2 - the e2e-tests module is built standalone later and must resolve them.
 
     # Build PostgreSQL variant (MODE 1 and MODE 3)
     if [[ "${BUILD_MODE}" == "all" || "${BUILD_MODE}" == "mode1" || "${BUILD_MODE}" == "mode3" ]]; then
@@ -102,7 +104,7 @@ main() {
         if [[ "${BUILD_MODE}" == "mode3" ]]; then
             log_info "  → Using Kafka profile for workflow-test-app (MODE 3)"
             (cd "${PROJECT_ROOT}" && \
-                mvn clean package -DskipTests \
+                mvn clean install -DskipTests \
                 -pl data-index/data-index-service/data-index-service-postgresql,data-index/workflow-test-app \
                 -am \
                 -Pkafka \
@@ -110,7 +112,7 @@ main() {
                 -Dquarkus.container-image.tag=999-SNAPSHOT)
         else
             (cd "${PROJECT_ROOT}" && \
-                mvn clean package -DskipTests \
+                mvn clean install -DskipTests \
                 -pl data-index/data-index-service/data-index-service-postgresql,data-index/workflow-test-app \
                 -am \
                 -Dquarkus.container-image.build=true \
@@ -127,7 +129,7 @@ main() {
 
         # Build from root reactor to ensure persistence-commons-api is rebuilt
         (cd "${PROJECT_ROOT}" && \
-            mvn clean package -DskipTests \
+            mvn clean install -DskipTests \
             -pl data-index/data-index-service/data-index-service-elasticsearch,data-index/workflow-test-app \
             -am \
             -Dquarkus.container-image.build=true \
@@ -143,7 +145,7 @@ main() {
 
         # Build from root reactor to ensure persistence-commons-api is rebuilt
         (cd "${PROJECT_ROOT}" && \
-            mvn clean package -DskipTests \
+            mvn clean install -DskipTests \
             -pl data-index/data-index-ingestion/data-index-ingestion-kafka-service \
             -am \
             -Dquarkus.container-image.build=true \
