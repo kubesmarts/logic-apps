@@ -6,7 +6,7 @@
 # Mode-specific overrides are in values-mode{1,2,3}.yaml files.
 #
 # Deployment modes:
-#   MODE 1: PostgreSQL + FluentBit + Triggers
+#   MODE 1: PostgreSQL + Vector + Triggers
 #   MODE 2: Elasticsearch + Vector + Transforms
 #   MODE 3: Kafka + Processors + PostgreSQL
 #
@@ -154,9 +154,11 @@ kafka:
 # Log Collectors
 # ============================================================================
 
-# FluentBit (MODE 1)
+# FluentBit - DEPRECATED (ADR-0001). MODE 1 now uses Vector; see the `vector` block
+# below. These values are kept for one release so a user can opt back in with
+# `--set fluentbit.enabled=true --set vector.enabled=false`. Removal target: next release.
 fluentbit:
-  enabled: true
+  enabled: false
   image:
     repository: fluent/fluent-bit
     tag: "3.1.4"
@@ -177,17 +179,21 @@ fluentbit:
       cpu: 500m
       memory: 256Mi
 
-# Vector (MODE 2)
+# Vector - log collector for MODE 1 (PostgreSQL) and MODE 2 (Elasticsearch).
+# The base defaults target MODE 1 (mode: mode1); values-mode2.yaml overrides `config`.
 vector:
-  enabled: false
+  enabled: true
   image:
     repository: timberio/vector
+    # 0.54.0 is the newest tag both mode configs validate against unchanged.
+    # Version is also tracked in data-index/collectors/pom.xml.
     # renovate: datasource=docker depName=timberio/vector
-    tag: "0.41.1-distroless-libc"
+    tag: "0.54.0-distroless-libc"
     pullPolicy: IfNotPresent
 
-  # Configuration mode (mode2-elasticsearch)
-  config: mode2-elasticsearch
+  # Configuration mode: mode1-postgresql | mode2-elasticsearch
+  # Selects configs/vector/vector-<config>.yaml
+  config: mode1-postgresql
 
   # Namespace to tail logs from
   workflowNamespace: workflows

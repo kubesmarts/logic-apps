@@ -1,0 +1,269 @@
+---
+# ============================================================================
+# Reference DaemonSet - MODE 1: PostgreSQL + Vector + Triggers
+# ============================================================================
+#
+# NOT for embedding in logic-operator - the operator builds the DaemonSet
+# programmatically. This shows a working reference: RBAC, volume mounts,
+# security context, and the PostgreSQL environment variables the MODE 1
+# vector.yaml expects.
+#
+# Source config: collectors/vector/mode1-postgresql/vector.yaml
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: data-index-vector-mode1
+  namespace: data-index
+  labels:
+    app: data-index-vector
+    component: postgresql
+    mode: mode1
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: data-index-vector-mode1
+  labels:
+    app: data-index-vector
+    component: postgresql
+    mode: mode1
+rules:
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - pods
+      - nodes
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: data-index-vector-mode1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: data-index-vector-mode1
+subjects:
+  - kind: ServiceAccount
+    name: data-index-vector-mode1
+    namespace: data-index
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: data-index-vector-mode1
+  namespace: data-index
+  labels:
+    app: data-index-vector
+    component: postgresql
+    mode: mode1
+spec:
+  selector:
+    matchLabels:
+      app: data-index-vector
+      mode: mode1
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: data-index-vector
+        component: postgresql
+        mode: mode1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9598"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: data-index-vector-mode1
+      hostNetwork: false
+      dnsPolicy: ClusterFirst
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+      - name: vector
+        # Production: pin a specific version tag (not latest).
+        # Managed in data-index/collectors/pom.xml (<vector.version>).
+        image: timberio/vector:0.54.0-distroless-libc
+        imagePullPolicy: IfNotPresent
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+              - ALL
+
+        ports:
+        - name: metrics
+          containerPort: 9598
+          protocol: TCP
+
+        env:
+        # Kubernetes metadata
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+
+        # Workflow application configuration
+        - name: WORKFLOW_NAMESPACE
+          value: "workflows"
+
+        # PostgreSQL connection (MODE 1: trigger-based normalization)
+        # TEMPLATE: logic-operator should customize these values.
+        # Credentials should come from a Secret, not literals.
+        - name: POSTGRES_HOST
+          value: "postgresql.data-index.svc.cluster.local"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DB
+          value: "dataindex"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: data-index-postgresql
+              key: postgres-username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: data-index-postgresql
+              key: postgres-password
+
+        # Debug: log every event to stdout (troubleshooting only)
+        - name: DEBUG_EVENTS
+          value: "false"
+
+        - name: VECTOR_CONFIG
+          value: "/etc/vector/vector.yaml"
+        - name: LOG_LEVEL
+          value: "info"
+
+        volumeMounts:
+        - name: config
+          mountPath: /etc/vector
+          readOnly: true
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: data-dir
+          mountPath: /tmp/vector
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9598
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 9598
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+
+      volumes:
+      - name: config
+        configMap:
+          name: data-index-vector-mode1-config
+      - name: varlog
+        hostPath:
+          path: /var/log
+          type: Directory
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+          type: DirectoryOrCreate
+      - name: data-dir
+        emptyDir: {}
+
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+
+      priorityClassName: system-node-critical
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-index-vector-mode1
+  namespace: data-index
+  labels:
+    app: data-index-vector
+    component: postgresql
+    mode: mode1
+spec:
+  type: ClusterIP
+  selector:
+    app: data-index-vector
+    mode: mode1
+  ports:
+  - name: metrics
+    port: 9598
+    targetPort: 9598
+    protocol: TCP
+
+---
+# ConfigMap for Vector configuration
+# NOTE: This should be generated by logic-operator from vector.yaml template
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-index-vector-mode1-config
+  namespace: data-index
+  labels:
+    app: data-index-vector
+    component: postgresql
+    mode: mode1
+data:
+  vector.yaml: |
+    # This is a placeholder - logic-operator should generate this from:
+    # github.com/kubesmarts/logic-apps/data-index/collectors/vector/mode1-postgresql/vector.yaml
+    #
+    # The operator will:
+    # 1. Load vector.yaml from embedded configs
+    # 2. Template environment-specific values (POSTGRES_HOST, etc.)
+    # 3. Create this ConfigMap with the templated config
+    #
+    # DO NOT edit this manually in production - managed by logic-operator

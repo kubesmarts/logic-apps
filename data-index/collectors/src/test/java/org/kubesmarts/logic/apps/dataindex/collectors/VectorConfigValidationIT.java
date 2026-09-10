@@ -3,9 +3,9 @@ package org.kubesmarts.logic.apps.dataindex.collectors;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -34,9 +34,27 @@ class VectorConfigValidationIT {
 
     private static final String COLLECTORS_BASE_PATH = "../vector";
 
+    /** Helm chart keeps byte-identical copies of the collector configs (Files.Get in the ConfigMap template). */
+    private static final Path HELM_VECTOR_CONFIG_DIR = Paths.get("../helm/data-index/configs/vector");
+
     // Vector image from Maven property (passed via system property)
     // See pom.xml: <vector.image>timberio/vector:${vector.version}-distroless-libc</vector.image>
     private static final String VECTOR_IMAGE = System.getProperty("vector.image");
+
+    private static final Map<String, String> MODE1_ENV = Map.of(
+            "NODE_NAME", "test-node",
+            "WORKFLOW_NAMESPACE", "workflows",
+            "POSTGRES_HOST", "postgresql.test.svc",
+            "POSTGRES_PORT", "5432",
+            "POSTGRES_DB", "dataindex",
+            "POSTGRES_USER", "dataindex",
+            "POSTGRES_PASSWORD", "test-only");
+
+    private static final Map<String, String> MODE2_ENV = Map.of(
+            "NODE_NAME", "test-node",
+            "WORKFLOW_NAMESPACE", "workflows",
+            "ELASTICSEARCH_HOST", "elasticsearch.test.svc",
+            "ELASTICSEARCH_PORT", "9200");
 
     static {
         if (VECTOR_IMAGE == null) {
@@ -45,6 +63,26 @@ class VectorConfigValidationIT {
                 "Set it in pom.xml <systemPropertyVariables> or via -Dvector.image=timberio/vector:x.y.z"
             );
         }
+    }
+
+    @Test
+    void mode1PostgreSQLConfigIsValid() throws Exception {
+        Path configPath = getConfigPath("mode1-postgresql/vector.yaml");
+
+        String configContent = Files.readString(configPath);
+        assertThat(configContent)
+                .as("Config should define the kubernetes_logs source")
+                .contains("sources:")
+                .contains("kubernetes_logs:");
+
+        assertThat(configContent)
+                .as("Config should define one postgres sink per raw table")
+                .contains("postgres_workflow:")
+                .contains("postgres_task:")
+                .contains("table: workflow_events_raw")
+                .contains("table: task_events_raw");
+
+        validateWithVectorContainer(configPath, MODE1_ENV);
     }
 
     @Test
@@ -65,15 +103,31 @@ class VectorConfigValidationIT {
                 .contains("elasticsearch_task:");
 
         // Validate with actual Vector container (uses real Vector validation!)
-        validateWithVectorContainer(configPath);
+        validateWithVectorContainer(configPath, MODE2_ENV);
     }
 
+    /**
+     * The Helm chart ships copies of these configs (rendered into a ConfigMap via
+     * {@code .Files.Get}). There is no build-time sync, so this guards against drift.
+     */
     @Test
-    @EnabledIfSystemProperty(named = "test.mode1", matches = "true")
-    void mode1PostgreSQLConfigIsValid() throws Exception {
-        // TODO: Implement when MODE 1 Vector config is ready
-        // Path configPath = getConfigPath("mode1-postgresql/vector.yaml");
-        // assertThat(configPath).exists();
+    void helmChartConfigsMatchCollectorSources() throws Exception {
+        assertHelmCopyMatches("mode1-postgresql/vector.yaml", "vector-mode1-postgresql.yaml");
+        assertHelmCopyMatches("mode2-elasticsearch/vector.yaml", "vector-mode2-elasticsearch.yaml");
+    }
+
+    private void assertHelmCopyMatches(String collectorRelativePath, String helmFileName) throws Exception {
+        assumeThat(HELM_VECTOR_CONFIG_DIR)
+                .as("Helm chart config dir should be reachable from the module root")
+                .exists();
+
+        Path source = getConfigPath(collectorRelativePath);
+        Path helmCopy = HELM_VECTOR_CONFIG_DIR.resolve(helmFileName);
+
+        assertThat(helmCopy).as("Helm chart should ship a copy at " + helmCopy).exists();
+        assertThat(Files.readString(helmCopy))
+                .as("Helm copy %s must be byte-identical to collector source %s", helmCopy, source)
+                .isEqualTo(Files.readString(source));
     }
 
     /**
@@ -82,23 +136,21 @@ class VectorConfigValidationIT {
      * <p>Runs Vector's validate command in a container:
      * <ul>
      *   <li>Mounts config file to /etc/vector/vector.yaml</li>
-     *   <li>Provides required environment variables</li>
+     *   <li>Provides the environment variables the config interpolates</li>
      *   <li>Accepts exit codes 0 (success) or 78 (warnings)</li>
      *   <li>Verifies no "Failed to load" errors in output</li>
      * </ul>
      *
      * @param configPath path to Vector YAML config file
+     * @param env        environment variables the config references
      */
-    private void validateWithVectorContainer(Path configPath) throws Exception {
+    private void validateWithVectorContainer(Path configPath, Map<String, String> env) throws Exception {
         try (GenericContainer<?> vector = new GenericContainer<>(VECTOR_IMAGE)
                 .withCopyFileToContainer(
                         MountableFile.forHostPath(configPath),
                         "/etc/vector/vector.yaml"
                 )
-                .withEnv("NODE_NAME", "test-node")
-                .withEnv("WORKFLOW_NAMESPACE", "workflows")
-                .withEnv("ELASTICSEARCH_HOST", "elasticsearch.test.svc")
-                .withEnv("ELASTICSEARCH_PORT", "9200")
+                .withEnv(env)
                 .withCommand("validate", "--config-yaml", "/etc/vector/vector.yaml")
                 .waitingFor(Wait.forLogMessage(".*", 1))) {
 

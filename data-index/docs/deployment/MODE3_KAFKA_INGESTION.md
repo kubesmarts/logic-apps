@@ -7,7 +7,7 @@
 
 ## Overview
 
-MODE 3 is a Kafka-based event ingestion service that provides an alternative to the FluentBit + PostgreSQL triggers approach (MODE 1). This guide covers deployment, configuration, and troubleshooting for production environments.
+MODE 3 is a Kafka-based event ingestion service that provides an alternative to the Vector + PostgreSQL triggers approach (MODE 1). This guide covers deployment, configuration, and troubleshooting for production environments.
 
 **Event Pipeline:**
 ```
@@ -514,10 +514,10 @@ kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic data-index-event
 
 ## Comparison: MODE 1 vs MODE 2 vs MODE 3
 
-| Feature | MODE 1 (FluentBit + Triggers) | MODE 2 (FluentBit + ES Transforms) | MODE 3 (Kafka) |
+| Feature | MODE 1 (Vector + Triggers) | MODE 2 (Vector + ES Transforms) | MODE 3 (Kafka) |
 |---------|-------------------------------|------------------------------------|----|
 | **Event Source** | Log files | Log files | Kafka topics |
-| **Ingestion** | FluentBit DaemonSet | FluentBit DaemonSet | SmallRye Reactive Messaging |
+| **Ingestion** | Vector DaemonSet | Vector DaemonSet | SmallRye Reactive Messaging |
 | **Normalization** | PostgreSQL triggers | Elasticsearch transforms | Java processors (JDBC) |
 | **Raw Storage** | `workflow_events_raw` table | `workflow-events` index | None (direct to normalized) |
 | **Normalized Storage** | PostgreSQL tables | Elasticsearch indices | PostgreSQL tables |

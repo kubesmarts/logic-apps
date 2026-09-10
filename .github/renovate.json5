@@ -141,6 +141,17 @@
       "extractVersionTemplate": "^(?<version>.+?)(?:-distroless-libc)?$"
     },
     {
+      "description": "Vector image version in collector example DaemonSets",
+      "fileMatch": ["^data-index/collectors/examples/.*/daemonset\\.yaml$"],
+      "matchStrings": [
+        "image: timberio/vector:(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "timberio/vector",
+      "versioningTemplate": "docker",
+      "extractVersionTemplate": "^(?<version>.+?)(?:-distroless-libc)?$"
+    },
+    {
       "description": "Elasticsearch image version in Helm values",
       "fileMatch": ["^data-index/helm/data-index/values.*\\.yaml$"],
       "matchStrings": [

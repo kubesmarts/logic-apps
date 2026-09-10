@@ -22,7 +22,7 @@ Elasticsearch storage implementation for Data Index v1.0.0 using **ES Transform*
 ## Architecture
 
 ```
-FluentBit → ES Raw Event Indices (workflow-events, task-events)
+Vector → ES Raw Event Indices (workflow-events, task-events)
               ↓ (ES Transform, continuous, ~1s)
               ↓ (+ ILM: delete after 7 days)
           ES Normalized Indices (workflow-instances, task-executions)
@@ -31,7 +31,7 @@ FluentBit → ES Raw Event Indices (workflow-events, task-events)
 ```
 
 **ES Transform Mode** (Recommended):
-- FluentBit writes raw events to `workflow-events`, `task-events`
+- Vector writes raw events to `workflow-events`, `task-events`
 - ES Transform (continuous) processes new events every 1s
 - Normalized indices (`workflow-instances`, `task-executions`) kept forever
 - ILM deletes raw events after 7 days (already aggregated)

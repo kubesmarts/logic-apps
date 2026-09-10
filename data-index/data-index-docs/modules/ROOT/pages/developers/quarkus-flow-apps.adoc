@@ -8,7 +8,7 @@ Learn how to structure and configure Quarkus Flow applications to work with Data
 To integrate with Data Index, your Quarkus Flow application needs:
 
 1. **Structured logging enabled** - Emit JSON events to stdout
-2. **Kubernetes deployment** - Run in Kubernetes where FluentBit can collect logs
+2. **Kubernetes deployment** - Run in Kubernetes where Vector can collect logs
 3. **Proper configuration** - Property files for different environments
 
 == Application Structure
@@ -99,7 +99,9 @@ See the https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html[Qua
 
 == Why Epoch Seconds?
 
-Data Index uses FluentBit to collect events, which expects Unix epoch timestamps for `TIMESTAMP WITH TIME ZONE` columns in PostgreSQL. Using `epoch-seconds` ensures proper timestamp parsing.
+The MODE 1 PostgreSQL triggers parse the event's `timestamp`/`startTime`/`endTime` fields
+with `to_timestamp(... ::numeric)`, so they must be Unix epoch seconds. Using `epoch-seconds`
+ensures proper timestamp parsing.
 
 == JAX-RS Endpoints (Required)
 

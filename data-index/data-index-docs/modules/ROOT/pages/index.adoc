@@ -13,7 +13,7 @@ Data Index is a *read-only query service* for Open Workflow 1.0.0 runtime execut
 * 🚀 **Real-time Processing** - PostgreSQL: <1ms triggers, Elasticsearch: ~1s transforms
 * 🔍 **Flexible Filtering** - Filter by status, name, namespace, time ranges
 * 🎯 **Production Ready** - Both PostgreSQL and Elasticsearch backends fully tested
-* 📝 **Structured Logging** - Captures events from Quarkus Flow apps via FluentBit
+* 📝 **Structured Logging** - Captures events from Quarkus Flow apps via Vector
 * 🔄 **Multiple Storage Backends** - Choose PostgreSQL (MODE 1) or Elasticsearch (MODE 2)
 ****
 
@@ -25,7 +25,7 @@ Data Index captures workflow execution events and makes them queryable via Graph
 ----
 Quarkus Flow App
     ↓ (structured logging to stdout)
-FluentBit DaemonSet
+Vector DaemonSet
     ↓ (tail container logs)
 Storage Backend (PostgreSQL or Elasticsearch)
     ↓ (normalization)
@@ -81,7 +81,7 @@ Data Index is a *read-only* query service. It does **NOT**:
 **Core:**
 
 * Kubernetes cluster (or KIND for local development)
-* FluentBit 2.0+
+* Vector 0.46+ (deployed by the Helm chart)
 * Quarkus Flow applications with https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html[structured logging^] enabled
 
 **Storage backend (choose one):**

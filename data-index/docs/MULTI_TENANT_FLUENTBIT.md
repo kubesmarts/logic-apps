@@ -1,5 +1,11 @@
 # Multi-Tenant FluentBit: Avoiding Conflicts
 
+> **DEPRECATED (ADR-0001).** Data Index migrated from FluentBit to Vector. The
+> multi-tenant conflict patterns below still apply conceptually to any node-level
+> DaemonSet collector, but the FluentBit-specific configuration is no longer used.
+> See `data-index-docs/.../deployment/vector-config.adoc`.
+
+
 ## The Problem
 
 **Scenario:** Multiple teams deploying their own FluentBit DaemonSets

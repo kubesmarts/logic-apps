@@ -76,7 +76,7 @@ spec:
             # Enable Flyway migrations (disabled by default in prod mode)
             - name: QUARKUS_FLYWAY_MIGRATE_AT_START
               value: "true"
-            # Allow Flyway to work with non-empty schema (raw tables created by FluentBit)
+            # Allow Flyway to work with non-empty schema (raw tables created by Vector)
             - name: QUARKUS_FLYWAY_BASELINE_ON_MIGRATE
               value: "true"
             # Baseline at version 0 so V1 migration still runs

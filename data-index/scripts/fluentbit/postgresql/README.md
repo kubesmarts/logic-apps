@@ -1,5 +1,9 @@
 # PostgreSQL Mode
 
+> **DEPRECATED (ADR-0001).** MODE 1 log collection moved from FluentBit to Vector
+> (issue #63). Use `data-index/collectors/vector/mode1-postgresql/vector.yaml`.
+> Kept for one release; removal target: next release.
+
 Real-time event normalization - no Event Processor needed!
 
 ## Architecture

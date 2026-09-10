@@ -1,0 +1,260 @@
+# ============================================================================
+# Vector Configuration - MODE 1: PostgreSQL Trigger-based Normalization
+# ============================================================================
+#
+# Validation: Vector does not have a reliable JSON Schema for IDE validation
+# - Use Vector CLI: `vector validate --config-yaml vector.yaml`
+# - Or our Maven tests: `mvn test -pl collectors`
+# - Vector documentation: https://vector.dev/docs/reference/configuration/
+#
+# Purpose: Capture Quarkus Flow structured logs from container stdout
+#          PostgreSQL BEFORE INSERT triggers normalize raw events into
+#          structured tables (workflow_instances, task_instances).
+#
+# Pipeline:
+#   Quarkus Flow -> stdout -> K8s /var/log/containers/ -> Vector kubernetes_logs ->
+#   Parse JSON events -> Filter workflow events -> Route by event type ->
+#   PostgreSQL INSERT (workflow_events_raw / task_events_raw) ->
+#   PostgreSQL triggers -> Normalized tables
+#
+# Requires: Vector >= 0.46.0 (native `postgres` sink).
+#
+# Consumed by: logic-operator (templates this config with environment-specific values)
+# Maintained by: data-index (guarantees this config works correctly)
+#
+# ============================================================================
+
+# Data directory for checkpointing
+# In production, DaemonSet mounts an emptyDir at this path
+data_dir: /tmp/vector
+
+# https://vector.dev/docs/reference/configuration/sources/kubernetes_logs
+sources:
+  # Kubernetes container logs
+  kubernetes_logs:
+    type: kubernetes_logs
+
+    # Filter by namespace using field selector
+    # Only tail logs from workflow namespace (set via environment variable in DaemonSet)
+    extra_field_selector: "metadata.namespace=${WORKFLOW_NAMESPACE}"
+
+    # Auto-merge partial logs (multi-line)
+    auto_partial_merge: true
+
+    # Self node name (set by DaemonSet env var)
+    self_node_name: "${NODE_NAME}"
+
+  # Internal metrics for Prometheus export
+  internal_metrics:
+    type: internal_metrics
+
+transforms:
+  # Parse the JSON log line into a dedicated field.
+  #
+  # We keep the parsed event under `.flow_event` (rather than merging it into
+  # the root) so the raw event stays isolated from Kubernetes/Vector metadata.
+  # The `build_*_row` transforms below use `.flow_event` verbatim as the JSONB
+  # payload - the PostgreSQL triggers do all field extraction.
+  parse_json:
+    type: remap
+    inputs:
+      - kubernetes_logs
+    source: |
+      # Silently drop non-JSON lines (regular app logs like INFO, DEBUG, etc.)
+      parsed, err = parse_json(.message)
+      if err != null {
+        abort
+      }
+      .flow_event = parsed
+
+  # Keep only structured workflow events (eventType starting with
+  # "io.serverlessworkflow."). Filters out regular application logs, including
+  # JSON log lines that parse but carry no eventType (`string(...) ?? ""`).
+  filter_workflow_events:
+    type: filter
+    inputs:
+      - parse_json
+    condition:
+      type: vrl
+      source: starts_with(string(.flow_event.eventType) ?? "", "io.serverlessworkflow.")
+
+  # Route events by type (workflow vs task).
+  route_by_type:
+    type: route
+    inputs:
+      - filter_workflow_events
+    route:
+      workflow_events:
+        type: vrl
+        source: starts_with(string(.flow_event.eventType) ?? "", "io.serverlessworkflow.workflow.")
+
+      task_events:
+        type: vrl
+        source: starts_with(string(.flow_event.eventType) ?? "", "io.serverlessworkflow.task.")
+
+  # Build the row shape expected by the FluentBit-compatible raw tables:
+  #   (tag TEXT, time TIMESTAMP WITH TIME ZONE, data JSONB)
+  #
+  # - tag:  informational only (indexed) - the triggers never read it.
+  # - time: ingestion time - feeds only the created_at/updated_at audit columns.
+  #         The triggers derive event ordering from `data->>'timestamp'`.
+  # - data: the untouched Quarkus Flow event. Triggers extract instanceId,
+  #         status, startTime/endTime (epoch seconds), input/output, error, and
+  #         taskPosition straight from this JSONB.
+  build_workflow_row:
+    type: remap
+    inputs:
+      - route_by_type.workflow_events
+    source: |
+      . = {
+        "tag": .flow_event.eventType,
+        "time": now(),
+        "data": .flow_event
+      }
+
+  build_task_row:
+    type: remap
+    inputs:
+      - route_by_type.task_events
+    source: |
+      . = {
+        "tag": .flow_event.eventType,
+        "time": now(),
+        "data": .flow_event
+      }
+
+  # Debug filter - only pass events if DEBUG_EVENTS=true
+  # Controlled by environment variable for troubleshooting
+  # WARNING: At 1000 events/sec, generates ~43GB/day of logs
+  debug_filter:
+    type: filter
+    inputs:
+      - build_workflow_row
+      - build_task_row
+    condition:
+      type: vrl
+      source: |
+        debug_enabled = get_env_var("DEBUG_EVENTS") ?? "false"
+        to_bool(debug_enabled) ?? false
+
+# ============================================================================
+# SINKS: PostgreSQL Raw Tables
+# ============================================================================
+#
+# Vector's `postgres` sink cannot template the table name per-event, so we use
+# one sink per raw table. Each sink serializes the event to JSON and maps the
+# top-level fields (tag, time, data) to the matching table columns via
+# jsonb_populate_recordset - extra fields are ignored, and the `data` object
+# maps cleanly to the JSONB column.
+#
+# A batch is sent as a single multi-row INSERT. If one row makes a trigger
+# raise an uncaught exception, the whole batch INSERT fails and Vector retries
+# it. The workflow trigger is INSERT ... ON CONFLICT and the task trigger
+# catches foreign_key_violation, so this is tolerable. If poison-pill rows
+# appear, set `batch.max_events: 1` for strict row-by-row parity with FluentBit.
+#
+# Buffer: the default in-memory buffer (matches the FluentBit MODE 1 setup this
+# replaces). Do NOT switch to `buffer.type: disk` here - in Vector 0.54 the
+# postgres sink does not drain a small disk buffer until graceful shutdown,
+# which strands low-volume events. The kubernetes_logs source checkpoints, so a
+# Vector restart re-reads recent lines and the idempotent triggers dedupe them.
+# https://vector.dev/docs/reference/configuration/sinks/postgres/
+sinks:
+  # Workflow events -> workflow_events_raw
+  postgres_workflow:
+    type: postgres
+    inputs:
+      - build_workflow_row
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    table: workflow_events_raw
+    healthcheck:
+      enabled: true
+    batch:
+      max_events: 100
+      timeout_secs: 1
+
+  # Task events -> task_events_raw
+  postgres_task:
+    type: postgres
+    inputs:
+      - build_task_row
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    table: task_events_raw
+    healthcheck:
+      enabled: true
+    batch:
+      max_events: 100
+      timeout_secs: 1
+
+  # ============================================================================
+  # DEBUG SINK - Troubleshooting Only
+  # ============================================================================
+  #
+  # Logs all workflow/task events to stdout for troubleshooting.
+  # DISABLED BY DEFAULT - controlled by the DEBUG_EVENTS environment variable.
+  #
+  # WARNING: At high event rates, this generates massive log volumes:
+  #   - 1,000 events/sec = ~43 GB/day
+  #   - 10,000 events/sec = ~430 GB/day
+  #
+  # To enable for troubleshooting:
+  #   kubectl set env daemonset/vector -n logging DEBUG_EVENTS=true
+  #   kubectl logs -n logging -l app=vector -f
+  #
+  # To disable:
+  #   kubectl set env daemonset/vector -n logging DEBUG_EVENTS-
+  debug_stdout:
+    type: console
+    inputs:
+      - debug_filter
+    encoding:
+      codec: json
+
+  # Export internal metrics to Prometheus
+  prometheus_metrics:
+    type: prometheus_exporter
+    inputs:
+      - internal_metrics
+    address: "0.0.0.0:9598"
+    default_namespace: vector
+
+# ============================================================================
+# OBSERVABILITY
+# ============================================================================
+
+# Expose HTTP API on :8686 for health checks
+# Prometheus metrics exposed via prometheus_exporter sink on :9598
+api:
+  enabled: true
+  address: "0.0.0.0:8686"
+
+# ============================================================================
+# NOTES
+# ============================================================================
+#
+# Environment Variables (templated by logic-operator):
+#   - WORKFLOW_NAMESPACE: Namespace to tail logs from (default: workflows)
+#   - POSTGRES_HOST: PostgreSQL hostname
+#   - POSTGRES_PORT: PostgreSQL port (default: 5432)
+#   - POSTGRES_DB: PostgreSQL database name
+#   - POSTGRES_USER: PostgreSQL user
+#   - POSTGRES_PASSWORD: PostgreSQL password
+#   - NODE_NAME: Kubernetes node name (set by DaemonSet downward API)
+#   - DEBUG_EVENTS: Enable stdout logging of events (default: false)
+#       * ONLY FOR TROUBLESHOOTING - disabled in production
+#       * WARNING: At 1000 events/sec, generates ~43GB/day of logs
+#
+# What stays the same (handled by PostgreSQL):
+#   - BEFORE INSERT triggers: normalize_workflow_event() / normalize_task_event()
+#   - Field-level idempotency (COALESCE) and out-of-order event handling
+#   - Composite task identity (instance_id, task)
+#
+# What this config does:
+#   * Tails Kubernetes container logs
+#   * Parses CRI/Docker format automatically
+#   * Filters workflow events (by eventType field)
+#   * Routes by event type (workflow vs task)
+#   * Inserts raw events into workflow_events_raw / task_events_raw
+#   * Exposes Prometheus metrics
+#
+# ============================================================================

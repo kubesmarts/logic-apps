@@ -1,13 +1,16 @@
-= FluentBit Configuration (MODE 1 - PostgreSQL)
+= FluentBit Configuration (DEPRECATED)
 :page-aliases:
 
-[NOTE]
+[WARNING]
 ====
-**MODE 1 (PostgreSQL) ONLY**
+**DEPRECATED — replaced by Vector.**
 
-This configuration guide applies to MODE 1 (PostgreSQL) deployments only.
+Both MODE 1 (PostgreSQL) and MODE 2 (Elasticsearch) now use Vector as the log
+collector. See xref:deployment/vector-config.adoc[Vector Configuration].
 
-**MODE 2 (Elasticsearch)** now uses Vector instead of FluentBit. See xref:deployment/vector-config.adoc[Vector Configuration] for MODE 2.
+This page is retained for one release to support in-place migration. The FluentBit
+Helm templates ship disabled (`fluentbit.enabled: false`); opt back in with
+`--set fluentbit.enabled=true --set vector.enabled=false`. Removal target: next release.
 ====
 
 Configure FluentBit to collect workflow events from Quarkus Flow applications and send them to PostgreSQL.

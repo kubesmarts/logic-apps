@@ -1,7 +1,9 @@
 {{- if .Values.vector.enabled }}
 {{/*
-Vector DaemonSet (MODE 2)
-Tails container logs and ships to Elasticsearch.
+Vector DaemonSet
+Tails workflow container logs and ships raw events to the mode's storage backend:
+  mode1 -> PostgreSQL raw tables (postgres sink)  -> triggers
+  mode2 -> Elasticsearch raw indices (elasticsearch sink) -> transforms
 */}}
 
 ---
@@ -90,11 +92,27 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
             - name: WORKFLOW_NAMESPACE
-              value: "workflows"
+              value: {{ .Values.vector.workflowNamespace | quote }}
+            - name: DEBUG_EVENTS
+              value: {{ .Values.vector.debugEvents | quote }}
+            {{- if eq .Values.mode "mode1" }}
+            # MODE 1: PostgreSQL raw tables (matches the FluentBit DaemonSet this replaces)
+            - name: POSTGRES_HOST
+              value: postgresql.postgresql.svc.cluster.local
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.service.port | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.username | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.postgresql.password | quote }}
+            {{- else }}
             - name: ELASTICSEARCH_HOST
               value: "elasticsearch.elasticsearch.svc.cluster.local"
             - name: ELASTICSEARCH_PORT
               value: "9200"
+            {{- end }}
           resources:
             {{- toYaml .Values.vector.resources | nindent 12 }}
           volumeMounts:

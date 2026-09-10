@@ -1,5 +1,11 @@
 # FluentBit Configurations for Data Index
 
+> **DEPRECATED (ADR-0001 — migrate to Vector for OpenShift alignment).**
+> MODE 2 migrated to Vector in PR #62; MODE 1 migrated in issue #63. The current
+> log-collector configs live in `data-index/collectors/vector/` (source of truth)
+> and `data-index/helm/data-index/configs/vector/`. This directory is kept for one
+> release to ease migration and will be removed in the next release.
+
 This directory contains FluentBit configurations for ingesting Quarkus Flow structured logging events into Data Index.
 
 ## Overview

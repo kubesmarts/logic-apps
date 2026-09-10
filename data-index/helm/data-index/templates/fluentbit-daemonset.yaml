@@ -1,11 +1,14 @@
 {{- if .Values.fluentbit.enabled }}
 {{/*
-FluentBit DaemonSet - MODE 1
+FluentBit DaemonSet - MODE 1 (DEPRECATED)
+
+DEPRECATED per ADR-0001: MODE 1 now uses Vector (templates/vector-daemonset.yaml).
+Disabled by default; kept for one release. Opt back in with:
+  --set fluentbit.enabled=true --set vector.enabled=false
+Removal target: next release.
 
 Deploys FluentBit as a DaemonSet to collect logs from workflow pods.
 Includes RBAC (ServiceAccount, ClusterRole, ClusterRoleBinding) for Kubernetes API access.
-
-NOTE: FluentBit is temporary for MODE 1. Will migrate to Vector (issue #63).
 */}}
 
 ---

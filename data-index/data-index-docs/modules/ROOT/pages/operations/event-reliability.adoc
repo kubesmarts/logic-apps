@@ -1,7 +1,11 @@
 = Event Reliability and Loss Prevention
 :page-aliases:
 
-Data Index uses stdout-based log collection with FluentBit. This guide describes potential event loss scenarios and mitigation strategies.
+Data Index uses stdout-based log collection with Vector. This guide describes
+potential event-loss scenarios and how Vector's design and configuration
+mitigate them.
+
+Option reference: https://vector.dev/docs/reference/configuration/.
 
 == Event Flow and Guarantees
 
@@ -9,51 +13,39 @@ Data Index uses stdout-based log collection with FluentBit. This guide describes
 ----
 Quarkus Flow App
     ↓ (stdout write - OS buffer)
-Kernel Log Buffer
-    ↓ (flush to disk)
+Kernel / container runtime
+    ↓ (write to disk)
 /var/log/containers/<pod>_<namespace>_<container>.log
-    ↓ (FluentBit tail with position tracking)
-FluentBit Memory Buffer
-    ↓ (Storage output with retry)
-Storage Backend (PostgreSQL or Elasticsearch)
-    ↓ (Normalization: triggers or transforms)
+    ↓ (Vector kubernetes_logs - offset checkpointed in data_dir)
+Vector transforms (parse_json -> filter -> route -> build row)
+    ↓
+Vector per-sink buffer (MODE 1: in-memory; MODE 2: disk)
+    ↓ (postgres / elasticsearch sink - retries with backoff)
+Storage Backend (PostgreSQL raw tables / Elasticsearch raw indices)
+    ↓ (Normalization: PostgreSQL triggers / ES Transforms)
 Normalized Data
 ----
 
 **Critical points of failure:**
 
-1. App crash before stdout flush
-2. Node termination before log written to disk
-3. Log rotation before FluentBit reads
-4. FluentBit buffer overflow
-5. FluentBit crash before committing position
-6. Storage backend unavailability
-7. Parse/filter errors
+1. App crash before stdout is written
+2. Node termination before the log line reaches disk
+3. Node deletes rotated log files before Vector finishes reading them
+4. Sustained sink back-pressure stalls the source
+5. Vector crash between "sent to storage" and "checkpoint written" (duplication, not loss)
+6. Storage backend unavailable long enough to exhaust the buffer
+7. Malformed JSON dropped by `parse_json`
 
 == Event Loss Scenarios
 
-=== 1. Application Crashes Before Stdout Flush
+=== 1. Application Crashes Before Stdout Is Written
 
-**Scenario:**
+**Scenario:** the app produces a `workflow.started` event, then the process
+dies before the line is flushed to its stdout stream.
 
-[source,text]
-----
-App: workflow.started event → stdout buffer
-App: CRASH (before buffer flush)
-Result: Event never written to /var/log/containers/
-----
-
-**Risk:** Low
-
-**Reason:** OS flushes stdout on newline for line-buffered output
-
-**Mitigation:**
-
-* Quarkus Flow events always end with `\n` (newline)
-* OS typically flushes immediately
-* If app crashes mid-workflow, workflow will be re-executed (idempotent)
-
-**Monitoring:**
+**Risk:** Low. Quarkus Flow structured-logging lines are newline-terminated and
+the JSON console handler is not buffered across lines. If the workflow itself
+failed mid-execution it will be re-run (idempotent).
 
 [source,bash]
 ----
@@ -62,66 +54,51 @@ kubectl get pods -n workflows --field-selector=status.phase=Failed
 
 === 2. Node Termination Before Disk Write
 
-**Scenario:**
+**Scenario:** node gets SIGTERM, then SIGKILL after the grace period, before an
+in-flight stdout line is persisted to `/var/log/containers/`.
 
-[source,text]
-----
-App: Event → stdout → OS buffer → kernel
-Node: SIGTERM (drain starts)
-Node: SIGKILL after 30s (grace period)
-Result: In-flight events lost if not flushed to /var/log/
-----
+**Risk:** Medium.
 
-**Risk:** Medium
-
-**Mitigation:**
-
-Set pod `terminationGracePeriodSeconds`:
+**Mitigation:** give workflow pods a longer termination grace period and a small
+`preStop` sleep so the runtime flushes stdout:
 
 [source,yaml]
 ----
 spec:
-  terminationGracePeriodSeconds: 60  # Allow more time
+  terminationGracePeriodSeconds: 60
   containers:
-  - name: workflow-app
-    lifecycle:
-      preStop:
-        exec:
-          command: ["/bin/sh", "-c", "sleep 5"]  # Let stdout flush
+    - name: workflow-app
+      lifecycle:
+        preStop:
+          exec:
+            command: ["/bin/sh", "-c", "sleep 5"]
 ----
-
-Monitor pod evictions:
 
 [source,bash]
 ----
 kubectl get events --field-selector reason=Evicted
 ----
 
-=== 3. Log Rotation Before FluentBit Reads
+=== 3. Rotated Log Files Deleted Before Vector Reads Them
 
 **Scenario:**
 
 [source,text]
 ----
-Kubernetes: Rotates /var/log/containers/pod.log (size > 10MB)
-  - pod.log → pod.log.1
-  - New pod.log created
-FluentBit: Still reading pod.log.1 (tracked in DB)
-Kubernetes: Deletes pod.log.6 (max 5 rotated files)
-Result: Events in pod.log.6 lost if FluentBit didn't read them
+kubelet rotates /var/log/containers/pod.log  (size > containerLogMaxSize)
+  pod.log -> pod.log.1 ; new pod.log created
+Vector is still reading pod.log.1
+kubelet deletes pod.log.6 (containerLogMaxFiles reached)
+-> events in pod.log.6 are lost if Vector never opened it
 ----
 
-**Risk:** High if FluentBit falls behind
+**Risk:** Low-to-Medium. Vector's `kubernetes_logs` source uses
+`oldest_first: true` and a very large `rotate_wait_secs`, so it keeps reading a
+rotated file to EOF instead of abandoning it on rotation. Loss only happens if
+the node **deletes** rotated files faster than Vector drains them (i.e. Vector is
+badly behind — see scenario 4).
 
-**Kubernetes defaults:**
-
-* Max log file size: 10MB
-* Max backup files: 5
-* Total retention: ~50MB per container
-
-**Mitigation:**
-
-==== Increase Kubernetes Log Retention (node-level, requires cluster admin)
+**Mitigation - node log retention (cluster-admin, per node):**
 
 [source,yaml]
 ----
@@ -130,446 +107,354 @@ containerLogMaxSize: 100Mi    # Default: 10Mi
 containerLogMaxFiles: 10      # Default: 5
 ----
 
-==== Increase FluentBit Processing Speed
-
-[source,conf]
-----
-[INPUT]
-    Refresh_Interval  1       # Check for new logs every 1s (default: 5s)
-    Mem_Buf_Limit     20MB    # Larger memory buffer
-
-[OUTPUT]
-    Workers           2       # Parallel writes
-----
-
-==== Monitor FluentBit Lag
-
-[source,bash]
-----
-# Check FluentBit position tracking
-kubectl exec -n logging <fluentbit-pod> -- \
-  cat /tail-db/fluent-bit-kube.db
-
-# Check metrics
-curl http://<fluentbit-pod>:2020/api/v1/metrics/prometheus | grep input_bytes
-----
-
-==== Alert on High Log Rate
-
-[source,promql]
-----
-rate(fluentd_input_bytes_total[5m]) > 1000000  # > 1MB/s
-----
-
-=== 4. FluentBit Buffer Overflow
-
-**Scenario:**
-
-[source,text]
-----
-FluentBit: Reading logs faster than storage can accept
-FluentBit: Memory buffer fills up (Mem_Buf_Limit: 5MB)
-FluentBit: Drops oldest records to make room
-Result: Events lost
-----
-
-**Risk:** High under load
-
-**Mitigation:**
-
-==== Increase Memory Buffer
-
-[source,conf]
-----
-[INPUT]
-    Mem_Buf_Limit     20MB    # Default: 5MB
-
-[SERVICE]
-    storage.metrics   on
-    storage.path      /tail-db/storage
-    storage.max_chunks_up  256
-----
-
-==== Enable Filesystem Buffering
-
-[source,conf]
-----
-[INPUT]
-    storage.type      filesystem  # Spill to disk if memory full
-----
-
-**DaemonSet configuration:**
+**Mitigation - make Vector notice rotation and read faster** (in `vector.yaml`):
 
 [source,yaml]
 ----
-volumeMounts:
-- name: storage-buffer
-  mountPath: /tail-db/storage
-
-volumes:
-- name: storage-buffer
-  emptyDir:
-    sizeLimit: 1Gi  # Allow up to 1GB disk buffering
+sources:
+  kubernetes_logs:
+    type: kubernetes_logs
+    glob_minimum_cooldown_ms: 5000   # re-scan for new/rotated files every 5s (default 60000)
+    max_read_bytes: 16384            # bytes per read op (default 2048)
 ----
 
-==== Monitor Buffer Usage
+**Detect Vector falling behind:**
 
 [source,bash]
 ----
-curl http://<fluentbit-pod>:2020/api/v1/metrics | grep buffer
+kubectl exec -n logging <vector-pod> -- ls -la /tmp/vector   # offset checkpoints
+curl -s http://<vector-pod>:9598/metrics | grep -E 'vector_component_received_events_total|vector_file_'
 ----
 
-=== 5. FluentBit Crash Before Position Commit
+[source,promql]
+----
+rate(vector_component_received_bytes_total{component_id="kubernetes_logs"}[5m]) > 1000000   # > 1 MB/s sustained
+----
+
+=== 4. Sustained Sink Back-Pressure Stalls the Source
+
+**Scenario:** the sink can't keep up (slow storage, big batch of retries). The
+per-sink buffer fills; with the default `when_full: block` Vector stops pulling
+from `kubernetes_logs`. Vector does **not** drop events here - but if the stall
+lasts long enough that logs rotate and get deleted (scenario 3), those are lost.
+
+**Risk:** Medium under sustained overload.
+
+**Mitigation - larger / disk-backed buffer** (per sink in `vector.yaml`):
+
+[source,yaml]
+----
+sinks:
+  postgres_workflow:
+    # ...
+    buffer:
+      type: disk           # survives Vector restart; MODE 2 already uses this
+      max_size: 268435456  # 256 MiB
+      when_full: block
+----
+
+NOTE: MODE 1 ships the default in-memory buffer on purpose - in Vector 0.54 the
+`postgres` sink does not drain a small `disk` buffer until graceful shutdown.
+Raise `buffer.max_events` (memory) before reaching for `type: disk`, and test.
+
+**Mitigation - drop instead of block** (explicit trade-off):
+
+[source,yaml]
+----
+    buffer:
+      when_full: drop_newest   # prefer losing newest events over stalling the pipeline
+----
+
+**Mitigation - scale sink throughput:**
+
+[source,yaml]
+----
+    request:
+      concurrency: adaptive      # default; or a fixed integer
+    batch:
+      max_events: 500            # fewer, larger INSERTs / bulk requests
+      timeout_secs: 1
+----
+
+**Monitor:**
+
+[source,promql]
+----
+vector_buffer_events{component_id="postgres_workflow",stage="0"}          # pending in buffer
+vector_buffer_byte_size{component_id="postgres_workflow"}
+rate(vector_component_utilization{component_id="postgres_workflow"}[5m])   # ~1.0 => saturated
+----
+
+=== 5. Vector Crash Between Send and Checkpoint
 
 **Scenario:**
 
 [source,text]
 ----
-FluentBit: Reads events from pod.log
-FluentBit: Sends to storage successfully
-FluentBit: CRASH before updating position in /tail-db/fluent-bit-kube.db
-FluentBit: Restarts, re-reads from old position
-Result: Duplicate events (NOT loss, but duplication)
+Vector reads events from pod.log and sends them to storage (success)
+Vector crashes before persisting the new file offset in data_dir
+Vector restarts, resumes from the last persisted offset
+-> the same events are read and sent again  (duplication, not loss)
 ----
 
-**Risk:** Low (duplicates handled by normalization)
+**Risk:** Low - duplicates are harmless:
 
-**Mitigation:**
+* MODE 1: `normalize_workflow_event()` uses `INSERT ... ON CONFLICT (id) DO UPDATE`;
+  `normalize_task_event()` upserts on `(instance_id, task)`. Re-inserting a raw
+  row just re-runs the idempotent trigger.
+* MODE 2: ES Transforms aggregate by document key; re-processing converges.
 
-* PostgreSQL triggers use UPSERT: `ON CONFLICT (id) DO UPDATE`
-* Elasticsearch transforms use doc ID deduplication
-* Duplicate events update existing records (idempotent)
+Optionally enable end-to-end acknowledgements so the source offset only advances
+after the sink confirms the write (reduces the duplication window):
 
-Monitor for crash loop:
+[source,yaml]
+----
+sources:
+  kubernetes_logs:
+    type: kubernetes_logs
+    acknowledgements:
+      enabled: true
+----
 
 [source,bash]
 ----
-kubectl get pods -n logging -l app=workflows-fluent-bit \
-  --field-selector=status.phase=CrashLoopBackOff
+kubectl get pods -n logging -l app=vector | grep -i CrashLoopBackOff
 ----
 
-=== 6. Storage Backend Unavailability
+=== 6. Storage Backend Unavailable
 
-**Scenario:**
+**Scenario:** PostgreSQL / Elasticsearch refuses connections or times out.
 
-[source,text]
+**Vector behaviour (defaults):** the sink retries the request with exponential
+backoff - `retry_attempts` is effectively unlimited, `retry_initial_backoff_secs: 1`,
+capped per-request by `retry_max_duration_secs: 30`. Vector keeps retrying
+across the whole outage; it does not "give up after N tries". While it retries,
+the buffer fills and back-pressure applies (scenario 4).
+
+**Risk:** Low for short outages; Medium for long outages on an in-memory buffer.
+
+**Mitigation - more runway during outages:**
+
+[source,yaml]
 ----
-FluentBit: Tries to write event to storage
-Storage: Connection refused / timeout
-FluentBit: Retries up to Retry_Limit (5)
-FluentBit: Gives up after 5 retries
-Result: Event lost
-----
-
-**Risk:** High if storage down for extended period
-
-**Current configuration:**
-
-[source,conf]
-----
-[OUTPUT]
-    Async           Off         # Blocking mode (wait for storage)
-    Retry_Limit     5           # Retry 5 times before giving up
-----
-
-**Mitigation:**
-
-==== Increase Retry Limit
-
-[source,conf]
-----
-[OUTPUT]
-    Retry_Limit     False       # Infinite retries (wait forever)
+sinks:
+  postgres_workflow:
+    request:
+      retry_initial_backoff_secs: 1
+      retry_max_duration_secs: 120     # allow longer per-request retry windows
+    buffer:
+      type: disk                       # MODE 2 default; consider for MODE 1 if outages are expected
+      max_size: 536870912              # 512 MiB
 ----
 
-[WARNING]
-====
-This blocks FluentBit input if storage is down long-term, causing buffer overflow.
-====
+**Mitigation - storage HA:** PostgreSQL (Patroni / CloudNativePG / PgBouncer),
+Elasticsearch (multi-node with replicas). Monitor storage health directly.
 
-==== Use Storage Buffer (Recommended)
+=== 7. Malformed JSON
 
-[source,conf]
+**Scenario:** an app writes a truncated / non-JSON line. `parse_json` fails and
+`abort`s the event - it is intentionally dropped (this is how regular INFO/DEBUG
+app logs are filtered out).
+
+**Risk:** Low - Quarkus Flow structured logging emits well-formed JSON.
+
+**Capture instead of drop** (for debugging): send unparseable lines to the debug
+console sink rather than aborting.
+
+[source,yaml]
 ----
-[INPUT]
-    storage.type    filesystem   # Spill to disk during outages
+transforms:
+  parse_json:
+    type: remap
+    inputs: [kubernetes_logs]
+    source: |
+      parsed, err = parse_json(.message)
+      if err != null {
+        .parse_error = true          # keep the raw line, tag it
+      } else {
+        .flow_event = parsed
+      }
 
-[SERVICE]
-    storage.max_chunks_up  512   # Large buffer
+  # route .parse_error == true to debug_stdout alongside DEBUG_EVENTS
 ----
-
-==== Storage High Availability
-
-* PostgreSQL: Use HA solution (Patroni, Stolon, CloudNativePG)
-* Elasticsearch: Use multi-node cluster with replicas
-* Connection pooling (PgBouncer for PostgreSQL)
-* Monitor storage health
-
-=== 7. JSON Parse Failures
-
-**Scenario:**
-
-[source,text]
-----
-App: Outputs truncated/malformed JSON
-FluentBit: Fails to parse as JSON
-FluentBit: Skips line
-Result: Event lost
-----
-
-**Risk:** Low (Quarkus Flow uses structured logging library)
-
-**Mitigation:**
-
-==== Monitor Parse Errors
 
 [source,bash]
 ----
-kubectl logs -n logging -l app=workflows-fluent-bit | grep -i "parser\|json.*error"
-----
-
-==== Preserve Unparsed Records
-
-[source,conf]
-----
-[FILTER]
-    Name              parser
-    Key_Name          log
-    Parser            json
-    Reserve_Data      On
-    Preserve_Key      On      # Keep original if parse fails
+kubectl logs -n logging -l app=vector | grep -iE 'parse_json|VRL|remap.*error'
+curl -s http://<vector-pod>:9598/metrics | grep vector_component_errors_total
 ----
 
 == Reliability Guarantees
 
-=== What FluentBit Guarantees
+**Vector provides:**
 
-✅ **At-least-once delivery** with `Async Off` + position tracking
+* **At-least-once delivery** - the source offset is checkpointed in `data_dir`;
+  with `acknowledgements.enabled: true` it only advances after the sink confirms.
+* **Automatic retries** - unlimited attempts with exponential backoff on
+  transient sink failures.
+* **Back-pressure, not silent drop** - `when_full: block` (default) stalls the
+  source rather than discarding buffered events.
+* **Crash recovery** - resumes from the last persisted offset; duplicates are
+  absorbed by the idempotent triggers / transforms.
 
-✅ **Duplicate handling** via position DB
+**Vector does NOT guarantee:**
 
-✅ **Crash recovery** from last committed position
-
-✅ **Retry on transient failures** up to `Retry_Limit`
-
-=== What FluentBit Does NOT Guarantee
-
-❌ **Event ordering** - Events can arrive out of order (normalization handles this)
-
-❌ **Zero loss during node termination** - In-flight events may be lost
-
-❌ **Infinite buffering** - Buffer limits exist, overflow = loss
-
-❌ **Persistence across node loss** - Position DB is per-node
+* **Ordering** - events can arrive out of order; normalization is order-independent
+  (field-level idempotency / terminal-state precedence).
+* **Zero loss on node termination** - stdout lines not yet on disk are lost.
+* **Unbounded buffering** - buffers have limits; a long outage on an in-memory
+  buffer eventually applies back-pressure and, if logs then rotate away, loses data.
+* **Cross-node durability** - offset checkpoints live in the node's `emptyDir`;
+  losing the node loses its checkpoint (re-read from `beginning` on a fresh pod).
 
 == Production Recommendations
 
-=== Minimal Configuration (Acceptable Loss Risk)
+=== Baseline (shipped defaults)
 
-Default configuration:
+* `kubernetes_logs` with checkpointing in `data_dir`
+* Sinks: in-memory buffer (MODE 1) / disk buffer (MODE 2), unlimited retries,
+  `batch.timeout_secs: 1`
+* **Expected loss:** negligible under normal conditions; bounded by scenario 2
+  (node kill) and scenario 4 (sustained overload).
 
-* `Mem_Buf_Limit: 5MB`
-* `Retry_Limit: 5`
-* `Async: Off`
-* Position tracking enabled
-
-**Expected Loss:** < 0.1% under normal conditions
-
-=== Recommended Configuration (Low Loss Risk)
-
-[source,conf]
-----
-[INPUT]
-    Mem_Buf_Limit     20MB
-    storage.type      filesystem
-    Refresh_Interval  1
-
-[OUTPUT]
-    Retry_Limit       False  # Infinite retries
-    Workers           2
-
-[SERVICE]
-    storage.path             /tail-db/storage
-    storage.max_chunks_up    512
-----
-
-**DaemonSet resources:**
+=== Hardened
 
 [source,yaml]
 ----
-volumeMounts:
-- name: storage-buffer
-  mountPath: /tail-db/storage
+sources:
+  kubernetes_logs:
+    type: kubernetes_logs
+    glob_minimum_cooldown_ms: 5000
+    max_read_bytes: 16384
+    acknowledgements:
+      enabled: true
 
-volumes:
-- name: storage-buffer
-  emptyDir:
-    sizeLimit: 2Gi
-
-resources:
-  requests:
-    memory: "256Mi"
-  limits:
-    memory: "1Gi"
+sinks:
+  postgres_workflow:      # and postgres_task
+    request:
+      retry_max_duration_secs: 120
+    batch:
+      max_events: 500
+      timeout_secs: 1
+    buffer:
+      type: disk
+      max_size: 536870912   # 512 MiB
+      when_full: block
 ----
 
-**Expected Loss:** < 0.01% under normal conditions
+Plus node-level `containerLogMaxSize: 100Mi` / `containerLogMaxFiles: 10`, and
+`terminationGracePeriodSeconds: 60` on workflow pods.
 
-=== High Reliability (Near-Zero Loss)
+=== Near-zero loss
 
-If event loss is unacceptable, consider:
+If any loss is unacceptable, bypass log collection:
 
-**Option 1: Dual Write (App-Level)**
-
-[source,text]
-----
-Quarkus Flow → stdout (for observability)
-            ↓
-            → Storage (direct insert via JDBC/ES Client)
-----
-
-**Pros:** No intermediary, guaranteed delivery
-
-**Cons:** App coupled to data-index, requires connection pool
-
-**Option 2: File-Based with Persistent Volumes**
-
-[source,text]
-----
-Quarkus Flow → /data/events.log (PersistentVolume)
-            ↓
-FluentBit → tail → Storage
-----
-
-**Pros:** Events survive pod/node restarts
-
-**Cons:** Requires PV provisioning, slower I/O
+* **MODE 3 (Kafka)** - Quarkus Flow publishes CloudEvents to Kafka; Data Index
+  consumes them directly with a dead-letter topic. No stdout, no log files.
+* **App-level dual write** - the app writes to storage directly in addition to
+  stdout (couples the app to Data Index).
 
 == Monitoring and Alerting
 
-=== Key Metrics
-
-**1. FluentBit Health**
-
-[source,bash]
-----
-kubectl get pods -n logging -l app=workflows-fluent-bit
-----
-
-**2. Buffer Usage**
+=== Key Metrics (Vector `internal_metrics` on :9598)
 
 [source,promql]
 ----
-fluentbit_input_bytes_total - fluentbit_output_bytes_total
+# Vector up
+up{job="vector"}
+
+# Events in vs out (should track closely)
+rate(vector_component_received_events_total{component_id="kubernetes_logs"}[5m])
+rate(vector_component_sent_events_total{component_id=~"postgres_.*"}[5m])
+
+# Buffer pressure
+vector_buffer_events{component_id=~"postgres_.*",stage="0"}
+vector_component_utilization{component_id=~"postgres_.*"}      # ~1.0 => saturated
+
+# Retries / errors
+rate(vector_component_errors_total[5m])
 ----
 
-**3. Retry Rate**
-
-[source,promql]
-----
-rate(fluentbit_output_retries_total[5m]) > 0
-----
-
-**4. Event Count (PostgreSQL example)**
+=== Data-side sanity check (MODE 1)
 
 [source,sql]
 ----
 SELECT
-  (SELECT COUNT(*) FROM workflow_events_raw) as raw_events,
-  (SELECT COUNT(*) FROM workflow_instances) as workflows,
-  (SELECT COUNT(*) FROM task_events_raw) as task_events,
-  (SELECT COUNT(*) FROM task_instances) as tasks;
-----
-
-**5. Log Rotation Rate**
-
-[source,bash]
-----
-ls -lh /var/log/containers/*_workflows_*.log*
+  (SELECT COUNT(*) FROM workflow_events_raw) AS raw_workflow_events,
+  (SELECT COUNT(*) FROM workflow_instances)  AS workflows,
+  (SELECT COUNT(*) FROM task_events_raw)     AS raw_task_events,
+  (SELECT COUNT(*) FROM task_instances)      AS tasks;
 ----
 
 === Recommended Alerts
 
-**Critical:**
+* **Critical:** Vector pod not Running; `vector_component_errors_total` rising for
+  a sink; buffer at capacity (`vector_buffer_events` flat at max).
+* **Warning:** sink `vector_component_utilization` > 0.8 for 10m; source ingest
+  rate > 1 MB/s sustained; retry rate > 10/min.
 
-* FluentBit pod not running
-* Storage connection failures > 1 min
-* Buffer overflow detected
+== Event Loss Detection (MODE 1)
 
-**Warning:**
-
-* Retry rate > 10/min
-* Buffer usage > 80%
-* Log rotation faster than 1 file/min
-
-== Event Loss Detection
-
-=== Check for Incomplete Workflows
+=== Workflows that started but never finished
 
 [source,sql]
 ----
--- Workflows that started but never completed/faulted
-SELECT id, name, status, start, "end"
+SELECT id, name, status, started_at, ended_at
 FROM workflow_instances
 WHERE status = 'RUNNING'
-  AND start < NOW() - INTERVAL '1 hour';
+  AND started_at < NOW() - INTERVAL '1 hour';
 ----
 
-=== Verify Task Count
+=== Task count mismatch
 
 [source,sql]
 ----
--- Compare task count to expected count for workflow
-SELECT
-  wi.id,
-  wi.name,
-  COUNT(ti.task_execution_id) as task_count
+-- 'simple-set' is expected to have 2 task executions
+SELECT wi.id, wi.name, COUNT(ti.task) AS task_count
 FROM workflow_instances wi
-LEFT JOIN task_instances ti ON wi.id = ti.instance_id
+LEFT JOIN task_instances ti ON ti.instance_id = wi.id
 WHERE wi.name = 'simple-set'
 GROUP BY wi.id, wi.name
-HAVING COUNT(ti.task_execution_id) != 2;  -- Expected: 2 tasks
+HAVING COUNT(ti.task) <> 2;
 ----
 
 == Disaster Recovery
 
-If events are lost:
-
-**1. Check FluentBit logs for errors**
+**1. Check Vector for drops / errors**
 
 [source,bash]
 ----
-kubectl logs -n logging -l app=workflows-fluent-bit --tail=1000 > fluentbit.log
-grep -i "error\|fail\|drop\|overflow" fluentbit.log
+kubectl logs -n logging -l app=vector --tail=2000 | grep -iE 'error|fail|drop|buffer'
+curl -s http://<vector-pod>:9598/metrics | grep -E 'vector_component_(errors|discarded)_total'
 ----
 
-**2. Check if events exist in container logs**
+**2. Are the events still in the container logs?**
 
 [source,bash]
 ----
-kubectl exec -n logging <fluentbit-pod> -- \
-  grep "eventType" /var/log/containers/*_workflows_*.log | tail -100
+kubectl exec -n logging <vector-pod> -- sh -c 'grep eventType /var/log/containers/*_workflows_*.log* | tail -100'
 ----
+(the Vector image is distroless - if `sh` is unavailable, read the files from a
+debug pod or the node.)
 
-**3. Manual replay from container logs** (if still available)
+**3. Manual replay into the raw tables** (MODE 1) - the triggers normalize on INSERT:
 
 [source,bash]
 ----
-# Extract missed events
-kubectl exec -n logging <fluentbit-pod> -- \
-  grep "eventType.*workflow.started" /var/log/containers/pod.log.2 > missed_events.json
+kubectl exec -n logging <vector-pod> -- \
+  sh -c "grep 'io.serverlessworkflow.workflow' /var/log/containers/<pod>.log.2" > missed.jsonl
 
-# Insert manually (PostgreSQL example)
-while IFS= read -r event; do
-  echo "INSERT INTO workflow_events_raw (tag, time, data) VALUES ('workflow.started', NOW(), '${event}');" | \
-    kubectl exec -n postgresql postgresql-0 -- psql -U dataindex -d dataindex
-done < missed_events.json
+while IFS= read -r ev; do
+  kubectl exec -i -n postgresql postgresql-0 -- \
+    psql -U dataindex -d dataindex -c \
+    "INSERT INTO workflow_events_raw (tag, time, data) VALUES ('replay', NOW(), '$(printf '%s' "$ev" | sed "s/'/''/g")'::jsonb);"
+done < missed.jsonl
 ----
 
 == Summary
 
-Event loss is possible in stdout-based log collection, but can be minimized to < 0.01% with proper configuration and monitoring.
-
-For most use cases, the recommended FluentBit configuration provides sufficient reliability with good operational simplicity.
-
-For critical workflows where event loss is unacceptable, consider dual-write or file-based logging with persistent volumes.
+stdout-based collection can lose events at the edges (node kill before disk
+write; sustained overload that outruns log rotation). Vector's defaults - keep
+reading rotated files, unlimited retries, block-on-full - keep this small.
+For workloads where any loss is unacceptable, use MODE 3 (Kafka) instead of log
+collection.

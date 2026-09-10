@@ -8,7 +8,7 @@ Data Index can be deployed with two storage backends depending on your requireme
 All deployments share the same core architecture:
 
 1. **Quarkus Flow applications** emit structured logging events
-2. **FluentBit** collects and forwards events
+2. **Vector** collects container logs and forwards events (xref:deployment/vector-config.adoc[Vector Configuration])
 3. **Storage backend** (PostgreSQL or Elasticsearch) stores and normalizes events
 4. **Data Index service** provides GraphQL API
 
@@ -30,7 +30,7 @@ All deployments share the same core architecture:
 
 [source,text]
 ----
-Quarkus Flow → FluentBit → PostgreSQL (raw tables)
+Quarkus Flow → Vector → PostgreSQL (raw tables)
                                 ↓ (triggers)
                             PostgreSQL (normalized tables)
                                 ↓ (JPA)
@@ -63,7 +63,7 @@ Quarkus Flow → FluentBit → PostgreSQL (raw tables)
 
 [source,text]
 ----
-Quarkus Flow → FluentBit → Elasticsearch (raw indices)
+Quarkus Flow → Vector → Elasticsearch (raw indices)
                                 ↓ (ES Transform)
                             Elasticsearch (normalized indices)
                                 ↓ (ES Client)
@@ -136,11 +136,11 @@ Quarkus Flow → FluentBit → Elasticsearch (raw indices)
 
 * PostgreSQL 13+
 * PersistentVolume (for production)
-* Accessible from Data Index service and FluentBit
+* Accessible from Data Index service and Vector
 
-**FluentBit:**
+**Vector:**
 
-* FluentBit 2.0+
+* Vector 0.46+ (native `postgres` sink)
 * Deployed as DaemonSet
 * Access to `/var/log/containers/` on nodes
 
@@ -164,11 +164,11 @@ Quarkus Flow → FluentBit → Elasticsearch (raw indices)
 * Cluster with at least 3 nodes (production)
 * ES Transform feature enabled
 
-**FluentBit:**
+**Vector:**
 
-* FluentBit 2.0+
+* Vector 0.46+
 * Deployed as DaemonSet
-* Elasticsearch output plugin
+* `elasticsearch` sink
 
 **Data Index service:**
 

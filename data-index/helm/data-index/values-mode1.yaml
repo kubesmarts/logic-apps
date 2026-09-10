@@ -1,12 +1,12 @@
 # ============================================================================
-# MODE 1: PostgreSQL + FluentBit + Triggers
+# MODE 1: PostgreSQL + Vector + Triggers
 # ============================================================================
 #
 # Override values for MODE 1 deployment.
 # Base values are in values.yaml - only specify differences here.
 #
 # Architecture:
-#   Quarkus Flow → stdout → FluentBit → PostgreSQL raw tables →
+#   Quarkus Flow → stdout → Vector (kubernetes_logs) → PostgreSQL raw tables →
 #   PostgreSQL triggers → Normalized tables → GraphQL API
 #
 # ============================================================================
@@ -29,14 +29,15 @@ elasticsearch:
 kafka:
   enabled: false
 
-# FluentBit - already enabled in base values.yaml
+# FluentBit - DEPRECATED (ADR-0001), replaced by Vector. Opt back in for one
+# release with: --set fluentbit.enabled=true --set vector.enabled=false
 fluentbit:
+  enabled: false
+
+# Vector - MODE 1 log collector (postgres sink -> raw tables -> triggers)
+vector:
   enabled: true
   config: mode1-postgresql
-
-# Vector - disabled for MODE 1
-vector:
-  enabled: false
 
 # Data Index Service - PostgreSQL variant
 dataIndex:

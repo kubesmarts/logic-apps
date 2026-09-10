@@ -878,13 +878,13 @@ curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_star
 * **Use authentication**: Configure username/password or API keys
 * **Store credentials in Secrets**: Never hardcode credentials
 * **Network policies**: Restrict traffic between namespaces
-* **RBAC**: Limit FluentBit permissions to necessary APIs
+* **RBAC**: Limit Vector permissions to necessary APIs (namespaces, pods, nodes: get/list/watch)
 
 === High Availability
 
 * **Elasticsearch cluster**: 3+ nodes (multi-AZ deployment)
 * **Data Index replicas**: Run 2+ instances behind load balancer
-* **FluentBit**: DaemonSet runs on every node automatically
+* **Vector**: DaemonSet runs on every node automatically
 * **Persistent volumes**: Use dynamic provisioning with backup
 
 === Monitoring & Alerting

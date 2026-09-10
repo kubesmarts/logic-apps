@@ -13,7 +13,7 @@ The Data Index service is a read-only query service that:
 
 **NOT included in this service:**
 - Workflow execution engine (see Quarkus Flow)
-- Event collection (see FluentBit configurations)
+- Event collection (see Vector configurations in data-index/collectors/)
 
 ## Architecture
 

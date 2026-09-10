@@ -144,7 +144,8 @@ quarkus.smallrye-health.ui.enabled=true
 ====
 *Why epoch-seconds timestamp format?*
 
-FluentBit's PostgreSQL output plugin expects Unix epoch timestamps for `TIMESTAMP WITH TIME ZONE` columns. Using epoch-seconds ensures proper timestamp parsing.
+The MODE 1 PostgreSQL triggers parse the event's `timestamp`, `startTime`, and `endTime`
+fields with `to_timestamp(... ::numeric)`, so they must be Unix epoch seconds.
 ====
 
 == Step 3: Configure Kubernetes Deployment
@@ -158,7 +159,7 @@ Create `src/main/resources/application-kind.properties`:
 # KIND deployment target
 quarkus.kubernetes.deployment-target=kind
 
-# CRITICAL: namespace must be 'workflows' for default FluentBit config
+# CRITICAL: namespace must be 'workflows' for the default Vector config
 quarkus.kubernetes.namespace=workflows
 
 # Container image - use single 'image' property
@@ -243,7 +244,7 @@ quarkus.log.handler.file."FLOW_EVENTS".enabled=false
 ====
 *Why disable the file handler?*
 
-Quarkus Flow automatically creates a file handler for structured logging. In Kubernetes, pods don't have write access to `/var/log/quarkus-flow/`, causing startup errors. Disabling the file handler ensures logs only go to stdout, which FluentBit can capture.
+Quarkus Flow automatically creates a file handler for structured logging. In Kubernetes, pods don't have write access to `/var/log/quarkus-flow/`, causing startup errors. Disabling the file handler ensures logs only go to stdout, which Vector can capture.
 ====
 
 == Step 5: Build and Deploy
@@ -397,7 +398,7 @@ Disable file handler
 |Use `mvn package -Pkind` or `-Dquarkus.profile=kubernetes`
 
 |Wrong namespace
-|Must be `workflows` (or update FluentBit config)
+|Must be `workflows` (or update the Vector `WORKFLOW_NAMESPACE`)
 
 |Missing QUARKUS_PROFILE=prod
 |Add to Kubernetes env vars in properties

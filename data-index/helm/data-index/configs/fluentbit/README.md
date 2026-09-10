@@ -1,8 +1,12 @@
 # FluentBit Configuration Files
 
-These files are **copied from** `data-index/scripts/fluentbit/postgresql/` for MODE 1 deployment.
+> **DEPRECATED (ADR-0001).** MODE 1 now uses Vector
+> (`data-index/helm/data-index/configs/vector/vector-mode1-postgresql.yaml`,
+> `data-index/collectors/vector/mode1-postgresql/vector.yaml`). These files are
+> retained for one release so existing deployments can opt back in with
+> `--set fluentbit.enabled=true --set vector.enabled=false`. Removal target: next release.
 
-**Note:** FluentBit is temporary - MODE 1 will migrate to Vector (see issue #63).
+These files are **copied from** `data-index/scripts/fluentbit/postgresql/` for MODE 1 deployment.
 
 ## Files
 

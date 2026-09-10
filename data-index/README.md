@@ -9,8 +9,8 @@
 Data Index provides a GraphQL API for querying workflow execution data from Quarkus Flow applications.
 
 **Deployment Modes:**
-- **MODE 1** (PostgreSQL + FluentBit + Triggers) - Production ready
-- **MODE 2** (Elasticsearch + FluentBit + Transforms) - Production ready
+- **MODE 1** (PostgreSQL + Vector + Triggers) - Production ready
+- **MODE 2** (Elasticsearch + Vector + Transforms) - Production ready
 - **MODE 3** (Kafka + SmallRye Reactive Messaging) - Production ready
 
 ## Quick Start
@@ -47,7 +47,7 @@ data-index/
 ├── data-index-ingestion/         # MODE 3 Kafka ingestion
 ├── data-index-integration-tests/ # E2E tests
 ├── workflow-test-app/            # Test workflow application
-└── scripts/                      # Deployment scripts (KIND, FluentBit, Kafka)
+└── scripts/                      # Deployment scripts (e2e, Kafka; FluentBit deprecated)
 ```
 
 ## Build

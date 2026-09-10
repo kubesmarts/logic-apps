@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # ============================================================================
-# FluentBit ConfigMap Generator
+# FluentBit ConfigMap Generator  [DEPRECATED - ADR-0001, use Vector]
 # ============================================================================
+#
+# DEPRECATED: MODE 1 now uses Vector (data-index/collectors/vector/mode1-postgresql/).
+# Kept for one release. Removal target: next release.
 #
 # Purpose: Generate Kubernetes ConfigMap YAML from FluentBit configuration files
 #

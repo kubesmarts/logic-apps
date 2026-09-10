@@ -30,7 +30,7 @@ help: ## Show this help message
 	@echo "$(BLUE)╚════════════════════════════════════════════════════════════════╝$(NC)"
 	@echo ""
 	@echo "$(GREEN)Main Commands (what you typically run):$(NC)"
-	@echo "  $(GREEN)make test-mode1$(NC)   Full MODE 1 E2E (PostgreSQL + FluentBit + Triggers)"
+	@echo "  $(GREEN)make test-mode1$(NC)   Full MODE 1 E2E (PostgreSQL + Vector + Triggers)"
 	@echo "  $(GREEN)make test-mode2$(NC)   Full MODE 2 E2E (Elasticsearch + Vector + Transforms)"
 	@echo "  $(GREEN)make test-mode3$(NC)   Full MODE 3 E2E (Kafka + CloudEvents + Processors)"
 	@echo "  $(GREEN)make clean$(NC)        Delete KIND cluster"
@@ -51,7 +51,7 @@ help: ## Show this help message
 	@echo "  make e2e-mode2      Just run tests (MODE 2 must be deployed)"
 	@echo "  make e2e-mode3      Just run tests (MODE 3 must be deployed)"
 	@echo "  make status         Show pod status"
-	@echo "  make logs-*         Show logs (data-index, ingestion, fluentbit, vector)"
+	@echo "  make logs-*         Show logs (data-index, ingestion, vector, fluentbit)"
 	@echo "  make graphql-ui     Open GraphQL UI in browser"
 	@echo ""
 	@echo "$(GREEN)Shortcuts:$(NC)"
@@ -147,11 +147,11 @@ logs-data-index: ## Show Data Index service logs
 logs-ingestion: ## Show Data Index Ingestion logs (MODE 3)
 	@kubectl logs -n default -l app=data-index-ingestion --tail=50
 
-logs-fluentbit: ## Show FluentBit logs (MODE 1)
-	@kubectl logs -n logging -l app=fluentbit --tail=50
-
-logs-vector: ## Show Vector logs (MODE 2)
+logs-vector: ## Show Vector logs (MODE 1 & MODE 2)
 	@kubectl logs -n logging -l app=vector --tail=50
+
+logs-fluentbit: ## Show FluentBit logs (DEPRECATED - ADR-0001)
+	@kubectl logs -n logging -l app=fluentbit --tail=50
 
 port-forward: ## Port forward GraphQL API to localhost:8080
 	@echo "$(BLUE)==> Port forwarding GraphQL API to localhost:8080$(NC)"

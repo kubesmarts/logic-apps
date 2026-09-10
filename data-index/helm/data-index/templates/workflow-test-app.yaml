@@ -57,7 +57,7 @@ spec:
               containerPort: 8080
               protocol: TCP
           env:
-            # Workflow app emits logs to stdout (captured by FluentBit/Vector)
+            # Workflow app emits logs to stdout (captured by Vector)
             - name: QUARKUS_LOG_CONSOLE_ENABLE
               value: "true"
             - name: QUARKUS_LOG_CONSOLE_JSON
@@ -72,8 +72,8 @@ spec:
             - name: QUARKUS_FLOW_STRUCTURED_LOGGING_INCLUDE_TASK_PAYLOADS
               value: "false"
             {{- if eq .Values.mode "mode2" }}
-            # MODE 2: Elasticsearch requires epoch-millis (long) format
-            # FluentBit (MODE 1) can handle any format, but epoch-millis is also fine
+            # MODE 2: Elasticsearch requires epoch-millis (long) format.
+            # MODE 1 triggers parse epoch-seconds (Quarkus Flow default) via to_timestamp().
             - name: QUARKUS_FLOW_STRUCTURED_LOGGING_TIMESTAMP_FORMAT
               value: "epoch-millis"
             {{- end }}

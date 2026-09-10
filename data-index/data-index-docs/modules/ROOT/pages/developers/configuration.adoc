@@ -604,7 +604,7 @@ The timestamp format MUST be `epoch-seconds` for Data Index compatibility.
 
 [WARNING]
 ====
-File handler should be disabled in Kubernetes. FluentBit tails container stdout, not files.
+File handler should be disabled in Kubernetes. Vector tails container stdout, not files.
 ====
 
 === Kubernetes Deployment
@@ -613,17 +613,17 @@ File handler should be disabled in Kubernetes. FluentBit tails container stdout,
 
 [source,properties]
 ----
-# Deploy to workflows namespace (FluentBit requirement)
+# Deploy to workflows namespace (Vector tails this namespace by default)
 quarkus.kubernetes.namespace=workflows
 
-# Or configure FluentBit to watch your namespace
+# Or set vector.workflowNamespace / WORKFLOW_NAMESPACE to your namespace
 ----
 
 **Labels:**
 
 [source,properties]
 ----
-# Add labels for FluentBit filtering
+# Standard Kubernetes labels (Service/Deployment selectors, `kubectl -l` queries)
 quarkus.kubernetes.labels."app"=my-workflow-app
 quarkus.kubernetes.labels."version"=1.0.0
 ----

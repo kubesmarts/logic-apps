@@ -1,0 +1,176 @@
+= Vector Configuration
+:page-aliases:
+
+Data Index uses https://vector.dev[Vector] as the log collector for both
+MODE 1 (PostgreSQL) and MODE 2 (Elasticsearch). Vector tails Quarkus Flow
+container logs, keeps only structured workflow/task events, and writes them to
+the mode's raw storage. Normalization then happens in the storage layer
+(PostgreSQL triggers or Elasticsearch Transforms).
+
+[NOTE]
+====
+Vector replaced FluentBit per ADR-0001 (Red Hat OpenShift alignment — Vector is
+the default collector in OpenShift Logging 4.10+). The FluentBit configuration is
+xref:deployment/fluentbit-config.adoc[deprecated] and kept for one release.
+====
+
+== Sources of truth
+
+[cols="1,3"]
+|===
+|Location |Purpose
+
+|`data-index/collectors/vector/mode1-postgresql/vector.yaml`
+|MODE 1 config — `postgres` sinks. Consumed by logic-operator (Go module) and validated by the `collectors` Maven module.
+
+|`data-index/collectors/vector/mode2-elasticsearch/vector.yaml`
+|MODE 2 config — `elasticsearch` sinks.
+
+|`data-index/helm/data-index/configs/vector/vector-mode1-postgresql.yaml`
+|Byte-identical Helm copy of the MODE 1 config (rendered into a ConfigMap). Drift is guarded by `VectorConfigValidationIT.helmChartConfigsMatchCollectorSources`.
+
+|`data-index/helm/data-index/configs/vector/vector-mode2-elasticsearch.yaml`
+|Byte-identical Helm copy of the MODE 2 config.
+
+|`data-index/collectors/examples/mode{1,2}-*/daemonset.yaml`
+|Reference DaemonSet manifests (RBAC, volume mounts, env). Not embedded by the operator.
+|===
+
+Vector version is pinned in `data-index/collectors/pom.xml` (`<vector.version>`)
+and `data-index/helm/data-index/values.yaml` (`vector.image.tag`); Renovate keeps
+them in sync.
+
+== Pipeline
+
+[source,text]
+----
+Quarkus Flow pod → stdout → /var/log/containers/*.log
+        ↓  kubernetes_logs source (namespace-filtered)
+   parse_json          → drop non-JSON lines, stash event under .flow_event
+   filter_workflow_events → keep eventType starting with "io.serverlessworkflow."
+   route_by_type       → workflow_events | task_events
+        ↓
+   MODE 1: build_{workflow,task}_row → postgres sinks → workflow_events_raw / task_events_raw
+   MODE 2: (enrich @timestamp)       → elasticsearch sinks → workflow-events-* / task-events-*
+----
+
+== MODE 1 (PostgreSQL)
+
+The `postgres` sink requires **Vector >= 0.46.0**. Because it cannot template the
+table name per event, MODE 1 uses one sink per raw table.
+
+[source,yaml]
+----
+transforms:
+  build_workflow_row:
+    type: remap
+    inputs: [route_by_type.workflow_events]
+    source: |
+      . = { "tag": .flow_event.eventType, "time": now(), "data": .flow_event }
+
+sinks:
+  postgres_workflow:
+    type: postgres
+    inputs: [build_workflow_row]
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    table: workflow_events_raw
+    batch: { max_events: 100, timeout_secs: 1 }
+  postgres_task:
+    type: postgres
+    inputs: [build_task_row]
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    table: task_events_raw
+    batch: { max_events: 100, timeout_secs: 1 }
+----
+
+The sinks use the default in-memory buffer (parity with the FluentBit MODE 1
+setup). Do not set `buffer.type: disk` on the `postgres` sink: in Vector 0.54 it
+is not drained until graceful shutdown, stranding low-volume events. The
+`kubernetes_logs` checkpoint plus idempotent triggers cover a restart.
+
+Row shape maps directly to the raw table columns `(tag TEXT, time TIMESTAMPTZ, data JSONB)`:
+
+* `tag` — informational only (indexed); the triggers never read it.
+* `time` — ingestion time; feeds only the `created_at`/`updated_at` audit columns.
+* `data` — the untouched Quarkus Flow event. `normalize_workflow_event()` /
+  `normalize_task_event()` extract `instanceId`, `status`, `startTime`/`endTime`
+  (epoch seconds), `input`/`output`, `error`, and `taskPosition` from this JSONB.
+
+[NOTE]
+====
+A Vector batch is one multi-row `INSERT`. If a row makes a trigger raise an
+uncaught exception the whole batch fails and is retried. The workflow trigger is
+`INSERT ... ON CONFLICT` and the task trigger catches `foreign_key_violation`, so
+this is tolerable. If a poison-pill row appears, set `batch.max_events: 1` for
+strict row-by-row parity with FluentBit.
+====
+
+Required environment (set on the DaemonSet):
+`WORKFLOW_NAMESPACE`, `NODE_NAME`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`,
+`POSTGRES_USER`, `POSTGRES_PASSWORD`, optional `DEBUG_EVENTS`.
+
+== MODE 2 (Elasticsearch)
+
+See xref:deployment/elasticsearch.adoc[Elasticsearch Production]. The `elasticsearch`
+sinks write date-rolled raw indices; ES Transforms aggregate them into
+`workflow-instances` / `task-executions`.
+
+Required environment: `WORKFLOW_NAMESPACE`, `NODE_NAME`, `ELASTICSEARCH_HOST`,
+`ELASTICSEARCH_PORT`, optional `DEBUG_EVENTS`.
+
+== Deployment (Helm)
+
+Vector is deployed by the Data Index Helm chart. It is enabled by default for
+MODE 1 and MODE 2:
+
+[source,bash]
+----
+# MODE 1
+helm upgrade --install data-index data-index/helm/data-index \
+  -f data-index/helm/data-index/values-mode1.yaml
+
+# MODE 2
+helm upgrade --install data-index data-index/helm/data-index \
+  -f data-index/helm/data-index/values-mode2.yaml
+----
+
+`vector.config` (`mode1-postgresql` | `mode2-elasticsearch`) selects
+`configs/vector/vector-<config>.yaml` for the ConfigMap and the DaemonSet's
+storage environment variables.
+
+== Troubleshooting
+
+[source,bash]
+----
+# Vector pods
+kubectl get pods -n logging -l app=vector
+kubectl logs -n logging -l app=vector --tail=100
+
+# Trace every workflow/task event to stdout (high volume - troubleshooting only)
+kubectl set env daemonset/vector -n logging DEBUG_EVENTS=true
+kubectl logs -n logging -l app=vector -f
+kubectl set env daemonset/vector -n logging DEBUG_EVENTS-
+
+# Prometheus metrics (port 9598)
+kubectl port-forward -n logging ds/vector 9598:9598
+curl -s localhost:9598/metrics | grep vector_component_sent_events_total
+----
+
+Common metrics: `vector_component_received_events_total` (from Kubernetes logs),
+`vector_component_sent_events_total` (to the sink), `vector_component_errors_total`,
+`vector_sink_retries_total`.
+
+== Validation
+
+[source,bash]
+----
+# Runs `vector validate` against both configs in a real Vector container,
+# plus the Helm-copy identity check.
+mvn -pl data-index/collectors verify
+----
+
+== See also
+
+* xref:architecture/postgresql-mode.adoc[PostgreSQL Mode Architecture]
+* xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode Architecture]
+* xref:deployment/fluentbit-config.adoc[FluentBit Configuration (deprecated)]

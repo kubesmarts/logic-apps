@@ -4,7 +4,7 @@ Kubernetes manifests for the Kafka broker used in MODE 3 event ingestion.
 
 ## Overview
 
-MODE 3 replaces FluentBit log collection with direct Kafka event streaming:
+MODE 3 replaces Vector log collection with direct Kafka event streaming:
 
 ```
 workflow-test-app (kafka profile)
@@ -18,7 +18,7 @@ PostgreSQL (workflow_instances, task_instances)
 Data Index GraphQL API
 ```
 
-**No FluentBit, no log files, no raw event tables.** Events flow directly from Quarkus Flow
+**No log collector, no log files, no raw event tables.** Events flow directly from Quarkus Flow
 to the ingestion service via Kafka CloudEvents.
 
 ## Directory Structure

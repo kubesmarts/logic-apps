@@ -35,11 +35,20 @@ wait_for() {
 }
 
 # ============================================================================
-# MODE 1: PostgreSQL + FluentBit + Triggers
+# MODE 1: PostgreSQL + Vector + Triggers
 # ============================================================================
 
 verify_mode1_infrastructure() {
     log_info "Verifying MODE 1 infrastructure..."
+
+    # 0. Vector log collector running
+    log_info "Checking Vector DaemonSet..."
+    if kubectl get pods -n logging -l app=vector -o jsonpath='{.items[*].status.phase}' 2>/dev/null | grep -q Running; then
+        log_success "Vector is running"
+    else
+        log_error "Vector pod is not Running"
+        return 1
+    fi
 
     # 1. Check Data Index GraphQL endpoint
     log_info "Checking Data Index GraphQL endpoint..."

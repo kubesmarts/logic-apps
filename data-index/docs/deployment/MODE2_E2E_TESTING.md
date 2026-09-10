@@ -1,7 +1,15 @@
 # MODE 2 (Elasticsearch) End-to-End Testing Guide
 
-**Status:** Production Ready  
+**Status:** Superseded  
 **Last Updated:** 2026-04-29
+
+---
+
+> **OUT OF DATE.** This guide predates the Helm migration (PR #65) and the
+> FluentBit→Vector migration (PR #62, ADR-0001). The manual `scripts/fluentbit/elasticsearch/`
+> steps below no longer exist. Use the one-command Helm flow instead:
+> `bash data-index/scripts/e2e/full-test-mode2.sh`. For the collector, see
+> `data-index-docs/.../deployment/vector-config.adoc`.
 
 ---
 

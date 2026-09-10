@@ -1,13 +1,14 @@
 {{- if .Values.fluentbit.enabled }}
 {{/*
-FluentBit ConfigMap - MODE 1
+FluentBit ConfigMap - MODE 1 (DEPRECATED)
+
+DEPRECATED per ADR-0001: MODE 1 now uses Vector (templates/vector-configmap.yaml,
+configs/vector/vector-mode1-postgresql.yaml). Kept for one release; removal target: next release.
 
 Contains FluentBit configuration files:
 - fluent-bit.conf: Main configuration
 - parsers.conf: CRI parser for Kubernetes logs
 - flatten-event.lua: Lua script to route events by type
-
-NOTE: FluentBit is temporary for MODE 1. Will migrate to Vector (issue #63).
 */}}
 
 apiVersion: v1

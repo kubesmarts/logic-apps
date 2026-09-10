@@ -280,10 +280,10 @@ Common causes:
 
 [cols="1,1,1,1"]
 |===
-| Feature | MODE 1 (FluentBit + Triggers) | MODE 2 (FluentBit + ES) | MODE 3 (Kafka)
+| Feature | MODE 1 (Vector + Triggers) | MODE 2 (Vector + ES) | MODE 3 (Kafka)
 
-| Event Source | Log files | Log files | Kafka topics
-| Ingestion | FluentBit DaemonSet | FluentBit DaemonSet | SmallRye Reactive Messaging
+| Event Source | Container logs | Container logs | Kafka topics
+| Ingestion | Vector DaemonSet | Vector DaemonSet | SmallRye Reactive Messaging
 | Normalization | PostgreSQL triggers | ES transforms | Java processors (JDBC)
 | Raw Storage | `workflow_events_raw` | `workflow-events` index | None (direct to normalized)
 | Performance | ~10ms latency | ~1s latency | ~100ms latency
