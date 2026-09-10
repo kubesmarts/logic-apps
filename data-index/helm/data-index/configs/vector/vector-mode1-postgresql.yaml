@@ -28,15 +28,7 @@
 # In production, DaemonSet mounts an emptyDir at this path
 data_dir: /tmp/vector
 
-# ============================================================================
-# SOURCES: Kubernetes Logs
-# ============================================================================
-#
-# Vector's kubernetes_logs source automatically:
-# - Tails /var/log/containers/*.log
-# - Parses container runtime format (CRI/Docker)
-# - Enriches with Kubernetes metadata (pod, namespace, labels)
-#
+# https://vector.dev/docs/reference/configuration/sources/kubernetes_logs
 sources:
   # Kubernetes container logs
   kubernetes_logs:
@@ -55,10 +47,6 @@ sources:
   # Internal metrics for Prometheus export
   internal_metrics:
     type: internal_metrics
-
-# ============================================================================
-# TRANSFORMS: Parse and Route Events
-# ============================================================================
 
 transforms:
   # Parse the JSON log line into a dedicated field.
@@ -170,7 +158,7 @@ transforms:
 # postgres sink does not drain a small disk buffer until graceful shutdown,
 # which strands low-volume events. The kubernetes_logs source checkpoints, so a
 # Vector restart re-reads recent lines and the idempotent triggers dedupe them.
-
+# https://vector.dev/docs/reference/configuration/sinks/postgres/
 sinks:
   # Workflow events -> workflow_events_raw
   postgres_workflow:

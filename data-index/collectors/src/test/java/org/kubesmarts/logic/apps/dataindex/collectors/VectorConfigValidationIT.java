@@ -108,7 +108,8 @@ class VectorConfigValidationIT {
 
     /**
      * The Helm chart ships copies of these configs (rendered into a ConfigMap via
-     * {@code .Files.Get}). There is no build-time sync, so this guards against drift.
+     * {@code .Files.Get}). The copies must stay byte-identical to the collector
+     * sources; {@code make sync-vector-configs} copies them, this test guards it.
      */
     @Test
     void helmChartConfigsMatchCollectorSources() throws Exception {
@@ -126,7 +127,8 @@ class VectorConfigValidationIT {
 
         assertThat(helmCopy).as("Helm chart should ship a copy at " + helmCopy).exists();
         assertThat(Files.readString(helmCopy))
-                .as("Helm copy %s must be byte-identical to collector source %s", helmCopy, source)
+                .as("%s drifted from collector source %s - run `make sync-vector-configs` (from data-index/) and commit",
+                        helmFileName, collectorRelativePath)
                 .isEqualTo(Files.readString(source));
     }
 

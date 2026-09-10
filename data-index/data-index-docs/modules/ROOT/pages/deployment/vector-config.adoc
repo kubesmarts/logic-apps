@@ -26,11 +26,11 @@ xref:deployment/fluentbit-config.adoc[deprecated] and kept for one release.
 |`data-index/collectors/vector/mode2-elasticsearch/vector.yaml`
 |MODE 2 config — `elasticsearch` sinks.
 
-|`data-index/helm/data-index/configs/vector/vector-mode1-postgresql.yaml`
-|Byte-identical Helm copy of the MODE 1 config (rendered into a ConfigMap). Drift is guarded by `VectorConfigValidationIT.helmChartConfigsMatchCollectorSources`.
-
-|`data-index/helm/data-index/configs/vector/vector-mode2-elasticsearch.yaml`
-|Byte-identical Helm copy of the MODE 2 config.
+|`data-index/helm/data-index/configs/vector/vector-mode{1,2}-*.yaml`
+|Byte-identical Helm copies of the collector configs (rendered into a ConfigMap).
+After editing a collector config, run `make sync-vector-configs` (from `data-index/`)
+and commit both. `make check-vector-configs` and
+`VectorConfigValidationIT.helmChartConfigsMatchCollectorSources` fail on drift.
 
 |`data-index/collectors/examples/mode{1,2}-*/daemonset.yaml`
 |Reference DaemonSet manifests (RBAC, volume mounts, env). Not embedded by the operator.

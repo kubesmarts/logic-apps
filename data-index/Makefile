@@ -12,16 +12,22 @@
 #
 # ============================================================================
 
-.PHONY: help clean setup test-mode1 test-mode2 test-mode3 deploy-mode1 deploy-mode2 deploy-mode3
+.PHONY: help clean setup test-mode1 test-mode2 test-mode3 deploy-mode1 deploy-mode2 deploy-mode3 sync-vector-configs check-vector-configs
 
 # Configuration
 CLUSTER_NAME := data-index-test
 HELM_CHART := helm/data-index
 KIND_CONFIG := $(HELM_CHART)/kind-cluster.yaml
 
+# Vector config: collector source (source of truth) -> byte-identical Helm copy
+VECTOR_MODES := mode1-postgresql mode2-elasticsearch
+COLLECTOR_VECTOR_DIR := collectors/vector
+HELM_VECTOR_DIR := $(HELM_CHART)/configs/vector
+
 # Colors
 BLUE := \033[0;34m
 GREEN := \033[0;32m
+RED := \033[0;31m
 NC := \033[0m
 
 help: ## Show this help message
@@ -53,6 +59,8 @@ help: ## Show this help message
 	@echo "  make status         Show pod status"
 	@echo "  make logs-*         Show logs (data-index, ingestion, vector, fluentbit)"
 	@echo "  make graphql-ui     Open GraphQL UI in browser"
+	@echo "  make sync-vector-configs   Copy collector Vector configs -> Helm chart"
+	@echo "  make check-vector-configs  Verify the Helm copies are in sync (CI does this too)"
 	@echo ""
 	@echo "$(GREEN)Shortcuts:$(NC)"
 	@echo "  make m1             Alias for test-mode1"
@@ -64,6 +72,21 @@ clean: ## Delete KIND cluster
 	@echo "$(BLUE)==> Deleting KIND cluster$(NC)"
 	@kind delete cluster --name $(CLUSTER_NAME) 2>/dev/null || echo "No cluster to delete"
 	@echo "$(GREEN)✓ Cluster deleted$(NC)"
+
+sync-vector-configs: ## Copy collector Vector configs into the Helm chart (run after editing collectors/vector/*)
+	@for m in $(VECTOR_MODES); do \
+		cp "$(COLLECTOR_VECTOR_DIR)/$$m/vector.yaml" "$(HELM_VECTOR_DIR)/vector-$$m.yaml"; \
+		echo "$(GREEN)✓$(NC) $(HELM_VECTOR_DIR)/vector-$$m.yaml"; \
+	done
+
+check-vector-configs: ## Fail if any Helm Vector config drifted from its collector source
+	@rc=0; for m in $(VECTOR_MODES); do \
+		if ! diff -q "$(COLLECTOR_VECTOR_DIR)/$$m/vector.yaml" "$(HELM_VECTOR_DIR)/vector-$$m.yaml" >/dev/null; then \
+			echo "$(RED)✗ vector-$$m.yaml out of sync$(NC) - run 'make sync-vector-configs'"; rc=1; \
+		fi; \
+	done; \
+	if [ $$rc -eq 0 ]; then echo "$(GREEN)✓ Vector configs in sync$(NC)"; fi; \
+	exit $$rc
 
 setup: ## Create cluster and build/load ALL images
 	@echo "$(BLUE)==> Setting up test environment (all images)$(NC)"
