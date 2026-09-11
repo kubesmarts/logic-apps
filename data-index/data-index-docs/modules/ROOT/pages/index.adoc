@@ -81,7 +81,7 @@ Data Index is a *read-only* query service. It does **NOT**:
 **Core:**
 
 * Kubernetes cluster (or KIND for local development)
-* Vector 0.46+ (deployed by the Helm chart)
+* Vector 0.54+ (deployed by the Helm chart)
 * Quarkus Flow applications with https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html[structured logging^] enabled
 
 **Storage backend (choose one):**

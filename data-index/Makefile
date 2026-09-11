@@ -59,8 +59,7 @@ help: ## Show this help message
 	@echo "  make status         Show pod status"
 	@echo "  make logs-*         Show logs (data-index, ingestion, vector, fluentbit)"
 	@echo "  make graphql-ui     Open GraphQL UI in browser"
-	@echo "  make sync-vector-configs   Copy collector Vector configs -> Helm chart"
-	@echo "  make check-vector-configs  Verify the Helm copies are in sync (CI does this too)"
+	@echo "  make check-vector-configs  Verify the Helm Vector configs are symlinks to collectors/vector/*"
 	@echo ""
 	@echo "$(GREEN)Shortcuts:$(NC)"
 	@echo "  make m1             Alias for test-mode1"
@@ -73,19 +72,16 @@ clean: ## Delete KIND cluster
 	@kind delete cluster --name $(CLUSTER_NAME) 2>/dev/null || echo "No cluster to delete"
 	@echo "$(GREEN)✓ Cluster deleted$(NC)"
 
-sync-vector-configs: ## Copy collector Vector configs into the Helm chart (run after editing collectors/vector/*)
-	@for m in $(VECTOR_MODES); do \
-		cp "$(COLLECTOR_VECTOR_DIR)/$$m/vector.yaml" "$(HELM_VECTOR_DIR)/vector-$$m.yaml"; \
-		echo "$(GREEN)✓$(NC) $(HELM_VECTOR_DIR)/vector-$$m.yaml"; \
-	done
-
-check-vector-configs: ## Fail if any Helm Vector config drifted from its collector source
+check-vector-configs: ## Fail if any Helm Vector config isn't a symlink to its collector source
 	@rc=0; for m in $(VECTOR_MODES); do \
-		if ! diff -q "$(COLLECTOR_VECTOR_DIR)/$$m/vector.yaml" "$(HELM_VECTOR_DIR)/vector-$$m.yaml" >/dev/null; then \
-			echo "$(RED)✗ vector-$$m.yaml out of sync$(NC) - run 'make sync-vector-configs'"; rc=1; \
+		f="$(HELM_VECTOR_DIR)/vector-$$m.yaml"; \
+		if [ ! -L "$$f" ]; then \
+			echo "$(RED)✗ $$f is not a symlink$(NC)"; rc=1; \
+		elif [ ! -e "$$f" ]; then \
+			echo "$(RED)✗ $$f is a broken symlink$(NC)"; rc=1; \
 		fi; \
 	done; \
-	if [ $$rc -eq 0 ]; then echo "$(GREEN)✓ Vector configs in sync$(NC)"; fi; \
+	if [ $$rc -eq 0 ]; then echo "$(GREEN)✓ Vector configs are symlinked to collectors/vector$(NC)"; fi; \
 	exit $$rc
 
 setup: ## Create cluster and build/load ALL images
@@ -172,9 +168,6 @@ logs-ingestion: ## Show Data Index Ingestion logs (MODE 3)
 
 logs-vector: ## Show Vector logs (MODE 1 & MODE 2)
 	@kubectl logs -n logging -l app=vector --tail=50
-
-logs-fluentbit: ## Show FluentBit logs (DEPRECATED - ADR-0001)
-	@kubectl logs -n logging -l app=fluentbit --tail=50
 
 port-forward: ## Port forward GraphQL API to localhost:8080
 	@echo "$(BLUE)==> Port forwarding GraphQL API to localhost:8080$(NC)"

@@ -113,8 +113,6 @@ elasticsearch:
   enabled: false
 kafka:
   enabled: false
-fluentbit:
-  enabled: false  # DEPRECATED (ADR-0001)
 vector:
   enabled: true
 dataIndexIngestion:
@@ -203,13 +201,11 @@ helm/data-index/
 │   ├── postgresql.yaml     # PostgreSQL StatefulSet (MODE 1, 3)
 │   ├── elasticsearch.yaml  # Elasticsearch StatefulSet (MODE 2)
 │   ├── kafka.yaml          # Kafka StatefulSet (MODE 3)
-│   ├── fluentbit-*.yaml    # FluentBit DaemonSet (DEPRECATED, ADR-0001)
 │   ├── vector-*.yaml       # Vector DaemonSet (MODE 1 & MODE 2)
 │   ├── data-index-service.yaml       # GraphQL API
 │   ├── data-index-ingestion.yaml     # Kafka Ingestion (MODE 3)
 │   └── workflow-test-app.yaml        # Test application
 └── configs/
-    ├── fluentbit/          # FluentBit configurations (DEPRECATED)
     └── vector/             # Vector configurations (vector-mode{1,2}-*.yaml)
 ```
 

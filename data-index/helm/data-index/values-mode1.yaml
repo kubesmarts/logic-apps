@@ -29,11 +29,6 @@ elasticsearch:
 kafka:
   enabled: false
 
-# FluentBit - DEPRECATED (ADR-0001), replaced by Vector. Opt back in for one
-# release with: --set fluentbit.enabled=true --set vector.enabled=false
-fluentbit:
-  enabled: false
-
 # Vector - MODE 1 log collector (postgres sink -> raw tables -> triggers)
 vector:
   enabled: true

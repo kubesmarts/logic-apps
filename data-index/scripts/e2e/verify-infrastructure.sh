@@ -43,10 +43,10 @@ verify_mode1_infrastructure() {
 
     # 0. Vector log collector running
     log_info "Checking Vector DaemonSet..."
-    if kubectl get pods -n logging -l app=vector -o jsonpath='{.items[*].status.phase}' 2>/dev/null | grep -q Running; then
+    if kubectl rollout status daemonset/vector -n logging --timeout=60s > /dev/null 2>&1; then
         log_success "Vector is running"
     else
-        log_error "Vector pod is not Running"
+        log_error "Vector DaemonSet is not fully rolled out (missing/pending/unready pods on some node)"
         return 1
     fi
 

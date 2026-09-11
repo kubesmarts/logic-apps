@@ -28,10 +28,6 @@ elasticsearch:
 kafka:
   enabled: false
 
-# FluentBit - disabled for MODE 2
-fluentbit:
-  enabled: false
-
 # Vector - MODE 2 log collector (elasticsearch sink -> raw indices -> transforms)
 vector:
   enabled: true

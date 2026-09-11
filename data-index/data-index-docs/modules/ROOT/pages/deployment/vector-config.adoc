@@ -7,13 +7,6 @@ container logs, keeps only structured workflow/task events, and writes them to
 the mode's raw storage. Normalization then happens in the storage layer
 (PostgreSQL triggers or Elasticsearch Transforms).
 
-[NOTE]
-====
-Vector replaced FluentBit per ADR-0001 (Red Hat OpenShift alignment — Vector is
-the default collector in OpenShift Logging 4.10+). The FluentBit configuration is
-xref:deployment/fluentbit-config.adoc[deprecated] and kept for one release.
-====
-
 == Sources of truth
 
 [cols="1,3"]
@@ -27,10 +20,11 @@ xref:deployment/fluentbit-config.adoc[deprecated] and kept for one release.
 |MODE 2 config — `elasticsearch` sinks.
 
 |`data-index/helm/data-index/configs/vector/vector-mode{1,2}-*.yaml`
-|Byte-identical Helm copies of the collector configs (rendered into a ConfigMap).
-After editing a collector config, run `make sync-vector-configs` (from `data-index/`)
-and commit both. `make check-vector-configs` and
-`VectorConfigValidationIT.helmChartConfigsMatchCollectorSources` fail on drift.
+|Symlinks to the collector configs (rendered into a ConfigMap via `.Files.Get`, which
+Helm resolves transparently). Editing a collector config is automatically reflected
+here - nothing to copy or sync. `make check-vector-configs` and
+`VectorConfigValidationIT.helmChartConfigsSymlinkToCollectorSources` guard that the
+symlinks exist and still point at the right source.
 
 |`data-index/collectors/examples/mode{1,2}-*/daemonset.yaml`
 |Reference DaemonSet manifests (RBAC, volume mounts, env). Not embedded by the operator.

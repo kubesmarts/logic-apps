@@ -8,7 +8,6 @@
 ** xref:deployment/elasticsearch.adoc[Elasticsearch Production]
 ** xref:deployment/kafka.adoc[Kafka Production]
 ** xref:deployment/vector-config.adoc[Vector Configuration]
-** xref:deployment/fluentbit-config.adoc[FluentBit Configuration (deprecated)]
 
 * Operations
 ** xref:operations/event-reliability.adoc[Event Reliability]

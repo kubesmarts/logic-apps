@@ -31,10 +31,6 @@ kafka:
   service:
     type: NodePort
 
-# FluentBit - disabled for MODE 3
-fluentbit:
-  enabled: false
-
 # Vector - disabled for MODE 3
 vector:
   enabled: false

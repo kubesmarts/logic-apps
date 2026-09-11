@@ -5,14 +5,15 @@ Deploy Data Index to a local Kubernetes cluster using KIND (Kubernetes in Docker
 
 [IMPORTANT]
 ====
-Deployment is now **Helm-based**. The fastest path is the one-command E2E script,
-which creates the cluster, builds images, installs the chart, and runs the tests:
+Deployment is now **Helm-based**. The fastest path is the one-command Makefile
+targets, which create the cluster, build images, install the chart, and run the
+tests:
 
 [source,bash]
 ----
-bash data-index/scripts/e2e/full-test-mode1.sh   # PostgreSQL + Vector + triggers
-bash data-index/scripts/e2e/full-test-mode2.sh   # Elasticsearch + Vector + transforms
-bash data-index/scripts/e2e/full-test-mode3.sh   # Kafka ingestion
+make m1   # PostgreSQL + Vector + triggers
+make m2   # Elasticsearch + Vector + transforms
+make m3   # Kafka ingestion
 ----
 
 Log collection uses **Vector** for MODE 1 and MODE 2 (see
@@ -517,8 +518,8 @@ kubectl get pods -n workflows
 
 [source,bash]
 ----
-# KIND uses containerd (CRI runtime) - verify parser is 'cri', not 'docker'
-kubectl get configmap -n logging vector-config -o yaml | grep Parser
+# Verify the namespace filter Vector's kubernetes_logs source applies
+kubectl get configmap -n logging vector-config -o yaml | grep -A1 extra_field_selector
 ----
 
 See xref:developers/troubleshooting.adoc[Troubleshooting Guide] for more issues.

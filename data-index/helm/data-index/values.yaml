@@ -40,6 +40,10 @@ postgresql:
     tag: "15"
     pullPolicy: IfNotPresent
 
+  # Hostname of the PostgreSQL service. Override to point at an external/managed
+  # database (e.g. a release-specific host) instead of the in-cluster StatefulSet.
+  host: postgresql.postgresql.svc.cluster.local
+
   # Database configuration
   database: dataindex
   username: dataindex
@@ -153,31 +157,6 @@ kafka:
 # ============================================================================
 # Log Collectors
 # ============================================================================
-
-# FluentBit - DEPRECATED (ADR-0001). MODE 1 now uses Vector; see the `vector` block
-# below. These values are kept for one release so a user can opt back in with
-# `--set fluentbit.enabled=true --set vector.enabled=false`. Removal target: next release.
-fluentbit:
-  enabled: false
-  image:
-    repository: fluent/fluent-bit
-    tag: "3.1.4"
-    pullPolicy: IfNotPresent
-
-  # Configuration mode (mode1-postgresql)
-  config: mode1-postgresql
-
-  # Namespace to tail logs from
-  workflowNamespace: workflows
-
-  # Resource limits
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
 
 # Vector - log collector for MODE 1 (PostgreSQL) and MODE 2 (Elasticsearch).
 # The base defaults target MODE 1 (mode: mode1); values-mode2.yaml overrides `config`.
