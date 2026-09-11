@@ -22,9 +22,8 @@ the mode's raw storage. Normalization then happens in the storage layer
 |`data-index/helm/data-index/configs/vector/vector-mode{1,2}-*.yaml`
 |Symlinks to the collector configs (rendered into a ConfigMap via `.Files.Get`, which
 Helm resolves transparently). Editing a collector config is automatically reflected
-here - nothing to copy or sync. `make check-vector-configs` and
-`VectorConfigValidationIT.helmChartConfigsSymlinkToCollectorSources` guard that the
-symlinks exist and still point at the right source.
+here - nothing to copy or sync. `make check-vector-configs` guards that the symlinks
+exist and still point at the right source.
 
 |`data-index/collectors/examples/mode{1,2}-*/daemonset.yaml`
 |Reference DaemonSet manifests (RBAC, volume mounts, env). Not embedded by the operator.

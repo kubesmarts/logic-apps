@@ -38,9 +38,6 @@ class VectorConfigValidationIT {
 
     private static final String COLLECTORS_BASE_PATH = "../vector";
 
-    /** Helm chart references the collector configs via symlinks (Files.Get in the ConfigMap template). */
-    private static final Path HELM_VECTOR_CONFIG_DIR = Paths.get("../helm/data-index/configs/vector");
-
     // Vector image from Maven property (passed via system property)
     // See pom.xml: <vector.image>timberio/vector:${vector.version}-distroless-libc</vector.image>
     private static final String VECTOR_IMAGE = System.getProperty("vector.image");
@@ -108,39 +105,6 @@ class VectorConfigValidationIT {
 
         // Validate with actual Vector container (uses real Vector validation!)
         validateWithVectorContainer(configPath, MODE2_ENV);
-    }
-
-    /**
-     * The Helm chart references these configs via symlinks (rendered into a ConfigMap
-     * via {@code .Files.Get}, which Helm resolves transparently). Drift is therefore
-     * structurally impossible; this test just guards that the symlink itself hasn't
-     * been replaced by a regular file (e.g. an editor materializing it on save) and
-     * still resolves to the correct collector source.
-     */
-    @Test
-    void helmChartConfigsSymlinkToCollectorSources() throws Exception {
-        assertHelmConfigIsSymlinkTo("mode1-postgresql/vector.yaml", "vector-mode1-postgresql.yaml");
-        assertHelmConfigIsSymlinkTo("mode2-elasticsearch/vector.yaml", "vector-mode2-elasticsearch.yaml");
-    }
-
-    private void assertHelmConfigIsSymlinkTo(String collectorRelativePath, String helmFileName) throws Exception {
-        assumeThat(HELM_VECTOR_CONFIG_DIR)
-                .as("Helm chart config dir should be reachable from the module root")
-                .exists();
-
-        // Intentionally not getConfigPath(): that prefers the Maven-copied
-        // target/test-classes resource used for Testcontainers mounting, but the
-        // symlink must point at the actual collectors/vector/* source.
-        Path source = Paths.get(COLLECTORS_BASE_PATH, collectorRelativePath).normalize();
-        assumeThat(source).as("Config file should exist: " + source).exists();
-        Path helmCopy = HELM_VECTOR_CONFIG_DIR.resolve(helmFileName);
-
-        assertThat(Files.isSymbolicLink(helmCopy))
-                .as("%s should be a symlink into collectors/vector, not a copy", helmCopy)
-                .isTrue();
-        assertThat(helmCopy.toRealPath())
-                .as("%s should resolve to the collector source %s", helmCopy, source)
-                .isEqualTo(source.toRealPath());
     }
 
     /**
