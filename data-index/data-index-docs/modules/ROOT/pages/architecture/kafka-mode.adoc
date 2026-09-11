@@ -281,7 +281,7 @@ Replay failed events:
 | Aspect | MODE 1 (PostgreSQL) | MODE 2 (Elasticsearch) | MODE 3 (Kafka)
 
 | Event source | Log files | Log files | Kafka topics
-| Ingestion layer | FluentBit | FluentBit | SmallRye Messaging
+| Ingestion layer | Vector | Vector | SmallRye Messaging
 | Normalization | SQL triggers | ES transforms | Java JDBC
 | Raw storage | PostgreSQL tables | ES indices | None (direct)
 | Normalized storage | PostgreSQL | Elasticsearch | PostgreSQL

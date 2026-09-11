@@ -9,8 +9,8 @@ Data Index with PostgreSQL storage uses trigger-based normalization for real-tim
 ----
 Quarkus Flow App
     ↓ (structured logging → stdout)
-FluentBit DaemonSet
-    ↓ (tail /var/log/containers/)
+Vector DaemonSet
+    ↓ (kubernetes_logs source → postgres sink)
 PostgreSQL Raw Tables (JSONB)
     ↓ (BEFORE INSERT triggers)
 PostgreSQL Normalized Tables
@@ -22,8 +22,8 @@ GraphQL API
 
 1. **Quarkus Flow emits events** - JSON to stdout
 2. **Kubernetes captures logs** - `/var/log/containers/POD_NAME.log`
-3. **FluentBit collects** - Tails log files, filters JSON events
-4. **INSERT to raw tables** - `workflow_events_raw`, `task_events_raw` (JSONB columns)
+3. **Vector collects** - `kubernetes_logs` source tails container logs, filters events by `eventType`, routes workflow vs task
+4. **INSERT to raw tables** - `postgres` sinks write `workflow_events_raw`, `task_events_raw` (JSONB `data` column)
 5. **Triggers fire immediately** - Extract fields from JSONB
 6. **UPSERT to normalized tables** - `workflow_instances`, `task_instances`
 7. **GraphQL queries** - Via JPA entities
@@ -58,7 +58,7 @@ GraphQL API
 
 Events are normalized in real-time as they arrive:
 
-1. **FluentBit writes raw events** - Complete events stored as JSON for debugging
+1. **Vector writes raw events** - Complete events stored as JSON for debugging
 2. **Events normalized automatically** - Fields extracted and stored in optimized tables
 3. **Immediate availability** - Data ready for querying in less than 1ms
 
@@ -115,27 +115,31 @@ quarkus.flow.structured-logging.enabled=true
 quarkus.flow.structured-logging.timestamp-format=epoch-seconds
 ----
 
-=== FluentBit
+=== Vector
 
-[source,conf]
+Source of truth: `data-index/collectors/vector/mode1-postgresql/vector.yaml`.
+
+[source,yaml]
 ----
-[INPUT]
-    Name              tail
-    Path              /var/log/containers/*_workflows_*.log
-    Parser            docker
+sources:
+  kubernetes_logs:
+    type: kubernetes_logs
+    extra_field_selector: "metadata.namespace=${WORKFLOW_NAMESPACE}"
 
-[FILTER]
-    Name              grep
-    Match             *
-    Regex             log {".*eventType.*}
-
-[OUTPUT]
-    Name              pgsql
-    Match             *
-    Host              postgresql
-    Database          dataindex
-    Table             workflow_events_raw
+sinks:
+  postgres_workflow:
+    type: postgres
+    inputs: [build_workflow_row]
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    table: workflow_events_raw
+  postgres_task:
+    type: postgres
+    inputs: [build_task_row]
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    table: task_events_raw
 ----
+
+See xref:deployment/vector-config.adoc[Vector Configuration] for the full pipeline.
 
 === Data Index Service
 

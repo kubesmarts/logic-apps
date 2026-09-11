@@ -3,13 +3,17 @@ package org.kubesmarts.logic.apps.dataindex.collectors;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.Map;
 
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.containers.startupcheck.StartupCheckStrategy;
+import org.testcontainers.utility.DockerStatus;
 import org.testcontainers.utility.MountableFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +42,21 @@ class VectorConfigValidationIT {
     // See pom.xml: <vector.image>timberio/vector:${vector.version}-distroless-libc</vector.image>
     private static final String VECTOR_IMAGE = System.getProperty("vector.image");
 
+    private static final Map<String, String> MODE1_ENV = Map.of(
+            "NODE_NAME", "test-node",
+            "WORKFLOW_NAMESPACE", "workflows",
+            "POSTGRES_HOST", "postgresql.test.svc",
+            "POSTGRES_PORT", "5432",
+            "POSTGRES_DB", "dataindex",
+            "POSTGRES_USER", "dataindex",
+            "POSTGRES_PASSWORD", "test-only");
+
+    private static final Map<String, String> MODE2_ENV = Map.of(
+            "NODE_NAME", "test-node",
+            "WORKFLOW_NAMESPACE", "workflows",
+            "ELASTICSEARCH_HOST", "elasticsearch.test.svc",
+            "ELASTICSEARCH_PORT", "9200");
+
     static {
         if (VECTOR_IMAGE == null) {
             throw new IllegalStateException(
@@ -45,6 +64,26 @@ class VectorConfigValidationIT {
                 "Set it in pom.xml <systemPropertyVariables> or via -Dvector.image=timberio/vector:x.y.z"
             );
         }
+    }
+
+    @Test
+    void mode1PostgreSQLConfigIsValid() throws Exception {
+        Path configPath = getConfigPath("mode1-postgresql/vector.yaml");
+
+        String configContent = Files.readString(configPath);
+        assertThat(configContent)
+                .as("Config should define the kubernetes_logs source")
+                .contains("sources:")
+                .contains("kubernetes_logs:");
+
+        assertThat(configContent)
+                .as("Config should define one postgres sink per raw table")
+                .contains("postgres_workflow:")
+                .contains("postgres_task:")
+                .contains("table: workflow_events_raw")
+                .contains("table: task_events_raw");
+
+        validateWithVectorContainer(configPath, MODE1_ENV);
     }
 
     @Test
@@ -65,15 +104,7 @@ class VectorConfigValidationIT {
                 .contains("elasticsearch_task:");
 
         // Validate with actual Vector container (uses real Vector validation!)
-        validateWithVectorContainer(configPath);
-    }
-
-    @Test
-    @EnabledIfSystemProperty(named = "test.mode1", matches = "true")
-    void mode1PostgreSQLConfigIsValid() throws Exception {
-        // TODO: Implement when MODE 1 Vector config is ready
-        // Path configPath = getConfigPath("mode1-postgresql/vector.yaml");
-        // assertThat(configPath).exists();
+        validateWithVectorContainer(configPath, MODE2_ENV);
     }
 
     /**
@@ -82,25 +113,33 @@ class VectorConfigValidationIT {
      * <p>Runs Vector's validate command in a container:
      * <ul>
      *   <li>Mounts config file to /etc/vector/vector.yaml</li>
-     *   <li>Provides required environment variables</li>
+     *   <li>Provides the environment variables the config interpolates</li>
      *   <li>Accepts exit codes 0 (success) or 78 (warnings)</li>
      *   <li>Verifies no "Failed to load" errors in output</li>
      * </ul>
      *
+     * <p>{@code validate} is a one-shot command - the container prints its report
+     * and exits (often in well under a second). A log/port-based wait strategy
+     * races the container's exit and intermittently throws
+     * "Container did not start correctly" on busier CI runners.
+     * {@code OneShotStartupCheckStrategy} treats any non-zero exit as a startup
+     * failure, but our accepted outcomes are exit 0 (success) *or* 78 (loaded with
+     * warnings) - so {@link WaitForContainerExitStrategy} just waits for the
+     * container to stop (any exit code), and we assert on the actual exit code
+     * ourselves below.
+     *
      * @param configPath path to Vector YAML config file
+     * @param env        environment variables the config references
      */
-    private void validateWithVectorContainer(Path configPath) throws Exception {
+    private void validateWithVectorContainer(Path configPath, Map<String, String> env) throws Exception {
         try (GenericContainer<?> vector = new GenericContainer<>(VECTOR_IMAGE)
                 .withCopyFileToContainer(
                         MountableFile.forHostPath(configPath),
                         "/etc/vector/vector.yaml"
                 )
-                .withEnv("NODE_NAME", "test-node")
-                .withEnv("WORKFLOW_NAMESPACE", "workflows")
-                .withEnv("ELASTICSEARCH_HOST", "elasticsearch.test.svc")
-                .withEnv("ELASTICSEARCH_PORT", "9200")
+                .withEnv(env)
                 .withCommand("validate", "--config-yaml", "/etc/vector/vector.yaml")
-                .waitingFor(Wait.forLogMessage(".*", 1))) {
+                .withStartupCheckStrategy(new WaitForContainerExitStrategy().withTimeout(Duration.ofSeconds(30)))) {
 
             vector.start();
 
@@ -126,6 +165,21 @@ class VectorConfigValidationIT {
             assertThat(logs)
                     .as("Vector config should not have errors (warnings are OK)")
                     .doesNotContain("Failed to load");
+        }
+    }
+
+    /**
+     * Considers a one-shot container "started" as soon as it has stopped, regardless
+     * of exit code. Unlike {@code OneShotStartupCheckStrategy} (which treats any
+     * non-zero exit as a startup failure), this lets the caller assert on the exit
+     * code itself - needed here because "loaded with warnings" (exit 78) is an
+     * accepted outcome for {@code vector validate}.
+     */
+    private static final class WaitForContainerExitStrategy extends StartupCheckStrategy {
+        @Override
+        public StartupStatus checkStartupState(DockerClient dockerClient, String containerId) {
+            InspectContainerResponse.ContainerState state = getCurrentState(dockerClient, containerId);
+            return DockerStatus.isContainerStopped(state) ? StartupStatus.SUCCESSFUL : StartupStatus.NOT_YET_KNOWN;
         }
     }
 

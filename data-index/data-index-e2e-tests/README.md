@@ -6,7 +6,7 @@ End-to-end tests for Data Index Helm deployments. These tests assume a running K
 
 Unlike integration tests (`@QuarkusTest`) that spin up their own environment, E2E tests verify a real Helm deployment:
 
-- **MODE 1**: PostgreSQL + FluentBit + Triggers
+- **MODE 1**: PostgreSQL + Vector + Triggers
 - **MODE 2**: Elasticsearch + Vector + Transforms  
 - **MODE 3**: Kafka + Ingestion Service + PostgreSQL
 
@@ -38,7 +38,7 @@ mvn test -De2e.mode=mode1
 
 ### Mode-Specific Tests
 
-**MODE 1 (PostgreSQL + FluentBit):**
+**MODE 1 (PostgreSQL + Vector):**
 ```bash
 mvn test -De2e.mode=mode1 \
   -De2e.graphql.url=http://localhost:30080/graphql \
@@ -105,7 +105,7 @@ The test class:
 - Workflow trigger → event processing → GraphQL query works
 
 ### MODE 1 Specific
-- FluentBit tail → PostgreSQL raw → Trigger → normalized
+- Vector kubernetes_logs → postgres sink → PostgreSQL raw → Trigger → normalized
 
 ### MODE 2 Specific  
 - Vector tail → Elasticsearch raw → Transform → normalized
@@ -140,7 +140,7 @@ The test class:
 **Tests timeout waiting for workflow:**
 - Check workflow test app logs: `kubectl logs -l app=workflow-test-app`
 - Check data index logs: `kubectl logs -l app=data-index`
-- Verify FluentBit/Vector/Kafka is running
+- Verify Vector/Kafka is running
 
 **GraphQL not ready:**
 - Increase timeout in `waitForGraphQLReady()`

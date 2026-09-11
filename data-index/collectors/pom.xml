@@ -23,7 +23,11 @@
   <properties>
     <!-- Vector image version for integration tests -->
     <!-- Renovate automatically upgrades this via regex manager in .github/renovate.json5 -->
-    <vector.version>0.41.1</vector.version>
+    <!-- Vector >= 0.46.0 is required for the native `postgres` sink used by MODE 1.
+         0.54.0 is the newest release where both the MODE 1 and MODE 2 configs
+         validate unchanged (0.56.0 removed `api.playground` and tightened
+         elasticsearch sink endpoint parsing - handle in a dedicated bump PR). -->
+    <vector.version>0.54.0</vector.version>
     <vector.image>timberio/vector:${vector.version}-distroless-libc</vector.image>
 
     <!-- Testcontainers version managed by Quarkus BOM -->

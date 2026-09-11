@@ -22,7 +22,7 @@ Normalized Data (permanent) ◄─┘
 ```
 
 **Raw Event Lifecycle:**
-1. FluentBit writes events to `workflow-events-YYYY.MM.DD`
+1. Vector writes events to `workflow-events-YYYY.MM.DD`
 2. Transform aggregates events into `workflow-instances` (within 1-2 seconds)
 3. ILM deletes raw index after retention period (already aggregated, no longer needed)
 

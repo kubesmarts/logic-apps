@@ -1,7 +1,9 @@
 {{- if .Values.vector.enabled }}
 {{/*
 Vector ConfigMap
-Embeds vector.yaml configuration.
+Embeds the mode-specific vector.yaml (configs/vector/vector-<vector.config>.yaml):
+  mode1-postgresql  -> postgres sinks + PostgreSQL triggers
+  mode2-elasticsearch -> elasticsearch sinks + ES transforms
 */}}
 
 apiVersion: v1
@@ -14,5 +16,5 @@ metadata:
     app: vector
 data:
   vector.yaml: |
-{{ .Files.Get "configs/vector/vector.yaml" | indent 4 }}
+{{ .Files.Get (printf "configs/vector/vector-%s.yaml" .Values.vector.config) | indent 4 }}
 {{- end }}

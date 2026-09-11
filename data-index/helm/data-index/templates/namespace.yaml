@@ -3,7 +3,7 @@ Namespace - Common for all modes
 
 Creates the following namespaces:
 NOTE: data-index namespace is created by Helm (--create-namespace flag)
-- logging: For log collectors (FluentBit/Vector)
+- logging: For the Vector log collector
 - workflows: For workflow test applications
 - Backend-specific namespace (postgresql/elasticsearch/kafka)
 */}}

@@ -2,7 +2,7 @@
 
 **Project:** Data Index v1.0.0 for Open Workflow 1.0.0  
 **Status:** Production Ready (MODE 1, MODE 2 & MODE 3)  
-**Last Updated:** 2026-09-09
+**Last Updated:** 2026-09-10
 
 ---
 
@@ -134,7 +134,7 @@ Claude: I've created the ADR and committed it.  ❌ WRONG - no approval!
 This is a **read-only query service** for Open Workflow (OW 1.0.0) runtime execution data. It provides a GraphQL API for querying workflow instances and task executions.
 
 **What it does:**
-- Captures Quarkus Flow structured logging events via FluentBit (MODE 1) or Vector (MODE 2)
+- Captures Quarkus Flow structured logging events via Vector (MODE 1 & MODE 2)
 - Stores raw events in PostgreSQL (MODE 1) or Elasticsearch (MODE 2)
 - Normalizes events using PostgreSQL triggers (MODE 1) or Elasticsearch Transforms (MODE 2)
 - Exposes normalized data via GraphQL API (SmallRye GraphQL)
@@ -194,8 +194,8 @@ graphify --update
 ## Architecture (MODE 1 - Production)
 
 ```
-Quarkus Flow → /tmp/quarkus-flow-events.log (JSON)
-                      ↓ (FluentBit tail)
+Quarkus Flow → stdout → /var/log/containers/*.log (JSON)
+                      ↓ (Vector kubernetes_logs → postgres sink)
               PostgreSQL raw tables (JSONB)
                       ↓ (BEFORE INSERT triggers)
               PostgreSQL normalized tables
@@ -204,7 +204,7 @@ Quarkus Flow → /tmp/quarkus-flow-events.log (JSON)
 ```
 
 **Key Components:**
-- **FluentBit DaemonSet** - Tails log files, sends to PostgreSQL
+- **Vector DaemonSet** - Tails container logs, writes raw events to PostgreSQL (`postgres` sink; config: `data-index/collectors/vector/mode1-postgresql/vector.yaml`).
 - **PostgreSQL Triggers** - Normalize events immediately on INSERT
 - **Data Index Service** - Quarkus app with GraphQL API
 - **JPA Entities** - Map to normalized tables (workflow_instances, task_instances)
@@ -363,7 +363,7 @@ Quarkus Flow → Kafka (CloudEvents: binary or structured, topic: flow-lifecycle
 - Trade-off: Higher throughput vs manual CE handling (acceptable for high-volume workflow environments)
 
 **NOT used in MODE 3:**
-- ❌ FluentBit (events come from Kafka, not log files)
+- ❌ Vector / log collector (events come from Kafka, not container logs)
 - ❌ PostgreSQL triggers (normalization done in Java via JDBC)
 - ❌ Raw event tables (writes directly to normalized tables)
 - ❌ SmallRye automatic CloudEvent extraction (requires per-message mode, lower throughput)
@@ -406,12 +406,15 @@ data-index/
 │   └── WorkflowInstanceElasticsearchTest.java (Elasticsearch)
 ├── data-index-docs/               # User-facing documentation (Antora)
 │   └── modules/ROOT/pages/        # AsciiDoc documentation pages
+├── collectors/                    # Log-collector configs (Vector) - Go + Maven module
+│   ├── vector/mode1-postgresql/   # MODE 1 Vector config (postgres sink)
+│   ├── vector/mode2-elasticsearch/ # MODE 2 Vector config (elasticsearch sink)
+│   └── examples/                  # Reference DaemonSet manifests
+├── helm/data-index/              # Helm chart (all modes)
 ├── docs/                          # Internal documentation
-└── scripts/                       # Deployment scripts
-    ├── kind/                      # KIND (Kubernetes in Docker) scripts
-    └── fluentbit/                 # FluentBit configurations
-        ├── mode1-postgresql-triggers/ # MODE 1 FluentBit config
-        └── mode2-elasticsearch-transforms/ # MODE 2 FluentBit config
+└── scripts/
+    ├── e2e/                       # Helm-based E2E test scripts (mode1/2/3)
+    └── fluentbit/                 # FluentBit configs (DEPRECATED, ADR-0001)
 ```
 
 ---
@@ -989,11 +992,10 @@ MODE=postgresql ./install-dependencies.sh
 # 2. Deploy data-index service
 ./deploy-data-index.sh postgresql
 
-# 3. Deploy FluentBit (MODE 1)
-cd ../fluentbit/mode1-postgresql-triggers
-./generate-configmap.sh  # Generate from source files
-kubectl apply -f kubernetes/configmap.yaml
-kubectl apply -f kubernetes/daemonset.yaml
+# 3. Vector (MODE 1) is deployed by the Helm chart (values-mode1.yaml,
+#    vector.config=mode1-postgresql). Config source of truth:
+#    data-index/collectors/vector/mode1-postgresql/vector.yaml
+#    Full flow: bash data-index/scripts/e2e/full-test-mode1.sh
 
 # 4. Deploy test workflow app
 cd ../../kind
@@ -1220,7 +1222,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - Don't add Event Processor service (MODE 1 uses triggers, MODE 2 uses transforms)
 - Don't use polling architecture
 - Don't create staging tables (MODE 1) or separate processing indices (MODE 2)
-- Don't mix MODE 3 Kafka ingestion with MODE 1 FluentBit ingestion in the same deployment
+- Don't mix MODE 3 Kafka ingestion with MODE 1 Vector log ingestion in the same deployment
 - Don't mix PostgreSQL and Elasticsearch in same deployment
 
 ### ❌ Dependencies
@@ -1274,9 +1276,10 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 ### Deployment Issues (MODE 1 - PostgreSQL)
 
 **"Events not in database"**
-- Check FluentBit logs: `kubectl logs -n logging -l app=workflows-fluent-bit-mode1`
-- Check PostgreSQL connection from FluentBit pod
-- Verify log file exists: `/tmp/quarkus-flow-events.log`
+- Check Vector logs: `kubectl logs -n logging -l app=vector`
+- Check the `postgres_workflow` / `postgres_task` sink health in the Vector logs
+- Enable event tracing: `kubectl set env daemonset/vector -n logging DEBUG_EVENTS=true`
+- Confirm Vector can reach PostgreSQL (`POSTGRES_HOST`/`POSTGRES_PORT` env on the DaemonSet)
 
 **"Raw tables populated but normalized tables empty"**
 - Check triggers exist: `\d workflow_events_raw` in psql
@@ -1353,8 +1356,9 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 
 **Configuration:**
 - `data-index-service/data-index-service-elasticsearch/src/main/resources/application.properties` - Elasticsearch config (metrics, ILM, smart filtering)
+- `data-index/collectors/vector/mode1-postgresql/vector.yaml` - MODE 1 Vector (PostgreSQL, `postgres` sink)
 - `data-index/collectors/vector/mode2-elasticsearch/vector.yaml` - MODE 2 Vector (Elasticsearch)
-- `data-index/scripts/fluentbit/postgresql/fluent-bit.conf` - MODE 1 FluentBit (PostgreSQL)
+- `data-index/scripts/fluentbit/postgresql/fluent-bit.conf` - MODE 1 FluentBit (DEPRECATED, ADR-0001)
 
 **Testing:**
 - `data-index-integration-tests/data-index-integration-tests-postgresql/src/test/java/.../WorkflowInstanceGraphQLApiTest.java` - PostgreSQL GraphQL tests
@@ -1441,8 +1445,8 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 → `data-index-elasticsearch-schema/resources/schema/task-executions-transform.json`
 
 **"How does data flow from Quarkus Flow to GraphQL?"**
-→ MODE 1: Quarkus Flow → log file → FluentBit → PostgreSQL raw → triggers → normalized → JPA → GraphQL
-→ MODE 2: Quarkus Flow → log file → Vector → ES raw indices → transforms → normalized indices → ES client → GraphQL
+→ MODE 1: Quarkus Flow → stdout → Vector → PostgreSQL raw → triggers → normalized → JPA → GraphQL
+→ MODE 2: Quarkus Flow → stdout → Vector → ES raw indices → transforms → normalized indices → ES client → GraphQL
 
 **"Which mode should I use?"**
 → MODE 1 for standard use cases, smaller deployments, simpler operations
@@ -1450,7 +1454,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 
 **"Can I switch modes later?"**
 → Yes, same GraphQL API, just different storage backend
-→ Need to redeploy with different profile and reconfigure FluentBit
+→ Need to redeploy with different profile and switch the Vector config (mode1-postgresql ↔ mode2-elasticsearch)
 
 ---
 

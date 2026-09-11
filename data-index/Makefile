@@ -12,16 +12,22 @@
 #
 # ============================================================================
 
-.PHONY: help clean setup test-mode1 test-mode2 test-mode3 deploy-mode1 deploy-mode2 deploy-mode3
+.PHONY: help clean setup test-mode1 test-mode2 test-mode3 deploy-mode1 deploy-mode2 deploy-mode3 sync-vector-configs check-vector-configs
 
 # Configuration
 CLUSTER_NAME := data-index-test
 HELM_CHART := helm/data-index
 KIND_CONFIG := $(HELM_CHART)/kind-cluster.yaml
 
+# Vector config: collector source (source of truth) -> byte-identical Helm copy
+VECTOR_MODES := mode1-postgresql mode2-elasticsearch
+COLLECTOR_VECTOR_DIR := collectors/vector
+HELM_VECTOR_DIR := $(HELM_CHART)/configs/vector
+
 # Colors
 BLUE := \033[0;34m
 GREEN := \033[0;32m
+RED := \033[0;31m
 NC := \033[0m
 
 help: ## Show this help message
@@ -30,7 +36,7 @@ help: ## Show this help message
 	@echo "$(BLUE)╚════════════════════════════════════════════════════════════════╝$(NC)"
 	@echo ""
 	@echo "$(GREEN)Main Commands (what you typically run):$(NC)"
-	@echo "  $(GREEN)make test-mode1$(NC)   Full MODE 1 E2E (PostgreSQL + FluentBit + Triggers)"
+	@echo "  $(GREEN)make test-mode1$(NC)   Full MODE 1 E2E (PostgreSQL + Vector + Triggers)"
 	@echo "  $(GREEN)make test-mode2$(NC)   Full MODE 2 E2E (Elasticsearch + Vector + Transforms)"
 	@echo "  $(GREEN)make test-mode3$(NC)   Full MODE 3 E2E (Kafka + CloudEvents + Processors)"
 	@echo "  $(GREEN)make clean$(NC)        Delete KIND cluster"
@@ -51,8 +57,9 @@ help: ## Show this help message
 	@echo "  make e2e-mode2      Just run tests (MODE 2 must be deployed)"
 	@echo "  make e2e-mode3      Just run tests (MODE 3 must be deployed)"
 	@echo "  make status         Show pod status"
-	@echo "  make logs-*         Show logs (data-index, ingestion, fluentbit, vector)"
+	@echo "  make logs-*         Show logs (data-index, ingestion, vector, fluentbit)"
 	@echo "  make graphql-ui     Open GraphQL UI in browser"
+	@echo "  make check-vector-configs  Verify the Helm Vector configs are symlinks to collectors/vector/*"
 	@echo ""
 	@echo "$(GREEN)Shortcuts:$(NC)"
 	@echo "  make m1             Alias for test-mode1"
@@ -64,6 +71,18 @@ clean: ## Delete KIND cluster
 	@echo "$(BLUE)==> Deleting KIND cluster$(NC)"
 	@kind delete cluster --name $(CLUSTER_NAME) 2>/dev/null || echo "No cluster to delete"
 	@echo "$(GREEN)✓ Cluster deleted$(NC)"
+
+check-vector-configs: ## Fail if any Helm Vector config isn't a symlink to its collector source
+	@rc=0; for m in $(VECTOR_MODES); do \
+		f="$(HELM_VECTOR_DIR)/vector-$$m.yaml"; \
+		if [ ! -L "$$f" ]; then \
+			echo "$(RED)✗ $$f is not a symlink$(NC)"; rc=1; \
+		elif [ ! -e "$$f" ]; then \
+			echo "$(RED)✗ $$f is a broken symlink$(NC)"; rc=1; \
+		fi; \
+	done; \
+	if [ $$rc -eq 0 ]; then echo "$(GREEN)✓ Vector configs are symlinked to collectors/vector$(NC)"; fi; \
+	exit $$rc
 
 setup: ## Create cluster and build/load ALL images
 	@echo "$(BLUE)==> Setting up test environment (all images)$(NC)"
@@ -147,10 +166,7 @@ logs-data-index: ## Show Data Index service logs
 logs-ingestion: ## Show Data Index Ingestion logs (MODE 3)
 	@kubectl logs -n default -l app=data-index-ingestion --tail=50
 
-logs-fluentbit: ## Show FluentBit logs (MODE 1)
-	@kubectl logs -n logging -l app=fluentbit --tail=50
-
-logs-vector: ## Show Vector logs (MODE 2)
+logs-vector: ## Show Vector logs (MODE 1 & MODE 2)
 	@kubectl logs -n logging -l app=vector --tail=50
 
 port-forward: ## Port forward GraphQL API to localhost:8080

@@ -3,6 +3,26 @@
 
 Deploy Data Index to a local Kubernetes cluster using KIND (Kubernetes in Docker) for development and testing.
 
+[IMPORTANT]
+====
+Deployment is now **Helm-based**. The fastest path is the one-command Makefile
+targets, which create the cluster, build images, install the chart, and run the
+tests:
+
+[source,bash]
+----
+make m1   # PostgreSQL + Vector + triggers
+make m2   # Elasticsearch + Vector + transforms
+make m3   # Kafka ingestion
+----
+
+Log collection uses **Vector** for MODE 1 and MODE 2 (see
+xref:deployment/vector-config.adoc[Vector Configuration]). The manual
+step-by-step below predates the Helm migration and is being updated; where it
+refers to `scripts/kind/*.sh` or `scripts/fluentbit/*`, use the Helm chart
+(`data-index/helm/data-index`, `values-mode{1,2,3}.yaml`) instead.
+====
+
 == Prerequisites
 
 **Required tools:**
@@ -165,51 +185,36 @@ curl http://localhost:30080/graphql \
   - `QUARKUS_DATASOURCE_USERNAME`
   - `QUARKUS_DATASOURCE_PASSWORD`
 
-=== Step 4: Deploy FluentBit
+=== Step 4: Vector (log collector)
+
+Vector is deployed by the Helm chart (enabled by default for MODE 1 and MODE 2).
+No separate step is needed when you install with `values-mode1.yaml`.
+
+Config source of truth: `data-index/collectors/vector/mode1-postgresql/vector.yaml`
+(rendered into a ConfigMap; see xref:deployment/vector-config.adoc[Vector Configuration]).
+
+**Pipeline highlights:**
+
+[source,yaml]
+----
+sources:
+  kubernetes_logs: { type: kubernetes_logs, extra_field_selector: "metadata.namespace=${WORKFLOW_NAMESPACE}" }
+sinks:
+  postgres_workflow: { type: postgres, table: workflow_events_raw,
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}" }
+  postgres_task:     { type: postgres, table: task_events_raw, endpoint: "postgres://..." }
+----
+
+**Verify Vector:**
 
 [source,bash]
 ----
-cd ../fluentbit
-./deploy-fluentbit.sh postgresql
-----
+kubectl get pods -n logging -l app=vector
+kubectl logs -n logging -l app=vector --tail=50
 
-**What this does:**
-
-1. Generates FluentBit ConfigMap from source files:
-   - `postgresql/fluent-bit.conf`
-   - `postgresql/parsers.conf`
-   - `postgresql/flatten-event.lua`
-2. Deploys FluentBit DaemonSet to `logging` namespace
-3. Configures to tail logs from `workflows` namespace
-4. Sets up PostgreSQL output plugin
-
-**FluentBit configuration highlights:**
-
-[source,conf]
-----
-[INPUT]
-    Name              tail
-    Path              /var/log/containers/*_workflows_*.log
-    Parser            cri
-    Tag               kube.*
-
-[OUTPUT]
-    Name              pgsql
-    Host              postgresql.postgresql.svc.cluster.local
-    Port              5432
-    Database          dataindex
-    Table             workflow_events_raw  # OR task_events_raw
-----
-
-**Verify FluentBit:**
-
-[source,bash]
-----
-kubectl get pods -n logging
-kubectl logs -n logging -l app=workflows-fluent-bit --tail=50
-
-# Check FluentBit is tailing workflow logs
-kubectl logs -n logging -l app=workflows-fluent-bit | grep "inotify_fs_add"
+# Trace events end to end
+kubectl set env daemonset/vector -n logging DEBUG_EVENTS=true
+kubectl logs -n logging -l app=vector -f
 ----
 
 === Step 5: Deploy Test Workflow Application
@@ -333,7 +338,7 @@ Run the complete test suite:
 **What this tests:**
 
 1. Workflow execution triggers events
-2. FluentBit collects events from container logs
+2. Vector collects events from container logs
 3. PostgreSQL receives raw events
 4. Events are normalized in real-time to workflow_instances and task_instances
 5. GraphQL API returns normalized data
@@ -346,8 +351,8 @@ Run the complete test suite:
 [STEP] Executing test workflow...
 [INFO] ✓ Workflow executed
 [STEP] Waiting for event propagation (10s)...
-[STEP] Checking FluentBit...
-[INFO] ✓ FluentBit is collecting events
+[STEP] Checking Vector...
+[INFO] ✓ Vector is collecting events
 [STEP] Checking raw events in PostgreSQL...
 [INFO] ✓ Raw events: 8
 [STEP] Checking normalized workflows...
@@ -382,12 +387,12 @@ cd ../scripts/kind
 ./deploy-workflow-app.sh
 ----
 
-**After FluentBit config changes:**
+**After Vector config changes:**
 
 [source,bash]
 ----
-cd data-index/scripts/fluentbit
-./deploy-fluentbit.sh postgresql
+helm upgrade --install data-index data-index/helm/data-index -f data-index/helm/data-index/values-mode1.yaml
+kubectl rollout restart daemonset/vector -n logging
 ----
 
 === Accessing Services Locally
@@ -417,12 +422,12 @@ kubectl port-forward -n workflows svc/workflow-test-app 8082:8080
 open http://localhost:8082
 ----
 
-**FluentBit Metrics:**
+**Vector Metrics:**
 
 [source,bash]
 ----
-kubectl port-forward -n logging <fluentbit-pod> 2020:2020
-curl http://localhost:2020/api/v1/metrics
+kubectl port-forward -n logging ds/vector 9598:9598
+curl -s http://localhost:9598/metrics | grep vector_
 ----
 
 === Logs
@@ -434,11 +439,11 @@ curl http://localhost:2020/api/v1/metrics
 kubectl logs -n data-index -l app=data-index-service -f
 ----
 
-**FluentBit:**
+**Vector:**
 
 [source,bash]
 ----
-kubectl logs -n logging -l app=workflows-fluent-bit -f
+kubectl logs -n logging -l app=vector -f
 ----
 
 **Workflow app:**
@@ -494,12 +499,12 @@ kind load docker-image local/workflow-test-app:1.0.0 --name data-index-test
 
 === No Events in Database
 
-**Check FluentBit is running:**
+**Check Vector is running:**
 
 [source,bash]
 ----
 kubectl get pods -n logging
-kubectl logs -n logging -l app=workflows-fluent-bit | grep -i error
+kubectl logs -n logging -l app=vector | grep -i error
 ----
 
 **Check workflow app is in workflows namespace:**
@@ -509,12 +514,12 @@ kubectl logs -n logging -l app=workflows-fluent-bit | grep -i error
 kubectl get pods -n workflows
 ----
 
-**Check FluentBit parser:**
+**Check Vector config:**
 
 [source,bash]
 ----
-# KIND uses containerd (CRI runtime) - verify parser is 'cri', not 'docker'
-kubectl get configmap -n logging workflows-fluent-bit-config -o yaml | grep Parser
+# Verify the namespace filter Vector's kubernetes_logs source applies
+kubectl get configmap -n logging vector-config -o yaml | grep -A1 extra_field_selector
 ----
 
 See xref:developers/troubleshooting.adoc[Troubleshooting Guide] for more issues.
@@ -527,7 +532,7 @@ To redeploy with fresh data (keeps cluster and PostgreSQL):
 
 [source,bash]
 ----
-# Delete Data Index and FluentBit
+# Delete Data Index and Vector
 kubectl delete namespace data-index
 kubectl delete namespace logging
 
@@ -539,13 +544,12 @@ kubectl delete -n postgresql statefulset postgresql
 cd data-index/scripts/kind
 MODE=postgresql ./install-dependencies.sh
 
-# Redeploy Data Index and FluentBit
+# Redeploy Data Index and Vector
 ./deploy-data-index.sh postgresql
-cd ../fluentbit
-./deploy-fluentbit.sh postgresql
+helm upgrade --install data-index data-index/helm/data-index -f data-index/helm/data-index/values-mode1.yaml
 ----
 
-TIP: This is faster than recreating the entire cluster and useful for testing schema changes or FluentBit configuration.
+TIP: This is faster than recreating the entire cluster and useful for testing schema changes or Vector configuration.
 
 === Delete Specific Namespaces
 

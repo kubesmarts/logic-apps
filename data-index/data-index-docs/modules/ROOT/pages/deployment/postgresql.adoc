@@ -11,7 +11,7 @@ PostgreSQL mode uses trigger-based normalization for real-time event processing 
 
 [source,text]
 ----
-Quarkus Flow Apps → Container Logs → FluentBit DaemonSet
+Quarkus Flow Apps → Container Logs → Vector DaemonSet (postgres sink)
                                            ↓
                                     PostgreSQL (raw tables)
                                            ↓ (triggers < 1ms)
@@ -323,68 +323,43 @@ curl http://localhost:8080/graphql \
   -d '{"query":"{ __schema { types { name } } }"}'
 ----
 
-== Step 4: Deploy FluentBit
+== Step 4: Deploy Vector
 
-FluentBit collects workflow events from container logs and sends them to PostgreSQL.
+Vector collects workflow events from container logs and writes them to the
+PostgreSQL raw tables via its native `postgres` sink. It is deployed by the
+Data Index Helm chart (enabled by default for MODE 1) — no separate step is
+needed if you installed the chart in Step 3 with `values-mode1.yaml`.
 
-=== Generate ConfigMap
+Config source of truth: `data-index/collectors/vector/mode1-postgresql/vector.yaml`
+(see xref:deployment/vector-config.adoc[Vector Configuration]).
 
-Use the helper script:
+=== Relevant Helm values
+
+[source,yaml]
+----
+vector:
+  enabled: true
+  config: mode1-postgresql      # selects configs/vector/vector-mode1-postgresql.yaml
+  image:
+    tag: "0.54.0-distroless-libc"
+  workflowNamespace: workflows  # namespace whose container logs are tailed
+  debugEvents: "false"          # set "true" to trace events to stdout
+----
+
+The chart renders the Vector ConfigMap and DaemonSet into the `logging`
+namespace and passes `POSTGRES_HOST`/`POSTGRES_PORT`/`POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD`
+from the `postgresql.*` values (matching the FluentBit DaemonSet it replaces).
+For a managed database, override `postgresql.*` accordingly.
+
+=== Verify
 
 [source,bash]
 ----
-cd data-index/scripts/fluentbit
-./generate-configmap.sh
-----
+kubectl get pods -n logging -l app=vector
+kubectl logs -n logging -l app=vector --tail=50
 
-This generates `postgresql/kubernetes/configmap.yaml` from source files:
-
-* `fluent-bit.conf`
-* `parsers.conf`
-* `flatten-event.lua`
-
-=== Create PostgreSQL Credentials Secret
-
-[source,bash]
-----
-kubectl create secret generic fluentbit-postgres \
-  --namespace logging \
-  --from-literal=host='postgresql.postgresql.svc.cluster.local' \
-  --from-literal=port='5432' \
-  --from-literal=database='dataindex' \
-  --from-literal=user='dataindex' \
-  --from-literal=password='dataindex123'
-----
-
-For managed PostgreSQL, use your external host.
-
-=== Deploy FluentBit
-
-[source,bash]
-----
-kubectl apply -f postgresql/kubernetes/configmap.yaml
-kubectl apply -f postgresql/kubernetes/daemonset.yaml
-----
-
-**Or use helper script:**
-
-[source,bash]
-----
-./deploy-fluentbit.sh postgresql
-----
-
-**Verify:**
-
-[source,bash]
-----
-kubectl get pods -n logging
-kubectl logs -n logging -l app=workflows-fluent-bit --tail=50
-
-# Check FluentBit is tailing logs
-kubectl logs -n logging -l app=workflows-fluent-bit | grep "inotify_fs_add"
-
-# Check for errors
-kubectl logs -n logging -l app=workflows-fluent-bit | grep -i error
+# Confirm the postgres sinks are healthy (no repeated connection errors)
+kubectl logs -n logging -l app=vector | grep -iE "postgres|error"
 ----
 
 == Step 5: Deploy Quarkus Flow Applications
@@ -415,9 +390,10 @@ quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
 
 [IMPORTANT]
 ====
-FluentBit is configured to tail logs from the `workflows` namespace by default.
+Vector is configured to tail logs from the `workflows` namespace by default.
 
-Deploy your applications to this namespace or update FluentBit's `WORKFLOW_NAMESPACE` environment variable.
+Deploy your applications to this namespace or set `vector.workflowNamespace`
+(DaemonSet env `WORKFLOW_NAMESPACE`).
 ====
 
 [source,yaml]
@@ -426,7 +402,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: my-workflow-app
-  namespace: workflows  # Important: must match FluentBit config
+  namespace: workflows  # Important: must match Vector's WORKFLOW_NAMESPACE
 spec:
   template:
     spec:
@@ -460,11 +436,15 @@ curl -X POST http://localhost:8082/my-workflow \
 kubectl logs -n workflows <workflow-pod> | grep eventType
 ----
 
-**2. Check FluentBit collected events:**
+**2. Check Vector collected events:**
 
 [source,bash]
 ----
-kubectl logs -n logging -l app=workflows-fluent-bit | grep -i "workflow"
+kubectl logs -n logging -l app=vector | grep -i "workflow"
+
+# Or trace events explicitly:
+kubectl set env daemonset/vector -n logging DEBUG_EVENTS=true
+kubectl logs -n logging -l app=vector -f
 ----
 
 **3. Check raw events in PostgreSQL:**
@@ -527,10 +507,12 @@ spec:
   - Stolon
   - CloudNativePG operator
 
-**FluentBit:**
+**Vector:**
 
 * Runs as DaemonSet (one pod per node)
-* Enable filesystem buffering for reliability
+* The `postgres` sinks use the default in-memory buffer with a 1s batch flush
+  (matches the FluentBit MODE 1 setup). The `kubernetes_logs` source checkpoints,
+  so a Vector restart re-reads recent lines and the idempotent triggers dedupe.
 
 === Performance Tuning
 
@@ -564,24 +546,29 @@ env:
   value: "-Xms512m -Xmx1024m"
 ----
 
-**FluentBit:**
+**Vector:**
 
-Increase buffer for high throughput:
+Tune sink batching for high throughput in
+`data-index/collectors/vector/mode1-postgresql/vector.yaml`:
 
-[source,conf]
+[source,yaml]
 ----
-[INPUT]
-    Mem_Buf_Limit     50MB
-
-[SERVICE]
-    storage.max_chunks_up  512
+sinks:
+  postgres_workflow:
+    batch:
+      max_events: 500      # larger batches = fewer INSERTs
+      timeout_secs: 1
 ----
+
+NOTE: Keep the default in-memory buffer. In Vector 0.54 the `postgres` sink does
+not drain a small `buffer.type: disk` until graceful shutdown, which strands
+low-volume events.
 
 === Monitoring
 
 **Metrics to track:**
 
-* FluentBit input/output rates
+* Vector `vector_component_received_events_total` / `vector_component_sent_events_total`
 * PostgreSQL connection pool usage
 * Trigger execution time
 * Raw vs normalized event counts
@@ -594,14 +581,15 @@ Increase buffer for high throughput:
 # Data Index service exposes /q/metrics
 servicemonitors.monitoring.coreos.com/data-index created
 
-# FluentBit exposes metrics on port 2020
-curl http://<fluentbit-pod>:2020/api/v1/metrics/prometheus
+# Vector exposes Prometheus metrics on port 9598
+kubectl port-forward -n logging ds/vector 9598:9598
+curl -s http://localhost:9598/metrics | grep vector_
 ----
 
 **Grafana dashboards:**
 
 * PostgreSQL dashboard (ID: 9628)
-* FluentBit dashboard (custom)
+* Vector dashboard (ID: 20369)
 * Data Index service (Quarkus metrics)
 
 === Security
@@ -699,7 +687,7 @@ curl http://localhost:8080/graphql -d '{"query":"{ __typename }"}'
 
 == Next Steps
 
-* xref:deployment/fluentbit-config.adoc[FluentBit Configuration]
+* xref:deployment/vector-config.adoc[Vector Configuration]
 * xref:operations/event-reliability.adoc[Event Reliability]
 * xref:api/queries.adoc[GraphQL Query Examples]
 * xref:developers/troubleshooting.adoc[Troubleshooting]

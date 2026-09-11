@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # ============================================================================
-# FluentBit Deployment Script
+# FluentBit Deployment Script  [DEPRECATED - ADR-0001, use Vector]
 # ============================================================================
+#
+# DEPRECATED: MODE 1 now uses Vector (data-index/collectors/vector/mode1-postgresql/).
+# Kept for one release. Removal target: next release.
 #
 # Purpose: Deploy FluentBit DaemonSet to Kubernetes cluster
 #

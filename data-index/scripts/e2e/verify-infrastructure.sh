@@ -35,11 +35,20 @@ wait_for() {
 }
 
 # ============================================================================
-# MODE 1: PostgreSQL + FluentBit + Triggers
+# MODE 1: PostgreSQL + Vector + Triggers
 # ============================================================================
 
 verify_mode1_infrastructure() {
     log_info "Verifying MODE 1 infrastructure..."
+
+    # 0. Vector log collector running
+    log_info "Checking Vector DaemonSet..."
+    if kubectl rollout status daemonset/vector -n logging --timeout=60s > /dev/null 2>&1; then
+        log_success "Vector is running"
+    else
+        log_error "Vector DaemonSet is not fully rolled out (missing/pending/unready pods on some node)"
+        return 1
+    fi
 
     # 1. Check Data Index GraphQL endpoint
     log_info "Checking Data Index GraphQL endpoint..."

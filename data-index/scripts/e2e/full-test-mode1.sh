@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # ============================================================================
-# Full E2E Test - MODE 1 (PostgreSQL + FluentBit)
+# Full E2E Test - MODE 1 (PostgreSQL + Vector)
 # ============================================================================
 #
 # Complete workflow:
@@ -71,7 +71,7 @@ cleanup_cluster() {
 main() {
     echo ""
     echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║  MODE 1 Full E2E Test - PostgreSQL + FluentBit + Triggers     ║"
+    echo "║  MODE 1 Full E2E Test - PostgreSQL + Vector + Triggers        ║"
     echo "╚════════════════════════════════════════════════════════════════╝"
     echo ""
 
@@ -111,10 +111,10 @@ main() {
         -l app=data-index-service \
         --timeout=180s
 
-    log_info "Waiting for FluentBit..."
+    log_info "Waiting for Vector..."
     kubectl wait --namespace logging \
         --for=condition=ready pod \
-        -l app=fluentbit \
+        -l app=vector \
         --timeout=120s
 
     log_info "Waiting for Workflow Test App..."
@@ -128,7 +128,7 @@ main() {
     # 5. Display pod status
     log_step "Step 5: Component Status"
     echo ""
-    kubectl get pods --all-namespaces | grep -E "(NAMESPACE|postgresql|data-index|fluentbit|workflow)" || true
+    kubectl get pods --all-namespaces | grep -E "(NAMESPACE|postgresql|data-index|vector|workflow)" || true
 
     # 6. Verify infrastructure ready
     log_step "Step 6: Verify Infrastructure Ready"
@@ -154,8 +154,8 @@ main() {
     echo ""
 
     log_info "Architecture verified:"
-    echo "  Quarkus Flow → /tmp/quarkus-flow-events.log"
-    echo "            ↓ (FluentBit tail)"
+    echo "  Quarkus Flow → stdout → /var/log/containers/"
+    echo "            ↓ (Vector kubernetes_logs → postgres sink)"
     echo "  PostgreSQL raw tables (JSONB)"
     echo "            ↓ (BEFORE INSERT triggers)"
     echo "  PostgreSQL normalized tables"

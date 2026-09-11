@@ -6,7 +6,7 @@
 
 This module contains Flyway migration scripts for Data Index PostgreSQL storage backend:
 
-- **Raw Tables**: `workflow_events_raw`, `task_events_raw` (stores events from FluentBit)
+- **Raw Tables**: `workflow_events_raw`, `task_events_raw` (raw events from the Vector `postgres` sink)
 - **Normalized Tables**: `workflow_instances`, `task_instances` (optimized for querying)
 - **Real-time processing**: Events are normalized automatically as they arrive
 
@@ -14,9 +14,8 @@ This module contains Flyway migration scripts for Data Index PostgreSQL storage 
 
 ```
 Quarkus Flow (quarkus-flow 0.9.0+)
-    ↓ (structured JSON events with epoch timestamps)
-    ↓ (writes to /tmp/quarkus-flow-events.log)
-FluentBit DaemonSet
+    ↓ (structured JSON events with epoch timestamps → stdout)
+Vector DaemonSet (postgres sink)
     ├─→ workflow_events_raw (tag TEXT, time TIMESTAMP, data JSONB)
     └─→ task_events_raw (tag TEXT, time TIMESTAMP, data JSONB)
     ↓ (BEFORE INSERT triggers)
@@ -35,9 +34,12 @@ Data Index GraphQL API
 
 Initial schema for Data Index v1.0.0 with trigger-based normalization:
 
-**Raw Staging Tables** (FluentBit pgsql plugin fixed schema):
+**Raw Staging Tables** (`tag TEXT, time TIMESTAMP WITH TIME ZONE, data JSONB`):
 - `workflow_events_raw`: Stores tag (TEXT), time (TIMESTAMP), data (JSONB)
 - `task_events_raw`: Stores tag (TEXT), time (TIMESTAMP), data (JSONB)
+
+This 3-column shape originated with the FluentBit pgsql plugin's fixed schema and
+is retained: the Vector `postgres` sink writes the same `{tag, time, data}` rows.
 
 **Normalized Tables** (Populated via triggers):
 - `workflow_instances`: Extracted workflow state with individual columns
@@ -53,14 +55,16 @@ Initial schema for Data Index v1.0.0 with trigger-based normalization:
 - Raw events preserved in staging tables for debugging/replay
 - Simpler architecture - fewer moving parts
 
-## FluentBit Configuration
+## Raw Table Schema
 
-FluentBit pgsql output plugin uses a **fixed schema**:
-- `tag TEXT` - The FluentBit tag (workflow.instance.started, etc.)
-- `time TIMESTAMP WITH TIME ZONE` - Event timestamp  
-- `data JSONB` - Complete event as JSON
+The raw staging tables use a fixed 3-column shape:
+- `tag TEXT` - event tag (the event's `eventType`, e.g. `io.serverlessworkflow.workflow.started.v1`)
+- `time TIMESTAMP WITH TIME ZONE` - ingestion time (feeds only `created_at`/`updated_at`)
+- `data JSONB` - the complete Quarkus Flow event as JSON
 
-This is why we use **raw staging tables** that match this structure, then use **triggers** to normalize.
+The MODE 1 log collector (Vector's `postgres` sink; previously the FluentBit pgsql
+plugin) writes rows in this shape, and the **triggers** normalize `data` into the
+`workflow_instances` / `task_instances` tables.
 
 ## Field Mappings (JSONB → Normalized Tables)
 
@@ -150,7 +154,7 @@ PostgreSQL triggers handle all normalization automatically - **no Event Processo
 
 ### How It Works
 
-1. **FluentBit INSERT** → `workflow_events_raw` or `task_events_raw`
+1. **Vector `postgres` sink INSERT** → `workflow_events_raw` or `task_events_raw`
 2. **BEFORE INSERT trigger fires** → Extracts fields from JSONB `data` column
 3. **UPSERT normalized table** → `workflow_instances` or `task_instances`
 4. **Return NEW** → Raw event is also stored in staging table
@@ -166,7 +170,7 @@ PostgreSQL triggers handle all normalization automatically - **no Event Processo
 ### Example Workflow Event Processing
 
 ```sql
--- FluentBit inserts (via pgsql output plugin):
+-- Vector postgres sink inserts:
 INSERT INTO workflow_events_raw (tag, time, data) 
 VALUES ('workflow.instance.started', '2026-04-23 22:04:49+00', '{"instanceId":"01KPY...","workflowName":"simple-set",...}');
 
@@ -193,7 +197,7 @@ This can be scheduled via PostgreSQL `pg_cron` extension or external cron job.
 
 ## Notes
 
-- **FluentBit pgsql plugin**: Uses fixed schema (tag TEXT, time TIMESTAMP, data JSONB) - cannot be customized
+- **Raw table schema**: fixed `(tag TEXT, time TIMESTAMP, data JSONB)` shape; the Vector `postgres` sink maps event fields to these columns
 - **Timestamps**: Epoch seconds from Quarkus Flow 0.9.0+ converted via `to_timestamp()` in triggers
 - **JSONB Storage**: Complete events stored as JSONB in `data` column, triggers extract to columns
 - **Raw Events**: Preserved in `*_raw` tables for debugging and potential replay

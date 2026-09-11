@@ -10,7 +10,7 @@ This is a simple Quarkus Flow application that:
 - Emits structured logging events
 - Used for end-to-end integration tests with Data Index
 
-**Purpose:** Test event collection → FluentBit → PostgreSQL → Data Index GraphQL API
+**Purpose:** Test event collection → Vector → PostgreSQL → Data Index GraphQL API
 
 ## Workflows
 
@@ -126,10 +126,10 @@ quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
 ### Kubernetes Deployment
 
 ```properties
-# Deploy to workflows namespace (FluentBit requirement)
+# Deploy to workflows namespace (Vector tails this namespace by default)
 quarkus.kubernetes.namespace=workflows
 
-# Labels for FluentBit filtering
+# Labels for log identification
 quarkus.kubernetes.labels."app"=workflow-test-app
 quarkus.kubernetes.labels."version"=1.0.0
 ```
@@ -274,7 +274,7 @@ stdout (JSON events with epoch-seconds timestamp)
     ↓
 Kubernetes captures to /var/log/containers/workflow-test-app-*.log
     ↓
-FluentBit DaemonSet tails logs
+Vector DaemonSet tails container logs
     ↓
 PostgreSQL raw tables (workflow_events_raw, task_events_raw)
     ↓
@@ -371,24 +371,23 @@ kubectl logs -n workflows -l app=workflow-test-app | grep eventType
 
 ## Integration with Data Index
 
-### FluentBit Collection
+### Vector Collection
 
-FluentBit DaemonSet collects logs from this app:
+The Vector DaemonSet collects this app's container logs:
 
 ```yaml
-# fluent-bit.conf
-[INPUT]
-    Name              tail
-    Path              /var/log/containers/*_workflows_workflow-test-app-*.log
-    Parser            cri
-    Tag               kube.*
+# data-index/collectors/vector/mode1-postgresql/vector.yaml
+sources:
+  kubernetes_logs:
+    type: kubernetes_logs
+    extra_field_selector: "metadata.namespace=${WORKFLOW_NAMESPACE}"
 ```
 
 ### Namespace Requirement
 
-**IMPORTANT:** Must deploy to `workflows` namespace (or configure FluentBit to watch your namespace).
+**IMPORTANT:** Must deploy to `workflows` namespace (or set Vector's `WORKFLOW_NAMESPACE`).
 
-FluentBit filters by namespace pattern: `/var/log/containers/*_workflows_*.log`
+Vector's `kubernetes_logs` source filters by `metadata.namespace=${WORKFLOW_NAMESPACE}`.
 
 ### Event Format Requirement
 
@@ -405,7 +404,7 @@ Other formats (ISO 8601, epoch-millis) will cause parsing errors in Data Index t
 - [Quarkus Flow Documentation](https://docs.quarkiverse.io/quarkus-flow/dev/)
 - [Structured Logging Configuration](https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html)
 - [Data Index Integration Tests](../data-index-docs/modules/ROOT/pages/deployment/kind-local.adoc)
-- [FluentBit Configuration](../data-index-docs/modules/ROOT/pages/deployment/fluentbit-config.adoc)
+- [Vector Configuration](../data-index-docs/modules/ROOT/pages/deployment/vector-config.adoc)
 
 ## Contributing
 

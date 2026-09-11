@@ -46,7 +46,8 @@ mvn quarkus:dev
 * GraphQL UI available at http://localhost:8080/q/graphql-ui
 * Elasticsearch available at http://localhost:9200
 
-NOTE: Development mode doesn't include FluentBit. To test with real workflow events, use the KIND installation below.
+NOTE: Development mode doesn't include the Vector log collector.
+To test with real workflow events, use the KIND installation below.
 
 == Quick Install (KIND)
 
@@ -68,11 +69,8 @@ MODE=postgresql ./install-dependencies.sh
 # 2. Deploy Data Index service
 ./deploy-data-index.sh postgresql
 
-# 3. Deploy FluentBit DaemonSet (PostgreSQL mode)
-cd ../fluentbit
-./generate-configmap.sh postgresql postgresql/kubernetes/configmap.yaml
-kubectl apply -f postgresql/kubernetes/configmap.yaml
-kubectl apply -f postgresql/kubernetes/daemonset.yaml
+# 3. Vector (the log collector) is deployed by the Helm chart for MODE 1.
+#    Full one-command flow: bash data-index/scripts/e2e/full-test-mode1.sh
 ----
 
 === Option 2: Elasticsearch Backend
@@ -87,11 +85,8 @@ MODE=elasticsearch ./install-dependencies.sh
 # 2. Deploy Data Index service
 ./deploy-data-index.sh elasticsearch
 
-# 3. Deploy FluentBit DaemonSet (Elasticsearch mode)
-cd ../fluentbit
-./generate-configmap.sh elasticsearch elasticsearch/kubernetes/configmap.yaml
-kubectl apply -f elasticsearch/kubernetes/configmap.yaml
-kubectl apply -f elasticsearch/kubernetes/daemonset.yaml
+# 3. Vector (the log collector) is deployed by the Helm chart for MODE 2.
+#    Full one-command flow: bash data-index/scripts/e2e/full-test-mode2.sh
 ----
 
 === Option 3: Kafka Ingestion
@@ -126,8 +121,8 @@ All components should be running:
 # Data Index service
 kubectl get pods -n data-index
 
-# FluentBit
-kubectl get pods -n logging
+# Vector (log collector)
+kubectl get pods -n logging -l app=vector
 
 # PostgreSQL
 kubectl get pods -n postgresql
@@ -142,7 +137,7 @@ Expected output:
 ----
 NAMESPACE     NAME                                  READY   STATUS
 data-index    data-index-service-xxx                1/1     Running
-logging       workflows-fluent-bit-mode1-xxx        1/1     Running
+logging       vector-xxx                             1/1     Running
 postgresql    postgresql-0                          1/1     Running
 ----
 

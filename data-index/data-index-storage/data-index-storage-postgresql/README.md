@@ -234,7 +234,7 @@ Schema is managed by Flyway migrations in `data-index-storage-migrations` module
 **Tables:**
 - `workflow_instances` - Normalized workflow data
 - `task_instances` - Normalized task data
-- `workflow_events_raw` - Raw JSONB events from FluentBit
+- `workflow_events_raw` - Raw JSONB events from the Vector postgres sink
 - `task_events_raw` - Raw JSONB task events
 
 **Triggers:**

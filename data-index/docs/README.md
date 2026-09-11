@@ -21,7 +21,6 @@ open target/generated-docs/index.html
 ### Technical Reference
 
 * **jsonnode-scalar-analysis.md** - Technical analysis of JSON field exposure in GraphQL
-* **MULTI_TENANT_FLUENTBIT.md** - Advanced multi-tenant FluentBit configuration patterns
 * **elasticsearch/TRANSFORM_OPTIMIZATION.md** - Elasticsearch transform optimization & metrics guide
 
 ## Migration Status

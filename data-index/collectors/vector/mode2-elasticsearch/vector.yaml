@@ -4,7 +4,7 @@
 #
 # Validation: Vector does not have a reliable JSON Schema for IDE validation
 # - Use Vector CLI: `vector validate --config-yaml vector.yaml`
-# - Or our Maven tests: `mvn test -pl collectors`
+# - Or our Maven tests: `mvn verify -pl collectors`
 # - Vector documentation: https://vector.dev/docs/reference/configuration/
 #
 # Purpose: Capture Quarkus Flow structured logs from container stdout

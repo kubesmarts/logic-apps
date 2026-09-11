@@ -127,26 +127,28 @@ JSON events appear in workflow pod logs, but GraphQL queries return empty.
 
 **Debug steps:**
 
-1. **Check FluentBit is running:**
+1. **Check Vector is running:**
 +
 [source,bash]
 ----
-kubectl get pods -n logging
-kubectl logs -n logging -l app=fluent-bit --tail=50
+kubectl get pods -n logging -l app=vector
+kubectl logs -n logging -l app=vector --tail=50
 ----
 
-2. **Check FluentBit is collecting events:**
+2. **Check Vector is collecting events:**
 +
 [source,bash]
 ----
-kubectl logs -n logging -l app=fluent-bit | grep "your-workflow-name"
+kubectl set env daemonset/vector -n logging DEBUG_EVENTS=true
+kubectl logs -n logging -l app=vector -f | grep "your-workflow-name"
+kubectl set env daemonset/vector -n logging DEBUG_EVENTS-
 ----
 +
-If empty, FluentBit is not capturing events. Check:
+If empty, Vector is not capturing events. Check:
 +
-* Workflow pod is in `workflows` namespace (FluentBit filters by namespace)
-* FluentBit has correct log path: `/var/log/containers/*_workflows_*.log`
-* FluentBit DaemonSet is running on the same node as workflow pods
+* Workflow pod is in the `workflows` namespace (Vector filters by `WORKFLOW_NAMESPACE`)
+* Vector DaemonSet is running on the same node as workflow pods
+* The event's `eventType` starts with `io.serverlessworkflow.`
 
 3. **Check raw events in PostgreSQL:**
 +
@@ -157,11 +159,11 @@ kubectl exec -n postgresql postgresql-0 -- \
   -c "SELECT COUNT(*) FROM workflow_events_raw;"
 ----
 +
-If zero, FluentBit is not inserting to database. Check:
+If zero, Vector is not inserting to the database. Check:
 +
-* PostgreSQL connection from FluentBit pod
-* FluentBit output configuration
-* PostgreSQL credentials in FluentBit ConfigMap
+* PostgreSQL reachability from the Vector pod (`POSTGRES_HOST`/`POSTGRES_PORT` DaemonSet env)
+* `postgres` sink errors in the Vector logs
+* PostgreSQL credentials (`POSTGRES_USER`/`POSTGRES_PASSWORD` DaemonSet env)
 
 4. **Check normalized tables:**
 +
@@ -178,13 +180,13 @@ If raw tables have data but normalized tables are empty, triggers may have faile
 * Trigger functions exist: `\df normalize_workflow_event`
 * Triggers are attached: `\d workflow_events_raw`
 
-=== Wrong namespace - FluentBit not collecting
+=== Wrong namespace - Vector not collecting
 
 **Symptom:**
 
-Events in pod logs, but FluentBit not collecting them.
+Events in pod logs, but Vector not collecting them.
 
-**Cause:** Workflow pods not in `workflows` namespace, but FluentBit only watches `workflows`.
+**Cause:** Workflow pods not in `workflows` namespace, but Vector only watches `WORKFLOW_NAMESPACE` (`workflows` by default).
 
 **Solution:**
 
@@ -196,19 +198,13 @@ kubectl create namespace workflows
 kubectl apply -f workflow-app.yaml -n workflows
 ----
 
-Option B: Update FluentBit to watch your namespace:
+Option B: Point Vector at your namespace:
 
 [source,bash]
 ----
-# Edit FluentBit ConfigMap
-kubectl edit configmap -n logging fluent-bit-config
-
-# Change log path filter:
-# From: Path /var/log/containers/*_workflows_*.log
-# To:   Path /var/log/containers/*_YOUR_NAMESPACE_*.log
-
-# Restart FluentBit pods
-kubectl rollout restart daemonset/fluent-bit -n logging
+# Helm: set vector.workflowNamespace=YOUR_NAMESPACE and upgrade, or ad-hoc:
+kubectl set env daemonset/vector -n logging WORKFLOW_NAMESPACE=YOUR_NAMESPACE
+kubectl rollout restart daemonset/vector -n logging
 ----
 
 === Events delayed or not appearing
@@ -221,18 +217,13 @@ Workflow executes, but Data Index doesn't show it for 10+ seconds.
 
 **Expected latency:**
 
-* FluentBit flush interval: 1 second
+* Vector `postgres` sink batch: `timeout_secs: 1` (flushes at least every second)
 * PostgreSQL insert + trigger: < 1ms
 * Total end-to-end: 5-10 seconds
 
 **If latency is higher:**
 
-1. Check FluentBit flush interval:
-+
-[source,bash]
-----
-kubectl get configmap -n logging fluent-bit-config -o yaml | grep Flush
-----
+1. Check the Vector sink batch settings in `vector-mode1-postgresql.yaml` (`batch.timeout_secs`, `batch.max_events`).
 
 2. Check PostgreSQL performance:
 +
@@ -242,13 +233,11 @@ kubectl top pod -n postgresql
 kubectl logs -n postgresql postgresql-0 | grep -i slow
 ----
 
-3. Check network latency:
+3. Check Vector → PostgreSQL connectivity / sink retries:
 +
 [source,bash]
 ----
-# From FluentBit pod to PostgreSQL
-kubectl exec -n logging <fluentbit-pod> -- \
-  time nc -zv postgresql.postgresql.svc.cluster.local 5432
+kubectl logs -n logging -l app=vector | grep -iE "postgres|retry|error"
 ----
 
 == Data Query Issues
@@ -380,9 +369,9 @@ kubectl exec -n postgresql postgresql-0 -- \
 kubectl get pods -n data-index
 kubectl logs -n data-index -l app=data-index-service --tail=50
 
-# FluentBit
-kubectl get pods -n logging
-kubectl logs -n logging -l app=fluent-bit --tail=50
+# Vector (log collector)
+kubectl get pods -n logging -l app=vector
+kubectl logs -n logging -l app=vector --tail=50
 
 # PostgreSQL
 kubectl get pods -n postgresql
@@ -405,8 +394,8 @@ curl http://localhost:8080/q/health
 kubectl exec -n data-index deployment/data-index-service -- \
   nc -zv postgresql.postgresql.svc.cluster.local 5432
 
-# PostgreSQL from FluentBit
-kubectl exec -n logging <fluentbit-pod> -- \
+# PostgreSQL from Vector
+kubectl exec -n logging <vector-pod> -- \
   nc -zv postgresql.postgresql.svc.cluster.local 5432
 ----
 
@@ -496,17 +485,11 @@ kubectl exec -n elasticsearch elasticsearch-0 -- \
 
 4. If transform failed, see "Transform in failed state" above.
 
-=== FluentBit cannot connect to Elasticsearch
+=== Vector cannot connect to Elasticsearch
 
 **Symptom:**
 
-FluentBit logs show connection errors:
-
-[source,text]
-----
-[warn] [net] getaddrinfo(host='...', err=4): Domain name not found
-[error] [output:es:es.0] HTTP status=0 - No response from server
-----
+Vector logs show `elasticsearch` sink connection/healthcheck errors.
 
 **Cause:** Incorrect Elasticsearch hostname or port configuration.
 
@@ -519,24 +502,20 @@ FluentBit logs show connection errors:
 kubectl get svc -n elasticsearch
 ----
 
-2. Update FluentBit DaemonSet environment variables:
+2. Update the Vector DaemonSet environment variables:
 +
 [source,bash]
 ----
-# For ECK (Elastic Cloud on Kubernetes)
-kubectl set env daemonset/fluent-bit -n logging \
-  ELASTICSEARCH_HOST=<elasticsearch-service-name>.<namespace>.svc.cluster.local
-
-# For plain StatefulSet
-kubectl set env daemonset/fluent-bit -n logging \
-  ELASTICSEARCH_HOST=elasticsearch-0.elasticsearch-es-http.elasticsearch.svc.cluster.local
+kubectl set env daemonset/vector -n logging \
+  ELASTICSEARCH_HOST=<elasticsearch-service-name>.<namespace>.svc.cluster.local \
+  ELASTICSEARCH_PORT=9200
 ----
 
-3. Restart FluentBit:
+3. Restart Vector:
 +
 [source,bash]
 ----
-kubectl rollout restart daemonset/fluent-bit -n logging
+kubectl rollout restart daemonset/vector -n logging
 ----
 
 === Workflow status showing null

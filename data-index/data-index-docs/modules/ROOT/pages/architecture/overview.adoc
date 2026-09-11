@@ -11,7 +11,7 @@ Data Index supports two storage backends, each with different characteristics:
 ----
 Quarkus Flow App
     ↓ (structured logging → stdout)
-FluentBit DaemonSet
+Vector DaemonSet
     ↓ (tail container logs)
 Storage Backend
     ├─ PostgreSQL (triggers) → < 1ms normalization
@@ -109,20 +109,23 @@ Applications with https://docs.quarkiverse.io/quarkus-flow/dev/structured-loggin
 * `quarkus.flow.structured-logging.timestamp-format=epoch-seconds`
 * Console handler for JSON output
 
-=== 2. FluentBit DaemonSet
+=== 2. Vector DaemonSet
 
-FluentBit runs on each Kubernetes node and:
+Vector runs on each Kubernetes node and:
 
-* Tails `/var/log/containers/*_workflows_*.log` (pods in `workflows` namespace)
-* Filters lines to extract only JSON events (not regular app logs)
-* Parses JSON and extracts fields
-* Forwards to storage backend (PostgreSQL or Elasticsearch)
+* Tails container logs for pods in the `workflows` namespace (`kubernetes_logs` source)
+* Keeps only JSON events whose `eventType` starts with `io.serverlessworkflow.`
+* Routes workflow vs task events (VRL `route` transform)
+* Forwards to the storage backend (`postgres` sink for MODE 1, `elasticsearch` sink for MODE 2)
 
 **Configuration:**
 
-* `fluent-bit.conf` - Input, filter, output configuration
-* `flatten-event.lua` - Lua script to flatten nested JSON
-* Deployed via ConfigMap + DaemonSet
+* `data-index/collectors/vector/mode1-postgresql/vector.yaml` (MODE 1)
+* `data-index/collectors/vector/mode2-elasticsearch/vector.yaml` (MODE 2)
+* Deployed via ConfigMap + DaemonSet by the Helm chart
+
+Vector replaced FluentBit per ADR-0001 (OpenShift alignment). See
+xref:deployment/vector-config.adoc[Vector Configuration].
 
 === 3. Storage Backend
 
@@ -156,7 +159,7 @@ Quarkus application providing:
 1. **Workflow executes** in Quarkus Flow app
 2. **Structured logging** writes JSON event to stdout
 3. **Kubernetes** captures stdout to `/var/log/containers/POD_NAME.log`
-4. **FluentBit** tails log file, extracts JSON events
+4. **Vector** tails container logs, extracts JSON events
 5. **Storage backend** receives and normalizes events:
    - **PostgreSQL**: Events normalized in real-time (< 1ms)
    - **Elasticsearch**: Events normalized asynchronously (~1s)
@@ -177,9 +180,9 @@ Quarkus application providing:
 |5-10 seconds
 |5-10 seconds
 
-|**FluentBit collection interval**
-|5 seconds
-|5 seconds
+|**Vector collection**
+|near real-time (log tail)
+|near real-time (log tail)
 
 |**Data consistency**
 |Immediate (ACID)
@@ -187,7 +190,7 @@ Quarkus application providing:
 
 |===
 
-**Note:** End-to-end latency includes FluentBit collection interval (5s), log parsing, network transit, and storage processing. The primary difference is normalization speed: PostgreSQL triggers are synchronous (< 1ms), while Elasticsearch transforms run asynchronously (~1s).
+**Note:** End-to-end latency includes Vector log tailing and batching, network transit, and storage processing. The primary difference is normalization speed: PostgreSQL triggers are synchronous (< 1ms), while Elasticsearch transforms run asynchronously (~1s).
 
 == Key Design Features
 
@@ -237,7 +240,7 @@ Data Index is **read-only**. It does NOT:
 
 [source,text]
 ----
-FluentBit → PostgreSQL raw tables (workflow_events_raw, task_events_raw)
+Vector (postgres sink) → PostgreSQL raw tables (workflow_events_raw, task_events_raw)
                 ↓ (BEFORE INSERT triggers, < 1ms)
             Normalized tables (workflow_instances, task_instances)
                 ↓ (JPA/Hibernate)
@@ -257,7 +260,7 @@ FluentBit → PostgreSQL raw tables (workflow_events_raw, task_events_raw)
 
 [source,text]
 ----
-FluentBit → Elasticsearch raw indices (workflow-instance-events-raw-*, task-execution-events-raw-*)
+Vector (elasticsearch sink) → Elasticsearch raw indices (workflow-events-*, task-events-*)
                 ↓ (Continuous transforms, ~1s)
             Normalized indices (workflow-instances, task-executions)
                 ↓ (Elasticsearch Java Client)

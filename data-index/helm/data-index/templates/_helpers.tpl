@@ -74,7 +74,8 @@ Namespace helper
 PostgreSQL connection string
 */}}
 {{- define "data-index.postgresql.connectionString" -}}
-postgresql://postgresql.postgresql.svc.cluster.local:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.database }}
+
+postgresql://{{ .Values.postgresql.host }}:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.database }}
 {{- end }}
 
 {{/*

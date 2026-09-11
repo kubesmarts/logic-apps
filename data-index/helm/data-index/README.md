@@ -6,7 +6,7 @@ Helm chart for deploying Data Index in different modes (PostgreSQL, Elasticsearc
 
 This chart supports three deployment modes:
 
-- **MODE 1**: PostgreSQL + FluentBit + Triggers
+- **MODE 1**: PostgreSQL + Vector + Triggers
 - **MODE 2**: Elasticsearch + Vector + Transforms
 - **MODE 3**: Kafka + Ingestion Service + PostgreSQL
 
@@ -24,7 +24,7 @@ kind create cluster --name data-index-test --config kind-cluster.yaml
 helm install data-index . -f values-mode1.yaml
 ```
 
-### MODE 1 (PostgreSQL + FluentBit)
+### MODE 1 (PostgreSQL + Vector)
 
 ```bash
 helm install data-index . -f values-mode1.yaml
@@ -32,8 +32,8 @@ helm install data-index . -f values-mode1.yaml
 
 **Architecture:**
 ```
-Quarkus Flow → /tmp/quarkus-flow-events.log (JSON)
-                    ↓ (FluentBit tail)
+Quarkus Flow → stdout → /var/log/containers/*.log (JSON)
+                    ↓ (Vector kubernetes_logs → postgres sink)
             PostgreSQL raw tables (JSONB)
                     ↓ (BEFORE INSERT triggers)
             PostgreSQL normalized tables
@@ -96,7 +96,7 @@ Base configuration shared across all modes.
 
 ### Mode-Specific Overrides
 
-- `values-mode1.yaml` - PostgreSQL + FluentBit
+- `values-mode1.yaml` - PostgreSQL + Vector
 - `values-mode2.yaml` - Elasticsearch + Vector
 - `values-mode3.yaml` - Kafka + Ingestion
 
@@ -113,10 +113,8 @@ elasticsearch:
   enabled: false
 kafka:
   enabled: false
-fluentbit:
-  enabled: true
 vector:
-  enabled: false
+  enabled: true
 dataIndexIngestion:
   enabled: false
 
@@ -203,14 +201,12 @@ helm/data-index/
 │   ├── postgresql.yaml     # PostgreSQL StatefulSet (MODE 1, 3)
 │   ├── elasticsearch.yaml  # Elasticsearch StatefulSet (MODE 2)
 │   ├── kafka.yaml          # Kafka StatefulSet (MODE 3)
-│   ├── fluentbit-*.yaml    # FluentBit DaemonSet (MODE 1)
-│   ├── vector-*.yaml       # Vector DaemonSet (MODE 2)
+│   ├── vector-*.yaml       # Vector DaemonSet (MODE 1 & MODE 2)
 │   ├── data-index-service.yaml       # GraphQL API
 │   ├── data-index-ingestion.yaml     # Kafka Ingestion (MODE 3)
 │   └── workflow-test-app.yaml        # Test application
 └── configs/
-    ├── fluentbit/          # FluentBit configurations
-    └── vector/             # Vector configurations
+    └── vector/             # Vector configurations (vector-mode{1,2}-*.yaml)
 ```
 
 ## Troubleshooting
@@ -235,15 +231,18 @@ kubectl get svc -n default data-index-service
 kubectl port-forward -n default svc/data-index-service 8080:8080
 ```
 
-### FluentBit/Vector not collecting logs
+### Vector not collecting logs
 
 ```bash
 # Check DaemonSet logs
-kubectl logs -n logging -l app=fluentbit
 kubectl logs -n logging -l app=vector
 
-# Verify log file exists in workflow pod
-kubectl exec -n workflows workflow-test-app-xxx -- ls -la /tmp/quarkus-flow-events.log
+# Trace events (troubleshooting only)
+kubectl set env daemonset/vector -n logging DEBUG_EVENTS=true
+kubectl logs -n logging -l app=vector -f
+
+# Confirm the workflow app is emitting structured JSON to stdout
+kubectl logs -n workflows -l app=workflow-test-app | grep eventType
 ```
 
 ## More Information

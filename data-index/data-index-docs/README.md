@@ -83,7 +83,7 @@ modules/ROOT/
     │   ├── kind-local.adoc
     │   ├── postgresql.adoc
     │   ├── elasticsearch.adoc
-    │   └── fluentbit-config.adoc
+    │   └── vector-config.adoc
     ├── developers/             # Developer guides
     │   ├── quarkus-flow-apps.adoc
     │   ├── quarkus-flow-integration.adoc
