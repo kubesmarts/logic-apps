@@ -123,7 +123,7 @@ Claude: I've created the ADR and committed it.  ❌ WRONG - no approval!
 **Documentation locations:**
 - Main documentation: `data-index/data-index-docs/` (Antora/AsciiDoc)
 - Script docs: `data-index/scripts/*/README.md`
-- Architecture Decision Records (ADRs): `docs/adr/`
+- Architecture Decision Records (ADRs): `adrs/`
 
 **The documentation module (`data-index-docs`) is served at `/docs` in the running application and is the user-facing manual. It must always be accurate and complete.**
 
