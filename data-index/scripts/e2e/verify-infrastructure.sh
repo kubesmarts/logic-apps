@@ -61,24 +61,26 @@ verify_mode1_infrastructure() {
     log_success "PostgreSQL is accepting connections"
 
     # 3. Verify schema initialized (tables exist)
+    # Vector inserts directly into workflow_instances/task_instances (no raw staging tables
+    # since V2__direct_normalized_inserts.sql)
     log_info "Checking database schema..."
     TABLES=$(kubectl exec -n postgresql postgresql-0 -- psql -U dataindex -d dataindex -t -c "
         SELECT COUNT(*) FROM information_schema.tables
         WHERE table_schema = 'public'
-        AND table_name IN ('workflow_instances', 'task_instances', 'workflow_events_raw', 'task_events_raw')
+        AND table_name IN ('workflow_instances', 'task_instances')
     ")
-    if [ "$TABLES" -eq 4 ]; then
-        log_success "Database schema initialized (4 tables found)"
+    if [ "$TABLES" -eq 2 ]; then
+        log_success "Database schema initialized (2 tables found)"
     else
-        log_error "Database schema incomplete (expected 4 tables, found $TABLES)"
+        log_error "Database schema incomplete (expected 2 tables, found $TABLES)"
         return 1
     fi
 
-    # 4. Verify triggers exist
+    # 4. Verify triggers exist (self-targeting BEFORE INSERT triggers on the normalized tables)
     log_info "Checking database triggers..."
     TRIGGERS=$(kubectl exec -n postgresql postgresql-0 -- psql -U dataindex -d dataindex -t -c "
         SELECT COUNT(*) FROM information_schema.triggers
-        WHERE event_object_table IN ('workflow_events_raw', 'task_events_raw')
+        WHERE event_object_table IN ('workflow_instances', 'task_instances')
     ")
     if [ "$TRIGGERS" -ge 2 ]; then
         log_success "Database triggers created ($TRIGGERS triggers found)"

@@ -2,10 +2,9 @@
 :page-aliases:
 
 Data Index uses https://vector.dev[Vector] as the log collector for both
-MODE 1 (PostgreSQL) and MODE 2 (Elasticsearch). Vector tails Quarkus Flow
-container logs, keeps only structured workflow/task events, and writes them to
-the mode's raw storage. Normalization then happens in the storage layer
-(PostgreSQL triggers or Elasticsearch Transforms).
+MODE 1 (PostgreSQL) and MODE 2 (Elasticsearch). MODE 1 inserts directly into
+`workflow_instances`/`task_instances`, normalized by `BEFORE INSERT` triggers.
+MODE 2 writes to raw Elasticsearch indices, normalized by Transforms.
 
 == Sources of truth
 
@@ -43,14 +42,15 @@ Quarkus Flow pod → stdout → /var/log/containers/*.log
    filter_workflow_events → keep eventType starting with "io.serverlessworkflow."
    route_by_type       → workflow_events | task_events
         ↓
-   MODE 1: build_{workflow,task}_row → postgres sinks → workflow_events_raw / task_events_raw
+   MODE 1: build_{workflow,task}_row → postgres sinks → workflow_instances / task_instances
    MODE 2: (enrich @timestamp)       → elasticsearch sinks → workflow-events-* / task-events-*
 ----
 
 == MODE 1 (PostgreSQL)
 
 The `postgres` sink requires **Vector >= 0.46.0**. Because it cannot template the
-table name per event, MODE 1 uses one sink per raw table.
+table name per event, MODE 1 uses one sink per normalized table, and inserts
+directly into it — there is no separate raw staging table.
 
 [source,yaml]
 ----
@@ -59,20 +59,20 @@ transforms:
     type: remap
     inputs: [route_by_type.workflow_events]
     source: |
-      . = { "tag": .flow_event.eventType, "time": now(), "data": .flow_event }
+      . = { "raw_event": .flow_event }
 
 sinks:
   postgres_workflow:
     type: postgres
     inputs: [build_workflow_row]
     endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
-    table: workflow_events_raw
+    table: workflow_instances
     batch: { max_events: 100, timeout_secs: 1 }
   postgres_task:
     type: postgres
     inputs: [build_task_row]
     endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
-    table: task_events_raw
+    table: task_instances
     batch: { max_events: 100, timeout_secs: 1 }
 ----
 
@@ -81,21 +81,16 @@ setup). Do not set `buffer.type: disk` on the `postgres` sink: in Vector 0.54 it
 is not drained until graceful shutdown, stranding low-volume events. The
 `kubernetes_logs` checkpoint plus idempotent triggers cover a restart.
 
-Row shape maps directly to the raw table columns `(tag TEXT, time TIMESTAMPTZ, data JSONB)`:
-
-* `tag` — informational only (indexed); the triggers never read it.
-* `time` — ingestion time; feeds only the `created_at`/`updated_at` audit columns.
-* `data` — the untouched Quarkus Flow event. `normalize_workflow_event()` /
-  `normalize_task_event()` extract `instanceId`, `status`, `startTime`/`endTime`
-  (epoch seconds), `input`/`output`, `error`, and `taskPosition` from this JSONB.
+Vector only ever sets `raw_event JSONB`; the `BEFORE INSERT` trigger extracts
+everything else (`instanceId`, `status`, timestamps, `input`/`output`, `error`,
+`taskPosition`) and self-targets `INSERT ... ON CONFLICT DO UPDATE`, guarded by
+`pg_trigger_depth()` to avoid recursion.
 
 [NOTE]
 ====
-A Vector batch is one multi-row `INSERT`. If a row makes a trigger raise an
-uncaught exception the whole batch fails and is retried. The workflow trigger is
-`INSERT ... ON CONFLICT` and the task trigger catches `foreign_key_violation`, so
-this is tolerable. If a poison-pill row appears, set `batch.max_events: 1` for
-strict row-by-row parity with FluentBit.
+A Vector batch is one multi-row `INSERT`; if a trigger errors, the whole batch
+fails and retries. Triggers are idempotent, so retrying is safe. For poison-pill
+rows, set `batch.max_events: 1` for row-by-row parity with FluentBit.
 ====
 
 Required environment (set on the DaemonSet):

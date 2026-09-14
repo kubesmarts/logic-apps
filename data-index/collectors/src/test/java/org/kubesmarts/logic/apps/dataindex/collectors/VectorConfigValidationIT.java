@@ -77,11 +77,11 @@ class VectorConfigValidationIT {
                 .contains("kubernetes_logs:");
 
         assertThat(configContent)
-                .as("Config should define one postgres sink per raw table")
+                .as("Config should define one postgres sink per normalized table")
                 .contains("postgres_workflow:")
                 .contains("postgres_task:")
-                .contains("table: workflow_events_raw")
-                .contains("table: task_events_raw");
+                .contains("table: workflow_instances")
+                .contains("table: task_instances");
 
         validateWithVectorContainer(configPath, MODE1_ENV);
     }
