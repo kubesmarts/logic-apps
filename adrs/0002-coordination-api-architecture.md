@@ -134,12 +134,12 @@ Client stores cookie (automatic for browsers, manual for CLI).
 
 These operations must route to the specific pod holding the instance's lease.
 
-**Three-layer routing strategy:**
+**Two-layer routing strategy:**
 
-**Layer 1: Client Cookie (Primary - Fast Path)**
+**Layer 1: X-Flow-Route Header (Required)**
 ```
 Client → POST /api/v1/instances/instance-123/suspend
-         Cookie: route=abc123 (client stored it from execute)
+         X-Flow-Route: abc123 (client stored it from execute response)
 
 Coordination API:
   Step 1: Validate instance state (data-index)
@@ -155,9 +155,17 @@ Coordination API:
     If status IN (PENDING, RUNNING, WAITING, SUSPENDED):
       → Proceed to routing
   
-  Step 2: Forward to runtime ingress with client's cookie
+  Step 2: Extract X-Flow-Route header
+    If header missing:
+      → Return 428 Precondition Required:
+        {
+          "error": "X-Flow-Route header required for instance operations",
+          "instance_id": "instance-123"
+        }
+  
+  Step 3: Forward to runtime ingress, convert header to cookie
     POST http://runtime-ingress/instances/instance-123/suspend
-    Cookie: route=abc123
+    Cookie: route=abc123 (from X-Flow-Route header)
   
   Runtime Ingress:
     → Sees cookie → Routes to Pod-B (sticky session)
@@ -165,127 +173,46 @@ Coordination API:
   Pod-B:
     → Has lease for instance-123 ✓
     → Suspends workflow
-    → Returns success
+    → Returns 200 + Set-Cookie: route=abc123
+  
+  Coordination API → Client:
+    → Extract Set-Cookie from runtime response
+    → Convert to X-Flow-Route header
+    → Return: 200 + X-Flow-Route: abc123
 
-Fast path: Client has cookie (80-90% of requests).
+Client responsibility: Store X-Flow-Route per instance ID (map: instanceId → routeHash)
 ```
 
-**Layer 2: Redis Cookie Jar (Fallback for Stateless Clients)**
+**Layer 2: Coordination API Cache (Future - Phase 2+)**
 ```
-Client → POST /api/v1/instances/instance-123/suspend
-         (No cookie - stateless CLI client)
+If X-Flow-Route header missing:
+  → Check internal cache: cache.get(instanceId)
+  → If found: Use cached route (forward as Cookie)
+  → If miss: Return 428 Precondition Required
 
-Coordination API:
-  Step 1: Validate (same as above)
-  
-  Step 2: No cookie from client
-    → Query Redis: GET session:instance-123
-    → Returns: { "ingressCookie": "route=abc123", ... }
-  
-  Step 3: Forward to runtime ingress with Redis cookie
-    POST http://runtime-ingress/instances/instance-123/suspend
-    Cookie: route=abc123 (from Redis)
-  
-  Runtime Ingress:
-    → Routes to Pod-B
-  
-  Pod-B:
-    → Suspends workflow
-  
-  Coordination API:
-    → Send Set-Cookie in response (set cookie for this client)
-    → Now this client has cookie for future requests
+Cache populated from runtime responses:
+  - Runtime returns Set-Cookie: route=xyz
+  - Coordination API extracts and caches: cache.set(instanceId, "xyz")
+  - TTL: Configurable (default: 1 hour)
 
-Fallback for stateless clients (10-20% of requests).
+Benefit: Graceful degradation for clients that lose routing hints
+Status: Not implemented in Phase 1 (return 428 if header missing)
 ```
 
-**Layer 3: Retry Pattern (Last Resort)**
+**Exception: Workflow execution (new instances)**
 ```
-Client → POST /instances/instance-123/suspend
-         (No cookie, Redis miss/expired)
+POST /definitions/{namespace}/{name}/{version}/execute
 
-Coordination API:
-  Step 1: Validate (same as above)
-  
-  Step 2: No cookies available
-  
-  Step 3: Retry pattern to ingress (best-effort)
-    numReplicas = LogicFlowRuntime.spec.replicas (e.g., 3)
-    maxRetries = numReplicas (heuristic: increases probability of hitting all pods)
-    
-    For attempt = 1 to maxRetries:
-      POST http://runtime-ingress/instances/instance-123/suspend
-      (no cookie - ingress round-robins)
-      
-      If 200: Success!
-        → Extract new cookies from response
-        → Update Redis session
-        → Send cookies to client
-        → Return success
-      
-      If 404: Wrong pod, try next attempt
-      
-      If 500/other: Return error (don't retry)
-    
-    After maxRetries attempts: Return 503 (all attempts failed)
-
-**Note:** This is best-effort routing. Round-robin does not guarantee N requests hit N distinct pods (load balancer may repeat, traffic splitting may add backends, ready pod count may differ from spec.replicas). The retry count is a heuristic to increase success probability, not a correctness guarantee.
+No X-Flow-Route required (instance doesn't exist yet).
+Coordination API forwards to runtime (round-robin, no cookie).
+Runtime creates instance, returns Set-Cookie.
+Coordination API returns X-Flow-Route to client.
+Client stores for future operations on this instance ID.
 ```
 
-**Critical principle:** **NEVER bypass ingress**. Even in retry pattern, always route through runtime ingress URL to preserve traffic management, TLS, and observability.
+**Critical principle:** **NEVER bypass ingress**. Always route through runtime ingress URL to preserve traffic management, TLS, and observability.
 
-### 3. Session Store: Redis/Valkey (Cookie Jar)
-
-**Purpose:** Fallback cookie storage for stateless clients and multi-client scenarios.
-
-**Choice:** Redis (or Red Hat supported Valkey fork)
-
-**Schema (Simplified):**
-```
-Key: session:{instanceID}
-Value: {
-  "instanceId": "instance-01HQXYZ",
-  "ingressCookie": "route=abc123",  // Only ingress sticky cookie
-  "runtimeNamespace": "demo",
-  "runtimeName": "hello-runtime"
-}
-TTL: User-configurable (default: 3600 seconds / 1 hour)
-```
-
-**No custom lease cookie:** We only store the ingress sticky session cookie. The lease system is managed by runtime pods; we don't need to expose it in cookies.
-
-**Why Redis:**
-- Fast key-value lookups (< 1ms)
-- Shared across coordination API pods (horizontal scaling)
-- Survives coordination API restarts
-- TTL management built-in
-- Battle-tested, widely deployed
-- Red Hat supports Valkey (Redis fork)
-
-**Deployment:**
-- Operator deploys Redis (or users provide external Redis)
-- Coordination API configured with Redis connection string
-- Users configure TTL based on workflow lifecycle expectations
-
-**Client-managed session lifecycle:**
-- Clients store cookies themselves (browsers do this automatically)
-- Clients know workflow lifecycle (when instance terminates)
-- Clients can discard cookies when workflow completes
-- Redis is fallback for stateless clients, not primary storage
-
-**Usage pattern:**
-- **Primary:** Client sends cookies (no Redis lookup - fast)
-- **Fallback:** Client missing cookies (Redis lookup - acceptable latency for operations)
-
-**Alternatives considered:**
-- **Signed cookies (JWT-like):** Stateless, but 4KB cookie size limit and can't invalidate
-- **PostgreSQL:** Heavier (5-10ms vs < 1ms), overkill for session data
-- **etcd:** Not recommended for application data, K8s cluster load
-- **In-memory per-pod:** Doesn't survive restarts, not shared across coordination API pods
-
-**Status:** Accepted - Redis is industry standard for API gateway session storage
-
-### 4. Data-Index Integration
+### 3. Data-Index Integration
 
 **Primary use: Query operations**
 
@@ -370,7 +297,7 @@ public class WorkflowInstance {
 - Debugging: Understand which pod/runtime processed which instances
 - Not used for routing (ingress cookie handles that)
 
-### 5. Runtime Changes Required
+### 4. Runtime Changes Required
 
 **None!** 
 
@@ -396,14 +323,12 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 
 **Minimal changes principle:** Leverage existing infrastructure (ingress sticky sessions) rather than building custom mechanisms.
 
-### 6. Operator Responsibilities
+### 5. Operator Responsibilities
 
 **Deployment:**
 - Deploy coordination API Deployment (3-5 replicas typical)
 - Create Service and Ingress (public entry point)
-- Deploy/configure Redis for cookie jar
-  - Option A: Operator deploys Redis
-  - Option B: User provides external Redis (connection string)
+- Configure sticky sessions on runtime ingresses (prerequisite)
 
 **Runtime discovery:**
 - Coordination API watches LogicFlowRuntime and LogicFlowDefinition CRDs
@@ -413,9 +338,10 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 **Simplified responsibilities:**
 - No ConfigMap routing table needed (ingress handles routing)
 - No pod annotation watching needed
-- Just deploy and configure coordination API + Redis
+- No session store deployment needed (coordination API is stateless)
+- Just deploy coordination API and ensure runtime ingresses have sticky sessions
 
-### 7. Traffic Management Preserved
+### 6. Traffic Management Preserved
 
 **Absolute requirement:** **ALWAYS** route through runtime ingress.
 
@@ -437,11 +363,10 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 - Query operations route to data-index (no retry needed)
 - Execution operations only happen once per instance (cookie set for future)
 
-### 8. Horizontal Scaling
+### 7. Horizontal Scaling
 
 **Coordination API pods:**
-- Stateless (all state in Redis)
-- Share Redis instance (cookie jar)
+- **Fully stateless** (no session store required)
 - Share CRD discovery (K8s API watch)
 - Load balanced via corporate LB or K8s Service
 
@@ -450,14 +375,19 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 - Each pod can handle any request
 - No leader election needed
 - No pod-to-pod communication
-- Redis is only shared dependency
+- No shared data store dependency
 
 **Performance:**
-- Client cookie path: No Redis lookup (fast)
-- Redis fallback: < 1ms lookup overhead
-- Retry pattern: Only for edge cases (cookie loss)
+- Header-based routing: No external lookups (fast)
+- Client manages routing hints (instanceId → routeHash map)
+- 428 response if header missing (fail fast, no retries)
 
-**Bottleneck:** Redis throughput (but only used for fallback, not primary path)
+**Bottleneck:** None - coordination API is pure request forwarding
+
+**Future optimization (Phase 2+):**
+- Optional internal cache (instanceId → routeHash)
+- Fallback if client loses routing hint
+- Still stateless (cache miss = 428, not data loss)
 
 ## Consequences
 
@@ -465,33 +395,31 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 
 1. **Single API entry point** - Users call one domain for execution, operations, and queries
 2. **Cluster-wide discovery** - All runtimes/workflows visible through one API
-3. **Correct routing** - Ingress sticky sessions + fallback ensure requests hit correct pod
+3. **Correct routing** - Ingress sticky sessions ensure requests hit correct pod
 4. **Minimal runtime changes** - No changes needed, leverage existing ingress cookies
-5. **Horizontal scaling** - Stateless coordination API pods
+5. **Fully stateless** - Coordination API has zero external dependencies (no Redis)
 6. **Preserves traffic management** - **Always** routes through ingress (canary, split, TLS intact)
-7. **Multi-client support** - Cookie-aware clients fast path, stateless clients fallback
+7. **Simple client contract** - Store X-Flow-Route per instance ID, include on operations
 8. **Clean separation** - Queries → data-index, operations → runtime (right tool for job)
-9. **Graceful degradation** - Three-layer fallback (client cookie → Redis → retry)
-10. **Client controls lifecycle** - Clients manage cookies based on workflow state
+9. **Fail fast** - 428 if header missing (no retry overhead, client knows what's wrong)
+10. **Industry standard** - Header-based routing used by gRPC, Envoy, HAProxy, K8s API
 
 ### Negative
 
-1. **External dependency** - Requires Redis/Valkey deployment
-2. **Multiple routing paths** - Three-layer strategy adds complexity (mitigated by clear layering)
+1. **Client responsibility** - Clients must store X-Flow-Route per instance (map: instanceId → routeHash)
+2. **No graceful degradation** - Missing header = 428 (Phase 1), future cache adds fallback (Phase 2+)
 3. **Data-index changes** - Schema must store lease_id and runtime_name (observability)
 4. **Network hops** - Client → Coordination API → Ingress → Pod (acceptable overhead)
-5. **Retry overhead** - Operations without cookies may require N attempts (N = replicas)
-6. **Validation overhead** - Operations query data-index before forwarding (< 10ms)
+5. **Validation overhead** - Operations query data-index before forwarding (< 10ms)
 
 ### Risks & Mitigations
 
 | Risk | Mitigation |
 |------|-----------|
-| **Redis unavailable** | Fallback to retry pattern (no Redis needed for retry) |
-| **Cookie invalidation** | Retry pattern finds correct pod, updates Redis + client |
-| **Session bloat** | User-configured TTL, cleanup job, client discards on termination |
+| **Client loses routing hint** | Return 428, client re-executes (future: optional cache as fallback) |
 | **Operations on terminated instances** | Data-index validation returns 405 + instance data (not 404) |
 | **Ingress bypass temptation** | Architectural principle enforced: NEVER bypass ingress |
+| **Header not standard** | Use X-Flow-Route (custom but explicit), document in API contract |
 
 ## Alternatives Considered
 
@@ -543,17 +471,17 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 
 **Decision:** Use ingress cookies as-is, don't replicate
 
-### Alternative 5: Signed Cookies (JWT-like, Stateless)
+### Alternative 5: Cookie-Based Routing (Browser Pattern)
 
-**Approach:** Store all session data in signed cookie
+**Approach:** Use Set-Cookie + Cookie for routing (like browser sessions)
 
 **Rejected because:**
-- 4KB cookie size limit
-- Can't invalidate sessions server-side
-- Still need fallback for cookieless clients
-- Industry uses Redis for API gateway sessions
+- Multiple instances overwrite single cookie (last runtime wins)
+- Client working with instance A and B ends up with B's cookie only
+- Request for A includes B's cookie → routes to wrong pod → 404
+- Browsers have one cookie per domain, not per resource
 
-**Decision:** Redis for cookie jar, client stores cookies when possible
+**Decision:** Header-based routing (X-Flow-Route) allows per-instance hints
 
 ### Alternative 6: Hash-Based Routing
 
@@ -581,36 +509,42 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 - CRD discovery: LogicFlowRuntime, LogicFlowDefinition
 - Basic routing: forward to runtime ingress or data-index
 
-**Phase 3: Session Store (Redis Integration)**
-- Redis connection and client
-- Session CRUD operations (Get, Set, Delete with TTL)
-- Cookie extraction from responses
-- Cookie passthrough to clients
+**Phase 3: Header-Based Routing Implementation**
+- Extract X-Flow-Route from request headers
+- Convert X-Flow-Route to Cookie for ingress forwarding
+- Extract Set-Cookie from runtime responses
+- Convert Set-Cookie to X-Flow-Route for client responses
+- Return 428 Precondition Required if header missing (operations only)
 
-**Phase 4: Routing Implementation**
+**Phase 4: Request Type Routing**
 - Query routing: Forward GET requests to data-index GraphQL
-- Execute routing: Forward POST to runtime ingress, extract cookies
-- Operation routing: Three-layer strategy (client cookies → Redis → retry)
-- Operation validation: Query data-index before forwarding
+- Execute routing: Forward POST to runtime ingress, no header required (round-robin)
+- Operation routing: Require X-Flow-Route header, validate with data-index first
+- Operation validation: Query data-index before forwarding, return 405 if terminated
 
 **Phase 5: Operator Integration**
 - Deploy coordination API Deployment (managed by operator)
-- Deploy/configure Redis
-- Create Service and Ingress (public entry point)
+- Ensure runtime ingresses have sticky sessions enabled (prerequisite)
+- Create Service and Ingress for coordination API (public entry point)
 - E2E tests (execute → query → suspend workflow)
 
 **Phase 6: Production Hardening**
-- Metrics: Prometheus (request count, latency, cache hit rate, retry count)
+- Metrics: Prometheus (request count, latency, 428 rate, validation overhead)
 - Distributed tracing: OpenTelemetry (trace request across coordination → ingress → runtime)
 - Logging: Structured logs with correlation IDs
-- Redis HA: Sentinel or Cluster mode
-- Load testing: Verify horizontal scaling
+- Load testing: Verify horizontal scaling (fully stateless)
+
+**Phase 7 (Future): Optional Cache Fallback**
+- In-memory cache (instanceId → routeHash)
+- Fallback if X-Flow-Route header missing
+- TTL-based expiration (configurable, default 1hr)
+- Graceful degradation (cache miss = 428, not error)
 
 ## Open Questions
 
-1. **Redis deployment:** Operator-managed (simple) or external infrastructure (production)?
-2. **Session TTL:** User-configurable per LogicFlowRuntime? Global default (1hr)?
-3. **Retry count:** Always equal to replicas? Or configurable max retries?
+1. **Header name:** Use `X-Flow-Route` or standardize on a different name?
+2. **Cache implementation (Phase 7):** In-memory per-pod or shared (Redis/Valkey)?
+3. **Cache TTL (Phase 7):** User-configurable per LogicFlowRuntime? Global default (1hr)?
 4. **Multi-cluster:** Future support for workflows across clusters? (federation)
 5. **Authentication:** Coordination API edge auth, runtime auth, or both?
 6. **Rate limiting:** At coordination API level or rely on ingress?
