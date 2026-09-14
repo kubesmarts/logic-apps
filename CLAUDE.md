@@ -195,24 +195,22 @@ graphify --update
 
 ```
 Quarkus Flow → stdout → /var/log/containers/*.log (JSON)
-                      ↓ (Vector kubernetes_logs → postgres sink)
-              PostgreSQL raw tables (JSONB)
-                      ↓ (BEFORE INSERT triggers)
-              PostgreSQL normalized tables
+                      ↓ (Vector kubernetes_logs → postgres sink, {raw_event: <json>} rows)
+              PostgreSQL normalized tables (BEFORE INSERT triggers normalize in place)
                       ↓ (JPA/Hibernate)
               GraphQL API (SmallRye GraphQL)
 ```
 
 **Key Components:**
-- **Vector DaemonSet** - Tails container logs, writes raw events to PostgreSQL (`postgres` sink; config: `data-index/collectors/vector/mode1-postgresql/vector.yaml`).
-- **PostgreSQL Triggers** - Normalize events immediately on INSERT
+- **Vector DaemonSet** - Tails container logs, inserts directly into `workflow_instances`/`task_instances` (`postgres` sink, only the `raw_event` column set; config: `data-index/collectors/vector/mode1-postgresql/vector.yaml`).
+- **PostgreSQL Triggers** - `BEFORE INSERT` on `workflow_instances`/`task_instances`; self-targeting `INSERT ... ON CONFLICT DO UPDATE`, guarded by `pg_trigger_depth()` to avoid recursion
 - **Data Index Service** - Quarkus app with GraphQL API
 - **JPA Entities** - Map to normalized tables (workflow_instances, task_instances)
 
 **NOT used in MODE 1:**
 - ❌ Event Processor service (removed in Phase 1)
 - ❌ Polling (triggers are immediate)
-- ❌ Staging tables (raw tables → triggers → normalized tables)
+- ❌ Raw staging tables (`workflow_events_raw`/`task_events_raw` — removed; Vector now inserts directly into the normalized tables)
 
 ---
 
@@ -507,15 +505,16 @@ mvn quarkus:dev -Dquarkus.profile=elasticsearch
 ### 1. Trigger-Based Normalization (Not Polling)
 
 **DO:**
-- ✅ Raw events stored in `workflow_events_raw` and `task_events_raw` (tag, time, data JSONB)
-- ✅ Triggers extract fields from JSONB and UPSERT into normalized tables
+- ✅ Vector inserts directly into `workflow_instances`/`task_instances`, with only `raw_event JSONB` set
+- ✅ `BEFORE INSERT` triggers on these same tables extract fields and UPSERT in place
 - ✅ COALESCE handles out-of-order events
 - ✅ Real-time processing (< 1ms latency)
 
 **DON'T:**
 - ❌ Don't add Event Processor service (we removed it in Phase 1)
 - ❌ Don't use polling architecture
-- ❌ Don't reference "staging tables" (we use raw tables + triggers)
+- ❌ Don't reference `workflow_events_raw`/`task_events_raw` (removed)
+- ❌ Don't drop the `pg_trigger_depth()` guard (self-targeting INSERT would recurse)
 
 **See:** `data-index/data-index-docs/modules/ROOT/pages/architecture/postgresql-mode.adoc`
 
@@ -1281,9 +1280,10 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - Enable event tracing: `kubectl set env daemonset/vector -n logging DEBUG_EVENTS=true`
 - Confirm Vector can reach PostgreSQL (`POSTGRES_HOST`/`POSTGRES_PORT` env on the DaemonSet)
 
-**"Raw tables populated but normalized tables empty"**
-- Check triggers exist: `\d workflow_events_raw` in psql
-- Check trigger functions: `\df normalize_workflow_event`
+**"Rows inserted but fields not populated (namespace/status/etc. all NULL)"**
+- Check triggers exist: `\d workflow_instances` / `\d task_instances` in psql (look for `Triggers:`)
+- Check trigger functions: `\df normalize_workflow_instance`, `\df normalize_task_instance`
+- Confirm the inserted row actually has `raw_event` set (a NULL `raw_event` is treated as a passthrough insert)
 - Check PostgreSQL logs for trigger errors
 
 **"GraphQL query returns empty taskExecutions"**
@@ -1342,7 +1342,8 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - `data-index-storage-postgresql/src/main/java/.../entity/` - JPA entities
 - `data-index-storage-postgresql/src/main/java/.../mapper/` - MapStruct mappers
 - `data-index-storage-migrations/src/main/resources/db/migration/` - Flyway migrations
-- `V1__initial_schema.sql` - Schema with triggers
+- `V1__initial_schema.sql` - Original schema (raw staging tables, now removed)
+- `V2__direct_normalized_inserts.sql` - Current triggers: self-targeting `BEFORE INSERT` on `workflow_instances`/`task_instances`
 
 **Code (MODE 2 - Elasticsearch):**
 - `data-index-storage-elasticsearch/src/main/java/.../` - Storage implementation
@@ -1437,7 +1438,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 → MODE 2: Write `@QuarkusTest` integration test with Elasticsearch profile + wait for transforms
 
 **"Where are the database triggers?"**
-→ MODE 1: `data-index-storage-migrations/.../V1__initial_schema.sql`
+→ MODE 1: `data-index-storage-migrations/.../V2__direct_normalized_inserts.sql` (defined directly on `workflow_instances`/`task_instances`)
 → MODE 2: Not applicable (uses Elasticsearch transforms)
 
 **"Where are the Elasticsearch transforms?"**
