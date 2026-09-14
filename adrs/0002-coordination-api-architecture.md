@@ -1,7 +1,7 @@
-# ADR 0001: Coordination API Architecture
+# ADR 0002: Coordination API Architecture
 
 **Status:** Proposed  
-**Date:** 2026-09-11  
+**Date:** 2026-09-14  
 **Authors:** Ricardo Zanini  
 **Deciders:** KubeSmarts Team
 
@@ -152,7 +152,7 @@ Coordination API:
           "instance": { "id": "instance-123", "status": "COMPLETED", ... }
         }
     
-    If status IN (RUNNING, WAITING, SUSPENDED):
+    If status IN (PENDING, RUNNING, WAITING, SUSPENDED):
       → Proceed to routing
   
   Step 2: Forward to runtime ingress with client's cookie
@@ -209,10 +209,11 @@ Coordination API:
   
   Step 2: No cookies available
   
-  Step 3: Retry pattern to ingress
+  Step 3: Retry pattern to ingress (best-effort)
     numReplicas = LogicFlowRuntime.spec.replicas (e.g., 3)
+    maxRetries = numReplicas (heuristic: increases probability of hitting all pods)
     
-    For attempt = 1 to numReplicas:
+    For attempt = 1 to maxRetries:
       POST http://runtime-ingress/instances/instance-123/suspend
       (no cookie - ingress round-robins)
       
@@ -226,9 +227,9 @@ Coordination API:
       
       If 500/other: Return error (don't retry)
     
-    After numReplicas attempts: Return 503 (all attempts failed)
+    After maxRetries attempts: Return 503 (all attempts failed)
 
-Retry pattern ensures we hit the correct pod eventually.
+**Note:** This is best-effort routing. Round-robin does not guarantee N requests hit N distinct pods (load balancer may repeat, traffic splitting may add backends, ready pod count may differ from spec.replicas). The retry count is a heuristic to increase success probability, not a correctness guarantee.
 ```
 
 **Critical principle:** **NEVER bypass ingress**. Even in retry pattern, always route through runtime ingress URL to preserve traffic management, TLS, and observability.
@@ -297,11 +298,11 @@ query {
     status
     startedAt
     endedAt
-    input
-    output
+    inputData    # Public field (input is internal JsonNode)
+    outputData   # Public field (output is internal JsonNode)
     error
-    leaseId      # For observability/debugging
-    runtimeName  # For observability
+    leaseId      # NEW: Add to GraphQL schema
+    runtimeName  # NEW: Add to GraphQL schema
   }
 }
 ```
@@ -328,7 +329,40 @@ If status is terminal (COMPLETED, FAULTED, CANCELLED), return `405 Method Not Al
 ALTER TABLE workflow_instances ADD COLUMN lease_id VARCHAR(255);
 ALTER TABLE workflow_instances ADD COLUMN runtime_name VARCHAR(255);
 
--- Update trigger to extract from events
+-- Update trigger to extract from events (MODE 1)
+-- Update Kafka mapper to extract from events (MODE 3)
+```
+
+```json
+// MODE 2 (Elasticsearch)
+// Update index template: workflow-instances-template.json
+{
+  "mappings": {
+    "properties": {
+      "leaseId": { "type": "keyword" },
+      "runtimeName": { "type": "keyword" }
+    }
+  }
+}
+
+// Update transform: workflow-instances-transform.json
+{
+  "source": {
+    "ctx.leaseId = ctx._source.leaseId",
+    "ctx.runtimeName = ctx._source.runtimeName"
+  }
+}
+```
+
+**GraphQL schema changes needed:**
+
+```java
+// WorkflowInstance.java (data-index-model)
+public class WorkflowInstance {
+    private String leaseId;      // NEW
+    private String runtimeName;  // NEW
+    // ... existing fields
+}
 ```
 
 **Rationale for storing lease_id/runtime_name:**
@@ -340,7 +374,21 @@ ALTER TABLE workflow_instances ADD COLUMN runtime_name VARCHAR(255);
 
 **None!** 
 
-Runtime doesn't need changes. Ingress already provides sticky session cookies (`Set-Cookie: route=...`), which is all we need.
+Runtime doesn't need changes. Ingress provides sticky session cookies (`Set-Cookie: route=...`), which is all we need.
+
+**Prerequisite:** Runtime ingress must have sticky sessions enabled.
+
+Operator must configure LogicFlowRuntime ingress with:
+
+```yaml
+# Nginx Ingress example
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "route"
+```
+
+Without sticky session configuration, Layers 1 and 2 lose their routing guarantee and fallback to Layer 3 (retry pattern).
 
 **Originally considered (not needed):**
 - ❌ Add `X-Flow-Lease-ID` response header - Not needed, ingress cookie sufficient
