@@ -69,19 +69,60 @@ logic-operator/
 
 ### 2. Request Routing Strategy by Type
 
+**Note on API Endpoints:** The specific API endpoint paths and HTTP methods shown below are **not final** and will be revisited during implementation. The coordination API will **mimic the endpoints exposed by the Quarkus Flow Runner** (runtime), acting as a transparent proxy/gateway. The critical design element here is the **routing navigation strategy** (how requests are routed to data-index vs runtime, and how sticky sessions work), not the exact URL structure or HTTP verbs.
+
 Coordination API routes requests differently based on operation type:
+
+#### Type 0: CRD Discovery → **Kubernetes API**
+
+**Operations:** `GET /v1/definitions` - List available workflow definitions
+
+```
+Client → GET /v1/definitions
+
+Coordination API:
+  → Query Kubernetes API for LogicFlowDefinition CRDs
+  → Return list of available workflows (namespace, name, version)
+  → Example: [
+      { "namespace": "demo", "name": "hello-world", "version": "1.0.0" },
+      { "namespace": "prod", "name": "order-processing", "version": "2.0.0" }
+    ]
+
+No routing complexity, direct K8s API query.
+```
+
+**Rationale:** Coordination API watches CRDs for runtime/definition discovery. Exposing this to clients enables workflow catalog browsing.
 
 #### Type 1: Query Operations → **Data-Index**
 
-**Operations:** `GET /instances/{id}`, `GET /instances` (list/filter)
+**Operations:**
+- `GET /v1/instances/{id}` - Get single instance (GraphQL facade)
+- `GET /v1/instances?filter=...&page=...` - List/filter instances (GraphQL facade, pagination required)
+- `GET /v1/status/{instanceId}` - Short view: id, status, error details if failed
 
 ```
-Client → GET /api/v1/instances/instance-123
+Example: Get single instance
+Client → GET /v1/instances/instance-123
 
 Coordination API:
   → Forward to data-index GraphQL API
-  → Data-index has all instance data (status, history, output)
+  → query { workflowInstance(id: "instance-123") { ... } }
   → Return response to client
+
+Example: Get instance status (short view)
+Client → GET /v1/status/instance-123
+
+Coordination API:
+  → Forward to data-index GraphQL API
+  → query { workflowInstance(id: "instance-123") { id, status, error, workflowApplicationId } }
+  → Return: { "id": "instance-123", "status": "FAULTED", "error": {...}, "workflowApplicationId": "flow-pool-member-01" }
+
+Example: List instances with filter
+Client → GET /v1/instances?status=RUNNING&page=1&size=20
+
+Coordination API:
+  → Forward to data-index GraphQL API with filter/pagination
+  → Return paginated results
 
 No routing complexity, no cookies needed.
 ```
@@ -90,14 +131,15 @@ No routing complexity, no cookies needed.
 
 #### Type 2: Workflow Execution → **Runtime (Round-Robin)**
 
-**Operations:** `POST /workflows/{ns}/{name}/{version}/execute`
+**Operations:** `POST /v1/{namespace}/{name}/{version}` - Execute workflow
 
 ```
-Client → POST /api/v1/workflows/demo/hello/1.0/execute
+Client → POST /v1/demo/hello-world/1.0.0
+         Body: { "input": { "name": "Alice" } }
 
 Coordination API:
   1. Discover runtime for workflow (CRD watch)
-  2. Forward to runtime ingress (no cookie)
+  2. Forward to runtime ingress (no X-Flow-Route header - instance doesn't exist yet)
   
 Runtime Ingress:
   → Round-robin to Pod-B
@@ -106,102 +148,146 @@ Runtime Ingress:
 Pod-B (Quarkus Flow):
   → Creates instance-01HQXYZ (random ULID)
   → Acquires lease: flow-pool-member-01
-  → Returns: { "id": "instance-01HQXYZ" }
+  → Returns: { "id": "instance-01HQXYZ" } + Set-Cookie: route=abc123
   
 Coordination API:
-  → Extract ingress cookie from response
-  → Store in Redis cookie jar:
-     session:instance-01HQXYZ → {
-       "ingressCookie": "route=abc123",
-       "runtimeNamespace": "demo",
-       "runtimeName": "hello-runtime"
-     }
-     TTL: user-configurable (default 1 hour)
-  
-  → Pass Set-Cookie to client:
-     Set-Cookie: route=abc123
-  
+  → Extract Set-Cookie from runtime response
+  → Convert cookie to header: X-Flow-Route: abc123
   → Return: { "id": "instance-01HQXYZ" }
+           X-Flow-Route: abc123
 
-Client stores cookie (automatic for browsers, manual for CLI).
+Client responsibility:
+  → Store X-Flow-Route per instance: map["instance-01HQXYZ"] = "abc123"
+  → Include header on future operations (/suspend, /cancel, /resume)
 ```
 
-**Ingress cookie only:** No custom lease cookie needed. Runtime doesn't need changes.
+**No session storage:** Coordination API is stateless. Client manages routing hints.
 
 #### Type 3: Instance Operations → **Runtime (Sticky Routing)**
 
-**Operations:** `POST /instances/{id}/suspend`, `POST /instances/{id}/cancel`, `POST /instances/{id}/resume`
+**Operations:**
+- `POST /v1/suspend/{instanceId}` - Suspend running instance
+- `DELETE /v1/cancel/{instanceId}` - Cancel running instance
+- `POST /v1/resume/{instanceId}` - Resume suspended instance
 
 These operations must route to the specific pod holding the instance's lease.
 
 **Two-layer routing strategy:**
 
-**Layer 1: X-Flow-Route Header (Required)**
+**Layer 1: X-Flow-Route Header (Fast Path - Optional)**
 ```
-Client → POST /api/v1/instances/instance-123/suspend
-         X-Flow-Route: abc123 (client stored it from execute response)
+Client → POST /v1/suspend/instance-123
+         X-Flow-Route: abc123 (optional - client stored it from /exec response)
 
 Coordination API:
-  Step 1: Validate instance state (data-index)
-    query { workflowInstance(id: "instance-123") { status } }
-    
-    If status IN (COMPLETED, FAULTED, CANCELLED):
-      → Return 405 Method Not Allowed:
-        {
-          "error": "Cannot suspend terminated instance",
-          "instance": { "id": "instance-123", "status": "COMPLETED", ... }
-        }
-    
-    If status IN (PENDING, RUNNING, WAITING, SUSPENDED):
-      → Proceed to routing
-  
-  Step 2: Extract X-Flow-Route header
+  Step 1: Check if X-Flow-Route header present
     If header missing:
-      → Return 428 Precondition Required:
-        {
-          "error": "X-Flow-Route header required for instance operations",
-          "instance_id": "instance-123"
-        }
+      → Skip to Layer 2 (retry pattern)
+    
+    If header present:
+      → Proceed to Step 2
   
-  Step 3: Forward to runtime ingress, convert header to cookie
-    POST http://runtime-ingress/instances/instance-123/suspend
+  Step 2: Forward to runtime ingress, convert header to cookie
+    POST http://runtime-ingress/suspend/instance-123
     Cookie: route=abc123 (from X-Flow-Route header)
   
   Runtime Ingress:
     → Sees cookie → Routes to Pod-B (sticky session)
   
-  Pod-B:
-    → Has lease for instance-123 ✓
-    → Suspends workflow
-    → Returns 200 + Set-Cookie: route=abc123
+  If 200 (Success):
+    Pod-B:
+      → Has lease for instance-123 ✓
+      → Suspends workflow
+      → Returns 200 + Set-Cookie: route=abc123
+    
+    Coordination API → Client:
+      → Extract Set-Cookie from runtime response
+      → Convert to X-Flow-Route header
+      → Return: 200 + X-Flow-Route: abc123
   
-  Coordination API → Client:
-    → Extract Set-Cookie from runtime response
-    → Convert to X-Flow-Route header
-    → Return: 200 + X-Flow-Route: abc123
+  If 404 (Ambiguous - pod died OR instance terminated):
+    → Query data-index to disambiguate
+    → Go to Validation step (below)
 
-Client responsibility: Store X-Flow-Route per instance ID (map: instanceId → routeHash)
+Fast path (80-90% of requests): Client has valid routing hint.
 ```
 
-**Layer 2: Coordination API Cache (Future - Phase 2+)**
+**Validation After 404 (Disambiguate Terminated vs Wrong Pod)**
 ```
-If X-Flow-Route header missing:
-  → Check internal cache: cache.get(instanceId)
-  → If found: Use cached route (forward as Cookie)
-  → If miss: Return 428 Precondition Required
+After 404 from runtime:
+  
+  Query data-index:
+    query { 
+      workflowInstance(id: "instance-123") { 
+        id
+        status 
+      } 
+    }
+  
+  If status IN (COMPLETED, FAULTED, CANCELLED):
+    → Instance is terminated (not in runtime memory anymore)
+    → Return 405 Method Not Allowed:
+      {
+        "error": "Cannot suspend terminated instance",
+        "instance": { "id": "instance-123", "status": "COMPLETED" }
+      }
+    → DON'T RETRY (instance is gone from runtime, all retries will 404)
+  
+  If status IN (RUNNING, WAITING, SUSPENDED, PENDING):
+    → Instance is still active (just on wrong pod)
+    → Proceed to Layer 2 (retry pattern)
+  
+  If NOT FOUND in data-index:
+    → Instance doesn't exist at all
+    → Return 404 Not Found:
+      {
+        "error": "Workflow instance not found",
+        "instance_id": "instance-123"
+      }
 
-Cache populated from runtime responses:
-  - Runtime returns Set-Cookie: route=xyz
-  - Coordination API extracts and caches: cache.set(instanceId, "xyz")
-  - TTL: Configurable (default: 1 hour)
+This validation prevents wasted retries for terminated instances.
+```
 
-Benefit: Graceful degradation for clients that lose routing hints
-Status: Not implemented in Phase 1 (return 428 if header missing)
+**Layer 2: Retry Pattern (Fallback for Active Instances)**
+```
+Triggered when:
+  - X-Flow-Route header missing (client never got hint or lost it), OR
+  - Layer 1 returns 404 AND validation confirms instance is still active
+
+Coordination API:
+  numReplicas = LogicFlowRuntime.spec.replicas (e.g., 3)
+  maxRetries = numReplicas * 2 (configurable multiplier, default: 2)
+  
+  For attempt = 1 to maxRetries:
+    POST http://runtime-ingress/suspend/instance-123
+    (no cookie - ingress round-robins to different pods)
+    
+    If 200: Success!
+      → Extract Set-Cookie from response
+      → Convert to X-Flow-Route header
+      → Return: 200 + X-Flow-Route: xyz (new hint)
+      → Client stores routing hint for this instance
+    
+    If 404: Wrong pod, try next attempt
+    
+    If 500/other: Return error (don't retry server errors)
+  
+  After maxRetries attempts: Return 503 Service Unavailable
+    {
+      "error": "Instance not found on any runtime pod after retries",
+      "instance_id": "instance-123",
+      "attempts": maxRetries,
+      "hint": "Instance may have moved or been terminated during retry"
+    }
+
+**Note:** This is best-effort routing. Round-robin does not guarantee N requests hit N distinct pods (load balancer may repeat, traffic splitting may add backends, ready pod count may differ from spec.replicas). The retry count is a heuristic to increase success probability, not a correctness guarantee.
+
+Fallback (10-20% of requests): Missing hints or stale hints for active instances trigger retry.
 ```
 
 **Exception: Workflow execution (new instances)**
 ```
-POST /definitions/{namespace}/{name}/{version}/execute
+POST /v1/{namespace}/{name}/{version}
 
 No X-Flow-Route required (instance doesn't exist yet).
 Coordination API forwards to runtime (round-robin, no cookie).
@@ -209,6 +295,26 @@ Runtime creates instance, returns Set-Cookie.
 Coordination API returns X-Flow-Route to client.
 Client stores for future operations on this instance ID.
 ```
+
+**Why retry is necessary:**
+
+Sticky session cookies (OpenShift Routes, nginx ingress) are **pod-specific**, not service-level:
+- Cookie `route=abc123` maps to Pod-B (specific pod IP/ID hash)
+- If Pod-B dies (crash, eviction, rolling update), cookie becomes stale
+- Ingress routes to dead pod → 404
+- Retry pattern finds new pod, client gets updated routing hint
+
+**Common scenario - Fast-completing workflows:**
+1. Client executes workflow → completes in 100ms → returns X-Flow-Route
+2. Client immediately tries to suspend → sends X-Flow-Route header
+3. Runtime returns 404 (instance completed and removed from memory)
+4. Coordination API queries data-index → finds status=COMPLETED
+5. Returns 405 Method Not Allowed (don't retry terminated instances)
+
+**Graceful recovery:** 
+- Missing/stale headers → retry finds correct pod
+- Terminated instances → 405 response (no wasted retries)
+- Client doesn't need to re-execute workflow
 
 **Critical principle:** **NEVER bypass ingress**. Always route through runtime ingress URL to preserve traffic management, TLS, and observability.
 
@@ -218,46 +324,64 @@ Client stores for future operations on this instance ID.
 
 All `GET /instances/*` requests route to data-index GraphQL API:
 
+```
+GET /instances/instance-123
+
+Coordination API → Proxies to data-index:
+  query { 
+    workflowInstance(id: "instance-123") { 
+      id
+      status
+      startedAt
+      endedAt
+      inputData    # Public field (input is internal JsonNode)
+      outputData   # Public field (output is internal JsonNode)
+      error
+      workflowApplicationId  # NEW: Add to GraphQL schema (observability)
+    } 
+  }
+
+Returns:
+  {
+    "id": "instance-123",
+    "status": "COMPLETED",
+    "startedAt": "2026-09-14T10:00:00Z",
+    "endedAt": "2026-09-14T10:00:01Z",
+    "outputData": "{\"result\": \"success\"}",
+    "workflowApplicationId": "flow-pool-member-01"
+  }
+```
+
+**Benefit for clients:** Check instance status before attempting operations to avoid 405 errors.
+
+**Secondary use: Operation validation after 404**
+
+After runtime returns 404, query data-index to disambiguate:
+
 ```graphql
 query {
   workflowInstance(id: "instance-123") {
     id
     status
-    startedAt
-    endedAt
-    inputData    # Public field (input is internal JsonNode)
-    outputData   # Public field (output is internal JsonNode)
-    error
-    leaseId      # NEW: Add to GraphQL schema
-    runtimeName  # NEW: Add to GraphQL schema
   }
 }
 ```
 
-**Secondary use: Operation validation**
+- **If terminated** (COMPLETED, FAULTED, CANCELLED): Return `405 Method Not Allowed`, don't retry
+- **If active** (RUNNING, WAITING, SUSPENDED, PENDING): Proceed to retry pattern
+- **If not found**: Return `404 Not Found`
 
-Before forwarding operations (suspend/cancel/resume), query data-index to validate instance state:
-
-```graphql
-query {
-  workflowInstance(id: "instance-123") {
-    id
-    status
-  }
-}
-```
-
-If status is terminal (COMPLETED, FAULTED, CANCELLED), return `405 Method Not Allowed` with instance data instead of routing to runtime.
+This prevents wasted retry attempts for instances that are no longer in runtime memory.
 
 **Schema changes needed (data-index):**
 
 ```sql
 -- MODE 1 & MODE 3 (PostgreSQL)
-ALTER TABLE workflow_instances ADD COLUMN lease_id VARCHAR(255);
-ALTER TABLE workflow_instances ADD COLUMN runtime_name VARCHAR(255);
+ALTER TABLE workflow_instances ADD COLUMN workflow_application_id VARCHAR(255);
 
 -- Update trigger to extract from events (MODE 1)
 -- Update Kafka mapper to extract from events (MODE 3)
+-- Note: Populated from lease ID in events (internal implementation detail)
 ```
 
 ```json
@@ -266,8 +390,7 @@ ALTER TABLE workflow_instances ADD COLUMN runtime_name VARCHAR(255);
 {
   "mappings": {
     "properties": {
-      "leaseId": { "type": "keyword" },
-      "runtimeName": { "type": "keyword" }
+      "workflowApplicationId": { "type": "keyword" }
     }
   }
 }
@@ -275,8 +398,7 @@ ALTER TABLE workflow_instances ADD COLUMN runtime_name VARCHAR(255);
 // Update transform: workflow-instances-transform.json
 {
   "source": {
-    "ctx.leaseId = ctx._source.leaseId",
-    "ctx.runtimeName = ctx._source.runtimeName"
+    "ctx.workflowApplicationId = ctx._source.workflowApplicationId"
   }
 }
 ```
@@ -286,16 +408,16 @@ ALTER TABLE workflow_instances ADD COLUMN runtime_name VARCHAR(255);
 ```java
 // WorkflowInstance.java (data-index-model)
 public class WorkflowInstance {
-    private String leaseId;      // NEW
-    private String runtimeName;  // NEW
+    private String workflowApplicationId;  // NEW - identifies which application instance processed this workflow
     // ... existing fields
 }
 ```
 
-**Rationale for storing lease_id/runtime_name:**
-- Observability: Query instances by lease or runtime
-- Debugging: Understand which pod/runtime processed which instances
+**Rationale for storing workflow_application_id:**
+- Observability: Query instances by workflow application ID
+- Debugging: Understand which application instance processed which workflows
 - Not used for routing (ingress cookie handles that)
+- Note: Internal implementation uses lease system to populate this field, but "lease" is not exposed to users
 
 ### 4. Runtime Changes Required
 
@@ -305,17 +427,47 @@ Runtime doesn't need changes. Ingress provides sticky session cookies (`Set-Cook
 
 **Prerequisite:** Runtime ingress must have sticky sessions enabled.
 
-Operator must configure LogicFlowRuntime ingress with:
+Operator must configure LogicFlowRuntime ingress/route with sticky sessions:
 
 ```yaml
-# Nginx Ingress example
+# OpenShift Route (HAProxy-based, first-class support)
+apiVersion: route.openshift.io/v1
+kind: Route
 metadata:
+  name: hello-runtime
+  annotations:
+    haproxy.router.openshift.io/cookie_name: "route"
+spec:
+  to:
+    kind: Service
+    name: hello-runtime
+  port:
+    targetPort: 8080
+```
+
+```yaml
+# Nginx Ingress (vanilla Kubernetes)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-runtime
   annotations:
     nginx.ingress.kubernetes.io/affinity: "cookie"
     nginx.ingress.kubernetes.io/session-cookie-name: "route"
+spec:
+  rules:
+    - host: hello-runtime.example.com
+      http:
+        paths:
+          - path: /
+            backend:
+              service:
+                name: hello-runtime
+                port:
+                  number: 8080
 ```
 
-Without sticky session configuration, Layers 1 and 2 lose their routing guarantee and fallback to Layer 3 (retry pattern).
+Without sticky session configuration, the X-Flow-Route header will route to wrong pods and operations will fail (404). Sticky sessions are a prerequisite.
 
 **Originally considered (not needed):**
 - ❌ Add `X-Flow-Lease-ID` response header - Not needed, ingress cookie sufficient
@@ -354,14 +506,12 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 - Authorization (ingress-level auth)
 
 **Implementation:**
-- All three routing layers (client cookies, Redis cookies, retry pattern) route to ingress URL
-- NEVER direct pod calls (even in fallback)
-- Retry pattern hits ingress multiple times, letting ingress round-robin
+- All requests route through ingress URL (header → cookie conversion)
+- NEVER direct pod calls
+- Client provides X-Flow-Route, coordination API forwards as Cookie to ingress
+- Retry pattern recovers from stale hints (pod failures) automatically
 
-**Trade-off:** Retry pattern costs N requests (N = num replicas), but preserves all ingress features. This is acceptable because:
-- Operations (suspend/cancel/resume) are low throughput
-- Query operations route to data-index (no retry needed)
-- Execution operations only happen once per instance (cookie set for future)
+**Fault tolerance:** Two-layer routing (fast path with header, retry fallback for pod failures).
 
 ### 7. Horizontal Scaling
 
@@ -378,16 +528,16 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 - No shared data store dependency
 
 **Performance:**
-- Header-based routing: No external lookups (fast)
+- Fast path (80-90%): Header-based routing, no external lookups
+- Fallback (10-20%): Retry pattern for stale/missing hints
 - Client manages routing hints (instanceId → routeHash map)
-- 428 response if header missing (fail fast, no retries)
 
-**Bottleneck:** None - coordination API is pure request forwarding
+**Bottleneck:** None - coordination API is stateless request forwarding
 
-**Future optimization (Phase 2+):**
-- Optional internal cache (instanceId → routeHash)
-- Fallback if client loses routing hint
-- Still stateless (cache miss = 428, not data loss)
+**Retry triggers:**
+- Pod died (rolling update, crash, eviction) → stale routing hint → 404 → retry
+- Client lost hint (restart, cache clear) → missing header → retry
+- Retry finds new pod and returns updated routing hint to client
 
 ## Consequences
 
@@ -395,31 +545,34 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 
 1. **Single API entry point** - Users call one domain for execution, operations, and queries
 2. **Cluster-wide discovery** - All runtimes/workflows visible through one API
-3. **Correct routing** - Ingress sticky sessions ensure requests hit correct pod
+3. **Correct routing** - Ingress sticky sessions + retry pattern ensure requests hit correct pod
 4. **Minimal runtime changes** - No changes needed, leverage existing ingress cookies
 5. **Fully stateless** - Coordination API has zero external dependencies (no Redis)
 6. **Preserves traffic management** - **Always** routes through ingress (canary, split, TLS intact)
 7. **Simple client contract** - Store X-Flow-Route per instance ID, include on operations
 8. **Clean separation** - Queries → data-index, operations → runtime (right tool for job)
-9. **Fail fast** - 428 if header missing (no retry overhead, client knows what's wrong)
+9. **Fault tolerance** - Retry pattern recovers from pod failures automatically
 10. **Industry standard** - Header-based routing used by gRPC, Envoy, HAProxy, K8s API
 
 ### Negative
 
 1. **Client responsibility** - Clients must store X-Flow-Route per instance (map: instanceId → routeHash)
-2. **No graceful degradation** - Missing header = 428 (Phase 1), future cache adds fallback (Phase 2+)
-3. **Data-index changes** - Schema must store lease_id and runtime_name (observability)
+2. **Retry overhead** - Stale/missing hints trigger retry pattern (10-20% of requests)
+3. **Data-index changes** - Schema must store workflow_application_id for observability
 4. **Network hops** - Client → Coordination API → Ingress → Pod (acceptable overhead)
-5. **Validation overhead** - Operations query data-index before forwarding (< 10ms)
+5. **Validation overhead** - Operations query data-index after 404 to disambiguate (< 10ms)
 
 ### Risks & Mitigations
 
 | Risk | Mitigation |
 |------|-----------|
-| **Client loses routing hint** | Return 428, client re-executes (future: optional cache as fallback) |
-| **Operations on terminated instances** | Data-index validation returns 405 + instance data (not 404) |
+| **Pod dies during operation** | Retry pattern finds new pod, returns updated routing hint to client |
+| **Client loses routing hint** | Header optional - retry pattern recovers, returns new hint (graceful, not error) |
+| **Operations on terminated instances** | Data-index validation after 404 returns 405 + instance data (prevents wasted retries) |
+| **Fast-completing workflows** | Validation disambiguates: 404 from terminated instance vs wrong pod |
 | **Ingress bypass temptation** | Architectural principle enforced: NEVER bypass ingress |
 | **Header not standard** | Use X-Flow-Route (custom but explicit), document in API contract |
+| **Retry doesn't find instance** | Return 503 after maxRetries attempts (instance truly lost or moved) |
 
 ## Alternatives Considered
 
@@ -445,7 +598,7 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 - Loses ingress observability (metrics, tracing)
 - Violates core requirement: preserve ingress
 
-**Decision:** ALWAYS route through ingress, even in retry pattern
+**Decision:** ALWAYS route through ingress (header → cookie conversion)
 
 ### Alternative 3: Peer-to-Peer Runtime Routing
 
@@ -498,8 +651,10 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 ## Implementation Plan
 
 **Phase 1: Foundation (logic-platform - GitHub issues #67-#72)**
-- Add `lease_id` and `runtime_name` columns to data-index schema (MODE 1, MODE 2, MODE 3)
-- Update triggers (MODE 1) and transforms (MODE 2) to extract from events
+- Add `workflow_application_id` column to data-index schema (MODE 1, MODE 2, MODE 3)
+  - Note: Populated from lease information in events (internal implementation detail)
+- Update triggers (MODE 1) and transforms (MODE 2) to extract workflow_application_id from events
+- Update Kafka mapper (MODE 3) to extract workflow_application_id from events
 - Add GraphQL queries for instance status and validation
 - No runtime changes needed ✓
 
@@ -510,71 +665,88 @@ Without sticky session configuration, Layers 1 and 2 lose their routing guarante
 - Basic routing: forward to runtime ingress or data-index
 
 **Phase 3: Header-Based Routing Implementation**
-- Extract X-Flow-Route from request headers
+- Extract X-Flow-Route from request headers (optional - graceful if missing)
 - Convert X-Flow-Route to Cookie for ingress forwarding
 - Extract Set-Cookie from runtime responses
 - Convert Set-Cookie to X-Flow-Route for client responses
-- Return 428 Precondition Required if header missing (operations only)
+- Implement retry pattern: try with header first, fallback to round-robin retries
 
 **Phase 4: Request Type Routing**
 - Query routing: Forward GET requests to data-index GraphQL
 - Execute routing: Forward POST to runtime ingress, no header required (round-robin)
-- Operation routing: Require X-Flow-Route header, validate with data-index first
-- Operation validation: Query data-index before forwarding, return 405 if terminated
+- Operation routing: Two-layer strategy (header fast path → validation → retry fallback)
 
-**Phase 5: Operator Integration**
+**Phase 5: Validation After 404**
+- Detect 404 from Layer 1 (ambiguous: wrong pod OR terminated instance)
+- Query data-index to check instance status
+- If terminated (COMPLETED/FAULTED/CANCELLED): Return 405, don't retry
+- If active (RUNNING/WAITING/SUSPENDED/PENDING): Proceed to retry pattern
+- If not found: Return 404
+
+**Phase 6: Retry Pattern Implementation**
+- Triggered after validation confirms instance is active (OR header missing)
+- Retry up to maxRetries (default: replicas * 2) with no cookie (round-robin)
+- Return updated X-Flow-Route to client on success
+- Return 503 if all retries fail
+
+**Phase 7: Operator Integration**
 - Deploy coordination API Deployment (managed by operator)
-- Ensure runtime ingresses have sticky sessions enabled (prerequisite)
+- Ensure runtime Routes (OpenShift) or Ingresses (K8s) have sticky sessions enabled
 - Create Service and Ingress for coordination API (public entry point)
-- E2E tests (execute → query → suspend workflow)
+- E2E tests (execute → query → suspend → fast-completing workflow → pod failure recovery)
 
-**Phase 6: Production Hardening**
-- Metrics: Prometheus (request count, latency, 428 rate, validation overhead)
+**Phase 8: Production Hardening**
+- Metrics: Prometheus (request count, latency, retry rate, validation overhead, 405 rate)
 - Distributed tracing: OpenTelemetry (trace request across coordination → ingress → runtime)
 - Logging: Structured logs with correlation IDs
-- Load testing: Verify horizontal scaling (fully stateless)
-
-**Phase 7 (Future): Optional Cache Fallback**
-- In-memory cache (instanceId → routeHash)
-- Fallback if X-Flow-Route header missing
-- TTL-based expiration (configurable, default 1hr)
-- Graceful degradation (cache miss = 428, not error)
+- Load testing: Verify horizontal scaling (fully stateless) and pod failure recovery
 
 ## Open Questions
 
 1. **Header name:** Use `X-Flow-Route` or standardize on a different name?
-2. **Cache implementation (Phase 7):** In-memory per-pod or shared (Redis/Valkey)?
-3. **Cache TTL (Phase 7):** User-configurable per LogicFlowRuntime? Global default (1hr)?
-4. **Multi-cluster:** Future support for workflows across clusters? (federation)
-5. **Authentication:** Coordination API edge auth, runtime auth, or both?
-6. **Rate limiting:** At coordination API level or rely on ingress?
+2. **Retry multiplier:** Default `replicas * 2` sufficient, or make it higher/configurable?
+3. **Multi-cluster:** Future support for workflows across clusters? (federation)
+4. **Authentication:** Coordination API edge auth, runtime auth, or both?
+5. **Rate limiting:** At coordination API level or rely on ingress?
+6. **Retry delay:** Add delay between retry attempts, or fire immediately?
 
 ## References
 
 - Quarkus Flow Lease System: https://docs.quarkiverse.io/quarkus-flow/dev/concepts-durable-workflow-k8s.html
+- OpenShift Routes Documentation: https://docs.redhat.com/en/documentation/openshift_container_platform/4.7/html/networking/configuring-routes
+- OpenShift Route Sticky Sessions: https://dzone.com/articles/session-stickiness-in-openshift
 - Nginx Ingress Sticky Sessions: https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#session-affinity
 - logic-operator repository: https://github.com/kubesmarts/logic-operator
 - logic-apps repository: https://github.com/kubesmarts/logic-apps
 
 ## Notes
 
-This ADR represents the simplified coordination API design after thorough discussion of routing strategies and alternatives.
+This ADR represents the final simplified coordination API design after thorough discussion of routing strategies and alternatives.
 
-**Key simplifications from initial design:**
-1. **No custom lease cookie** - Only ingress sticky session cookie (runtime unchanged)
-2. **Queries route to data-index** - Not runtime (clean separation of concerns)
-3. **Always use ingress** - NEVER bypass, even in retry pattern (traffic management preserved)
-4. **Client manages cookies** - Primary storage, Redis is fallback (reduced Redis load)
-5. **Validation before operations** - Check data-index for terminated instances (better UX)
+**Key design decisions:**
+1. **Header-based routing** - X-Flow-Route header (API-to-API pattern, not browser cookies)
+2. **Fully stateless** - No Redis, no session store, coordination API is pure request forwarding
+3. **Client responsibility** - Client stores routing hints per instance (map: instanceId → routeHash)
+4. **Fault tolerance** - Retry pattern recovers from pod failures automatically
+5. **Queries route to data-index** - Not runtime (clean separation of concerns)
+6. **Always use ingress** - NEVER bypass (traffic management preserved)
+7. **Validation before operations** - Check data-index for terminated instances (better UX)
 
-**Redis choice rationale:**
-- Industry standard for API gateway session storage (Kong, Tyk, AWS, Azure all use Redis/similar)
-- Fast fallback for stateless clients (< 1ms lookup)
-- Client cookies handle 80-90% of traffic (Redis only for fallback)
-- Alternatives evaluated: signed cookies (size limits), PostgreSQL (slower), etcd (not for app data)
+**Why retry pattern is necessary:**
+
+Nginx sticky session cookies are **pod-specific** (route to specific pod IP/ID), not service-level:
+- When pod dies (crash, eviction, rolling update), routing hint becomes stale
+- Ingress routes to dead pod → 404
+- Retry pattern finds new pod and returns updated routing hint to client
+- **Graceful recovery:** No 428 errors, no client re-execution, just automatic retry
+
+**Evolution from initial design:**
+- Started with cookie-based routing (browser pattern) → rejected (multi-instance conflict)
+- Switched to header-based routing + 428 on missing → realized pods die, hints go stale
+- Final: Header-based routing + retry pattern (fault tolerance, graceful recovery)
 
 **Next steps:**
 1. Create coordination API issues in logic-operator repository
-2. Complete data-index schema changes (lease_id, runtime_name columns)
-3. Implement coordination API with three-layer routing strategy
-4. E2E testing with real workflows
+2. Complete data-index schema changes (workflow_application_id column)
+3. Implement coordination API with header-based routing + validation + retry
+4. E2E testing with real workflows (including fast-completing scenarios)
