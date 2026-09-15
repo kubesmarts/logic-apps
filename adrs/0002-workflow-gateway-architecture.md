@@ -76,7 +76,7 @@ The gateway performs **two levels of routing** for workflow operations:
    - **How:** Extract workflow ID from URL path → look up in LogicFlowRuntime CRDs
    - **Example:** URL `/v1/demo/hello-world/1.0.0/instances/instance-123/suspend`
      - Extract: demo/hello-world/1.0.0
-     - CRD lookup: demo/hello-world/1.0.0 → hello-runtime.demo.svc.cluster.local
+     - CRD lookup: demo/hello-world/1.0.0 → https://hello-runtime-demo.apps.cluster.example.com
 
 2. **Pod-level routing** (ingress responsibility):
    - **Question:** Which pod should handle this request within hello-runtime? (Pod-A vs Pod-B)
@@ -88,6 +88,11 @@ The gateway performs **two levels of routing** for workflow operations:
 - Runtime mapping is from LogicFlowRuntime CRDs (watched at startup)
 - No data-index query needed for runtime lookup
 - X-Flow-Route header contains only the sticky cookie value (abc123) for pod-level routing
+
+**Critical:** Runtime mapping resolves to **ingress/Route URLs**, NOT Kubernetes Service DNS names:
+- ✅ Correct: `https://hello-runtime-demo.apps.cluster.example.com` (ingress URL with TLS, traffic management)
+- ❌ Wrong: `hello-runtime.demo.svc.cluster.local` (Service DNS - bypasses ingress, violates "always preserve ingress" requirement)
+- LogicFlowRuntime CRD must contain the ingress URL (operator populates this when creating ingress/Route)
 
 ### 2. Request Routing Strategy by Type
 
@@ -164,10 +169,10 @@ Client → POST /v1/demo/hello-world/1.0.0
 Workflow Gateway:
   1. Look up runtime for workflow definition demo/hello-world/1.0.0
      → Gateway watches LogicFlowDefinition and LogicFlowRuntime CRDs
-     → Mapping: demo/hello-world/1.0.0 → http://hello-runtime.demo.svc.cluster.local
+     → Mapping: demo/hello-world/1.0.0 → http://https://hello-runtime-demo.apps.cluster.example.com
   
   2. Forward to runtime ingress (no X-Flow-Route header - instance doesn't exist yet)
-     → POST http://hello-runtime.demo.svc.cluster.local/v1/demo/hello-world/1.0.0
+     → POST http://https://hello-runtime-demo.apps.cluster.example.com/v1/demo/hello-world/1.0.0
   
 Runtime Ingress (hello-runtime):
   → Round-robin to Pod-B (no cookie, so ingress load balances)
@@ -233,7 +238,7 @@ POST /v1/demo/hello-world/1.0.0/instances/instance-123/suspend
 1. Extract workflow ID from URL: `demo/hello-world/1.0.0`
 2. Look up in LogicFlowRuntime CRDs (watched at startup)
    - Mapping: `(namespace, name, version) → runtime ingress URL`
-   - Example: `demo/hello-world/1.0.0 → http://hello-runtime.demo.svc.cluster.local`
+   - Example: `demo/hello-world/1.0.0 → http://https://hello-runtime-demo.apps.cluster.example.com`
 3. Forward to that runtime (X-Flow-Route header is only for pod-level routing)
 
 **No data-index query needed** - workflow ID is in the URL, runtime mapping is from CRDs.
@@ -246,7 +251,7 @@ Client → POST /v1/demo/hello-world/1.0.0/instances/instance-123/suspend
 Workflow Gateway:
   Step 1: Look up runtime from URL path
     → Extract: demo/hello-world/1.0.0
-    → CRD mapping: demo/hello-world/1.0.0 → http://hello-runtime.demo.svc.cluster.local
+    → CRD mapping: demo/hello-world/1.0.0 → http://https://hello-runtime-demo.apps.cluster.example.com
 
   Step 2: Check if X-Flow-Route header present
     If header missing:
@@ -258,7 +263,7 @@ Workflow Gateway:
       → Proceed to Step 3
   
   Step 3: Forward to runtime ingress, convert header to cookie
-    POST http://hello-runtime.demo.svc.cluster.local/demo/hello-world/1.0.0/instances/instance-123/suspend
+    POST http://https://hello-runtime-demo.apps.cluster.example.com/demo/hello-world/1.0.0/instances/instance-123/suspend
     Cookie: route=abc123 (from X-Flow-Route header)
     
     Note: The cookie "abc123" is only for pod-level routing within hello-runtime
@@ -332,14 +337,14 @@ Triggered ONLY when validation confirms instance is active (RUNNING/WAITING/SUSP
 Workflow Gateway:
   1. Determine target runtime from URL path (same as Layer 1 Step 1)
      → Extract: demo/hello-world/1.0.0
-     → CRD mapping: demo/hello-world/1.0.0 → http://hello-runtime.demo.svc.cluster.local
+     → CRD mapping: demo/hello-world/1.0.0 → http://https://hello-runtime-demo.apps.cluster.example.com
   
   2. Retry pattern within that runtime
      numReplicas = LogicFlowRuntime.spec.replicas (e.g., 3)
      maxRetries = numReplicas * 2 (configurable multiplier, default: 2)
      
      For attempt = 1 to maxRetries:
-       POST http://hello-runtime.demo.svc.cluster.local/demo/hello-world/1.0.0/instances/instance-123/suspend
+       POST http://https://hello-runtime-demo.apps.cluster.example.com/demo/hello-world/1.0.0/instances/instance-123/suspend
        (no cookie - ingress round-robins to different pods within hello-runtime)
     
     If 200: Success!
@@ -514,7 +519,7 @@ public interface WorkflowInstanceEntityMapper {
 ```
 
 2. **Raw event field (workflow-events index):**
-Raw events from Quarkus Flow must include `workflowApplicationId` field in the event payload.
+**OPTIONAL:** If Quarkus Flow includes `workflowApplicationId` field in event payload, transform will extract it. Otherwise field remains null (routing still works).
 
 3. **Transform (workflow-instances-transform.json):**
 Add new aggregation to `pivot.aggregations` section (immutable field - first non-null value wins):
@@ -524,10 +529,10 @@ Add new aggregation to `pivot.aggregations` section (immutable field - first non
     "aggregations": {
       "workflowApplicationId": {
         "scripted_metric": {
-          "init_script": "state.value = null",
-          "map_script": "if (params._source.workflowApplicationId != null) { state.value = params._source.workflowApplicationId }",
-          "combine_script": "return state.value",
-          "reduce_script": "for (s in states) { if (s != null) { return s } } return null"
+          "init_script": "state.value = null; state.ts = 'ZZZZ'",
+          "map_script": "if (params._source.workflowApplicationId != null) { String ts = params._source.eventTime != null ? params._source.eventTime : String.valueOf(params._source.timestamp); if (ts != null && ts.compareTo(state.ts) < 0) { state.value = params._source.workflowApplicationId; state.ts = ts } }",
+          "combine_script": "return state",
+          "reduce_script": "def earliest = ['value': null, 'ts': 'ZZZZ']; for (s in states) { if (s != null && s.get('ts') != null && s.ts.compareTo(earliest.ts) < 0) { earliest = s } } return earliest.value"
         }
       }
     }
@@ -535,9 +540,11 @@ Add new aggregation to `pivot.aggregations` section (immutable field - first non
 }
 ```
 
-**Field semantics:** First non-null value wins (same as `name`, `version`, `namespace`)
-- Immutable: Once set, does not change across lifecycle events
-- Extracted from `params._source.workflowApplicationId` in raw event documents
+**Field semantics:** First non-null value wins (earliest event timestamp)
+- Immutable: Once set by earliest event, does not change even if later events have different values
+- Timestamp tracking: Uses `eventTime` or `timestamp` to select earliest event
+- Same pattern as `input` field (first wins), unlike `output`/`error` (last wins)
+- Handles out-of-order events correctly via timestamp comparison
 
 4. **Mapper (WorkflowInstanceMapper.java):**
 ```java
@@ -793,7 +800,7 @@ The workflow gateway is the single platform entry point that exposes:
 
 1. **Client responsibility** - Clients must store X-Flow-Route per instance (map: instanceId → routeHash)
 2. **Retry overhead** - Stale/missing hints trigger retry pattern (10-20% of requests)
-3. **Data-index changes** - Schema must store workflow_application_id for observability
+3. **Data-index changes (optional)** - Schema CAN store workflow_application_id for observability (routing works without it)
 4. **Network hops** - Client → Workflow Gateway → Ingress → Pod (acceptable overhead)
 5. **Validation overhead** - Operations query data-index after 404 to disambiguate (< 10ms)
 
@@ -938,8 +945,10 @@ The workflow gateway is the single platform entry point that exposes:
 
 ## Implementation Plan
 
-**Phase 1: Foundation (logic-platform - GitHub issues #67-#72)**
-- Add GraphQL queries for instance status and validation (getWorkflowInstance with status field)
+**Phase 1: Prerequisites (logic-platform)**
+- **EXISTING:** GraphQL queries for instance status validation (getWorkflowInstance with status field)
+  - Already implemented in WorkflowInstanceGraphQLApi.java
+  - Returns status, error fields needed for terminated instance detection
 - **OPTIONAL:** Add `workflow_application_id` column to data-index schema (MODE 1, MODE 2, MODE 3) for observability
   - Can be added later when Quarkus Flow exposes the field
   - Routing works without this (uses status field only)
@@ -948,12 +957,20 @@ The workflow gateway is the single platform entry point that exposes:
 - Create workflow-gateway Go module (separate from operator)
 - HTTP server with health/ready endpoints
 - CRD discovery: LogicFlowRuntime, LogicFlowDefinition
+  - Watch CRDs at startup to build mapping: (namespace, name, version) → ingress URL
+  - LogicFlowRuntime must contain ingress URL (not Service DNS)
 - Basic routing: forward to runtime ingress or data-index
 - **Authentication/Authorization:** Decision deferred to implementation phase (see "Security & Authentication" section)
   - Must decide: API Key, OIDC, or Kubernetes ServiceAccount
   - Must analyze: Integration with Quarkus Flow Runner's existing authz
   - Must decide: Gateway-only auth vs credential propagation
   - Implementation includes: Auth middleware, 401/403 responses, integration tests
+
+**Phase 3: Runtime Selection Logic**
+- Extract workflow ID from URL path (namespace/name/version)
+- Look up runtime ingress from CRD mapping
+- Forward requests to correct runtime ingress (not Service DNS)
+- Handle version-optional URLs (default to latest)
 
 **Phase 4: Header-Based Routing Implementation**
 - Extract X-Flow-Route from request headers (optional - graceful if missing)
@@ -962,31 +979,27 @@ The workflow gateway is the single platform entry point that exposes:
 - Convert Set-Cookie to X-Flow-Route for client responses
 - Implement retry pattern: try with header first, fallback to round-robin retries
 
-**Phase 5: Request Type Routing**
-- Query routing: Forward GET requests to data-index GraphQL
-- Execute routing: Forward POST to runtime ingress, no header required (round-robin)
-- Operation routing: Two-layer strategy (header fast path → validation → retry fallback)
-
-**Phase 6: Validation After 404**
+**Phase 5: Validation After 404**
 - Detect 404 from Layer 1 (ambiguous: wrong pod OR terminated instance)
-- Query data-index to check instance status
+- Query data-index to check instance status (using existing getWorkflowInstance)
 - If terminated (COMPLETED/FAULTED/CANCELLED): Return 405, don't retry
 - If active (RUNNING/WAITING/SUSPENDED/PENDING): Proceed to retry pattern
 - If not found: Return 404
 
-**Phase 7: Retry Pattern Implementation**
+**Phase 6: Retry Pattern Implementation**
 - Triggered after validation confirms instance is active (OR header missing)
 - Retry up to maxRetries (default: replicas * 2) with no cookie (round-robin)
 - Return updated X-Flow-Route to client on success
 - Return 503 if all retries fail
 
-**Phase 8: Operator Integration**
+**Phase 7: Operator Integration**
 - Deploy workflow gateway Deployment (managed by operator)
+- Operator populates LogicFlowRuntime CRD with ingress URL (not Service DNS)
 - Ensure runtime Routes (OpenShift) or Ingresses (K8s) have sticky sessions enabled
 - Create Service and Ingress for workflow gateway (public entry point)
 - E2E tests (execute → query → suspend → fast-completing workflow → pod failure recovery)
 
-**Phase 9: Production Hardening**
+**Phase 8: Production Hardening**
 - Metrics: Prometheus (request count, latency, retry rate, validation overhead, 405 rate)
 - Distributed tracing: OpenTelemetry (trace request across workflow gateway → ingress → runtime)
 - Logging: Structured logs with correlation IDs
@@ -1099,8 +1112,11 @@ Nginx sticky session cookies are **pod-specific** (route to specific pod IP/ID),
 
 **Evolution from initial design:**
 - Started with cookie-based routing (browser pattern) → rejected (multi-instance conflict)
+- Considered Redis session store → rejected (adds stateful dependency, complexity, single point of failure)
 - Switched to header-based routing + 428 on missing → realized pods die, hints go stale
-- Final: Header-based routing + retry pattern (fault tolerance, graceful recovery)
+- Final: Header-based routing + retry pattern + client-managed hints (fault tolerance, fully stateless)
+
+**Note:** Early PR descriptions may reference "Redis cookie jar" - this was rejected in favor of client-managed X-Flow-Route headers to keep the gateway stateless.
 
 **Next steps:**
 1. Create workflow gateway issues in logic-operator repository
