@@ -1,4 +1,4 @@
-# ADR 0002: Coordination API Architecture
+# ADR 0002: Workflow Gateway Architecture
 
 **Status:** Proposed  
 **Date:** 2026-09-14  
@@ -40,38 +40,62 @@ Workflow instances in Quarkus Flow have **stateful ownership** via a lease syste
 
 **Additional requirements:**
 - **Always preserve runtime ingress** - Never bypass ingress (traffic management, TLS, observability)
-- Scale horizontally (multiple coordination API pods)
+- Scale horizontally (multiple workflow gateway pods)
 - Support both cookie-aware (browsers) and stateless clients (CLI tools)
 - Single domain/API for entire workflow platform
 - Minimal runtime changes (leverage existing infrastructure)
 
 ## Decision
 
-We will implement a **Coordination API** as a unified HTTP gateway that routes requests appropriately based on operation type.
+We will implement a **Workflow Gateway** as a unified HTTP gateway that routes requests appropriately based on operation type.
 
 ### 1. Architecture
 
 **Location:** New Go service in `logic-operator` repository  
-**Structure:** Separate Go module at `coordination-api/`  
+**Structure:** Separate Go module at `workflow-gateway/`  
 **Deployment:** Managed by logic-operator, deployed as Deployment + Service + Ingress
 
 ```
 logic-operator/
 ├── operator/           # Operator (separate go.mod)
-├── coordination-api/   # Coordination API (separate go.mod)
+├── workflow-gateway/   # Workflow Gateway (separate go.mod)
 └── api/               # Shared CRD types (separate go.mod)
 ```
 
-**Key principle:** Coordination API is a **thin routing layer** that unifies access to:
+**Key principle:** Workflow Gateway is a **thin routing layer** that unifies access to:
 - Runtime ingresses (for workflow execution and operations)
 - Data-index service (for queries)
 - CRD discovery (for available workflows/runtimes)
 
+**Two-level routing:**
+
+The gateway performs **two levels of routing** for workflow operations:
+
+1. **Runtime-level routing** (gateway responsibility):
+   - **Question:** Which runtime ingress should I call? (hello-runtime vs order-runtime)
+   - **How:** Extract workflow ID from URL path → look up in LogicFlowRuntime CRDs
+   - **Example:** URL `/v1/demo/hello-world/1.0.0/instances/instance-123/suspend`
+     - Extract: demo/hello-world/1.0.0
+     - CRD lookup: demo/hello-world/1.0.0 → hello-runtime.demo.svc.cluster.local
+
+2. **Pod-level routing** (ingress responsibility):
+   - **Question:** Which pod should handle this request within hello-runtime? (Pod-A vs Pod-B)
+   - **How:** Sticky session cookie (route=abc123) from X-Flow-Route header
+   - **Example:** Cookie: route=abc123 → hello-runtime ingress routes to Pod-B
+
+**Gateway is stateless:**
+- Workflow ID is in the URL (client knows which workflow they're operating on)
+- Runtime mapping is from LogicFlowRuntime CRDs (watched at startup)
+- No data-index query needed for runtime lookup
+- X-Flow-Route header contains only the sticky cookie value (abc123) for pod-level routing
+
 ### 2. Request Routing Strategy by Type
 
-**Note on API Endpoints:** The specific API endpoint paths and HTTP methods shown below are **not final** and will be revisited during implementation. The coordination API will **mimic the endpoints exposed by the Quarkus Flow Runner** (runtime), acting as a transparent proxy/gateway. The critical design element here is the **routing navigation strategy** (how requests are routed to data-index vs runtime, and how sticky sessions work), not the exact URL structure or HTTP verbs.
+**Note on API Endpoints:** The specific API endpoint paths and HTTP methods shown below are **not final** and will be revisited during implementation. The workflow gateway will **mimic the endpoints exposed by the Quarkus Flow Runner** (runtime), acting as a transparent proxy/gateway. The critical design element here is the **routing navigation strategy** (how requests are routed to data-index vs runtime, and how sticky sessions work), not the exact URL structure or HTTP verbs.
 
-Coordination API routes requests differently based on operation type:
+**Key design decision:** Operations that call the runner (suspend/cancel/resume) **include the workflow ID in the URL path** (namespace/name/version) so the gateway can determine which runtime to forward to without querying data-index or caching state. Version is optional (runner defaults to latest).
+
+Workflow Gateway routes requests differently based on operation type:
 
 #### Type 0: CRD Discovery → **Kubernetes API**
 
@@ -80,7 +104,7 @@ Coordination API routes requests differently based on operation type:
 ```
 Client → GET /v1/definitions
 
-Coordination API:
+Workflow Gateway:
   → Query Kubernetes API for LogicFlowDefinition CRDs
   → Return list of available workflows (namespace, name, version)
   → Example: [
@@ -91,7 +115,7 @@ Coordination API:
 No routing complexity, direct K8s API query.
 ```
 
-**Rationale:** Coordination API watches CRDs for runtime/definition discovery. Exposing this to clients enables workflow catalog browsing.
+**Rationale:** Workflow Gateway watches CRDs for runtime/definition discovery. Exposing this to clients enables workflow catalog browsing.
 
 #### Type 1: Query Operations → **Data-Index**
 
@@ -104,23 +128,23 @@ No routing complexity, direct K8s API query.
 Example: Get single instance
 Client → GET /v1/instances/instance-123
 
-Coordination API:
+Workflow Gateway:
   → Forward to data-index GraphQL API
-  → query { workflowInstance(id: "instance-123") { ... } }
+  → query { getWorkflowInstance(id: "instance-123") { ... } }
   → Return response to client
 
 Example: Get instance status (short view)
 Client → GET /v1/status/instance-123
 
-Coordination API:
+Workflow Gateway:
   → Forward to data-index GraphQL API
-  → query { workflowInstance(id: "instance-123") { id, status, error, workflowApplicationId } }
+  → query { getWorkflowInstance(id: "instance-123") { id, status, error { type title detail status instance }, workflowApplicationId } }
   → Return: { "id": "instance-123", "status": "FAULTED", "error": {...}, "workflowApplicationId": "flow-pool-member-01" }
 
 Example: List instances with filter
 Client → GET /v1/instances?status=RUNNING&page=1&size=20
 
-Coordination API:
+Workflow Gateway:
   → Forward to data-index GraphQL API with filter/pagination
   → Return paginated results
 
@@ -137,12 +161,16 @@ No routing complexity, no cookies needed.
 Client → POST /v1/demo/hello-world/1.0.0
          Body: { "input": { "name": "Alice" } }
 
-Coordination API:
-  1. Discover runtime for workflow (CRD watch)
-  2. Forward to runtime ingress (no X-Flow-Route header - instance doesn't exist yet)
+Workflow Gateway:
+  1. Look up runtime for workflow definition demo/hello-world/1.0.0
+     → Gateway watches LogicFlowDefinition and LogicFlowRuntime CRDs
+     → Mapping: demo/hello-world/1.0.0 → http://hello-runtime.demo.svc.cluster.local
   
-Runtime Ingress:
-  → Round-robin to Pod-B
+  2. Forward to runtime ingress (no X-Flow-Route header - instance doesn't exist yet)
+     → POST http://hello-runtime.demo.svc.cluster.local/v1/demo/hello-world/1.0.0
+  
+Runtime Ingress (hello-runtime):
+  → Round-robin to Pod-B (no cookie, so ingress load balances)
   → Sets sticky session cookie: Set-Cookie: route=abc123
   
 Pod-B (Quarkus Flow):
@@ -150,46 +178,90 @@ Pod-B (Quarkus Flow):
   → Acquires lease: flow-pool-member-01
   → Returns: { "id": "instance-01HQXYZ" } + Set-Cookie: route=abc123
   
-Coordination API:
+Workflow Gateway:
   → Extract Set-Cookie from runtime response
   → Convert cookie to header: X-Flow-Route: abc123
   → Return: { "id": "instance-01HQXYZ" }
            X-Flow-Route: abc123
 
 Client responsibility:
-  → Store X-Flow-Route per instance: map["instance-01HQXYZ"] = "abc123"
-  → Include header on future operations (/suspend, /cancel, /resume)
+  → Store workflow ID and X-Flow-Route per instance:
+     - Workflow ID: demo/hello-world/1.0.0 (from execution request)
+     - Routing hint: X-Flow-Route: abc123 (from response header)
+  → Include both in future operations:
+     - URL path: /v1/demo/hello-world/1.0.0/instances/instance-01HQXYZ/suspend
+     - Header (optional): X-Flow-Route: abc123
 ```
 
-**No session storage:** Coordination API is stateless. Client manages routing hints.
+**No session storage:** Workflow Gateway is stateless. Client manages routing hints (sticky cookie values).
+
+**Important distinction:**
+- **Runtime-level routing:** Gateway determines which runtime ingress to call (hello-runtime vs order-runtime)
+  - Based on: Workflow ID in URL path (namespace/name/version) → CRD lookup
+  - Example: URL contains `/demo/hello-world/1.0.0/` → gateway looks up in LogicFlowRuntime CRDs → hello-runtime
+  - **No data-index query needed** - workflow ID is in the request path
+- **Pod-level routing:** Ingress determines which pod to route to (Pod-A vs Pod-B within hello-runtime)
+  - Based on: Sticky session cookie (route=abc123) from X-Flow-Route header
+  - Each runtime ingress has its own sticky cookies (hello-runtime's cookies are independent of order-runtime's cookies)
 
 #### Type 3: Instance Operations → **Runtime (Sticky Routing)**
 
 **Operations:**
-- `POST /v1/suspend/{instanceId}` - Suspend running instance
-- `DELETE /v1/cancel/{instanceId}` - Cancel running instance
-- `POST /v1/resume/{instanceId}` - Resume suspended instance
+- `POST /v1/{namespace}/{name}/{version}/instances/{instanceId}/suspend` - Suspend running instance
+- `DELETE /v1/{namespace}/{name}/{version}/instances/{instanceId}/cancel` - Cancel running instance
+- `POST /v1/{namespace}/{name}/{version}/instances/{instanceId}/resume` - Resume suspended instance
+
+**Note:** Version can be omitted (e.g., `/v1/{namespace}/{name}/instances/{instanceId}/suspend`) - runner will use latest version.
 
 These operations must route to the specific pod holding the instance's lease.
 
+**Why include workflow path:** Gateway needs namespace/name/version to look up which runtime ingress to call (hello-runtime vs order-runtime) from LogicFlowRuntime CRDs. This keeps the gateway stateless - no need to cache or query data-index for runtime lookup.
+
 **Two-layer routing strategy:**
+
+**Runtime Selection (Built into URL):**
+
+The workflow path in the URL tells the gateway **which runtime ingress** to forward to:
+
+```
+POST /v1/demo/hello-world/1.0.0/instances/instance-123/suspend
+     └─────┬──────┘ └───┬────┘ └──┬──┘
+       namespace      name     version (optional)
+```
+
+**Gateway's runtime lookup:**
+1. Extract workflow ID from URL: `demo/hello-world/1.0.0`
+2. Look up in LogicFlowRuntime CRDs (watched at startup)
+   - Mapping: `(namespace, name, version) → runtime ingress URL`
+   - Example: `demo/hello-world/1.0.0 → http://hello-runtime.demo.svc.cluster.local`
+3. Forward to that runtime (X-Flow-Route header is only for pod-level routing)
+
+**No data-index query needed** - workflow ID is in the URL, runtime mapping is from CRDs.
 
 **Layer 1: X-Flow-Route Header (Fast Path - Optional)**
 ```
-Client → POST /v1/suspend/instance-123
+Client → POST /v1/demo/hello-world/1.0.0/instances/instance-123/suspend
          X-Flow-Route: abc123 (optional - client stored it from /exec response)
 
-Coordination API:
-  Step 1: Check if X-Flow-Route header present
+Workflow Gateway:
+  Step 1: Look up runtime from URL path
+    → Extract: demo/hello-world/1.0.0
+    → CRD mapping: demo/hello-world/1.0.0 → http://hello-runtime.demo.svc.cluster.local
+
+  Step 2: Check if X-Flow-Route header present
     If header missing:
-      → Skip to Layer 2 (retry pattern)
+      → Validate instance state first (see Validation section below)
+      → If terminated: Return 405 Method Not Allowed
+      → If active: Proceed to Layer 2 (retry pattern)
     
     If header present:
-      → Proceed to Step 2
+      → Proceed to Step 3
   
-  Step 2: Forward to runtime ingress, convert header to cookie
-    POST http://runtime-ingress/suspend/instance-123
+  Step 3: Forward to runtime ingress, convert header to cookie
+    POST http://hello-runtime.demo.svc.cluster.local/demo/hello-world/1.0.0/instances/instance-123/suspend
     Cookie: route=abc123 (from X-Flow-Route header)
+    
+    Note: The cookie "abc123" is only for pod-level routing within hello-runtime
   
   Runtime Ingress:
     → Sees cookie → Routes to Pod-B (sticky session)
@@ -200,7 +272,7 @@ Coordination API:
       → Suspends workflow
       → Returns 200 + Set-Cookie: route=abc123
     
-    Coordination API → Client:
+    Workflow Gateway → Client:
       → Extract Set-Cookie from runtime response
       → Convert to X-Flow-Route header
       → Return: 200 + X-Flow-Route: abc123
@@ -212,13 +284,15 @@ Coordination API:
 Fast path (80-90% of requests): Client has valid routing hint.
 ```
 
-**Validation After 404 (Disambiguate Terminated vs Wrong Pod)**
+**Validation: Check Instance State (Before Retries or After 404)**
 ```
-After 404 from runtime:
-  
-  Query data-index:
+Triggered when:
+  - X-Flow-Route header missing (before Layer 2), OR
+  - Runtime returns 404 with routing hint (after Layer 1)
+
+Query data-index:
     query { 
-      workflowInstance(id: "instance-123") { 
+      getWorkflowInstance(id: "instance-123") { 
         id
         status 
       } 
@@ -244,23 +318,29 @@ After 404 from runtime:
         "error": "Workflow instance not found",
         "instance_id": "instance-123"
       }
+    → DON'T RETRY (instance never existed, all retries will 404)
 
-This validation prevents wasted retries for terminated instances.
+This validation prevents wasted retries for terminated or non-existent instances.
 ```
 
 **Layer 2: Retry Pattern (Fallback for Active Instances)**
 ```
-Triggered when:
+Triggered ONLY when validation confirms instance is active (RUNNING/WAITING/SUSPENDED/PENDING):
   - X-Flow-Route header missing (client never got hint or lost it), OR
-  - Layer 1 returns 404 AND validation confirms instance is still active
+  - Layer 1 returns 404 with routing hint
 
-Coordination API:
-  numReplicas = LogicFlowRuntime.spec.replicas (e.g., 3)
-  maxRetries = numReplicas * 2 (configurable multiplier, default: 2)
+Workflow Gateway:
+  1. Determine target runtime from URL path (same as Layer 1 Step 1)
+     → Extract: demo/hello-world/1.0.0
+     → CRD mapping: demo/hello-world/1.0.0 → http://hello-runtime.demo.svc.cluster.local
   
-  For attempt = 1 to maxRetries:
-    POST http://runtime-ingress/suspend/instance-123
-    (no cookie - ingress round-robins to different pods)
+  2. Retry pattern within that runtime
+     numReplicas = LogicFlowRuntime.spec.replicas (e.g., 3)
+     maxRetries = numReplicas * 2 (configurable multiplier, default: 2)
+     
+     For attempt = 1 to maxRetries:
+       POST http://hello-runtime.demo.svc.cluster.local/demo/hello-world/1.0.0/instances/instance-123/suspend
+       (no cookie - ingress round-robins to different pods within hello-runtime)
     
     If 200: Success!
       → Extract Set-Cookie from response
@@ -290,9 +370,9 @@ Fallback (10-20% of requests): Missing hints or stale hints for active instances
 POST /v1/{namespace}/{name}/{version}
 
 No X-Flow-Route required (instance doesn't exist yet).
-Coordination API forwards to runtime (round-robin, no cookie).
+Workflow Gateway forwards to runtime (round-robin, no cookie).
 Runtime creates instance, returns Set-Cookie.
-Coordination API returns X-Flow-Route to client.
+Workflow Gateway returns X-Flow-Route to client.
 Client stores for future operations on this instance ID.
 ```
 
@@ -308,7 +388,7 @@ Sticky session cookies (OpenShift Routes, nginx ingress) are **pod-specific**, n
 1. Client executes workflow → completes in 100ms → returns X-Flow-Route
 2. Client immediately tries to suspend → sends X-Flow-Route header
 3. Runtime returns 404 (instance completed and removed from memory)
-4. Coordination API queries data-index → finds status=COMPLETED
+4. Workflow Gateway queries data-index → finds status=COMPLETED
 5. Returns 405 Method Not Allowed (don't retry terminated instances)
 
 **Graceful recovery:** 
@@ -327,16 +407,22 @@ All `GET /instances/*` requests route to data-index GraphQL API:
 ```
 GET /instances/instance-123
 
-Coordination API → Proxies to data-index:
+Workflow Gateway → Proxies to data-index:
   query { 
-    workflowInstance(id: "instance-123") { 
+    getWorkflowInstance(id: "instance-123") { 
       id
       status
       startedAt
       endedAt
       inputData    # Public field (input is internal JsonNode)
       outputData   # Public field (output is internal JsonNode)
-      error
+      error {
+        type
+        title
+        detail
+        status
+        instance
+      }
       workflowApplicationId  # NEW: Add to GraphQL schema (observability)
     } 
   }
@@ -360,7 +446,7 @@ After runtime returns 404, query data-index to disambiguate:
 
 ```graphql
 query {
-  workflowInstance(id: "instance-123") {
+  getWorkflowInstance(id: "instance-123") {
     id
     status
   }
@@ -375,18 +461,49 @@ This prevents wasted retry attempts for instances that are no longer in runtime 
 
 **Schema changes needed (data-index):**
 
-```sql
--- MODE 1 & MODE 3 (PostgreSQL)
-ALTER TABLE workflow_instances ADD COLUMN workflow_application_id VARCHAR(255);
+**OPTIONAL:** For observability only (routing works without this field - see "Optional Enhancement" section)
 
--- Update trigger to extract from events (MODE 1)
--- Update Kafka mapper to extract from events (MODE 3)
--- Note: Populated from lease ID in events (internal implementation detail)
+**MODE 1 (PostgreSQL + Triggers + JPA):**
+
+1. **Database schema:**
+```sql
+ALTER TABLE workflow_instances ADD COLUMN workflow_application_id VARCHAR(255);
 ```
 
+2. **Trigger (normalize_workflow_event function):**
+```sql
+-- Extract workflowApplicationId from JSONB event data
+workflow_application_id = NEW.data->>'workflowApplicationId'
+```
+
+3. **JPA Entity (WorkflowInstanceEntity.java):**
+```java
+@Entity
+@Table(name = "workflow_instances")
+public class WorkflowInstanceEntity {
+    @Column(name = "workflow_application_id")
+    private String workflowApplicationId;
+    
+    // getter/setter
+}
+```
+
+4. **MapStruct Mapper (WorkflowInstanceEntityMapper.java):**
+```java
+@Mapper
+public interface WorkflowInstanceEntityMapper {
+    @Mapping(source = "workflowApplicationId", target = "workflowApplicationId")
+    WorkflowInstance toDomain(WorkflowInstanceEntity entity);
+    
+    @Mapping(source = "workflowApplicationId", target = "workflowApplicationId")
+    WorkflowInstanceEntity toEntity(WorkflowInstance domain);
+}
+```
+
+**MODE 2 (Elasticsearch + Transforms):**
+
+1. **Index template (workflow-instances-template.json):**
 ```json
-// MODE 2 (Elasticsearch)
-// Update index template: workflow-instances-template.json
 {
   "mappings": {
     "properties": {
@@ -394,30 +511,85 @@ ALTER TABLE workflow_instances ADD COLUMN workflow_application_id VARCHAR(255);
     }
   }
 }
+```
 
-// Update transform: workflow-instances-transform.json
+2. **Raw event field (workflow-events index):**
+Raw events from Quarkus Flow must include `workflowApplicationId` field in the event payload.
+
+3. **Transform (workflow-instances-transform.json):**
+Add new aggregation to `pivot.aggregations` section (immutable field - first non-null value wins):
+```json
 {
-  "source": {
-    "ctx.workflowApplicationId = ctx._source.workflowApplicationId"
+  "pivot": {
+    "aggregations": {
+      "workflowApplicationId": {
+        "scripted_metric": {
+          "init_script": "state.value = null",
+          "map_script": "if (params._source.workflowApplicationId != null) { state.value = params._source.workflowApplicationId }",
+          "combine_script": "return state.value",
+          "reduce_script": "for (s in states) { if (s != null) { return s } } return null"
+        }
+      }
+    }
   }
 }
 ```
 
-**GraphQL schema changes needed:**
+**Field semantics:** First non-null value wins (same as `name`, `version`, `namespace`)
+- Immutable: Once set, does not change across lifecycle events
+- Extracted from `params._source.workflowApplicationId` in raw event documents
+
+4. **Mapper (WorkflowInstanceMapper.java):**
+```java
+@ApplicationScoped
+public class WorkflowInstanceMapper {
+    public WorkflowInstance fromDocument(Map<String, Object> document) {
+        // ...
+        instance.setWorkflowApplicationId((String) document.get("workflowApplicationId"));
+        return instance;
+    }
+}
+```
+
+**MODE 3 (Kafka + CloudEvents + JPA):**
+
+1. **Database schema:** Same as MODE 1 (shared normalized schema)
+
+2. **CloudEvent mapper (Mapper.java in kafka-service):**
+```java
+// Extract from CloudEvent data
+WorkflowInstanceEvent event = ...;
+instance.setWorkflowApplicationId(event.getWorkflowApplicationId());
+```
+
+3. **JPA Entity:** Same as MODE 1 (shared entities)
+
+4. **MapStruct Mapper:** Same as MODE 1 (shared mapper)
+
+**Domain Model (shared across all modes):**
 
 ```java
 // WorkflowInstance.java (data-index-model)
 public class WorkflowInstance {
     private String workflowApplicationId;  // NEW - identifies which application instance processed this workflow
+    
+    public String getWorkflowApplicationId() { return workflowApplicationId; }
+    public void setWorkflowApplicationId(String workflowApplicationId) { 
+        this.workflowApplicationId = workflowApplicationId; 
+    }
     // ... existing fields
 }
 ```
 
-**Rationale for storing workflow_application_id:**
-- Observability: Query instances by workflow application ID
-- Debugging: Understand which application instance processed which workflows
-- Not used for routing (ingress cookie handles that)
-- Note: Internal implementation uses lease system to populate this field, but "lease" is not exposed to users
+**Rationale for storing workflow_application_id (OPTIONAL - observability only):**
+- Query instances by workflow application ID for debugging
+- Understand which application instance/pod processed which workflows
+- Correlate pod restarts with workflow failures
+- **NOT required for routing** - validation only needs status field (COMPLETED/RUNNING/etc)
+- **NOT required for workflow gateway** - sticky sessions handle routing
+- **Field source:** Quarkus Flow durable-kubernetes lease name (e.g., "flow-pool-member-01")
+  - Requires Quarkus Flow to expose via public API contract (see "Future Work" section)
+  - "Lease" is Quarkus Flow internal terminology, not exposed to end users
 
 ### 4. Runtime Changes Required
 
@@ -478,20 +650,20 @@ Without sticky session configuration, the X-Flow-Route header will route to wron
 ### 5. Operator Responsibilities
 
 **Deployment:**
-- Deploy coordination API Deployment (3-5 replicas typical)
+- Deploy workflow gateway Deployment (3-5 replicas typical)
 - Create Service and Ingress (public entry point)
 - Configure sticky sessions on runtime ingresses (prerequisite)
 
 **Runtime discovery:**
-- Coordination API watches LogicFlowRuntime and LogicFlowDefinition CRDs
+- Workflow Gateway watches LogicFlowRuntime and LogicFlowDefinition CRDs
 - Operator doesn't need to maintain routing table
 - Ingress sticky sessions handle pod-level routing
 
 **Simplified responsibilities:**
 - No ConfigMap routing table needed (ingress handles routing)
 - No pod annotation watching needed
-- No session store deployment needed (coordination API is stateless)
-- Just deploy coordination API and ensure runtime ingresses have sticky sessions
+- No session store deployment needed (workflow gateway is stateless)
+- Just deploy workflow gateway and ensure runtime ingresses have sticky sessions
 
 ### 6. Traffic Management Preserved
 
@@ -508,14 +680,77 @@ Without sticky session configuration, the X-Flow-Route header will route to wron
 **Implementation:**
 - All requests route through ingress URL (header → cookie conversion)
 - NEVER direct pod calls
-- Client provides X-Flow-Route, coordination API forwards as Cookie to ingress
+- Client provides X-Flow-Route, workflow gateway forwards as Cookie to ingress
 - Retry pattern recovers from stale hints (pod failures) automatically
 
 **Fault tolerance:** Two-layer routing (fast path with header, retry fallback for pod failures).
 
-### 7. Horizontal Scaling
+### 7. Security & Authentication
 
-**Coordination API pods:**
+**STATUS:** Decision deferred to implementation phase.
+
+The workflow gateway is the single platform entry point that exposes:
+- Workflow execution and state-changing operations (suspend, cancel, resume)
+- Data access (query workflow instances)
+- Workflow discovery
+
+**Without authentication:**
+- ❌ Unauthorized workflow execution and state changes
+- ❌ No audit trail
+- ❌ No multi-tenancy support
+
+#### Authentication Options (To Be Decided)
+
+**Option A: API Key Authentication**
+- Simple shared key validation
+- Good for: Internal platforms, trusted clients
+- Limitation: No per-user identity
+
+**Option B: OpenID Connect / OAuth2**
+- JWT tokens from identity provider (Keycloak, Entra ID, etc.)
+- Per-user identity, fine-grained RBAC, corporate SSO integration
+- Good for: Multi-tenant environments, enterprise deployments
+- Limitation: Requires external identity provider
+
+**Option C: Kubernetes ServiceAccount Tokens**
+- Native Kubernetes authentication
+- Good for: Kubernetes-native clients
+- Limitation: External clients (web UI, CLI) need different mechanism
+
+#### Integration with Quarkus Flow Runner
+
+**Critical consideration:** Quarkus Flow Runner already has its own authorization mechanism and roles defined.
+
+**Analysis required before implementation:**
+1. **Inventory Runner's existing authz:** Document current roles, permissions, endpoints protected
+2. **Credential propagation:** Should workflow gateway forward credentials to runtime or handle auth independently?
+3. **Dual-auth scenarios:** If both coordinate and propagate credentials, how do roles/permissions align?
+4. **Role mapping:** How do workflow gateway roles (if any) map to Runner roles?
+5. **Backwards compatibility:** Can Runner continue to work with/without workflow gateway?
+
+**Impact scenarios:**
+
+- **Gateway-only auth:** Workflow Gateway authenticates, Runtime trusts workflow gateway
+  - Simpler integration (Runtime doesn't validate tokens)
+  - Runtime loses visibility into actual user (logs show "workflow-gateway" as caller)
+  
+- **Credential propagation:** Workflow Gateway validates and forwards credentials to Runtime
+  - Runtime validates again (defense in depth)
+  - Runtime knows actual user for audit/logging
+  - Requires workflow gateway roles to align with Runner roles
+
+**Decision points:**
+- Authentication strategy (A/B/C above)
+- Authorization model (gateway-only vs credential propagation)
+- Role mapping strategy (if propagating credentials)
+
+**To be resolved before Phase 2 implementation.**
+
+---
+
+### 8. Horizontal Scaling
+
+**Workflow Gateway pods:**
 - **Fully stateless** (no session store required)
 - Share CRD discovery (K8s API watch)
 - Load balanced via corporate LB or K8s Service
@@ -532,7 +767,7 @@ Without sticky session configuration, the X-Flow-Route header will route to wron
 - Fallback (10-20%): Retry pattern for stale/missing hints
 - Client manages routing hints (instanceId → routeHash map)
 
-**Bottleneck:** None - coordination API is stateless request forwarding
+**Bottleneck:** None - workflow gateway is stateless request forwarding
 
 **Retry triggers:**
 - Pod died (rolling update, crash, eviction) → stale routing hint → 404 → retry
@@ -547,7 +782,7 @@ Without sticky session configuration, the X-Flow-Route header will route to wron
 2. **Cluster-wide discovery** - All runtimes/workflows visible through one API
 3. **Correct routing** - Ingress sticky sessions + retry pattern ensure requests hit correct pod
 4. **Minimal runtime changes** - No changes needed, leverage existing ingress cookies
-5. **Fully stateless** - Coordination API has zero external dependencies (no Redis)
+5. **Fully stateless** - Workflow Gateway has zero external dependencies (no Redis)
 6. **Preserves traffic management** - **Always** routes through ingress (canary, split, TLS intact)
 7. **Simple client contract** - Store X-Flow-Route per instance ID, include on operations
 8. **Clean separation** - Queries → data-index, operations → runtime (right tool for job)
@@ -559,7 +794,7 @@ Without sticky session configuration, the X-Flow-Route header will route to wron
 1. **Client responsibility** - Clients must store X-Flow-Route per instance (map: instanceId → routeHash)
 2. **Retry overhead** - Stale/missing hints trigger retry pattern (10-20% of requests)
 3. **Data-index changes** - Schema must store workflow_application_id for observability
-4. **Network hops** - Client → Coordination API → Ingress → Pod (acceptable overhead)
+4. **Network hops** - Client → Workflow Gateway → Ingress → Pod (acceptable overhead)
 5. **Validation overhead** - Operations query data-index after 404 to disambiguate (< 10ms)
 
 ### Risks & Mitigations
@@ -608,9 +843,9 @@ Without sticky session configuration, the X-Flow-Route header will route to wron
 - Adds dual responsibility to runtime (execute + route)
 - Still needs lookup mechanism (DB or cache)
 - Harder to debug (trace across pods)
-- Higher overall complexity than coordination API
+- Higher overall complexity than workflow gateway
 
-**Decision:** Thin coordination layer, runtimes focus on execution
+**Decision:** Thin gateway layer, runtimes focus on execution
 
 ### Alternative 4: Replicate Nginx Cookie Algorithm
 
@@ -648,67 +883,189 @@ Without sticky session configuration, the X-Flow-Route header will route to wron
 
 **Decision:** Sticky sessions (set cookie on first request)
 
+## Optional Enhancement: Workflow Application ID Observability
+
+**NOT A BLOCKER:** The workflow gateway routing works without this field. This is an **optional observability enhancement** for debugging and monitoring.
+
+**Nice-to-have:** Quarkus Flow could expose workflow application ID (lease name) in two places:
+
+### 1. Execution Response (`POST /v1/{namespace}/{name}/{version}`)
+
+**Current behavior:** Runner returns instance ID only
+```json
+{
+  "id": "instance-123"
+}
+```
+
+**Required:** Include workflow application ID in response
+```json
+{
+  "id": "instance-123",
+  "workflowApplicationId": "flow-pool-member-01"
+}
+```
+
+**Why:** Enables Workflow Gateway to set X-Flow-Route header immediately after execution (optional optimization - retry pattern works without it)
+
+### 2. Lifecycle Events (CloudEvents)
+
+**Current behavior:** Events contain workflow/task data, no runtime/lease information
+
+**Required:** Add `workflowApplicationId` field to all lifecycle event payloads
+```json
+{
+  "specversion": "1.0",
+  "type": "io.serverlessworkflow.workflow.started.v1",
+  "data": {
+    "name": "instance-123",
+    "workflowApplicationId": "flow-pool-member-01",  // NEW FIELD
+    "definition": { ... },
+    "startedAt": "..."
+  }
+}
+```
+
+**Why:** Enables data-index to store workflow_application_id for observability (NOT required for validation - status field is sufficient)
+
+**Field source:** Quarkus Flow durable-kubernetes lease system
+- Lease name (e.g., `flow-pool-member-01`) identifies which pod/application instance owns the workflow
+- This is internal to Quarkus Flow but must be exposed in the public API contract
+
+**GitHub Issue:** To be created in `quarkiverse/quarkus-flow` repository
+
+---
+
 ## Implementation Plan
 
 **Phase 1: Foundation (logic-platform - GitHub issues #67-#72)**
-- Add `workflow_application_id` column to data-index schema (MODE 1, MODE 2, MODE 3)
-  - Note: Populated from lease information in events (internal implementation detail)
-- Update triggers (MODE 1) and transforms (MODE 2) to extract workflow_application_id from events
-- Update Kafka mapper (MODE 3) to extract workflow_application_id from events
-- Add GraphQL queries for instance status and validation
-- No runtime changes needed ✓
+- Add GraphQL queries for instance status and validation (getWorkflowInstance with status field)
+- **OPTIONAL:** Add `workflow_application_id` column to data-index schema (MODE 1, MODE 2, MODE 3) for observability
+  - Can be added later when Quarkus Flow exposes the field
+  - Routing works without this (uses status field only)
 
-**Phase 2: Coordination API Scaffold (logic-operator)**
-- Create coordination-api Go module (separate from operator)
+**Phase 2: Workflow Gateway Scaffold (logic-operator)**
+- Create workflow-gateway Go module (separate from operator)
 - HTTP server with health/ready endpoints
 - CRD discovery: LogicFlowRuntime, LogicFlowDefinition
 - Basic routing: forward to runtime ingress or data-index
+- **Authentication/Authorization:** Decision deferred to implementation phase (see "Security & Authentication" section)
+  - Must decide: API Key, OIDC, or Kubernetes ServiceAccount
+  - Must analyze: Integration with Quarkus Flow Runner's existing authz
+  - Must decide: Gateway-only auth vs credential propagation
+  - Implementation includes: Auth middleware, 401/403 responses, integration tests
 
-**Phase 3: Header-Based Routing Implementation**
+**Phase 4: Header-Based Routing Implementation**
 - Extract X-Flow-Route from request headers (optional - graceful if missing)
 - Convert X-Flow-Route to Cookie for ingress forwarding
 - Extract Set-Cookie from runtime responses
 - Convert Set-Cookie to X-Flow-Route for client responses
 - Implement retry pattern: try with header first, fallback to round-robin retries
 
-**Phase 4: Request Type Routing**
+**Phase 5: Request Type Routing**
 - Query routing: Forward GET requests to data-index GraphQL
 - Execute routing: Forward POST to runtime ingress, no header required (round-robin)
 - Operation routing: Two-layer strategy (header fast path → validation → retry fallback)
 
-**Phase 5: Validation After 404**
+**Phase 6: Validation After 404**
 - Detect 404 from Layer 1 (ambiguous: wrong pod OR terminated instance)
 - Query data-index to check instance status
 - If terminated (COMPLETED/FAULTED/CANCELLED): Return 405, don't retry
 - If active (RUNNING/WAITING/SUSPENDED/PENDING): Proceed to retry pattern
 - If not found: Return 404
 
-**Phase 6: Retry Pattern Implementation**
+**Phase 7: Retry Pattern Implementation**
 - Triggered after validation confirms instance is active (OR header missing)
 - Retry up to maxRetries (default: replicas * 2) with no cookie (round-robin)
 - Return updated X-Flow-Route to client on success
 - Return 503 if all retries fail
 
-**Phase 7: Operator Integration**
-- Deploy coordination API Deployment (managed by operator)
+**Phase 8: Operator Integration**
+- Deploy workflow gateway Deployment (managed by operator)
 - Ensure runtime Routes (OpenShift) or Ingresses (K8s) have sticky sessions enabled
-- Create Service and Ingress for coordination API (public entry point)
+- Create Service and Ingress for workflow gateway (public entry point)
 - E2E tests (execute → query → suspend → fast-completing workflow → pod failure recovery)
 
-**Phase 8: Production Hardening**
+**Phase 9: Production Hardening**
 - Metrics: Prometheus (request count, latency, retry rate, validation overhead, 405 rate)
-- Distributed tracing: OpenTelemetry (trace request across coordination → ingress → runtime)
+- Distributed tracing: OpenTelemetry (trace request across workflow gateway → ingress → runtime)
 - Logging: Structured logs with correlation IDs
 - Load testing: Verify horizontal scaling (fully stateless) and pod failure recovery
+- Security hardening: Authentication/authorization testing per implementation decisions
+
+---
+
+## Future Work (Optional Enhancements)
+
+### Workflow Application ID Observability
+
+**Goal:** Enable querying and filtering workflow instances by which runtime pod processed them.
+
+**Requires:** Quarkus Flow changes (see "Optional Enhancement" section above)
+- Add `workflowApplicationId` to execution response
+- Add `workflowApplicationId` to lifecycle events
+
+**Benefits:**
+- Query all instances processed by a specific pod: `getWorkflowInstances(workflowApplicationId: "flow-pool-member-01")`
+- Debugging: Correlate pod restarts with workflow failures
+- Capacity planning: Analyze workflow distribution across pods
+
+**Implementation (after Quarkus Flow changes):**
+
+**Step 1: Quarkus Flow Changes (upstream)**
+1. Open issue in quarkiverse/quarkus-flow repository
+2. Add `workflowApplicationId` to execution response JSON
+3. Add `workflowApplicationId` to all lifecycle event CloudEvent data payloads
+4. Release new Quarkus Flow version
+
+**Step 2: Data-Index Changes (logic-platform)**
+
+**MODE 1 (PostgreSQL):**
+1. Database migration: `ALTER TABLE workflow_instances ADD COLUMN workflow_application_id VARCHAR(255);`
+2. Trigger update: Extract `workflowApplicationId` from JSONB event data
+3. JPA entity: Add `workflowApplicationId` field to `WorkflowInstanceEntity`
+4. Mapper: Add mapping in `WorkflowInstanceEntityMapper`
+5. Domain model: Add field to `WorkflowInstance` (shared)
+6. GraphQL: Add `workflowApplicationId: String` to GraphQL schema
+7. GraphQL filter: Add `workflowApplicationId: StringFilter` for queries
+
+**MODE 2 (Elasticsearch):**
+1. Index template: Add `workflowApplicationId` field (keyword type) to `workflow-instances-template.json`
+2. Transform: Add `workflowApplicationId` scripted_metric aggregation to `workflow-instances-transform.json` pivot.aggregations
+   - Field semantics: Immutable (first non-null value wins, same as name/version/namespace)
+   - Map script: `if (params._source.workflowApplicationId != null) { state.value = params._source.workflowApplicationId }`
+   - Reduce script: Return first non-null value from states
+3. Raw events: Ensure `workflowApplicationId` field exists in workflow-events documents (from Quarkus Flow)
+4. Mapper: Update `WorkflowInstanceMapper.fromDocument()` to extract field from Map
+5. Domain model: Add field to `WorkflowInstance` (shared)
+6. GraphQL: Add `workflowApplicationId: String` to GraphQL schema
+7. GraphQL filter: Add `workflowApplicationId: StringFilter` for queries
+
+**MODE 3 (Kafka):**
+1. Database schema: Same as MODE 1 (shared normalized schema)
+2. CloudEvent mapper: Extract `workflowApplicationId` from CloudEvent data in `Mapper.java`
+3. JPA entity: Same as MODE 1 (shared entities)
+4. Mapper: Same as MODE 1 (shared mapper)
+5. Domain model: Add field to `WorkflowInstance` (shared)
+6. GraphQL: Add `workflowApplicationId: String` to GraphQL schema
+7. GraphQL filter: Add `workflowApplicationId: StringFilter` for queries
+
+**Step 3: Workflow Gateway Enhancement (logic-operator)**
+1. Parse `workflowApplicationId` from execution response
+2. Set `X-Flow-Route` header immediately (optimization - skip first retry)
+3. Update documentation with new header behavior
+
+**Timeline:** Post-MVP, depends on Quarkus Flow release cycle
+
+---
 
 ## Open Questions
 
 1. **Header name:** Use `X-Flow-Route` or standardize on a different name?
 2. **Retry multiplier:** Default `replicas * 2` sufficient, or make it higher/configurable?
 3. **Multi-cluster:** Future support for workflows across clusters? (federation)
-4. **Authentication:** Coordination API edge auth, runtime auth, or both?
-5. **Rate limiting:** At coordination API level or rely on ingress?
-6. **Retry delay:** Add delay between retry attempts, or fire immediately?
+4. **Rate limiting:** At workflow gateway level or rely on ingress?
+5. **Retry delay:** Add delay between retry attempts, or fire immediately?
 
 ## References
 
@@ -721,11 +1078,11 @@ Without sticky session configuration, the X-Flow-Route header will route to wron
 
 ## Notes
 
-This ADR represents the final simplified coordination API design after thorough discussion of routing strategies and alternatives.
+This ADR represents the final simplified workflow gateway design after thorough discussion of routing strategies and alternatives.
 
 **Key design decisions:**
 1. **Header-based routing** - X-Flow-Route header (API-to-API pattern, not browser cookies)
-2. **Fully stateless** - No Redis, no session store, coordination API is pure request forwarding
+2. **Fully stateless** - No Redis, no session store, workflow gateway is pure request forwarding
 3. **Client responsibility** - Client stores routing hints per instance (map: instanceId → routeHash)
 4. **Fault tolerance** - Retry pattern recovers from pod failures automatically
 5. **Queries route to data-index** - Not runtime (clean separation of concerns)
@@ -746,7 +1103,7 @@ Nginx sticky session cookies are **pod-specific** (route to specific pod IP/ID),
 - Final: Header-based routing + retry pattern (fault tolerance, graceful recovery)
 
 **Next steps:**
-1. Create coordination API issues in logic-operator repository
+1. Create workflow gateway issues in logic-operator repository
 2. Complete data-index schema changes (workflow_application_id column)
-3. Implement coordination API with header-based routing + validation + retry
+3. Implement workflow gateway with header-based routing + validation + retry
 4. E2E testing with real workflows (including fast-completing scenarios)
