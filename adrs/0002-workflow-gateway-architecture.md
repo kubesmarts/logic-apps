@@ -1116,8 +1116,6 @@ Nginx sticky session cookies are **pod-specific** (route to specific pod IP/ID),
 - Switched to header-based routing + 428 on missing → realized pods die, hints go stale
 - Final: Header-based routing + retry pattern + client-managed hints (fault tolerance, fully stateless)
 
-**Note:** Early PR descriptions may reference "Redis cookie jar" - this was rejected in favor of client-managed X-Flow-Route headers to keep the gateway stateless.
-
 **Next steps:**
 1. Create workflow gateway issues in logic-operator repository
 2. Complete data-index schema changes (workflow_application_id column)
