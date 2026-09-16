@@ -43,13 +43,17 @@ jobs:
       - id: set-version
         name: Set VERSION and TAG outputs
         run: |
+          # Determine version source
           if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+            # Manual dispatch with explicit tag
             TAG="${{ github.event.inputs.tag }}"
           elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            # Git tag push
             TAG="${GITHUB_REF##*/}"
             TAG="${TAG#v}"
           else
-            TAG="latest"
+            # Manual dispatch without tag - use POM version
+            TAG=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           fi
 
           IS_LATEST="false"
