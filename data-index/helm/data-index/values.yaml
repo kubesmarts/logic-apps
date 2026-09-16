@@ -196,8 +196,8 @@ vector:
 dataIndex:
   # Image configuration (set per mode in values-mode{1,2,3}.yaml)
   image:
-    repository: kubesmarts/data-index-service-postgresql
-    tag: "999-SNAPSHOT"
+    repository: kubesmarts/data-index-service
+    tag: "999-SNAPSHOT-postgresql"
     pullPolicy: IfNotPresent
 
   # Storage backend (postgresql or elasticsearch)

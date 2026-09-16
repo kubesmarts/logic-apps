@@ -57,20 +57,24 @@ jobs:
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
       - name: Tag and push image
+        env:
+          IMAGE_NAME: ${{ inputs.image_name }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          ADDITIONAL_TAGS: ${{ inputs.additional_tags }}
         run: |
-          SOURCE_TAG="localhost/${{ inputs.image_name }}:${{ inputs.image_tag }}"
+          SOURCE_TAG="localhost/${IMAGE_NAME}:${IMAGE_TAG}"
 
           # Tag with main version
-          TARGET_TAG="quay.io/${{ inputs.image_name }}:${{ inputs.image_tag }}"
+          TARGET_TAG="quay.io/${IMAGE_NAME}:${IMAGE_TAG}"
           echo "🏷️  Tagging: ${SOURCE_TAG} → ${TARGET_TAG}"
           docker tag "${SOURCE_TAG}" "${TARGET_TAG}"
           docker push "${TARGET_TAG}"
 
           # Tag with additional tags if provided
-          if [ -n "${{ inputs.additional_tags }}" ]; then
-            IFS=',' read -ra ADDITIONAL <<< "${{ inputs.additional_tags }}"
+          if [ -n "${ADDITIONAL_TAGS}" ]; then
+            IFS=',' read -ra ADDITIONAL <<< "${ADDITIONAL_TAGS}"
             for tag in "${ADDITIONAL[@]}"; do
-              EXTRA_TAG="quay.io/${{ inputs.image_name }}:${tag}"
+              EXTRA_TAG="quay.io/${IMAGE_NAME}:${tag}"
               echo "🏷️  Tagging: ${SOURCE_TAG} → ${EXTRA_TAG}"
               docker tag "${SOURCE_TAG}" "${EXTRA_TAG}"
               docker push "${EXTRA_TAG}"
@@ -78,26 +82,33 @@ jobs:
           fi
 
       - name: Verify image
+        env:
+          IMAGE_NAME: ${{ inputs.image_name }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           echo "🔍 Verifying published image..."
-          docker pull quay.io/${{ inputs.image_name }}:${{ inputs.image_tag }}
-          docker inspect quay.io/${{ inputs.image_name }}:${{ inputs.image_tag }}
+          docker pull "quay.io/${IMAGE_NAME}:${IMAGE_TAG}"
+          docker inspect "quay.io/${IMAGE_NAME}:${IMAGE_TAG}"
           echo "✅ Image successfully published!"
 
       - name: Summary
+        env:
+          IMAGE_NAME: ${{ inputs.image_name }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          ADDITIONAL_TAGS: ${{ inputs.additional_tags }}
         run: |
           echo "### 🎉 Image Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`quay.io/${{ inputs.image_name }}:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`quay.io/${IMAGE_NAME}:${IMAGE_TAG}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Additional tags:**" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ inputs.additional_tags }}" ]; then
-            IFS=',' read -ra ADDITIONAL <<< "${{ inputs.additional_tags }}"
+          if [ -n "${ADDITIONAL_TAGS}" ]; then
+            IFS=',' read -ra ADDITIONAL <<< "${ADDITIONAL_TAGS}"
             for tag in "${ADDITIONAL[@]}"; do
-              echo "- \`quay.io/${{ inputs.image_name }}:${tag}\`" >> $GITHUB_STEP_SUMMARY
+              echo "- \`quay.io/${IMAGE_NAME}:${tag}\`" >> $GITHUB_STEP_SUMMARY
             done
           else
             echo "- None" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "View on Quay.io: https://quay.io/repository/${{ inputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "View on Quay.io: https://quay.io/repository/${IMAGE_NAME}" >> $GITHUB_STEP_SUMMARY

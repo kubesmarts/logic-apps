@@ -105,15 +105,17 @@ main() {
         # Build workflow-test-app image (still using Jib for now)
         if [[ "${BUILD_MODE}" == "mode3" ]]; then
             log_info "  → Building workflow-test-app image (Maven + Jib, Kafka profile)"
-            (cd "${PROJECT_ROOT}/data-index/workflow-test-app" && \
+            (cd "${PROJECT_ROOT}" && \
                 mvn clean package -DskipTests \
+                -pl data-index/workflow-test-app -am \
                 -Pkafka \
                 -Dquarkus.container-image.build=true \
                 -Dquarkus.container-image.tag=999-SNAPSHOT)
         else
             log_info "  → Building workflow-test-app image (Maven + Jib)"
-            (cd "${PROJECT_ROOT}/data-index/workflow-test-app" && \
+            (cd "${PROJECT_ROOT}" && \
                 mvn clean package -DskipTests \
+                -pl data-index/workflow-test-app -am \
                 -Dquarkus.container-image.build=true \
                 -Dquarkus.container-image.tag=999-SNAPSHOT)
         fi
