@@ -110,8 +110,8 @@ jobs:
       - name: Build JAR
         run: |
           echo "📦 Building PostgreSQL service JAR"
-          cd data-index/data-index-service/data-index-service-postgresql
-          mvn clean package -DskipTests
+          mvn clean package -DskipTests \
+            -pl data-index/data-index-service/data-index-service-postgresql -am
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -159,8 +159,8 @@ jobs:
       - name: Build JAR
         run: |
           echo "📦 Building Elasticsearch service JAR"
-          cd data-index/data-index-service/data-index-service-elasticsearch
-          mvn clean package -DskipTests
+          mvn clean package -DskipTests \
+            -pl data-index/data-index-service/data-index-service-elasticsearch -am
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -208,8 +208,8 @@ jobs:
       - name: Build JAR
         run: |
           echo "📦 Building Kafka ingestion service JAR"
-          cd data-index/data-index-ingestion/data-index-ingestion-kafka-service
-          mvn clean package -DskipTests
+          mvn clean package -DskipTests \
+            -pl data-index/data-index-ingestion/data-index-ingestion-kafka-service -am
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

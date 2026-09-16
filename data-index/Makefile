@@ -96,7 +96,8 @@ help: ## Show this help message
 build-image-postgresql: ## Build PostgreSQL data-index-service Docker image
 	@echo "$(BLUE)==> Building PostgreSQL data-index-service image$(NC)"
 	@echo "$(BLUE)    Step 1/2: Maven package$(NC)"
-	@cd $(PG_SERVICE_DIR) && mvn clean package -DskipTests
+	@cd .. && mvn clean package -DskipTests \
+		-pl data-index/$(PG_SERVICE_DIR) -am
 	@echo "$(BLUE)    Step 2/2: Docker build$(NC)"
 	@docker build \
 		-f $(PG_SERVICE_DIR)/src/main/docker/Dockerfile.jvm \
@@ -108,7 +109,8 @@ build-image-postgresql: ## Build PostgreSQL data-index-service Docker image
 build-image-es: ## Build Elasticsearch data-index-service Docker image
 	@echo "$(BLUE)==> Building Elasticsearch data-index-service image$(NC)"
 	@echo "$(BLUE)    Step 1/2: Maven package$(NC)"
-	@cd $(ES_SERVICE_DIR) && mvn clean package -DskipTests
+	@cd .. && mvn clean package -DskipTests \
+		-pl data-index/$(ES_SERVICE_DIR) -am
 	@echo "$(BLUE)    Step 2/2: Docker build$(NC)"
 	@docker build \
 		-f $(ES_SERVICE_DIR)/src/main/docker/Dockerfile.jvm \
@@ -120,7 +122,8 @@ build-image-es: ## Build Elasticsearch data-index-service Docker image
 build-image-kafka: ## Build Kafka ingestion service Docker image
 	@echo "$(BLUE)==> Building Kafka ingestion service image$(NC)"
 	@echo "$(BLUE)    Step 1/2: Maven package$(NC)"
-	@cd $(KAFKA_SERVICE_DIR) && mvn clean package -DskipTests
+	@cd .. && mvn clean package -DskipTests \
+		-pl data-index/$(KAFKA_SERVICE_DIR) -am
 	@echo "$(BLUE)    Step 2/2: Docker build$(NC)"
 	@docker build \
 		-f $(KAFKA_SERVICE_DIR)/src/main/docker/Dockerfile.jvm \
