@@ -1,0 +1,297 @@
+name: Publish Data Index Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag/ref to build from (e.g., 1.0.0, main) - leave empty for current branch'
+        required: false
+        type: string
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  setup:
+    name: Setup and verify release
+    runs-on: ubuntu-latest
+    outputs:
+      VERSION: ${{ steps.set-version.outputs.VERSION }}
+      TAG: ${{ steps.set-version.outputs.TAG }}
+      IS_LATEST: ${{ steps.set-version.outputs.IS_LATEST }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - id: set-version
+        name: Set VERSION and TAG outputs
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF##*/}"
+            TAG="${TAG#v}"
+          else
+            TAG="latest"
+          fi
+
+          IS_LATEST="false"
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            IS_LATEST="true"
+          fi
+
+          echo "TAG=${TAG}" >> $GITHUB_OUTPUT
+          echo "VERSION=${TAG}" >> $GITHUB_OUTPUT
+          echo "IS_LATEST=${IS_LATEST}" >> $GITHUB_OUTPUT
+
+      - name: Verify release version
+        run: |
+          TAG="${{ steps.set-version.outputs.TAG }}"
+          VERSION="${{ steps.set-version.outputs.VERSION }}"
+          POM_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          TRIGGER="${{ github.event_name }}"
+
+          echo "Release tag: ${TAG}"
+          echo "Release version: ${VERSION}"
+          echo "POM version: ${POM_VERSION}"
+          echo "Trigger: ${TRIGGER}"
+
+          if [[ "${TRIGGER}" == "push" ]]; then
+            if [[ "${POM_VERSION}" != "${VERSION}" ]]; then
+              echo "❌ ERROR: Tag ${VERSION} does not match pom.xml version ${POM_VERSION}"
+              exit 1
+            fi
+
+            if [[ "${POM_VERSION}" == *"-SNAPSHOT" ]]; then
+              echo "❌ ERROR: Cannot release SNAPSHOT version ${POM_VERSION} from tag push"
+              exit 1
+            fi
+
+            echo "✅ Official release verified: ${POM_VERSION}"
+          else
+            echo "⚠️  Manual build - SNAPSHOT allowed for testing"
+            echo "✅ Building version: ${POM_VERSION}"
+          fi
+
+  build-postgresql:
+    name: Build PostgreSQL image
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Build JAR
+        run: |
+          echo "📦 Building PostgreSQL service JAR"
+          cd data-index/data-index-service/data-index-service-postgresql
+          mvn clean package -DskipTests
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and save Docker image
+        run: |
+          VERSION="${{ needs.setup.outputs.VERSION }}"
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg VERSION=${VERSION} \
+            -f data-index/data-index-service/data-index-service-postgresql/src/main/docker/Dockerfile.jvm \
+            -t localhost/kubesmarts/data-index-service:${VERSION}-postgresql \
+            -o type=oci,dest=artifact-postgresql.tar \
+            data-index/data-index-service/data-index-service-postgresql
+
+          gzip artifact-postgresql.tar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-postgresql
+          path: artifact-postgresql.tar.gz
+          retention-days: 1
+
+  build-elasticsearch:
+    name: Build Elasticsearch image
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Build JAR
+        run: |
+          echo "📦 Building Elasticsearch service JAR"
+          cd data-index/data-index-service/data-index-service-elasticsearch
+          mvn clean package -DskipTests
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and save Docker image
+        run: |
+          VERSION="${{ needs.setup.outputs.VERSION }}"
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg VERSION=${VERSION} \
+            -f data-index/data-index-service/data-index-service-elasticsearch/src/main/docker/Dockerfile.jvm \
+            -t localhost/kubesmarts/data-index-service:${VERSION}-elasticsearch \
+            -o type=oci,dest=artifact-elasticsearch.tar \
+            data-index/data-index-service/data-index-service-elasticsearch
+
+          gzip artifact-elasticsearch.tar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-elasticsearch
+          path: artifact-elasticsearch.tar.gz
+          retention-days: 1
+
+  build-kafka:
+    name: Build Kafka ingestion image
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Build JAR
+        run: |
+          echo "📦 Building Kafka ingestion service JAR"
+          cd data-index/data-index-ingestion/data-index-ingestion-kafka-service
+          mvn clean package -DskipTests
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and save Docker image
+        run: |
+          VERSION="${{ needs.setup.outputs.VERSION }}"
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg VERSION=${VERSION} \
+            -f data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/main/docker/Dockerfile.jvm \
+            -t localhost/kubesmarts/data-index-ingestion:${VERSION}-kafka \
+            -o type=oci,dest=artifact-kafka.tar \
+            data-index/data-index-ingestion/data-index-ingestion-kafka-service
+
+          gzip artifact-kafka.tar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-kafka
+          path: artifact-kafka.tar.gz
+          retention-days: 1
+
+  deploy-postgresql:
+    name: Deploy PostgreSQL to Quay.io
+    needs: [setup, build-postgresql]
+    uses: ./.github/workflows/deploy-image.yml
+    secrets: inherit
+    with:
+      image_name: kubesmarts/data-index-service
+      image_tag: ${{ needs.setup.outputs.VERSION }}-postgresql
+      artifact_name: artifact-postgresql
+      additional_tags: ${{ needs.setup.outputs.IS_LATEST == 'true' && 'latest-postgresql' || '' }}
+
+  deploy-elasticsearch:
+    name: Deploy Elasticsearch to Quay.io
+    needs: [setup, build-elasticsearch]
+    uses: ./.github/workflows/deploy-image.yml
+    secrets: inherit
+    with:
+      image_name: kubesmarts/data-index-service
+      image_tag: ${{ needs.setup.outputs.VERSION }}-elasticsearch
+      artifact_name: artifact-elasticsearch
+      additional_tags: ${{ needs.setup.outputs.IS_LATEST == 'true' && 'latest-elasticsearch' || '' }}
+
+  deploy-kafka:
+    name: Deploy Kafka to Quay.io
+    needs: [setup, build-kafka]
+    uses: ./.github/workflows/deploy-image.yml
+    secrets: inherit
+    with:
+      image_name: kubesmarts/data-index-ingestion
+      image_tag: ${{ needs.setup.outputs.VERSION }}-kafka
+      artifact_name: artifact-kafka
+      additional_tags: ${{ needs.setup.outputs.IS_LATEST == 'true' && 'latest-kafka' || '' }}
+
+  summary:
+    name: Summary
+    needs: [setup, deploy-postgresql, deploy-elasticsearch, deploy-kafka]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display summary
+        run: |
+          VERSION="${{ needs.setup.outputs.VERSION }}"
+          echo "### ✅ All Images Published Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Published images:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`quay.io/kubesmarts/data-index-service:${VERSION}-postgresql\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`quay.io/kubesmarts/data-index-service:${VERSION}-elasticsearch\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`quay.io/kubesmarts/data-index-ingestion:${VERSION}-kafka\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.setup.outputs.IS_LATEST }}" == "true" ]; then
+            echo "**Additional tags:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`quay.io/kubesmarts/data-index-service:latest-postgresql\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`quay.io/kubesmarts/data-index-service:latest-elasticsearch\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`quay.io/kubesmarts/data-index-ingestion:latest-kafka\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY

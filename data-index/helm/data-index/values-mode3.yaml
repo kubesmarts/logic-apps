@@ -38,8 +38,8 @@ vector:
 # Data Index Service - PostgreSQL variant (query side)
 dataIndex:
   image:
-    repository: kubesmarts/data-index-service-postgresql
-    tag: "999-SNAPSHOT"
+    repository: kubesmarts/data-index-service
+    tag: "999-SNAPSHOT-postgresql"
   storage: postgresql
   # Use NodePort for easy testing in KIND
   service:

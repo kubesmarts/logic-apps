@@ -1,0 +1,103 @@
+name: Deploy image to Quay.io
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: 'Image name (e.g., kubesmarts/data-index-service)'
+        required: true
+        type: string
+      image_tag:
+        description: 'Image tag (e.g., 1.0.0-postgresql)'
+        required: true
+        type: string
+      artifact_name:
+        description: 'Name of the OCI artifact to download (e.g., artifact-postgresql)'
+        required: true
+        type: string
+      additional_tags:
+        description: 'Comma-separated additional tags (e.g., latest-postgresql)'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      QUAY_ROBOT_ACCOUNT:
+        description: 'Quay.io robot account name'
+        required: true
+      QUAY_ROBOT_TOKEN:
+        description: 'Quay.io robot account token'
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    name: Deploy to Quay.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+
+      - name: Load image from artifact
+        run: |
+          echo "📦 Loading OCI image from artifact..."
+          gunzip ${{ inputs.artifact_name }}.tar.gz
+          docker load < ${{ inputs.artifact_name }}.tar
+          echo "✅ Image loaded"
+
+      - name: Log in to Quay.io
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_ROBOT_ACCOUNT }}
+          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+
+      - name: Tag and push image
+        run: |
+          SOURCE_TAG="localhost/${{ inputs.image_name }}:${{ inputs.image_tag }}"
+
+          # Tag with main version
+          TARGET_TAG="quay.io/${{ inputs.image_name }}:${{ inputs.image_tag }}"
+          echo "🏷️  Tagging: ${SOURCE_TAG} → ${TARGET_TAG}"
+          docker tag "${SOURCE_TAG}" "${TARGET_TAG}"
+          docker push "${TARGET_TAG}"
+
+          # Tag with additional tags if provided
+          if [ -n "${{ inputs.additional_tags }}" ]; then
+            IFS=',' read -ra ADDITIONAL <<< "${{ inputs.additional_tags }}"
+            for tag in "${ADDITIONAL[@]}"; do
+              EXTRA_TAG="quay.io/${{ inputs.image_name }}:${tag}"
+              echo "🏷️  Tagging: ${SOURCE_TAG} → ${EXTRA_TAG}"
+              docker tag "${SOURCE_TAG}" "${EXTRA_TAG}"
+              docker push "${EXTRA_TAG}"
+            done
+          fi
+
+      - name: Verify image
+        run: |
+          echo "🔍 Verifying published image..."
+          docker pull quay.io/${{ inputs.image_name }}:${{ inputs.image_tag }}
+          docker inspect quay.io/${{ inputs.image_name }}:${{ inputs.image_tag }}
+          echo "✅ Image successfully published!"
+
+      - name: Summary
+        run: |
+          echo "### 🎉 Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`quay.io/${{ inputs.image_name }}:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Additional tags:**" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ inputs.additional_tags }}" ]; then
+            IFS=',' read -ra ADDITIONAL <<< "${{ inputs.additional_tags }}"
+            for tag in "${ADDITIONAL[@]}"; do
+              echo "- \`quay.io/${{ inputs.image_name }}:${tag}\`" >> $GITHUB_STEP_SUMMARY
+            done
+          else
+            echo "- None" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View on Quay.io: https://quay.io/repository/${{ inputs.image_name }}" >> $GITHUB_STEP_SUMMARY

@@ -81,7 +81,7 @@ mvn clean package -DskipFlyway=true -DskipTests
 
 **Result:**
 - Optimized Quarkus app at `target/quarkus-app/`
-- Container image: `kubesmarts/data-index-service-postgresql:999-SNAPSHOT`
+- Container image: `kubesmarts/data-index-service:999-SNAPSHOT-postgresql`
 - PostgreSQL dependencies ONLY
 - No Flyway (production uses manual schema migration)
 
@@ -93,7 +93,7 @@ mvn clean package -DskipFlyway=true -DskipTests
 ```
 
 **Result:**
-- Container image: `kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT`
+- Container image: `kubesmarts/data-index-service:999-SNAPSHOT-elasticsearch`
 
 ### Container Image
 
@@ -124,8 +124,8 @@ Backend is selected by navigating to the appropriate module:
 
 | Module | Storage | Dependencies | Container Image |
 |--------|---------|--------------|----------------|
-| `data-index-service-postgresql` | PostgreSQL | JPA, JDBC, Flyway (dev only) | `kubesmarts/data-index-service-postgresql:999-SNAPSHOT` |
-| `data-index-service-elasticsearch` | Elasticsearch | Elasticsearch client (future) | `kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT` |
+| `data-index-service-postgresql` | PostgreSQL | JPA, JDBC, Flyway (dev only) | `kubesmarts/data-index-service:999-SNAPSHOT-postgresql` |
+| `data-index-service-elasticsearch` | Elasticsearch | Elasticsearch client (future) | `kubesmarts/data-index-service:999-SNAPSHOT-elasticsearch` |
 
 ### Configuration Files
 

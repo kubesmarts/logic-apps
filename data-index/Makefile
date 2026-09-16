@@ -24,6 +24,23 @@ VECTOR_MODES := mode1-postgresql mode2-elasticsearch
 COLLECTOR_VECTOR_DIR := collectors/vector
 HELM_VECTOR_DIR := $(HELM_CHART)/configs/vector
 
+# Image configuration
+# Local builds use 'kubesmarts/' prefix (for KIND cluster)
+# CI/CD uses 'quay.io/kubesmarts/' (for remote registry)
+IMAGE_REGISTRY_LOCAL := kubesmarts
+IMAGE_REGISTRY_REMOTE := quay.io/kubesmarts
+IMAGE_TAG := 999-SNAPSHOT
+
+# Service directories and image names
+PG_SERVICE_DIR := data-index-service/data-index-service-postgresql
+PG_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/data-index-service:$(IMAGE_TAG)-postgresql
+
+ES_SERVICE_DIR := data-index-service/data-index-service-elasticsearch
+ES_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/data-index-service:$(IMAGE_TAG)-elasticsearch
+
+KAFKA_SERVICE_DIR := data-index-ingestion/data-index-ingestion-kafka-service
+KAFKA_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/data-index-ingestion:$(IMAGE_TAG)-kafka
+
 # Colors
 BLUE := \033[0;34m
 GREEN := \033[0;32m
@@ -66,6 +83,55 @@ help: ## Show this help message
 	@echo "  make m2             Alias for test-mode2"
 	@echo "  make m3             Alias for test-mode3"
 	@echo ""
+	@echo "$(GREEN)Image Building:$(NC)"
+	@echo "  make build-image-postgresql  Build PostgreSQL data-index-service image"
+	@echo "  make build-image-es          Build Elasticsearch data-index-service image"
+	@echo "  make build-image-kafka       Build Kafka ingestion service image"
+	@echo ""
+
+# ============================================================================
+# Image Building
+# ============================================================================
+
+build-image-postgresql: ## Build PostgreSQL data-index-service Docker image
+	@echo "$(BLUE)==> Building PostgreSQL data-index-service image$(NC)"
+	@echo "$(BLUE)    Step 1/2: Maven package$(NC)"
+	@cd $(PG_SERVICE_DIR) && mvn clean package -DskipTests
+	@echo "$(BLUE)    Step 2/2: Docker build$(NC)"
+	@docker build \
+		-f $(PG_SERVICE_DIR)/src/main/docker/Dockerfile.jvm \
+		-t $(PG_IMAGE_NAME) \
+		$(PG_SERVICE_DIR)
+	@echo "$(GREEN)✓ Image built: $(PG_IMAGE_NAME)$(NC)"
+	@docker images $(PG_IMAGE_NAME)
+
+build-image-es: ## Build Elasticsearch data-index-service Docker image
+	@echo "$(BLUE)==> Building Elasticsearch data-index-service image$(NC)"
+	@echo "$(BLUE)    Step 1/2: Maven package$(NC)"
+	@cd $(ES_SERVICE_DIR) && mvn clean package -DskipTests
+	@echo "$(BLUE)    Step 2/2: Docker build$(NC)"
+	@docker build \
+		-f $(ES_SERVICE_DIR)/src/main/docker/Dockerfile.jvm \
+		-t $(ES_IMAGE_NAME) \
+		$(ES_SERVICE_DIR)
+	@echo "$(GREEN)✓ Image built: $(ES_IMAGE_NAME)$(NC)"
+	@docker images $(ES_IMAGE_NAME)
+
+build-image-kafka: ## Build Kafka ingestion service Docker image
+	@echo "$(BLUE)==> Building Kafka ingestion service image$(NC)"
+	@echo "$(BLUE)    Step 1/2: Maven package$(NC)"
+	@cd $(KAFKA_SERVICE_DIR) && mvn clean package -DskipTests
+	@echo "$(BLUE)    Step 2/2: Docker build$(NC)"
+	@docker build \
+		-f $(KAFKA_SERVICE_DIR)/src/main/docker/Dockerfile.jvm \
+		-t $(KAFKA_IMAGE_NAME) \
+		$(KAFKA_SERVICE_DIR)
+	@echo "$(GREEN)✓ Image built: $(KAFKA_IMAGE_NAME)$(NC)"
+	@docker images $(KAFKA_IMAGE_NAME)
+
+# ============================================================================
+# Test Targets
+# ============================================================================
 
 clean: ## Delete KIND cluster
 	@echo "$(BLUE)==> Deleting KIND cluster$(NC)"

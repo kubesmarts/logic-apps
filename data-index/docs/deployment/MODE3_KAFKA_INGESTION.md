@@ -91,7 +91,7 @@ spec:
     spec:
       containers:
       - name: kafka-ingestion
-        image: kubesmarts/data-index-ingestion-kafka-service:999-SNAPSHOT
+        image: kubesmarts/data-index-ingestion:999-SNAPSHOT-kafka
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
