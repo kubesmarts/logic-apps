@@ -125,38 +125,40 @@ No routing complexity, direct K8s API query.
 #### Type 1: Query Operations → **Data-Index**
 
 **Operations:**
-- `GET /v1/instances/{id}` - Get single instance (GraphQL facade)
-- `GET /v1/instances?filter=...&page=...` - List/filter instances (GraphQL facade, pagination required)
-- `GET /v1/status/{instanceId}` - Short view: id, status, error details if failed
+- `GET /v1/{namespace}/{name}/{version}/instances?filter=...&page=...` - List/filter instances (workflow-scoped, GraphQL facade, pagination supported)
+- `GET /v1/{namespace}/{name}/{version}/instances/{id}` - Get single instance (GraphQL facade)
+
+**Note:** Version is optional; can be omitted to query all versions of the workflow: `GET /v1/{namespace}/{name}/instances`
 
 ```
 Example: Get single instance
-Client → GET /v1/instances/instance-123
+Client → GET /v1/demo/hello-world/1.0.0/instances/instance-123
 
 Workflow Gateway:
   → Forward to data-index GraphQL API
-  → query { getWorkflowInstance(id: "instance-123") { ... } }
+  → query { getWorkflowInstance(id: "instance-123") { id, status, startedAt, endedAt, input, output, error { ... } } }
   → Return response to client
 
-Example: Get instance status (short view)
-Client → GET /v1/status/instance-123
+Example: List instances with filter (workflow-scoped)
+Client → GET /v1/demo/hello-world/1.0.0/instances?status=RUNNING&page=1&size=20
 
 Workflow Gateway:
   → Forward to data-index GraphQL API
-  → query { getWorkflowInstance(id: "instance-123") { id, status, error { type title detail status instance }, workflowApplicationId } }
-  → Return: { "id": "instance-123", "status": "FAULTED", "error": {...}, "workflowApplicationId": "flow-pool-member-01" }
+  → Apply filters: namespace=demo, name=hello-world, version=1.0.0, status=RUNNING
+  → Return paginated results
 
-Example: List instances with filter
-Client → GET /v1/instances?status=RUNNING&page=1&size=20
+Example: Query all versions of a workflow
+Client → GET /v1/demo/hello-world/instances?status=COMPLETED
 
 Workflow Gateway:
-  → Forward to data-index GraphQL API with filter/pagination
+  → Forward to data-index GraphQL API
+  → Apply filters: namespace=demo, name=hello-world (all versions), status=COMPLETED
   → Return paginated results
 
 No routing complexity, no cookies needed.
 ```
 
-**Rationale:** Data-index aggregates all workflow instance data from events. Querying runtime pods is unnecessary and inefficient.
+**Rationale:** Data-index aggregates all workflow instance data from events. Workflow-scoped queries maintain API consistency with execution/operations endpoints. Querying runtime pods is unnecessary and inefficient.
 
 #### Type 2: Workflow Execution → **Runtime (Round-Robin)**
 
