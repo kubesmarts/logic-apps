@@ -197,7 +197,7 @@ dataIndex:
   # Image configuration (set per mode in values-mode{1,2,3}.yaml)
   image:
     repository: kubesmarts/data-index-service
-    tag: "999-SNAPSHOT-postgresql"
+    tag: "2.0.0-SNAPSHOT-postgresql"
     pullPolicy: IfNotPresent
 
   # Storage backend (postgresql or elasticsearch)
@@ -254,7 +254,7 @@ dataIndexIngestion:
   enabled: false
   image:
     repository: kubesmarts/data-index-ingestion
-    tag: "999-SNAPSHOT-kafka"
+    tag: "2.0.0-SNAPSHOT-kafka"
     pullPolicy: IfNotPresent
 
   replicas: 1
@@ -281,7 +281,7 @@ workflowApp:
   enabled: true
   image:
     repository: kubesmarts/workflow-test-app
-    tag: "999-SNAPSHOT"
+    tag: "2.0.0-SNAPSHOT"
     pullPolicy: IfNotPresent
 
   replicas: 1

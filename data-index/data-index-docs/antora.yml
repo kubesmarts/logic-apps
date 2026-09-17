@@ -9,4 +9,4 @@ asciidoc:
     page-pagination: ''
     sectanchors: ''
     source-highlighter: highlight.js
-    project-version: 999-SNAPSHOT
+    project-version: 2.0.0-SNAPSHOT

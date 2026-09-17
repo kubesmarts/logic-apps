@@ -241,7 +241,7 @@ See: [JSON Scalar Analysis](../docs/jsonnode-scalar-analysis.md)
 <dependency>
   <groupId>org.kie.kogito</groupId>
   <artifactId>persistence-commons-api</artifactId>
-  <version>999-SNAPSHOT</version>
+  <version>2.0.0-SNAPSHOT</version>
 </dependency>
 ```
 

@@ -29,7 +29,7 @@ npm run build
 
 **Generated HTML:** `target/generated-docs/`
 
-**Packaged JAR:** `target/data-index-docs-999-SNAPSHOT.jar`
+**Packaged JAR:** `target/data-index-docs-2.0.0-SNAPSHOT.jar`
 - Resources location: `META-INF/resources/docs/`
 
 ## Viewing the Documentation

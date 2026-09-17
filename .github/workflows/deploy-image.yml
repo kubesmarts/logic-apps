@@ -57,9 +57,19 @@ jobs:
           QUAY_ROBOT_ACCOUNT: ${{ secrets.QUAY_ROBOT_ACCOUNT }}
           QUAY_ROBOT_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
         run: |
+          # Create auth directory if it doesn't exist
+          mkdir -p ${HOME}/.config/containers
+
+          # Login with explicit auth file location
           echo "${QUAY_ROBOT_TOKEN}" | skopeo login quay.io \
             --username "${QUAY_ROBOT_ACCOUNT}" \
-            --password-stdin
+            --password-stdin \
+            --authfile ${HOME}/.config/containers/auth.json
+
+          # Verify login succeeded
+          echo "✅ Login successful"
+          cat ${HOME}/.config/containers/auth.json | jq -r '.auths."quay.io".auth' | base64 -d | cut -d: -f1
+          echo "Logged in as: $(cat ${HOME}/.config/containers/auth.json | jq -r '.auths."quay.io".auth' | base64 -d | cut -d: -f1)"
 
       - name: Push multi-arch image to Quay.io
         env:
@@ -68,10 +78,19 @@ jobs:
           ADDITIONAL_TAGS: ${{ inputs.additional_tags }}
         run: |
           OCI_ARCHIVE="${{ inputs.artifact_name }}.tar"
+          AUTH_FILE="${HOME}/.config/containers/auth.json"
+
+          # Verify auth file exists
+          if [ ! -f "${AUTH_FILE}" ]; then
+            echo "❌ Error: Auth file not found at ${AUTH_FILE}"
+            exit 1
+          fi
 
           # Push main version tag with --multi-arch all to preserve multi-arch manifest
           echo "🚀 Pushing multi-arch image: quay.io/${IMAGE_NAME}:${IMAGE_TAG}"
           skopeo copy --multi-arch all \
+            --authfile "${AUTH_FILE}" \
+            --dest-tls-verify=true \
             "oci-archive:${OCI_ARCHIVE}" \
             "docker://quay.io/${IMAGE_NAME}:${IMAGE_TAG}"
 
@@ -82,6 +101,8 @@ jobs:
               TAG=$(echo "${tag}" | xargs)  # Trim whitespace
               echo "🚀 Pushing additional tag: quay.io/${IMAGE_NAME}:${TAG}"
               skopeo copy --multi-arch all \
+                --authfile "${AUTH_FILE}" \
+                --dest-tls-verify=true \
                 "oci-archive:${OCI_ARCHIVE}" \
                 "docker://quay.io/${IMAGE_NAME}:${TAG}"
             done
@@ -94,12 +115,14 @@ jobs:
           IMAGE_NAME: ${{ inputs.image_name }}
           IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
+          AUTH_FILE="${HOME}/.config/containers/auth.json"
+
           echo "🔍 Verifying multi-arch manifest..."
-          skopeo inspect "docker://quay.io/${IMAGE_NAME}:${IMAGE_TAG}" | jq -r '.Digest, .Architecture, .Os'
+          skopeo inspect --authfile "${AUTH_FILE}" "docker://quay.io/${IMAGE_NAME}:${IMAGE_TAG}" | jq -r '.Digest, .Architecture, .Os'
 
           echo ""
           echo "📋 Manifest list:"
-          skopeo inspect --raw "docker://quay.io/${IMAGE_NAME}:${IMAGE_TAG}" | jq '.manifests[] | {platform: .platform, digest: .digest}'
+          skopeo inspect --raw --authfile "${AUTH_FILE}" "docker://quay.io/${IMAGE_NAME}:${IMAGE_TAG}" | jq '.manifests[] | {platform: .platform, digest: .digest}'
 
           echo "✅ Image successfully published!"
 

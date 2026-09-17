@@ -25,7 +25,7 @@ public class RootResource {
         Package pkg = getClass().getPackage();
         version = pkg != null && pkg.getImplementationVersion() != null
             ? pkg.getImplementationVersion()
-            : "999-SNAPSHOT";
+            : "2.0.0-SNAPSHOT";
 
         // Load git.properties if available
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("git.properties")) {

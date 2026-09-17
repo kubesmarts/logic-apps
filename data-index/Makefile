@@ -29,7 +29,7 @@ HELM_VECTOR_DIR := $(HELM_CHART)/configs/vector
 # CI/CD uses 'quay.io/kubesmarts/' (for remote registry)
 IMAGE_REGISTRY_LOCAL := kubesmarts
 IMAGE_REGISTRY_REMOTE := quay.io/kubesmarts
-IMAGE_TAG := 999-SNAPSHOT
+IMAGE_TAG := 2.0.0-SNAPSHOT
 
 # Service directories and image names
 PG_SERVICE_DIR := data-index-service/data-index-service-postgresql
