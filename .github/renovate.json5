@@ -6,8 +6,8 @@
     ":dependencyDashboard"
   ],
 
-  // Schedule: Weekly on Monday at 9am UTC (same as Dependabot)
-  "schedule": ["before 9am on Monday"],
+  // Schedule: Daily at 9am UTC
+  "schedule": ["before 9am"],
   "timezone": "UTC",
 
   // Limit open PRs to avoid overwhelming reviewers
