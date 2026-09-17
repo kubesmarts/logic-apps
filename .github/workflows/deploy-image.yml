@@ -69,9 +69,9 @@ jobs:
         run: |
           OCI_ARCHIVE="${{ inputs.artifact_name }}.tar"
 
-          # Push main version tag with --all to preserve multi-arch manifest
+          # Push main version tag with --multi-arch all to preserve multi-arch manifest
           echo "🚀 Pushing multi-arch image: quay.io/${IMAGE_NAME}:${IMAGE_TAG}"
-          skopeo copy --all \
+          skopeo copy --multi-arch all \
             "oci-archive:${OCI_ARCHIVE}" \
             "docker://quay.io/${IMAGE_NAME}:${IMAGE_TAG}"
 
@@ -79,10 +79,11 @@ jobs:
           if [ -n "${ADDITIONAL_TAGS}" ]; then
             IFS=',' read -ra ADDITIONAL <<< "${ADDITIONAL_TAGS}"
             for tag in "${ADDITIONAL[@]}"; do
-              echo "🚀 Pushing additional tag: quay.io/${IMAGE_NAME}:${tag}"
-              skopeo copy --all \
+              TAG=$(echo "${tag}" | xargs)  # Trim whitespace
+              echo "🚀 Pushing additional tag: quay.io/${IMAGE_NAME}:${TAG}"
+              skopeo copy --multi-arch all \
                 "oci-archive:${OCI_ARCHIVE}" \
-                "docker://quay.io/${IMAGE_NAME}:${tag}"
+                "docker://quay.io/${IMAGE_NAME}:${TAG}"
             done
           fi
 
