@@ -1,23 +1,7 @@
 name: Update Knowledge Graph
 
 on:
-  push:
-    branches: [main]
-    paths:
-      # Trigger on code changes
-      - '**/*.java'
-      - '**/*.yaml'
-      - '**/*.yml'
-      - '**/*.adoc'
-      - '**/*.md'
-      - '**/*.png'
-      - '**/*.jpg'
-      - '**/*.svg'
-      - '**/*.html'
-      # Also trigger on graph config changes
-      - '.graphify/**'
-      - 'CLAUDE.md'
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch: # Manual trigger only - run when needed to avoid polluting git history
 
 jobs:
   update-graph:
@@ -65,7 +49,7 @@ jobs:
       - name: Check for graph changes
         id: check_changes
         run: |
-          if git diff --quiet .graphify/graph.json .graphify/GRAPH_REPORT.md .graphify/manifest.json .graphify/cache/; then
+          if git diff --quiet .graphify/graph.json .graphify/GRAPH_REPORT.md .graphify/manifest.json; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             echo "changed=true" >> $GITHUB_OUTPUT
@@ -77,12 +61,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Add only the graph artifacts (not temp files)
+          # Add only the graph artifacts (not temp files or cache)
           git add .graphify/graph.json
           git add .graphify/graph.html
           git add .graphify/GRAPH_REPORT.md
           git add .graphify/cost.json
-          git add .graphify/cache/
           git add .graphify/manifest.json
 
           # Create commit with context

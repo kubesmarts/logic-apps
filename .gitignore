@@ -65,8 +65,12 @@ package-lock.json
 **/superpowers/
 superpowers/
 
-# Graphify knowledge graph - commit everything (CI will keep it updated)
-# .graphify/ directory is tracked (includes graph.html, graph.json, cache, etc)
-# But exclude runtime metadata files (machine-specific paths)
+# Graphify knowledge graph - commit outputs but not cache
+# .graphify/ directory is tracked (includes graph.html, graph.json, GRAPH_REPORT.md)
+# But exclude runtime metadata files (machine-specific paths) and cache
 .graphify/.graphify_python
 .graphify/.graphify_root
+.graphify/cache/
+.graphify/.graphify_*
+graphify-out/cache/
+graphify-out/.graphify_*
