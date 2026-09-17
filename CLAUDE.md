@@ -737,7 +737,7 @@ error_instance   → ErrorEntity.instance → Error.instance
 <dependency>
   <groupId>org.kie.kogito</groupId>
   <artifactId>persistence-commons-api</artifactId>
-  <version>999-SNAPSHOT</version>
+  <version>2.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -754,7 +754,7 @@ error_instance   → ErrorEntity.instance → Error.instance
 - ❌ `kie-addons-quarkus-flyway`
 
 **Apache Snapshots Repository:**
-- Required for `persistence-commons-api:999-SNAPSHOT`
+- Required for `persistence-commons-api:2.0.0-SNAPSHOT`
 - TODO: Can be removed if we inline the source or use released version
 
 ---
@@ -958,7 +958,7 @@ mvn clean package -Dquarkus.profile=postgresql -DskipFlyway=true -DskipTests
 # - Optimized Quarkus app (JVM mode)
 # - PostgreSQL storage dependencies ONLY
 # - NO Flyway (schema managed externally in production)
-# - Container image: kubesmarts/data-index-service:999-SNAPSHOT
+# - Container image: kubesmarts/data-index-service:2.0.0-SNAPSHOT
 
 # Elasticsearch backend
 mvn clean package -Dquarkus.profile=elasticsearch -DskipTests
@@ -967,7 +967,7 @@ mvn clean package -Dquarkus.profile=elasticsearch -DskipTests
 # - Optimized Quarkus app (JVM mode)
 # - Elasticsearch storage dependencies ONLY
 # - Schema initialization (controlled by skipInitSchema flag)
-# - Container image: kubesmarts/data-index-service:999-SNAPSHOT-elasticsearch
+# - Container image: kubesmarts/data-index-service:2.0.0-SNAPSHOT-elasticsearch
 ```
 
 **Why `-DskipFlyway=true` for PostgreSQL?**

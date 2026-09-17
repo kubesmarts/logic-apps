@@ -3,7 +3,7 @@ name: data-index
 description: Data Index - Read-only query service for Open Workflow runtime execution data
 type: application
 version: 1.0.0
-appVersion: "999-SNAPSHOT"
+appVersion: "2.0.0-SNAPSHOT"
 
 keywords:
   - workflow

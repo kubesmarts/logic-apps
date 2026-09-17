@@ -182,7 +182,7 @@ mvn clean package -Pkafka -Dquarkus.profile=kafka -DskipTests
 mvn package -Dquarkus.container-image.build=true
 ```
 
-**Result:** `kubesmarts/workflow-test-app:999-SNAPSHOT`
+**Result:** `kubesmarts/workflow-test-app:2.0.0-SNAPSHOT`
 
 ## Deployment
 
@@ -204,7 +204,7 @@ mvn package -Dquarkus.container-image.build=true
 ```bash
 # Build and load image
 mvn package -Dquarkus.container-image.build=true
-kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT
+kind load docker-image kubesmarts/workflow-test-app:2.0.0-SNAPSHOT
 
 # Deploy
 kubectl create namespace workflows

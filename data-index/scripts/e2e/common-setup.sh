@@ -106,24 +106,24 @@ main() {
         if [[ "${BUILD_MODE}" == "mode3" ]]; then
             log_info "  → Building workflow-test-app image (Maven + Jib, Kafka profile)"
             (cd "${PROJECT_ROOT}" && \
-                mvn clean package -DskipTests \
+                mvn clean install -DskipTests \
                 -pl data-index/workflow-test-app -am \
                 -Pkafka \
                 -Dquarkus.container-image.build=true \
-                -Dquarkus.container-image.tag=999-SNAPSHOT)
+                -Dquarkus.container-image.tag=2.0.0-SNAPSHOT)
         else
             log_info "  → Building workflow-test-app image (Maven + Jib)"
             (cd "${PROJECT_ROOT}" && \
-                mvn clean package -DskipTests \
+                mvn clean install -DskipTests \
                 -pl data-index/workflow-test-app -am \
                 -Dquarkus.container-image.build=true \
-                -Dquarkus.container-image.tag=999-SNAPSHOT)
+                -Dquarkus.container-image.tag=2.0.0-SNAPSHOT)
         fi
 
         # Load images into KIND cluster
         log_info "  → Loading images into KIND cluster"
-        kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT-postgresql --name "${CLUSTER_NAME}"
-        kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT --name "${CLUSTER_NAME}"
+        kind load docker-image kubesmarts/data-index-service:2.0.0-SNAPSHOT-postgresql --name "${CLUSTER_NAME}"
+        kind load docker-image kubesmarts/workflow-test-app:2.0.0-SNAPSHOT --name "${CLUSTER_NAME}"
     fi
 
     # Build Elasticsearch variant (MODE 2 only)
@@ -137,14 +137,14 @@ main() {
         # Build Docker image for workflow-test-app (still using Jib for now)
         log_info "  → Building workflow-test-app image (Maven + Jib)"
         (cd "${PROJECT_ROOT}/data-index/workflow-test-app" && \
-            mvn clean package -DskipTests \
+            mvn clean install -DskipTests \
             -Dquarkus.container-image.build=true \
-            -Dquarkus.container-image.tag=999-SNAPSHOT)
+            -Dquarkus.container-image.tag=2.0.0-SNAPSHOT)
 
         # Load images into KIND cluster
         log_info "  → Loading images into KIND cluster"
-        kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT-elasticsearch --name "${CLUSTER_NAME}"
-        kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT --name "${CLUSTER_NAME}"
+        kind load docker-image kubesmarts/data-index-service:2.0.0-SNAPSHOT-elasticsearch --name "${CLUSTER_NAME}"
+        kind load docker-image kubesmarts/workflow-test-app:2.0.0-SNAPSHOT --name "${CLUSTER_NAME}"
     fi
 
     # Build Kafka Ingestion Service (MODE 3 only)
@@ -157,7 +157,7 @@ main() {
 
         # Load image into KIND cluster
         log_info "  → Loading image into KIND cluster"
-        kind load docker-image kubesmarts/data-index-ingestion:999-SNAPSHOT-kafka --name "${CLUSTER_NAME}"
+        kind load docker-image kubesmarts/data-index-ingestion:2.0.0-SNAPSHOT-kafka --name "${CLUSTER_NAME}"
     fi
 
     log_success "Images built and loaded for: ${BUILD_MODE}"

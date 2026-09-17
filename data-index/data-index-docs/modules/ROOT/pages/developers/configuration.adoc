@@ -115,7 +115,7 @@ cd data-index/data-index-service/data-index-service-postgresql
 mvn clean package -DskipFlyway=true -DskipTests
 
 # Result: target/quarkus-app/ (optimized Quarkus app)
-# Container image: kubesmarts/data-index-service-postgresql:999-SNAPSHOT
+# Container image: kubesmarts/data-index-service-postgresql:2.0.0-SNAPSHOT
 ----
 
 **Build Elasticsearch backend:**
@@ -125,7 +125,7 @@ cd data-index/data-index-service/data-index-service-elasticsearch
 mvn clean package -DskipTests
 
 # Result: target/quarkus-app/ (optimized Quarkus app)
-# Container image: kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT
+# Container image: kubesmarts/data-index-service-elasticsearch:2.0.0-SNAPSHOT
 ----
 
 **Why skip Flyway (PostgreSQL only)?**

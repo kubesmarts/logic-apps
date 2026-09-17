@@ -329,7 +329,7 @@ spec:
     spec:
       containers:
       - name: kafka-ingestion
-        image: kubesmarts/data-index-ingestion:999-SNAPSHOT-kafka
+        image: kubesmarts/data-index-ingestion:2.0.0-SNAPSHOT-kafka
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka.kafka.svc.cluster.local:9092"

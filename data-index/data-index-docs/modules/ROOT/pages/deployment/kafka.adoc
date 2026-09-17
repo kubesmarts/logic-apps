@@ -90,7 +90,7 @@ spec:
     spec:
       containers:
       - name: kafka-ingestion
-        image: kubesmarts/data-index-ingestion-kafka-service:999-SNAPSHOT
+        image: kubesmarts/data-index-ingestion-kafka-service:2.0.0-SNAPSHOT
         ports:
         - containerPort: 8080
           name: http

@@ -493,7 +493,7 @@ docker exec -it data-index-test-control-plane crictl images | grep data-index
 
 [source,bash]
 ----
-kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT --name data-index-test
+kind load docker-image kubesmarts/data-index-service:2.0.0-SNAPSHOT --name data-index-test
 kind load docker-image local/workflow-test-app:1.0.0 --name data-index-test
 ----
 
@@ -571,7 +571,7 @@ kind delete cluster --name data-index-test
 
 [source,bash]
 ----
-docker rmi kubesmarts/data-index-service:999-SNAPSHOT
+docker rmi kubesmarts/data-index-service:2.0.0-SNAPSHOT
 docker rmi local/workflow-test-app:1.0.0
 ----
 
