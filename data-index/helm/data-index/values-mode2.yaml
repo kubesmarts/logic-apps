@@ -36,8 +36,8 @@ vector:
 # Data Index Service - Elasticsearch variant
 dataIndex:
   image:
-    repository: kubesmarts/data-index-service-elasticsearch
-    tag: "999-SNAPSHOT"
+    repository: kubesmarts/data-index-service
+    tag: "999-SNAPSHOT-elasticsearch"
   storage: elasticsearch
   # Use NodePort for easy testing in KIND
   service:

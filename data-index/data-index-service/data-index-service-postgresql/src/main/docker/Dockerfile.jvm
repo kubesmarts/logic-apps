@@ -1,0 +1,49 @@
+####
+# Quarkus JVM Runtime - PostgreSQL Data Index Service
+#
+# Base: Red Hat UBI 9 OpenJDK 17 Runtime
+# User: 185 (jboss) - non-root for security
+#
+# Build:
+#   cd data-index/data-index-service/data-index-service-postgresql
+#   mvn clean package -DskipTests
+#   docker build -f src/main/docker/Dockerfile.jvm -t <image> .
+####
+
+# ============================================================================
+# Base Image - Red Hat UBI 9 with OpenJDK 17
+# ============================================================================
+FROM registry.access.redhat.com/ubi9/openjdk-17-runtime:1.24
+
+# Build arguments for OCI labels
+ARG VERSION="dev"
+ARG REVISION="unknown"
+ARG BUILD_DATE="1970-01-01T00:00:00Z"
+
+ENV LANGUAGE='en_US:en'
+
+# Copy Quarkus app layers (optimized for caching)
+# --chown=185:0 = jboss user (185), root group (0) for OpenShift compatibility
+COPY --chown=185:0 target/quarkus-app/lib/ /deployments/lib/
+COPY --chown=185:0 target/quarkus-app/*.jar /deployments/
+COPY --chown=185:0 target/quarkus-app/app/ /deployments/app/
+COPY --chown=185:0 target/quarkus-app/quarkus/ /deployments/quarkus/
+
+# OCI Labels
+LABEL org.opencontainers.image.title="Logic Data Index Service - PostgreSQL"
+LABEL org.opencontainers.image.description="GraphQL query service for workflow execution data (PostgreSQL backend)"
+LABEL org.opencontainers.image.source="https://github.com/kubesmarts/logic-apps"
+LABEL org.opencontainers.image.vendor="KubeSmarts"
+LABEL org.opencontainers.image.version="${VERSION}"
+LABEL org.opencontainers.image.revision="${REVISION}"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
+
+EXPOSE 8080
+
+# Run as non-root user (jboss = UID 185)
+USER 185
+
+# Quarkus JVM options (automatically picked up via JAVA_TOOL_OPTIONS)
+ENV JAVA_TOOL_OPTIONS="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+
+ENTRYPOINT ["java", "-jar", "/deployments/quarkus-run.jar"]

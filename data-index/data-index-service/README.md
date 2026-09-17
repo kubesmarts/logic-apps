@@ -81,7 +81,7 @@ mvn clean package -DskipFlyway=true -DskipTests
 
 **Result:**
 - Optimized Quarkus app at `target/quarkus-app/`
-- Container image: `kubesmarts/data-index-service-postgresql:999-SNAPSHOT`
+- Container image: `kubesmarts/data-index-service:999-SNAPSHOT-postgresql`
 - PostgreSQL dependencies ONLY
 - No Flyway (production uses manual schema migration)
 
@@ -93,27 +93,41 @@ mvn clean package -DskipFlyway=true -DskipTests
 ```
 
 **Result:**
-- Container image: `kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT`
+- Container image: `kubesmarts/data-index-service:999-SNAPSHOT-elasticsearch`
 
 ### Container Image
 
-Build container image with Jib:
+Build container images using Docker and Makefile:
 
+**PostgreSQL variant:**
 ```bash
-cd data-index-service-postgresql
-mvn package -DskipFlyway=true \
-  -Dquarkus.container-image.build=true \
-  -DskipTests
+cd data-index
+make build-image-postgresql
 ```
 
-**Customization:**
+**Elasticsearch variant:**
 ```bash
-cd data-index-service-postgresql
-mvn package -DskipFlyway=true \
-  -Dquarkus.container-image.group=myorg \
-  -Dquarkus.container-image.name=data-index-postgresql \
-  -Dquarkus.container-image.tag=1.0.0 \
-  -Dquarkus.container-image.build=true
+cd data-index
+make build-image-es
+```
+
+**Kafka ingestion service:**
+```bash
+cd data-index
+make build-image-kafka
+```
+
+**Manual Docker build (PostgreSQL example):**
+```bash
+# Build from repository root to include dependencies
+mvn clean package -DskipTests \
+  -pl data-index/data-index-service/data-index-service-postgresql -am
+
+# Build Docker image
+docker build \
+  -f data-index/data-index-service/data-index-service-postgresql/src/main/docker/Dockerfile.jvm \
+  -t kubesmarts/data-index-service:999-SNAPSHOT-postgresql \
+  data-index/data-index-service/data-index-service-postgresql
 ```
 
 ## Configuration
@@ -124,8 +138,8 @@ Backend is selected by navigating to the appropriate module:
 
 | Module | Storage | Dependencies | Container Image |
 |--------|---------|--------------|----------------|
-| `data-index-service-postgresql` | PostgreSQL | JPA, JDBC, Flyway (dev only) | `kubesmarts/data-index-service-postgresql:999-SNAPSHOT` |
-| `data-index-service-elasticsearch` | Elasticsearch | Elasticsearch client (future) | `kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT` |
+| `data-index-service-postgresql` | PostgreSQL | JPA, JDBC, Flyway (dev only) | `kubesmarts/data-index-service:999-SNAPSHOT-postgresql` |
+| `data-index-service-elasticsearch` | Elasticsearch | Elasticsearch client (future) | `kubesmarts/data-index-service:999-SNAPSHOT-elasticsearch` |
 
 ### Configuration Files
 

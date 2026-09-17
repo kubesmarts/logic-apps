@@ -1,0 +1,126 @@
+name: Deploy image to Quay.io
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: 'Image name (e.g., kubesmarts/data-index-service)'
+        required: true
+        type: string
+      image_tag:
+        description: 'Image tag (e.g., 1.0.0-postgresql)'
+        required: true
+        type: string
+      artifact_name:
+        description: 'Name of the OCI artifact to download (e.g., artifact-postgresql)'
+        required: true
+        type: string
+      additional_tags:
+        description: 'Comma-separated additional tags (e.g., latest-postgresql)'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      QUAY_ROBOT_ACCOUNT:
+        description: 'Quay.io robot account name'
+        required: true
+      QUAY_ROBOT_TOKEN:
+        description: 'Quay.io robot account token'
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    name: Deploy to Quay.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+
+      - name: Install skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+
+      - name: Extract OCI archive
+        run: |
+          echo "📦 Extracting OCI archive..."
+          gunzip ${{ inputs.artifact_name }}.tar.gz
+
+      - name: Log in to Quay.io
+        env:
+          QUAY_ROBOT_ACCOUNT: ${{ secrets.QUAY_ROBOT_ACCOUNT }}
+          QUAY_ROBOT_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
+        run: |
+          echo "${QUAY_ROBOT_TOKEN}" | skopeo login quay.io \
+            --username "${QUAY_ROBOT_ACCOUNT}" \
+            --password-stdin
+
+      - name: Push multi-arch image to Quay.io
+        env:
+          IMAGE_NAME: ${{ inputs.image_name }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          ADDITIONAL_TAGS: ${{ inputs.additional_tags }}
+        run: |
+          OCI_ARCHIVE="${{ inputs.artifact_name }}.tar"
+
+          # Push main version tag with --multi-arch all to preserve multi-arch manifest
+          echo "🚀 Pushing multi-arch image: quay.io/${IMAGE_NAME}:${IMAGE_TAG}"
+          skopeo copy --multi-arch all \
+            "oci-archive:${OCI_ARCHIVE}" \
+            "docker://quay.io/${IMAGE_NAME}:${IMAGE_TAG}"
+
+          # Push additional tags if provided
+          if [ -n "${ADDITIONAL_TAGS}" ]; then
+            IFS=',' read -ra ADDITIONAL <<< "${ADDITIONAL_TAGS}"
+            for tag in "${ADDITIONAL[@]}"; do
+              TAG=$(echo "${tag}" | xargs)  # Trim whitespace
+              echo "🚀 Pushing additional tag: quay.io/${IMAGE_NAME}:${TAG}"
+              skopeo copy --multi-arch all \
+                "oci-archive:${OCI_ARCHIVE}" \
+                "docker://quay.io/${IMAGE_NAME}:${TAG}"
+            done
+          fi
+
+          echo "✅ All tags pushed successfully"
+
+      - name: Verify multi-arch manifest
+        env:
+          IMAGE_NAME: ${{ inputs.image_name }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          echo "🔍 Verifying multi-arch manifest..."
+          skopeo inspect "docker://quay.io/${IMAGE_NAME}:${IMAGE_TAG}" | jq -r '.Digest, .Architecture, .Os'
+
+          echo ""
+          echo "📋 Manifest list:"
+          skopeo inspect --raw "docker://quay.io/${IMAGE_NAME}:${IMAGE_TAG}" | jq '.manifests[] | {platform: .platform, digest: .digest}'
+
+          echo "✅ Image successfully published!"
+
+      - name: Summary
+        env:
+          IMAGE_NAME: ${{ inputs.image_name }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          ADDITIONAL_TAGS: ${{ inputs.additional_tags }}
+        run: |
+          echo "### 🎉 Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`quay.io/${IMAGE_NAME}:${IMAGE_TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Additional tags:**" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${ADDITIONAL_TAGS}" ]; then
+            IFS=',' read -ra ADDITIONAL <<< "${ADDITIONAL_TAGS}"
+            for tag in "${ADDITIONAL[@]}"; do
+              echo "- \`quay.io/${IMAGE_NAME}:${tag}\`" >> $GITHUB_STEP_SUMMARY
+            done
+          else
+            echo "- None" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View on Quay.io: https://quay.io/repository/${IMAGE_NAME}" >> $GITHUB_STEP_SUMMARY

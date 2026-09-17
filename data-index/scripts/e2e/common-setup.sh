@@ -96,46 +96,54 @@ main() {
 
     # Build PostgreSQL variant (MODE 1 and MODE 3)
     if [[ "${BUILD_MODE}" == "all" || "${BUILD_MODE}" == "mode1" || "${BUILD_MODE}" == "mode3" ]]; then
-        log_info "Building data-index-service-postgresql + workflow-test-app (PostgreSQL reactor)..."
+        log_info "Building data-index-service-postgresql + workflow-test-app..."
 
-        # Build both service and workflow-test-app together in reactor
-        # This ensures workflow-test-app can resolve its test dependencies
-        # Build from root reactor to ensure persistence-commons-api is rebuilt
+        # Build data-index-service-postgresql image using Makefile target
+        log_info "  → Building PostgreSQL image (via Makefile)"
+        (cd "${PROJECT_ROOT}/data-index" && make build-image-postgresql)
+
+        # Build workflow-test-app image (still using Jib for now)
         if [[ "${BUILD_MODE}" == "mode3" ]]; then
-            log_info "  → Using Kafka profile for workflow-test-app (MODE 3)"
+            log_info "  → Building workflow-test-app image (Maven + Jib, Kafka profile)"
             (cd "${PROJECT_ROOT}" && \
-                mvn clean install -DskipTests \
-                -pl data-index/data-index-service/data-index-service-postgresql,data-index/workflow-test-app \
-                -am \
+                mvn clean package -DskipTests \
+                -pl data-index/workflow-test-app -am \
                 -Pkafka \
                 -Dquarkus.container-image.build=true \
                 -Dquarkus.container-image.tag=999-SNAPSHOT)
         else
+            log_info "  → Building workflow-test-app image (Maven + Jib)"
             (cd "${PROJECT_ROOT}" && \
-                mvn clean install -DskipTests \
-                -pl data-index/data-index-service/data-index-service-postgresql,data-index/workflow-test-app \
-                -am \
+                mvn clean package -DskipTests \
+                -pl data-index/workflow-test-app -am \
                 -Dquarkus.container-image.build=true \
                 -Dquarkus.container-image.tag=999-SNAPSHOT)
         fi
 
-        kind load docker-image kubesmarts/data-index-service-postgresql:999-SNAPSHOT --name "${CLUSTER_NAME}"
+        # Load images into KIND cluster
+        log_info "  → Loading images into KIND cluster"
+        kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT-postgresql --name "${CLUSTER_NAME}"
         kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT --name "${CLUSTER_NAME}"
     fi
 
     # Build Elasticsearch variant (MODE 2 only)
     if [[ "${BUILD_MODE}" == "all" || "${BUILD_MODE}" == "mode2" ]]; then
-        log_info "Building data-index-service-elasticsearch + workflow-test-app (Elasticsearch reactor)..."
+        log_info "Building data-index-service-elasticsearch + workflow-test-app..."
 
-        # Build from root reactor to ensure persistence-commons-api is rebuilt
-        (cd "${PROJECT_ROOT}" && \
-            mvn clean install -DskipTests \
-            -pl data-index/data-index-service/data-index-service-elasticsearch,data-index/workflow-test-app \
-            -am \
+        # Build data-index-service-elasticsearch image using Makefile target
+        log_info "  → Building Elasticsearch image (via Makefile)"
+        (cd "${PROJECT_ROOT}/data-index" && make build-image-es)
+
+        # Build Docker image for workflow-test-app (still using Jib for now)
+        log_info "  → Building workflow-test-app image (Maven + Jib)"
+        (cd "${PROJECT_ROOT}/data-index/workflow-test-app" && \
+            mvn clean package -DskipTests \
             -Dquarkus.container-image.build=true \
             -Dquarkus.container-image.tag=999-SNAPSHOT)
 
-        kind load docker-image kubesmarts/data-index-service-elasticsearch:999-SNAPSHOT --name "${CLUSTER_NAME}"
+        # Load images into KIND cluster
+        log_info "  → Loading images into KIND cluster"
+        kind load docker-image kubesmarts/data-index-service:999-SNAPSHOT-elasticsearch --name "${CLUSTER_NAME}"
         kind load docker-image kubesmarts/workflow-test-app:999-SNAPSHOT --name "${CLUSTER_NAME}"
     fi
 
@@ -143,15 +151,13 @@ main() {
     if [[ "${BUILD_MODE}" == "all" || "${BUILD_MODE}" == "mode3" ]]; then
         log_info "Building data-index-ingestion-kafka-service..."
 
-        # Build from root reactor to ensure persistence-commons-api is rebuilt
-        (cd "${PROJECT_ROOT}" && \
-            mvn clean install -DskipTests \
-            -pl data-index/data-index-ingestion/data-index-ingestion-kafka-service \
-            -am \
-            -Dquarkus.container-image.build=true \
-            -Dquarkus.container-image.tag=999-SNAPSHOT)
+        # Build Kafka ingestion service image using Makefile target
+        log_info "  → Building Kafka ingestion image (via Makefile)"
+        (cd "${PROJECT_ROOT}/data-index" && make build-image-kafka)
 
-        kind load docker-image kubesmarts/data-index-ingestion-kafka-service:999-SNAPSHOT --name "${CLUSTER_NAME}"
+        # Load image into KIND cluster
+        log_info "  → Loading image into KIND cluster"
+        kind load docker-image kubesmarts/data-index-ingestion:999-SNAPSHOT-kafka --name "${CLUSTER_NAME}"
     fi
 
     log_success "Images built and loaded for: ${BUILD_MODE}"
