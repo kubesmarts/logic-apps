@@ -1342,8 +1342,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - `data-index-storage-postgresql/src/main/java/.../entity/` - JPA entities
 - `data-index-storage-postgresql/src/main/java/.../mapper/` - MapStruct mappers
 - `data-index-storage-migrations/src/main/resources/db/migration/` - Flyway migrations
-- `V1__initial_schema.sql` - Original schema (raw staging tables, now removed)
-- `V2__direct_normalized_inserts.sql` - Current triggers: self-targeting `BEFORE INSERT` on `workflow_instances`/`task_instances`
+- `V1__initial_schema.sql` - Normalized tables + self-targeting `BEFORE INSERT` triggers on `workflow_instances`/`task_instances`
 
 **Code (MODE 2 - Elasticsearch):**
 - `data-index-storage-elasticsearch/src/main/java/.../` - Storage implementation
@@ -1438,7 +1437,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 → MODE 2: Write `@QuarkusTest` integration test with Elasticsearch profile + wait for transforms
 
 **"Where are the database triggers?"**
-→ MODE 1: `data-index-storage-migrations/.../V2__direct_normalized_inserts.sql` (defined directly on `workflow_instances`/`task_instances`)
+→ MODE 1: `data-index-storage-migrations/.../V1__initial_schema.sql` (defined directly on `workflow_instances`/`task_instances`)
 → MODE 2: Not applicable (uses Elasticsearch transforms)
 
 **"Where are the Elasticsearch transforms?"**
