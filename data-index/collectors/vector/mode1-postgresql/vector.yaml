@@ -93,25 +93,88 @@ transforms:
         type: vrl
         source: starts_with(string(.flow_event.eventType) ?? "", "io.serverlessworkflow.task.")
 
-  # Row inserted directly into workflow_instances/task_instances: just the
-  # untouched event as `raw_event` JSONB. The trigger extracts everything else.
+  # Row inserted directly into workflow_instances: one key per column,
+  # matching the OW event field names to their normalized column names.
+  # Vector's postgres sink maps JSON keys to columns via
+  # jsonb_populate_recordset, so no sink config is needed beyond this shape -
+  # the trigger just merges (COALESCE/GREATEST), it no longer parses JSON.
   build_workflow_row:
     type: remap
     inputs:
       - route_by_type.workflow_events
     source: |
-      . = {
-        "raw_event": .flow_event
+      e = .flow_event
+      row = {}
+      row.from_event = true
+      row.id = e.instanceId
+      row.namespace = e.workflowNamespace
+      row.name = e.workflowName
+      row.version = e.workflowVersion
+      row.status = e.status
+      row.input = e.input
+      row.output = e.output
+
+      if e.startTime != null {
+        row.started_at = from_unix_timestamp!(to_int!(e.startTime), unit: "seconds")
+      }
+      if e.endTime != null {
+        row.ended_at = from_unix_timestamp!(to_int!(e.endTime), unit: "seconds")
+      }
+      if e.lastUpdateTime != null {
+        row.last_update = from_unix_timestamp!(to_int!(e.lastUpdateTime), unit: "seconds")
+      }
+      if e.timestamp != null {
+        row.last_event_time = from_unix_timestamp!(to_int!(e.timestamp), unit: "seconds")
       }
 
+      err = e.error
+      if err != null {
+        row.error_type = err.type
+        row.error_title = err.title
+        row.error_detail = err.detail
+        row.error_status = err.status
+        row.error_instance = err.instance
+      }
+
+      . = row
+
+  # Row inserted directly into task_instances - same column-mapping approach
+  # as build_workflow_row above.
   build_task_row:
     type: remap
     inputs:
       - route_by_type.task_events
     source: |
-      . = {
-        "raw_event": .flow_event
+      e = .flow_event
+      row = {}
+      row.from_event = true
+      row.instance_id = e.instanceId
+      row.task = e.taskPosition
+      row.task_name = e.taskName
+      row.status = e.status
+      row.input = e.input
+      row.output = e.output
+
+      if e.startTime != null {
+        row.started_at = from_unix_timestamp!(to_int!(e.startTime), unit: "seconds")
       }
+      if e.endTime != null {
+        row.ended_at = from_unix_timestamp!(to_int!(e.endTime), unit: "seconds")
+      }
+      if e.timestamp != null {
+        row.last_event_time = from_unix_timestamp!(to_int!(e.timestamp), unit: "seconds")
+      }
+
+      err = e.error
+      if err != null {
+        row.error_type = err.type
+        row.error_title = err.title
+        row.error_detail = err.detail
+        row.error_status = err.status
+        row.error_instance = err.instance
+      }
+
+      . = row
 
   # Debug filter - only pass events if DEBUG_EVENTS=true
   # Controlled by environment variable for troubleshooting
