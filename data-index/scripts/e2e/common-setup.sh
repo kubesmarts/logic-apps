@@ -136,8 +136,9 @@ main() {
 
         # Build Docker image for workflow-test-app (still using Jib for now)
         log_info "  → Building workflow-test-app image (Maven + Jib)"
-        (cd "${PROJECT_ROOT}/data-index/workflow-test-app" && \
+        (cd "${PROJECT_ROOT}" && \
             mvn clean install -DskipTests \
+            -pl data-index/workflow-test-app -am \
             -Dquarkus.container-image.build=true \
             -Dquarkus.container-image.tag=2.0.0-SNAPSHOT)
 

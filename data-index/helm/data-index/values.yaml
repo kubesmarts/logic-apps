@@ -48,6 +48,9 @@ postgresql:
   database: dataindex
   username: dataindex
 
+  # PostgreSQL schema for Vector's search_path and Flyway migrations
+  schema: logicapps
+
   # ⚠️  SECURITY WARNING ⚠️
   # The password field below is for TESTING ONLY and should NEVER be used in production.
   # For production deployments, use ONE of these secure approaches:

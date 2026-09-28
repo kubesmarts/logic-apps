@@ -132,6 +132,7 @@ main() {
 
     # 6. Verify infrastructure ready
     log_step "Step 6: Verify Infrastructure Ready"
+    export POSTGRES_SCHEMA="logicapps"
     bash "${SCRIPT_DIR}/verify-infrastructure.sh" mode1
 
     # 7. Run Java E2E tests

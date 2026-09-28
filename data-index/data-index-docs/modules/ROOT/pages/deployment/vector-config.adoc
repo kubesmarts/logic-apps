@@ -65,16 +65,35 @@ sinks:
   postgres_workflow:
     type: postgres
     inputs: [build_workflow_row]
-    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?options=-c%20search_path%3D${POSTGRES_SCHEMA}"
     table: workflow_events_raw
     batch: { max_events: 100, timeout_secs: 1 }
   postgres_task:
     type: postgres
     inputs: [build_task_row]
-    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?options=-c%20search_path%3D${POSTGRES_SCHEMA}"
     table: task_events_raw
     batch: { max_events: 100, timeout_secs: 1 }
 ----
+
+=== Schema Configuration
+
+The endpoint URL includes `?options=-c%20search_path%3D${POSTGRES_SCHEMA}`, which sets
+PostgreSQL's `search_path` connection parameter. This ensures Vector resolves table names
+in the specified schema (default: `public`).
+
+[IMPORTANT]
+====
+The PostgreSQL schema must **exist before Vector connects**. When using a custom schema:
+
+. Create the schema: `CREATE SCHEMA IF NOT EXISTS <schema-name>;`
+. Ensure Flyway migrations run against the same schema (via JDBC `currentSchema` parameter)
+. Set the same schema in both Vector and DataIndex configurations
+
+The Helm chart does not automatically create the schema. Either:
+- Pre-create the schema before deploying (recommended for non-Helm deployments)
+- Use Helm hooks or init containers to create it during deployment
+====
 
 The sinks use the default in-memory buffer (parity with the FluentBit MODE 1
 setup). Do not set `buffer.type: disk` on the `postgres` sink: in Vector 0.54 it

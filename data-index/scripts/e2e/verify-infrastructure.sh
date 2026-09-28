@@ -62,9 +62,10 @@ verify_mode1_infrastructure() {
 
     # 3. Verify schema initialized (tables exist)
     log_info "Checking database schema..."
+    SCHEMA=${POSTGRES_SCHEMA:-public}
     TABLES=$(kubectl exec -n postgresql postgresql-0 -- psql -U dataindex -d dataindex -t -c "
         SELECT COUNT(*) FROM information_schema.tables
-        WHERE table_schema = 'public'
+        WHERE table_schema = '$SCHEMA'
         AND table_name IN ('workflow_instances', 'task_instances', 'workflow_events_raw', 'task_events_raw')
     ")
     if [ "$TABLES" -eq 4 ]; then
@@ -76,9 +77,11 @@ verify_mode1_infrastructure() {
 
     # 4. Verify triggers exist
     log_info "Checking database triggers..."
+    SCHEMA=${POSTGRES_SCHEMA:-public}
     TRIGGERS=$(kubectl exec -n postgresql postgresql-0 -- psql -U dataindex -d dataindex -t -c "
         SELECT COUNT(*) FROM information_schema.triggers
-        WHERE event_object_table IN ('workflow_events_raw', 'task_events_raw')
+        WHERE event_object_schema = '$SCHEMA'
+        AND event_object_table IN ('workflow_events_raw', 'task_events_raw')
     ")
     if [ "$TRIGGERS" -ge 2 ]; then
         log_success "Database triggers created ($TRIGGERS triggers found)"
@@ -167,9 +170,10 @@ verify_mode3_infrastructure() {
 
     # 4. Verify schema initialized (tables exist)
     log_info "Checking database schema..."
+    SCHEMA=${POSTGRES_SCHEMA:-public}
     TABLES=$(kubectl exec -n postgresql postgresql-0 -- psql -U dataindex -d dataindex -t -c "
         SELECT COUNT(*) FROM information_schema.tables
-        WHERE table_schema = 'public'
+        WHERE table_schema = '$SCHEMA'
         AND table_name IN ('workflow_instances', 'task_instances')
     ")
     if [ "$TABLES" -eq 2 ]; then
