@@ -75,7 +75,7 @@ PostgreSQL connection string
 */}}
 {{- define "data-index.postgresql.connectionString" -}}
 
-postgresql://{{ .Values.postgresql.host }}:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.database }}
+postgresql://{{ .Values.postgresql.host }}:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.database }}?currentSchema={{ .Values.postgresql.schema | default "public" }}
 {{- end }}
 
 {{/*

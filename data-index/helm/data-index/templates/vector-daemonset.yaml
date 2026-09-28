@@ -103,6 +103,8 @@ spec:
               value: {{ .Values.postgresql.service.port | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.postgresql.database | quote }}
+            - name: POSTGRES_SCHEMA
+              value: {{ .Values.postgresql.schema | default "public" | quote }}
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:

@@ -68,6 +68,7 @@ main() {
     kubectl get pods --all-namespaces | grep -E "(NAMESPACE|kafka|postgresql|data-index|workflow)" || true
 
     log_step "Step 6: Verify Infrastructure Ready"
+    export POSTGRES_SCHEMA="logicapps"
     bash "${SCRIPT_DIR}/verify-infrastructure.sh" mode3
 
     log_step "Step 7: Running Java E2E Tests"

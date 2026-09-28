@@ -165,7 +165,7 @@ sinks:
     type: postgres
     inputs:
       - build_workflow_row
-    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?options=-c%20search_path%3D${POSTGRES_SCHEMA}"
     table: workflow_events_raw
     healthcheck:
       enabled: true
@@ -178,7 +178,7 @@ sinks:
     type: postgres
     inputs:
       - build_task_row
-    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+    endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?options=-c%20search_path%3D${POSTGRES_SCHEMA}"
     table: task_events_raw
     healthcheck:
       enabled: true
@@ -237,6 +237,7 @@ api:
 #   - POSTGRES_HOST: PostgreSQL hostname
 #   - POSTGRES_PORT: PostgreSQL port (default: 5432)
 #   - POSTGRES_DB: PostgreSQL database name
+#   - POSTGRES_SCHEMA: PostgreSQL schema name via search_path (default: public, must match Flyway migrations)
 #   - POSTGRES_USER: PostgreSQL user
 #   - POSTGRES_PASSWORD: PostgreSQL password
 #   - NODE_NAME: Kubernetes node name (set by DaemonSet downward API)

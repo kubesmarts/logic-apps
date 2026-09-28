@@ -48,6 +48,7 @@ class VectorConfigValidationIT {
             "POSTGRES_HOST", "postgresql.test.svc",
             "POSTGRES_PORT", "5432",
             "POSTGRES_DB", "dataindex",
+            "POSTGRES_SCHEMA", "logicapps",
             "POSTGRES_USER", "dataindex",
             "POSTGRES_PASSWORD", "test-only");
 
