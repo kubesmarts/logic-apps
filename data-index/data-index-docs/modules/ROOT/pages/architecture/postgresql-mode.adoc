@@ -10,10 +10,8 @@ Data Index with PostgreSQL storage uses trigger-based normalization for real-tim
 Quarkus Flow App
     ↓ (structured logging → stdout)
 Vector DaemonSet
-    ↓ (kubernetes_logs source → postgres sink)
-PostgreSQL Raw Tables (JSONB)
-    ↓ (BEFORE INSERT triggers)
-PostgreSQL Normalized Tables
+    ↓ (kubernetes_logs source → postgres sink, {raw_event: <json>} rows)
+PostgreSQL Normalized Tables (BEFORE INSERT triggers normalize in place)
     ↓ (JPA/Hibernate)
 GraphQL API
 ----
@@ -23,9 +21,9 @@ GraphQL API
 1. **Quarkus Flow emits events** - JSON to stdout
 2. **Kubernetes captures logs** - `/var/log/containers/POD_NAME.log`
 3. **Vector collects** - `kubernetes_logs` source tails container logs, filters events by `eventType`, routes workflow vs task
-4. **INSERT to raw tables** - `postgres` sinks write `workflow_events_raw`, `task_events_raw` (JSONB `data` column)
-5. **Triggers fire immediately** - Extract fields from JSONB
-6. **UPSERT to normalized tables** - `workflow_instances`, `task_instances`
+4. **INSERT directly into normalized tables** - `postgres` sinks write `workflow_instances`, `task_instances`, with only the `raw_event` JSONB column set
+5. **Triggers fire immediately** - `BEFORE INSERT` triggers, defined on these same tables, extract fields from `raw_event`
+6. **Merge in place** - the trigger self-targets an `INSERT ... ON CONFLICT DO UPDATE`, guarded by `pg_trigger_depth()`, and cancels the original pending insert
 7. **GraphQL queries** - Via JPA entities
 
 == Key Characteristics
@@ -58,8 +56,8 @@ GraphQL API
 
 Events are normalized in real-time as they arrive:
 
-1. **Vector writes raw events** - Complete events stored as JSON for debugging
-2. **Events normalized automatically** - Fields extracted and stored in optimized tables
+1. **Vector inserts directly into the normalized tables** - each row carries only the event as JSON (`raw_event` column)
+2. **Events normalized automatically** - the `BEFORE INSERT` trigger extracts fields from `raw_event` and merges them into the row before the insert completes
 3. **Immediate availability** - Data ready for querying in less than 1ms
 
 **Benefits:**
@@ -75,19 +73,17 @@ Events are normalized in real-time as they arrive:
 - Limited throughput vs. Elasticsearch mode (< 50K workflows/day)
 - Schema changes require database updates
 
-== Raw Event Storage
+== Raw Event Column
 
-Raw events are preserved in their original JSON format:
+There are no separate raw staging tables. Instead, `workflow_instances` and `task_instances` each
+carry a `raw_event JSONB` column holding the **most recently applied event** for that row:
 
-- **workflow_events_raw** - All workflow-related events
-- **task_events_raw** - All task-related events
-
-**Benefits:**
-
-- **Debugging** - Original events preserved for troubleshooting
-- **Replay** - Can reprocess if normalization logic changes
-- **Audit** - Complete event history maintained
+- **Debugging** - The latest original event is available for troubleshooting without a separate table join
 - **Flexibility** - Accepts any event structure without schema changes
+
+**Trade-off vs. the previous raw-table design:** only the latest event per row is kept, not the
+full event history - there's no replay of earlier events once a newer one has merged over them.
+This was a deliberate simplification (fewer tables, no recursive-trigger risk).
 
 == Normalized Tables
 
@@ -131,12 +127,12 @@ sinks:
     type: postgres
     inputs: [build_workflow_row]
     endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
-    table: workflow_events_raw
+    table: workflow_instances
   postgres_task:
     type: postgres
     inputs: [build_task_row]
     endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
-    table: task_events_raw
+    table: task_instances
 ----
 
 See xref:deployment/vector-config.adoc[Vector Configuration] for the full pipeline.
