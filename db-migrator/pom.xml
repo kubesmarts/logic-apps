@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.kubesmarts</groupId>
+    <artifactId>logic-apps</artifactId>
+    <version>2.0.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <groupId>org.kubesmarts.logic.apps</groupId>
+  <artifactId>db-migrator</artifactId>
+  <name>KubeSmarts Logic Apps :: DB Migrator</name>
+  <description>Schema-agnostic Flyway migration runner, run as a one-shot Job against the runtime schema stream bundled from quarkus-flow's db-migration extension</description>
+
+  <properties>
+    <java.module.name>org.kubesmarts.logic.apps.dbmigrator</java.module.name>
+    <!-- io.quarkiverse.flow:quarkus-flow-db-migration-runtime is not yet published;
+         resolved from the local repo until the quarkus-flow branch is merged and released. -->
+    <version.io.quarkiverse.flow>2.0.0-SNAPSHOT</version.io.quarkiverse.flow>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-arc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jackson</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
+    </dependency>
+    <!--    flow-runtime-->
+    <dependency>
+      <groupId>io.quarkiverse.flow</groupId>
+      <artifactId>quarkus-flow-db-migration</artifactId>
+      <version>${version.io.quarkiverse.flow}</version>
+    </dependency>
+    <!--      flow-quartz-->
+    <dependency>
+      <groupId>io.quarkiverse.flow</groupId>
+      <artifactId>quarkus-flow-db-migration-quartz</artifactId>
+      <version>${version.io.quarkiverse.flow}</version>
+    </dependency>
+    <!--      data-index-->
+    <dependency>
+      <groupId>org.kubesmarts.logic.apps</groupId>
+      <artifactId>data-index-storage-migrations</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- test dependencies
+      All test dependencies must live below
+    -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-maven-plugin</artifactId>
+        <extensions>true</extensions>
+        <executions>
+          <execution>
+            <goals>
+              <goal>build</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <includes>
+            <include>**/*IT.java</include>
+          </includes>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
