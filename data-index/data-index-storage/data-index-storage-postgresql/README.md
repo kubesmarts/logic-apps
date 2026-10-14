@@ -277,7 +277,7 @@ quarkus.hibernate-orm.jdbc.timezone=UTC
 quarkus.hibernate-orm.physical-naming-strategy=org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
 
 # Never auto-generate schema (Flyway handles it)
-quarkus.hibernate-orm.database.generation=none
+quarkus.hibernate-orm.schema-management.strategy=none
 ```
 
 ## Testing

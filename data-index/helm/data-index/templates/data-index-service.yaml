@@ -96,7 +96,7 @@ spec:
               value: "http"
             {{- end }}
             # GraphQL configuration
-            - name: QUARKUS_SMALLRYE_GRAPHQL_UI_ENABLE
+            - name: QUARKUS_SMALLRYE_GRAPHQL_UI_ALWAYS_INCLUDE
               value: {{ .Values.dataIndex.graphql.ui.enabled | quote }}
           livenessProbe:
             {{- toYaml .Values.dataIndex.livenessProbe | nindent 12 }}
