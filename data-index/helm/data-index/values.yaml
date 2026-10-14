@@ -125,7 +125,7 @@ kafka:
   image:
     repository: apache/kafka
     # renovate: datasource=docker depName=apache/kafka
-    tag: "3.9.0"
+    tag: "3.9.2"
     pullPolicy: IfNotPresent
 
   # Single replica for testing
