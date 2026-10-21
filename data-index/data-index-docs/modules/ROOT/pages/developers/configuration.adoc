@@ -297,7 +297,7 @@ quarkus.hibernate-orm.physical-naming-strategy=org.hibernate.boot.model.naming.C
 [source,properties]
 ----
 # Never auto-generate schema (Flyway handles migrations)
-quarkus.hibernate-orm.database.generation=none
+quarkus.hibernate-orm.schema-management.strategy=none
 ----
 
 **Logging:**
@@ -659,7 +659,7 @@ quarkus.kubernetes.labels."version"=1.0.0
 %test.quarkus.datasource.jdbc.url=jdbc:h2:mem:testdb
 
 # Drop and create schema for each test
-%test.quarkus.hibernate-orm.database.generation=drop-and-create
+%test.quarkus.hibernate-orm.schema-management.strategy=drop-and-create
 
 # Run Flyway migrations
 %test.quarkus.flyway.migrate-at-start=true
@@ -782,7 +782,7 @@ quarkus.datasource.jdbc.max-size=20
 
 # Hibernate
 quarkus.hibernate-orm.jdbc.timezone=UTC
-quarkus.hibernate-orm.database.generation=none
+quarkus.hibernate-orm.schema-management.strategy=none
 quarkus.hibernate-orm.physical-naming-strategy=org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
 
 # Flyway (disabled, use init job)

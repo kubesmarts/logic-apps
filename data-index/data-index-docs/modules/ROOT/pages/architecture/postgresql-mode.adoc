@@ -147,7 +147,7 @@ See xref:deployment/vector-config.adoc[Vector Configuration] for the full pipeli
 ----
 quarkus.datasource.db-kind=postgresql
 quarkus.datasource.jdbc.url=jdbc:postgresql://postgresql:5432/dataindex
-quarkus.hibernate-orm.database.generation=none
+quarkus.hibernate-orm.schema-management.strategy=none
 ----
 
 [NOTE]
