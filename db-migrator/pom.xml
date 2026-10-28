@@ -18,9 +18,7 @@
 
   <properties>
     <java.module.name>org.kubesmarts.logic.apps.dbmigrator</java.module.name>
-    <!-- io.quarkiverse.flow:quarkus-flow-db-migration-runtime is not yet published;
-         resolved from the local repo until the quarkus-flow branch is merged and released. -->
-    <version.io.quarkiverse.flow>2.0.0-SNAPSHOT</version.io.quarkiverse.flow>
+    <version.io.quarkiverse.flow>1.3.0</version.io.quarkiverse.flow>
   </properties>
 
   <dependencies>
@@ -44,13 +42,11 @@
     <dependency>
       <groupId>io.quarkiverse.flow</groupId>
       <artifactId>quarkus-flow-db-migration</artifactId>
-      <version>${version.io.quarkiverse.flow}</version>
     </dependency>
     <!--      flow-quartz-->
     <dependency>
       <groupId>io.quarkiverse.flow</groupId>
       <artifactId>quarkus-flow-db-migration-quartz</artifactId>
-      <version>${version.io.quarkiverse.flow}</version>
     </dependency>
     <!--      data-index-->
     <dependency>
