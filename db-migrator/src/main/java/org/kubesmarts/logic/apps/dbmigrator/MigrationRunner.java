@@ -4,7 +4,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
@@ -32,10 +31,22 @@ public class MigrationRunner implements QuarkusApplication {
 
     private static final Logger LOG = Logger.getLogger(MigrationRunner.class);
 
-    private static final String RUNTIME_STREAM = "runtime";
-    private static final String QUARTZ_STREAM = "quartz";
-    private static final String DATA_INDEX_STREAM = "data-index";
-    private static final Set<String> KNOWN_STREAMS = Set.of(RUNTIME_STREAM, QUARTZ_STREAM, DATA_INDEX_STREAM);
+    public enum MigrationStreams {
+        RUNTIME("runtime"),
+        QUARTZ("quartz"),
+        DATA_INDEX("data-index");
+
+        private final String stream;
+
+        MigrationStreams(String stream) {
+            this.stream = stream;
+        }
+
+        @Override
+        public String toString() {
+            return this.stream;
+        }
+    }
 
     @Inject
     @FlywayDataSource("flow-runtime")
@@ -53,23 +64,17 @@ public class MigrationRunner implements QuarkusApplication {
     ObjectMapper objectMapper;
 
     @ConfigProperty(name = "logic.db-migrator.include")
-    List<String> include;
+    List<MigrationStreams> include;
 
     @ConfigProperty(name = "db-migrator.termination-log-path")
     String terminationLogPath;
 
     @Override
     public int run(String... args) throws Exception {
-        for (String stream : include) {
-            if (!KNOWN_STREAMS.contains(stream)) {
-                throw new IllegalArgumentException(
-                        "Unknown LOGIC_DB_MIGRATOR_INCLUDE entry '" + stream + "', expected one of " + KNOWN_STREAMS);
-            }
-        }
 
         List<StreamResult> succeeded = new ArrayList<>();
         List<String> errors = new ArrayList<>();
-        for (String stream : include) {
+        for (MigrationStreams stream : include) {
             try {
                 succeeded.add(migrate(stream));
             } catch (Exception e) {
@@ -83,12 +88,11 @@ public class MigrationRunner implements QuarkusApplication {
         return errors.isEmpty() ? 0 : 1;
     }
 
-    private StreamResult migrate(String stream) {
+    private StreamResult migrate(MigrationStreams stream) {
         Flyway flyway = switch (stream) {
-            case RUNTIME_STREAM -> runtimeFlyway;
-            case QUARTZ_STREAM -> quartzFlyway;
-            case DATA_INDEX_STREAM -> dataIndexFlyway;
-            default -> throw new IllegalStateException("Unhandled known stream '" + stream + "'");
+            case RUNTIME -> runtimeFlyway;
+            case QUARTZ -> quartzFlyway;
+            case DATA_INDEX -> dataIndexFlyway;
         };
         MigrateResult result = flyway.migrate();
         LOG.infov("Stream {0}: applied {1} migration(s), now at version {2}", stream, result.migrationsExecuted,

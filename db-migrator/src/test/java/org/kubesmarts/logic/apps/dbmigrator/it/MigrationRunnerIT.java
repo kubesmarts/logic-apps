@@ -32,9 +32,9 @@ class MigrationRunnerIT {
         assertThat(exitCode).isZero();
         String report = Files.readString(Path.of(terminationLogPath));
         assertThat(report)
-                .contains("\"name\":\"runtime\"")
-                .contains("\"name\":\"quartz\"")
-                .contains("\"name\":\"data-index\"")
+                .contains("\"name\":\"RUNTIME\"")
+                .contains("\"name\":\"QUARTZ\"")
+                .contains("\"name\":\"DATA_INDEX\"")
                 .doesNotContain("\"error\"");
     }
 }
