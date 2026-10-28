@@ -18,14 +18,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.flyway.FlywayDataSource;
 import io.quarkus.runtime.QuarkusApplication;
 
-/**
- * Applies whichever schema streams are named in LOGIC_DB_MIGRATOR_INCLUDE (see
- * logic-operator's MigrationIncludeEnvVar), then reports the outcome as JSON on the
- * container's termination message (see MigrationReport) so the operator can harvest it.
- * Each stream has its own Flyway history via a dedicated named datasource (see
- * application.properties), isolating it from the others even though all three target the
- * same physical database.
- */
 @Dependent
 public class MigrationRunner implements QuarkusApplication {
 

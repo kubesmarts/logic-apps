@@ -4,6 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.ResultSet;
+
+import javax.sql.DataSource;
 
 import jakarta.inject.Inject;
 
@@ -22,6 +26,9 @@ class MigrationRunnerIT {
     @Inject
     MigrationRunner runner;
 
+    @Inject
+    DataSource dataSource;
+
     @ConfigProperty(name = "db-migrator.termination-log-path")
     String terminationLogPath;
 
@@ -36,5 +43,16 @@ class MigrationRunnerIT {
                 .contains("\"name\":\"QUARTZ\"")
                 .contains("\"name\":\"DATA_INDEX\"")
                 .doesNotContain("\"error\"");
+
+        assertTableExists("workflow_instance_entity"); // runtime
+        assertTableExists("qrtz_job_details"); // quartz
+        assertTableExists("workflow_instances"); // data-index
+    }
+
+    private void assertTableExists(String tableName) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+                ResultSet tables = connection.getMetaData().getTables(null, "public", tableName, null)) {
+            assertThat(tables.next()).as("table %s should exist", tableName).isTrue();
+        }
     }
 }
