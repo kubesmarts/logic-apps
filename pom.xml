@@ -41,7 +41,7 @@
     <project.build.outputTimestamp>2026-09-17T14:47:51Z</project.build.outputTimestamp>
 
     <!-- Quarkus - latest stable version -->
-    <quarkus.platform.version>3.39.1</quarkus.platform.version>
+    <quarkus.platform.version>3.40.1.1</quarkus.platform.version>
     <version.io.quarkus>${quarkus.platform.version}</version.io.quarkus>
 
     <!-- Persistence Commons API version (legacy, minimal dependency) -->
