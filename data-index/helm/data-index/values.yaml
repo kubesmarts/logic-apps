@@ -95,7 +95,7 @@ elasticsearch:
     repository: docker.elastic.co/elasticsearch/elasticsearch
     # Version must match Quarkus BOM (9.4.1 from Quarkus 3.39.0)
     # renovate: datasource=docker depName=docker.elastic.co/elasticsearch/elasticsearch
-    tag: "9.4.1"
+    tag: "9.5.5"
     pullPolicy: IfNotPresent
 
   # Service configuration
