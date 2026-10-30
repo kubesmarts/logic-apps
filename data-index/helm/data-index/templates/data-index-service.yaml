@@ -91,7 +91,7 @@ spec:
             - name: ELASTICSEARCH_HOST
               value: "elasticsearch.elasticsearch.svc.cluster.local"
             - name: ELASTICSEARCH_PORT
-              value: "9200"
+              value: {{ .Values.elasticsearch.service.port | quote }}
             - name: ELASTICSEARCH_PROTOCOL
               value: "http"
             {{- end }}
