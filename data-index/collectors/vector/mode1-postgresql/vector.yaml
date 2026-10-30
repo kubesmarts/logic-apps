@@ -7,15 +7,16 @@
 # - Or our Maven tests: `mvn verify -pl collectors`
 # - Vector documentation: https://vector.dev/docs/reference/configuration/
 #
-# Purpose: Capture Quarkus Flow structured logs from container stdout
-#          PostgreSQL BEFORE INSERT triggers normalize raw events into
-#          structured tables (workflow_instances, task_instances).
+# Purpose: Capture Quarkus Flow structured logs from container stdout and
+#          insert them directly into the normalized tables (workflow_instances,
+#          task_instances). BEFORE INSERT triggers on those same tables do
+#          the field extraction and idempotent merge.
 #
 # Pipeline:
 #   Quarkus Flow -> stdout -> K8s /var/log/containers/ -> Vector kubernetes_logs ->
 #   Parse JSON events -> Filter workflow events -> Route by event type ->
-#   PostgreSQL INSERT (workflow_events_raw / task_events_raw) ->
-#   PostgreSQL triggers -> Normalized tables
+#   PostgreSQL INSERT (workflow_instances / task_instances, {raw_event: <json>}) ->
+#   PostgreSQL BEFORE INSERT triggers normalize in place
 #
 # Requires: Vector >= 0.46.0 (native `postgres` sink).
 #
@@ -92,36 +93,88 @@ transforms:
         type: vrl
         source: starts_with(string(.flow_event.eventType) ?? "", "io.serverlessworkflow.task.")
 
-  # Build the row shape expected by the FluentBit-compatible raw tables:
-  #   (tag TEXT, time TIMESTAMP WITH TIME ZONE, data JSONB)
-  #
-  # - tag:  informational only (indexed) - the triggers never read it.
-  # - time: ingestion time - feeds only the created_at/updated_at audit columns.
-  #         The triggers derive event ordering from `data->>'timestamp'`.
-  # - data: the untouched Quarkus Flow event. Triggers extract instanceId,
-  #         status, startTime/endTime (epoch seconds), input/output, error, and
-  #         taskPosition straight from this JSONB.
+  # Row inserted directly into workflow_instances: one key per column,
+  # matching the OW event field names to their normalized column names.
+  # Vector's postgres sink maps JSON keys to columns via
+  # jsonb_populate_recordset, so no sink config is needed beyond this shape -
+  # the trigger just merges (COALESCE/GREATEST), it no longer parses JSON.
   build_workflow_row:
     type: remap
     inputs:
       - route_by_type.workflow_events
     source: |
-      . = {
-        "tag": .flow_event.eventType,
-        "time": now(),
-        "data": .flow_event
+      e = .flow_event
+      row = {}
+      row.from_event = true
+      row.id = e.instanceId
+      row.namespace = e.workflowNamespace
+      row.name = e.workflowName
+      row.version = e.workflowVersion
+      row.status = e.status
+      row.input = e.input
+      row.output = e.output
+
+      if e.startTime != null {
+        row.started_at = from_unix_timestamp!(to_int!(e.startTime), unit: "seconds")
+      }
+      if e.endTime != null {
+        row.ended_at = from_unix_timestamp!(to_int!(e.endTime), unit: "seconds")
+      }
+      if e.lastUpdateTime != null {
+        row.last_update = from_unix_timestamp!(to_int!(e.lastUpdateTime), unit: "seconds")
+      }
+      if e.timestamp != null {
+        row.last_event_time = from_unix_timestamp!(to_int!(e.timestamp), unit: "seconds")
       }
 
+      err = e.error
+      if err != null {
+        row.error_type = err.type
+        row.error_title = err.title
+        row.error_detail = err.detail
+        row.error_status = err.status
+        row.error_instance = err.instance
+      }
+
+      . = row
+
+  # Row inserted directly into task_instances - same column-mapping approach
+  # as build_workflow_row above.
   build_task_row:
     type: remap
     inputs:
       - route_by_type.task_events
     source: |
-      . = {
-        "tag": .flow_event.eventType,
-        "time": now(),
-        "data": .flow_event
+      e = .flow_event
+      row = {}
+      row.from_event = true
+      row.instance_id = e.instanceId
+      row.task = e.taskPosition
+      row.task_name = e.taskName
+      row.status = e.status
+      row.input = e.input
+      row.output = e.output
+
+      if e.startTime != null {
+        row.started_at = from_unix_timestamp!(to_int!(e.startTime), unit: "seconds")
       }
+      if e.endTime != null {
+        row.ended_at = from_unix_timestamp!(to_int!(e.endTime), unit: "seconds")
+      }
+      if e.timestamp != null {
+        row.last_event_time = from_unix_timestamp!(to_int!(e.timestamp), unit: "seconds")
+      }
+
+      err = e.error
+      if err != null {
+        row.error_type = err.type
+        row.error_title = err.title
+        row.error_detail = err.detail
+        row.error_status = err.status
+        row.error_instance = err.instance
+      }
+
+      . = row
 
   # Debug filter - only pass events if DEBUG_EVENTS=true
   # Controlled by environment variable for troubleshooting
@@ -138,20 +191,16 @@ transforms:
         to_bool(debug_enabled) ?? false
 
 # ============================================================================
-# SINKS: PostgreSQL Raw Tables
+# SINKS: PostgreSQL Normalized Tables
 # ============================================================================
 #
-# Vector's `postgres` sink cannot template the table name per-event, so we use
-# one sink per raw table. Each sink serializes the event to JSON and maps the
-# top-level fields (tag, time, data) to the matching table columns via
-# jsonb_populate_recordset - extra fields are ignored, and the `data` object
-# maps cleanly to the JSONB column.
+# One sink per table (Vector can't template the table name per-event). Each
+# sink maps `raw_event` to the matching table's JSONB column via
+# jsonb_populate_recordset; other columns are filled in by the trigger.
 #
-# A batch is sent as a single multi-row INSERT. If one row makes a trigger
-# raise an uncaught exception, the whole batch INSERT fails and Vector retries
-# it. The workflow trigger is INSERT ... ON CONFLICT and the task trigger
-# catches foreign_key_violation, so this is tolerable. If poison-pill rows
-# appear, set `batch.max_events: 1` for strict row-by-row parity with FluentBit.
+# A batch is one multi-row INSERT; if a trigger errors, the whole batch fails
+# and retries. Triggers are idempotent, so retrying is safe. For poison-pill
+# rows, set `batch.max_events: 1` for row-by-row parity with FluentBit.
 #
 # Buffer: the default in-memory buffer (matches the FluentBit MODE 1 setup this
 # replaces). Do NOT switch to `buffer.type: disk` here - in Vector 0.54 the
@@ -160,26 +209,26 @@ transforms:
 # Vector restart re-reads recent lines and the idempotent triggers dedupe them.
 # https://vector.dev/docs/reference/configuration/sinks/postgres/
 sinks:
-  # Workflow events -> workflow_events_raw
+  # Workflow events -> workflow_instances
   postgres_workflow:
     type: postgres
     inputs:
       - build_workflow_row
     endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?options=-c%20search_path%3D${POSTGRES_SCHEMA}"
-    table: workflow_events_raw
+    table: workflow_instances
     healthcheck:
       enabled: true
     batch:
       max_events: 100
       timeout_secs: 1
 
-  # Task events -> task_events_raw
+  # Task events -> task_instances
   postgres_task:
     type: postgres
     inputs:
       - build_task_row
     endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?options=-c%20search_path%3D${POSTGRES_SCHEMA}"
-    table: task_events_raw
+    table: task_instances
     healthcheck:
       enabled: true
     batch:
@@ -246,7 +295,7 @@ api:
 #       * WARNING: At 1000 events/sec, generates ~43GB/day of logs
 #
 # What stays the same (handled by PostgreSQL):
-#   - BEFORE INSERT triggers: normalize_workflow_event() / normalize_task_event()
+#   - BEFORE INSERT triggers: normalize_workflow_instance() / normalize_task_instance()
 #   - Field-level idempotency (COALESCE) and out-of-order event handling
 #   - Composite task identity (instance_id, task)
 #
@@ -255,7 +304,7 @@ api:
 #   * Parses CRI/Docker format automatically
 #   * Filters workflow events (by eventType field)
 #   * Routes by event type (workflow vs task)
-#   * Inserts raw events into workflow_events_raw / task_events_raw
+#   * Inserts {raw_event: <json>} rows directly into workflow_instances / task_instances
 #   * Exposes Prometheus metrics
 #
 # ============================================================================

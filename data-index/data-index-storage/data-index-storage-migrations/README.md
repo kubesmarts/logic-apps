@@ -4,26 +4,24 @@
 
 ## Purpose
 
-This module contains Flyway migration scripts for Data Index PostgreSQL storage backend:
+Flyway migration scripts for the Data Index PostgreSQL storage backend:
 
-- **Raw Tables**: `workflow_events_raw`, `task_events_raw` (raw events from the Vector `postgres` sink)
-- **Normalized Tables**: `workflow_instances`, `task_instances` (optimized for querying)
-- **Real-time processing**: Events are normalized automatically as they arrive
+- **Normalized Tables**: `workflow_instances`, `task_instances` (direct insert target for the MODE 1 Vector `postgres` sink)
+- **Real-time processing**: `BEFORE INSERT` triggers on these same two tables normalize events as they arrive
 
 ## Architecture
 
 ```
 Quarkus Flow (quarkus-flow 0.9.0+)
     ↓ (structured JSON events with epoch timestamps → stdout)
-Vector DaemonSet (postgres sink)
-    ├─→ workflow_events_raw (tag TEXT, time TIMESTAMP, data JSONB)
-    └─→ task_events_raw (tag TEXT, time TIMESTAMP, data JSONB)
-    ↓ (BEFORE INSERT triggers)
+Vector DaemonSet
+    ↓ (VRL extracts + types each field)
+    ├─→ workflow_instances (typed columns, from_event = true)
+    └─→ task_instances (typed columns, from_event = true)
+    ↓ (BEFORE INSERT triggers, self-targeting)
 PostgreSQL Triggers
-    ├─→ Extract fields from data JSONB
-    ├─→ Handle out-of-order events
-    ├─→ Upsert workflow_instances
-    └─→ Upsert task_instances
+    ├─→ Handle out-of-order events (COALESCE/GREATEST)
+    ├─→ UPDATE existing row + RETURN NULL, or fill in NEW + RETURN NEW
     ↓ (GraphQL queries)
 Data Index GraphQL API
 ```
@@ -32,177 +30,127 @@ Data Index GraphQL API
 
 ### V1__initial_schema.sql
 
-Initial schema for Data Index v1.0.0 with trigger-based normalization:
+Creates `workflow_instances` and `task_instances`, plus `normalize_workflow_instance()` /
+`normalize_task_instance()` — `BEFORE INSERT` triggers on those same tables, self-targeting
+`INSERT ... ON CONFLICT DO UPDATE`, guarded by `pg_trigger_depth()` to avoid recursion.
 
-**Raw Staging Tables** (`tag TEXT, time TIMESTAMP WITH TIME ZONE, data JSONB`):
-- `workflow_events_raw`: Stores tag (TEXT), time (TIMESTAMP), data (JSONB)
-- `task_events_raw`: Stores tag (TEXT), time (TIMESTAMP), data (JSONB)
+## Row Shape (Vector VRL → Normalized Tables)
 
-This 3-column shape originated with the FluentBit pgsql plugin's fixed schema and
-is retained: the Vector `postgres` sink writes the same `{tag, time, data}` rows.
+Vector's VRL transforms (`build_workflow_row`/`build_task_row` in
+`data-index/collectors/vector/mode1-postgresql/vector.yaml`) extract and type each field
+from the Quarkus Flow event before sending it — Vector's `postgres` sink maps JSON keys to
+columns via `jsonb_populate_recordset`, so the row Vector sends already has one key per
+column. The trigger reads `NEW.<column>` directly; it does not parse JSON.
 
-**Normalized Tables** (Populated via triggers):
-- `workflow_instances`: Extracted workflow state with individual columns
-- `task_instances`: Extracted task state (with FK to workflow_instances)
+### Workflow Events → workflow_instances
 
-**Trigger Functions**:
-- `normalize_workflow_event()`: Extracts fields from JSONB and UPSERTs into workflow_instances
-- `normalize_task_event()`: Extracts fields from JSONB and UPSERTs into task_instances
-
-**Advantages**:
-- No Event Processor needed - triggers handle normalization in real-time
-- Automatic out-of-order event handling via UPSERT with COALESCE
-- Raw events preserved in staging tables for debugging/replay
-- Simpler architecture - fewer moving parts
-
-## Raw Table Schema
-
-The raw staging tables use a fixed 3-column shape:
-- `tag TEXT` - event tag (the event's `eventType`, e.g. `io.serverlessworkflow.workflow.started.v1`)
-- `time TIMESTAMP WITH TIME ZONE` - ingestion time (feeds only `created_at`/`updated_at`)
-- `data JSONB` - the complete Quarkus Flow event as JSON
-
-The MODE 1 log collector (Vector's `postgres` sink; previously the FluentBit pgsql
-plugin) writes rows in this shape, and the **triggers** normalize `data` into the
-`workflow_instances` / `task_instances` tables.
-
-## Field Mappings (JSONB → Normalized Tables)
-
-### Workflow Events (data JSONB → workflow_instances)
-
-Trigger function extracts:
-
-| JSONB Path (data->>) | workflow_instances Column | Type | Conversion |
-|----------------------|---------------------------|------|------------|
+| Event field | workflow_instances Column | Type | Conversion (in VRL) |
+|-------------|----------------------------|------|----------------------|
 | `instanceId` | `id` | VARCHAR(255) | Direct |
 | `workflowNamespace` | `namespace` | VARCHAR(255) | Direct |
 | `workflowName` | `name` | VARCHAR(255) | Direct |
 | `workflowVersion` | `version` | VARCHAR(255) | Direct |
 | `status` | `status` | VARCHAR(50) | Direct |
-| `startTime` | `start` | TIMESTAMP | `to_timestamp(::numeric)` |
-| `endTime` | `end` | TIMESTAMP | `to_timestamp(::numeric)` |
-| `lastUpdateTime` | `last_update` | TIMESTAMP | `to_timestamp(::numeric)` |
-| `input` | `input` | JSONB | Direct (->)  |
-| `output` | `output` | JSONB | Direct (->) |
-| `error->>'type'` | `error_type` | VARCHAR(255) | Nested |
-| `error->>'title'` | `error_title` | VARCHAR(255) | Nested |
-| `error->>'detail'` | `error_detail` | TEXT | Nested |
-| `error->>'status'` | `error_status` | INTEGER | Nested + cast |
-| `error->>'instance'` | `error_instance` | VARCHAR(255) | Nested |
+| `startTime` | `started_at` | TIMESTAMPTZ | `from_unix_timestamp()` |
+| `endTime` | `ended_at` | TIMESTAMPTZ | `from_unix_timestamp()` |
+| `lastUpdateTime` | `last_update` | TIMESTAMPTZ | `from_unix_timestamp()` |
+| `timestamp` | `last_event_time` | TIMESTAMPTZ | `from_unix_timestamp()` (drives idempotency) |
+| `input` | `input` | JSONB | Direct |
+| `output` | `output` | JSONB | Direct |
+| `error.type` | `error_type` | VARCHAR(255) | Flattened |
+| `error.title` | `error_title` | VARCHAR(255) | Flattened |
+| `error.detail` | `error_detail` | TEXT | Flattened |
+| `error.status` | `error_status` | INTEGER | Flattened |
+| `error.instance` | `error_instance` | VARCHAR(255) | Flattened |
+| *(set by VRL)* | `from_event` | BOOLEAN | Always `true` for Vector rows |
 
-**Auto-populated:**
-- `created_at` (from trigger: NEW.time)
-- `updated_at` (from trigger: NEW.time)
+**Auto-populated:** `created_at`/`updated_at` (`now()`, set by the trigger).
 
-### Task Events (data JSONB → task_instances)
+### Task Events → task_instances
 
-Trigger function extracts:
-
-| JSONB Path (data->>) | task_instances Column | Type | Conversion |
-|----------------------|-----------------------|------|------------|
-| `instanceId` | `instance_id` | VARCHAR(255) | Direct (PK part 1) |
-| `taskPosition` | `task_position` | VARCHAR(255) | Direct (PK part 2) |
+| Event field | task_instances Column | Type | Conversion (in VRL) |
+|-------------|-------------------------|------|-----------------------|
+| `instanceId` | `instance_id` | VARCHAR(255) | Direct (PK part 1, FK to workflow_instances) |
+| `taskPosition` | `task` | VARCHAR(255) | Direct (PK part 2, JSON Pointer e.g. `/do/1/initialize`) |
 | `taskName` | `task_name` | VARCHAR(255) | Direct |
 | `status` | `status` | VARCHAR(50) | Direct |
-| `startTime` | `start` | TIMESTAMP | `to_timestamp(::numeric)` |
-| `endTime` | `end` | TIMESTAMP | `to_timestamp(::numeric)` |
-| `input` | `input` | JSONB | Direct (->) |
-| `output` | `output` | JSONB | Direct (->) |
+| `startTime` | `started_at` | TIMESTAMPTZ | `from_unix_timestamp()` |
+| `endTime` | `ended_at` | TIMESTAMPTZ | `from_unix_timestamp()` |
+| `timestamp` | `last_event_time` | TIMESTAMPTZ | `from_unix_timestamp()` (drives idempotency) |
+| `input` | `input` | JSONB | Direct |
+| `output` | `output` | JSONB | Direct |
+| `error.type` | `error_type` | VARCHAR(255) | Flattened |
+| `error.title` | `error_title` | VARCHAR(255) | Flattened |
+| `error.detail` | `error_detail` | TEXT | Flattened |
+| `error.status` | `error_status` | INTEGER | Flattened |
+| `error.instance` | `error_instance` | VARCHAR(255) | Flattened |
+| *(set by VRL)* | `from_event` | BOOLEAN | Always `true` for Vector rows |
 
-**Auto-populated:**
-- `created_at` (from trigger: NEW.time)
-- `updated_at` (from trigger: NEW.time)
+**Auto-populated:** `created_at`/`updated_at` (`now()`, set by the trigger).
 
-**Note:** Task payloads are included when `quarkus.flow.structured-logging.include-task-payloads=true`
+**Note:** no `task_execution_id` column — `TaskExecution.id` is derived as `instanceId + ":" + task`.
 
-**Out-of-Order Handling:** The task trigger first ensures the workflow instance exists (creates placeholder if needed) before inserting the task.
+**Out-of-Order Handling:** the task trigger backfills a placeholder `workflow_instances` row
+(`from_event` left at its default `false`) if the parent doesn't exist yet, before processing
+the task event.
 
 ## Usage
 
 ### Local Development
 
-Apply migrations manually:
+Apply the migration manually:
 
 ```bash
-# Connect to PostgreSQL
-kubectl exec -n postgresql postgresql-0 -- env PGPASSWORD=dataindex123 \
-  psql -U dataindex -d dataindex
-
-# Apply migration
 kubectl exec -n postgresql postgresql-0 -- env PGPASSWORD=dataindex123 \
   psql -U dataindex -d dataindex -f /path/to/V1__initial_schema.sql
 ```
 
 ### Kubernetes Operator
 
-The Data Index operator will use Flyway to manage migrations automatically when users choose PostgreSQL storage.
+The Data Index operator uses Flyway to manage migrations automatically for PostgreSQL storage.
 
-**Operator behavior:**
-1. Detects PostgreSQL storage backend
-2. Runs Flyway migrations on startup
-3. Compares schema version with migration files
-4. Applies pending migrations
-
-**Upgrade safety:**
-- Migrations are idempotent (`CREATE TABLE IF NOT EXISTS`)
-- Foreign keys use `ON DELETE CASCADE` for data integrity
-- Indexes created with `IF NOT EXISTS` to prevent errors
+**Idempotency:** Triggers are idempotent regardless of how many times the same event is
+(re)inserted, and foreign keys use `ON DELETE CASCADE`.
 
 ## Trigger-Based Normalization
 
-PostgreSQL triggers handle all normalization automatically - **no Event Processor needed!**
+No Event Processor needed — PostgreSQL triggers handle normalization directly.
 
 ### How It Works
 
-1. **Vector `postgres` sink INSERT** → `workflow_events_raw` or `task_events_raw`
-2. **BEFORE INSERT trigger fires** → Extracts fields from JSONB `data` column
-3. **UPSERT normalized table** → `workflow_instances` or `task_instances`
-4. **Return NEW** → Raw event is also stored in staging table
+1. Vector's VRL builds a row with typed columns (`from_event = true`) and the `postgres` sink inserts it into `workflow_instances`/`task_instances`.
+2. The `BEFORE INSERT` trigger fires on that same table (`pg_trigger_depth()` guard: a nested call from step 4 passes through unchanged).
+3. If `from_event` is `false` (a direct writer like a JPA test fixture, or the task trigger's placeholder backfill), the trigger passes the row through unchanged — no merge.
+4. Otherwise it runs its own `INSERT ... ON CONFLICT (id) DO UPDATE` against the same table (COALESCE/GREATEST rules).
+5. `RETURN NULL`s to cancel the original pending insert — step 4 already applied the event.
+
+`ON CONFLICT` (not a manual `UPDATE`-then-`INSERT`) is required for atomicity: Vector's
+`postgres_workflow`/`postgres_task` sinks write concurrently, and a check-then-act pattern is race-prone.
+
+`from_event` exists because `RETURN NULL` makes Postgres report 0 rows affected for the
+*original* statement even when the nested insert in step 4 succeeds — Hibernate's
+optimistic-lock row-count check would otherwise fail on every `em.persist()`, not just on
+actual conflicts. JPA entities never need to set it; it defaults to `false`.
 
 ### Advantages
 
-- **Real-time normalization**: No polling or batch delays
-- **Out-of-order handling**: UPSERT with COALESCE handles events arriving in any order
-- **Idempotent**: Same event can be inserted multiple times safely
-- **Simpler architecture**: Fewer services to deploy and monitor
-- **Debugging**: Raw events preserved in staging tables
+- **Real-time**: no polling or batch delays
+- **Out-of-order handling**: atomic `ON CONFLICT DO UPDATE` with COALESCE/GREATEST, safe under concurrency
+- **Idempotent**: same event can be reinserted safely
+- **Simpler**: two tables, one migration, no raw JSON parsing in PL/pgSQL
 
-### Example Workflow Event Processing
-
-```sql
--- Vector postgres sink inserts:
-INSERT INTO workflow_events_raw (tag, time, data) 
-VALUES ('workflow.instance.started', '2026-04-23 22:04:49+00', '{"instanceId":"01KPY...","workflowName":"simple-set",...}');
-
--- Trigger automatically executes:
-INSERT INTO workflow_instances (id, namespace, name, version, status, start, ...)
-VALUES ('01KPY...', 'org.acme', 'simple-set', '0.0.1', 'RUNNING', '2026-04-23 22:04:49+00', ...)
-ON CONFLICT (id) DO UPDATE SET 
-  status = EXCLUDED.status,
-  "end" = COALESCE(EXCLUDED."end", workflow_instances."end"),
-  ...;
-```
-
-### Retention Policy
-
-Raw staging tables can be cleaned up periodically:
+### Example
 
 ```sql
--- Delete raw events older than 7 days
-DELETE FROM workflow_events_raw WHERE time < NOW() - INTERVAL '7 days';
-DELETE FROM task_events_raw WHERE time < NOW() - INTERVAL '7 days';
-```
+-- Vector inserts (typed columns, from_event always true):
+INSERT INTO workflow_instances (id, name, status, from_event, ...)
+VALUES ('01KPY...', 'simple-set', 'RUNNING', true, ...);
 
-This can be scheduled via PostgreSQL `pg_cron` extension or external cron job.
+-- Trigger merges into the existing row (or inserts fresh) and cancels this insert.
+```
 
 ## Notes
 
-- **Raw table schema**: fixed `(tag TEXT, time TIMESTAMP, data JSONB)` shape; the Vector `postgres` sink maps event fields to these columns
-- **Timestamps**: Epoch seconds from Quarkus Flow 0.9.0+ converted via `to_timestamp()` in triggers
-- **JSONB Storage**: Complete events stored as JSONB in `data` column, triggers extract to columns
-- **Raw Events**: Preserved in `*_raw` tables for debugging and potential replay
-- **JSONB Performance**: Normalized columns indexed for fast GraphQL queries
-- **Cascade Deletes**: Deleting a workflow instance cascades to its tasks
-- **Idempotent**: All CREATE statements use `IF NOT EXISTS`, triggers use UPSERT with COALESCE
-- **Out-of-Order**: Triggers handle events arriving in any order via UPSERT logic
-- **No Event Processor**: PostgreSQL triggers replace the need for a separate Event Processor service
+- Timestamps: epoch seconds from Quarkus Flow, converted to `TIMESTAMPTZ` by Vector's VRL (`from_unix_timestamp()`).
+- Normalized columns are indexed for GraphQL queries.
+- Deleting a workflow instance cascades to its tasks.
