@@ -170,7 +170,7 @@ vector:
     # 0.54.0 is the newest tag both mode configs validate against unchanged.
     # Version is also tracked in data-index/collectors/pom.xml.
     # renovate: datasource=docker depName=timberio/vector
-    tag: "0.54.0-distroless-libc"
+    tag: "0.61.0-distroless-libc"
     pullPolicy: IfNotPresent
 
   # Configuration mode: mode1-postgresql | mode2-elasticsearch
