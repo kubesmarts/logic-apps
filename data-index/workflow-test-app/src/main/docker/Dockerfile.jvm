@@ -1,7 +1,7 @@
 ####
 # This Dockerfile is used to build a JVM container that runs the Quarkus application in JVM mode
 ####
-FROM registry.access.redhat.com/ubi9/openjdk-17-runtime:1.23
+FROM registry.access.redhat.com/ubi9/openjdk-17-runtime:1.24-3.1792711376
 
 ENV LANGUAGE='en_US:en'
 
