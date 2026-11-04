@@ -1,37 +1,166 @@
 -- ============================================================================
--- Data Index v1.1.0 - FluentBit + Trigger-based Normalization with Idempotency
+-- Data Index v2.0.0 - JDBC Batch Normalization with Idempotency
 -- ============================================================================
 --
 -- This schema includes:
--- - Raw staging tables (FluentBit pgsql plugin fixed schema)
--- - Normalized tables with idempotency fields
--- - Trigger functions with field-level idempotency logic
--- - Out-of-order event handling
--- - Event replay safety
+-- - Staging tables (typed columns, populated by Vector; append-only inbox)
+-- - Normalized tables with idempotency fields (GraphQL API queries these;
+--   populated by a batch JDBC reader - see data-index-ingestion-jdbc-batch-*,
+--   reusing the same idempotent UPSERT persistence as MODE 3's Kafka path -
+--   NOT by triggers)
+-- - Dead-letter tables for staging rows that fail normalization
 --
 -- ============================================================================
 
 -- ============================================================================
--- RAW STAGING TABLES (FluentBit pgsql plugin fixed schema)
+-- STAGING TABLES (typed columns; Vector inserts one row per event)
 -- ============================================================================
+--
+-- Append-only inbox, not a keyed table: no ON CONFLICT on insert, idempotency
+-- happens downstream in the normalized-table UPSERT. A row is deleted as soon
+-- as the JDBC batch reader has successfully normalized it - no retention
+-- window, the table stays near-empty.
 
+-- Vector's native `postgres` sink always inserts via
+-- `jsonb_populate_recordset(null::<table>, ...)`, which builds each row from
+-- the table's full row type - any column missing from the VRL-produced JSON
+-- (id included) becomes an explicit NULL, bypassing the BIGSERIAL column's
+-- own DEFAULT entirely. The BEFORE INSERT trigger below fills `id` whenever
+-- it comes in NULL, regardless of whether the column was omitted or set
+-- explicitly, so the JDBC batch reader can select/delete by `id` like any
+-- normal PK. `inserted_at` must still be supplied by VRL (`now()`), not left
+-- to its DEFAULT, since the same bypass applies to it.
 CREATE TABLE IF NOT EXISTS workflow_events_raw (
-  tag TEXT,
-  time TIMESTAMP WITH TIME ZONE,
-  data JSONB
+  id BIGSERIAL PRIMARY KEY,
+  instance_id VARCHAR(255) NOT NULL,
+  namespace VARCHAR(255),
+  name VARCHAR(255),
+  version VARCHAR(255),
+  status VARCHAR(50),
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE,
+  last_update TIMESTAMP WITH TIME ZONE,
+  input TEXT,
+  output TEXT,
+  error_type VARCHAR(255),
+  error_title VARCHAR(255),
+  error_detail TEXT,
+  error_status INTEGER,
+  error_instance VARCHAR(255),
+  event_timestamp TIMESTAMP WITH TIME ZONE,
+  inserted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_workflow_events_raw_time ON workflow_events_raw (time DESC);
-CREATE INDEX IF NOT EXISTS idx_workflow_events_raw_tag ON workflow_events_raw (tag);
+CREATE INDEX IF NOT EXISTS idx_workflow_events_raw_instance_id ON workflow_events_raw (instance_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_events_raw_inserted_at ON workflow_events_raw (inserted_at);
+
+CREATE OR REPLACE FUNCTION set_workflow_events_raw_id() RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.id IS NULL THEN
+    NEW.id := nextval('workflow_events_raw_id_seq');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_set_workflow_events_raw_id
+  BEFORE INSERT ON workflow_events_raw
+  FOR EACH ROW
+  EXECUTE FUNCTION set_workflow_events_raw_id();
 
 CREATE TABLE IF NOT EXISTS task_events_raw (
-  tag TEXT,
-  time TIMESTAMP WITH TIME ZONE,
-  data JSONB
+  id BIGSERIAL PRIMARY KEY,
+  instance_id VARCHAR(255) NOT NULL,
+  task_name VARCHAR(255),
+  task VARCHAR(255) NOT NULL,
+  status VARCHAR(50),
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE,
+  input TEXT,
+  output TEXT,
+  error_type VARCHAR(255),
+  error_title VARCHAR(255),
+  error_detail TEXT,
+  error_status INTEGER,
+  error_instance VARCHAR(255),
+  event_timestamp TIMESTAMP WITH TIME ZONE,
+  inserted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_task_events_raw_time ON task_events_raw (time DESC);
-CREATE INDEX IF NOT EXISTS idx_task_events_raw_tag ON task_events_raw (tag);
+CREATE INDEX IF NOT EXISTS idx_task_events_raw_instance_id ON task_events_raw (instance_id);
+CREATE INDEX IF NOT EXISTS idx_task_events_raw_inserted_at ON task_events_raw (inserted_at);
+
+CREATE OR REPLACE FUNCTION set_task_events_raw_id() RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.id IS NULL THEN
+    NEW.id := nextval('task_events_raw_id_seq');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_set_task_events_raw_id
+  BEFORE INSERT ON task_events_raw
+  FOR EACH ROW
+  EXECUTE FUNCTION set_task_events_raw_id();
+
+-- ============================================================================
+-- DEAD-LETTER TABLES
+-- ============================================================================
+--
+-- A staging row that fails normalization (not the self-healing
+-- task-before-workflow case - that's handled by TaskPersistence's existing
+-- placeholder-insert fallback) moves here instead of being retried in place,
+-- so one bad row can never block "ORDER BY inserted_at LIMIT :batchSize" from
+-- making progress on every row behind it. No original_id column - the
+-- source row is deleted in the same transaction that inserts here, so
+-- there's nothing left to reference back to.
+
+CREATE TABLE IF NOT EXISTS workflow_events_dlq (
+  id BIGSERIAL PRIMARY KEY,
+  instance_id VARCHAR(255),
+  namespace VARCHAR(255),
+  name VARCHAR(255),
+  version VARCHAR(255),
+  status VARCHAR(50),
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE,
+  last_update TIMESTAMP WITH TIME ZONE,
+  input TEXT,
+  output TEXT,
+  error_type VARCHAR(255),
+  error_title VARCHAR(255),
+  error_detail TEXT,
+  error_status INTEGER,
+  error_instance VARCHAR(255),
+  event_timestamp TIMESTAMP WITH TIME ZONE,
+  failure_reason TEXT NOT NULL,
+  failed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_events_dlq_instance_id ON workflow_events_dlq (instance_id);
+
+CREATE TABLE IF NOT EXISTS task_events_dlq (
+  id BIGSERIAL PRIMARY KEY,
+  instance_id VARCHAR(255),
+  task_name VARCHAR(255),
+  task VARCHAR(255),
+  status VARCHAR(50),
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE,
+  input TEXT,
+  output TEXT,
+  error_type VARCHAR(255),
+  error_title VARCHAR(255),
+  error_detail TEXT,
+  error_status INTEGER,
+  error_instance VARCHAR(255),
+  event_timestamp TIMESTAMP WITH TIME ZONE,
+  failure_reason TEXT NOT NULL,
+  failed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_events_dlq_instance_id ON task_events_dlq (instance_id);
 
 -- ============================================================================
 -- NORMALIZED TABLES (GraphQL API queries these)
@@ -89,318 +218,3 @@ CREATE TABLE IF NOT EXISTS task_instances (
 CREATE INDEX IF NOT EXISTS idx_task_instances_instance_id ON task_instances (instance_id);
 CREATE INDEX IF NOT EXISTS idx_task_instances_status ON task_instances (status);
 CREATE INDEX IF NOT EXISTS idx_task_instances_last_event_time ON task_instances (last_event_time DESC);
-
--- ============================================================================
--- TRIGGER FUNCTIONS (Extract from JSONB and normalize with idempotency)
--- ============================================================================
-
--- Function to normalize workflow events with field-level idempotency
-CREATE OR REPLACE FUNCTION normalize_workflow_event()
-RETURNS TRIGGER AS $$
-DECLARE
-  event_timestamp TIMESTAMP WITH TIME ZONE;
-BEGIN
-  -- Extract event timestamp from JSONB data
-  -- Quarkus Flow uses 'timestamp' field (epoch-seconds format)
-  event_timestamp := to_timestamp((NEW.data->>'timestamp')::numeric);
-
-  -- Upsert with field-level idempotency logic
-  INSERT INTO workflow_instances (
-    id,
-    namespace,
-    name,
-    version,
-    status,
-    started_at,
-    ended_at,
-    last_update,
-    input,
-    output,
-    error_type,
-    error_title,
-    error_detail,
-    error_status,
-    error_instance,
-    last_event_time,
-    created_at,
-    updated_at
-  ) VALUES (
-    NEW.data->>'instanceId',
-    NEW.data->>'workflowNamespace',
-    NEW.data->>'workflowName',
-    NEW.data->>'workflowVersion',
-    NEW.data->>'status',
-    to_timestamp((NEW.data->>'startTime')::numeric),
-    to_timestamp((NEW.data->>'endTime')::numeric),
-    to_timestamp((NEW.data->>'lastUpdateTime')::numeric),
-    NEW.data->'input',
-    NEW.data->'output',
-    NEW.data->'error'->>'type',
-    NEW.data->'error'->>'title',
-    NEW.data->'error'->>'detail',
-    (NEW.data->'error'->>'status')::integer,
-    NEW.data->'error'->>'instance',
-    event_timestamp,
-    NEW.time,
-    NEW.time
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    -- Status: Use event timestamp to determine which status wins
-    -- If incoming event is newer, use its status; otherwise keep existing
-    status = CASE
-      WHEN event_timestamp > workflow_instances.last_event_time
-      THEN EXCLUDED.status
-      ELSE workflow_instances.status
-    END,
-
-    -- Immutable fields: First event wins (never overwrite if already set)
-    -- These are set by workflow.started event and should never change
-    namespace = COALESCE(workflow_instances.namespace, EXCLUDED.namespace),
-    name = COALESCE(workflow_instances.name, EXCLUDED.name),
-    version = COALESCE(workflow_instances.version, EXCLUDED.version),
-    started_at = COALESCE(workflow_instances.started_at, EXCLUDED.started_at),
-    input = COALESCE(workflow_instances.input, EXCLUDED.input),
-
-    -- Terminal fields: Preserve if already set (completion data)
-    -- Once a workflow completes/faults, these fields should not be cleared
-    ended_at = COALESCE(EXCLUDED.ended_at, workflow_instances.ended_at),
-    output = COALESCE(EXCLUDED.output, workflow_instances.output),
-    error_type = COALESCE(EXCLUDED.error_type, workflow_instances.error_type),
-    error_title = COALESCE(EXCLUDED.error_title, workflow_instances.error_title),
-    error_detail = COALESCE(EXCLUDED.error_detail, workflow_instances.error_detail),
-    error_status = COALESCE(EXCLUDED.error_status, workflow_instances.error_status),
-    error_instance = COALESCE(EXCLUDED.error_instance, workflow_instances.error_instance),
-
-    -- last_update: Always take newer value
-    last_update = GREATEST(
-      COALESCE(EXCLUDED.last_update, workflow_instances.last_update),
-      COALESCE(workflow_instances.last_update, EXCLUDED.last_update)
-    ),
-
-    -- Timestamp tracking: Keep latest event timestamp
-    last_event_time = GREATEST(event_timestamp, workflow_instances.last_event_time),
-
-    -- Audit: Always update
-    updated_at = NEW.time;
-
-  -- Return NEW to keep the raw event in staging table
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Function to normalize task lifecycle events into task_instances.
---
--- Each logical task execution is uniquely identified by (instance_id, task).
--- Quarkus Flow generates different taskExecutionId values for each lifecycle event
--- (task.started, task.completed, etc.), so we cannot use it as the primary key.
--- Instead, we use the composite key (instance_id, task) which remains stable
--- across all events for the same task execution.
---
--- Use INSERT ... ON CONFLICT (instance_id, task) DO UPDATE instead of an
--- UPDATE-first / INSERT-if-not-found pattern. The latter is race-prone under
--- concurrent ingestion and can produce duplicate-key violations.
---
--- Repeated task positions (e.g., loop iterations) remain separate because
--- each iteration has a distinct task value.
-CREATE OR REPLACE FUNCTION normalize_task_event()
-RETURNS TRIGGER AS $$
-DECLARE
-  event_timestamp TIMESTAMP WITH TIME ZONE;
-BEGIN
-  -- Extract event timestamp from JSONB data
-  event_timestamp := to_timestamp((NEW.data->>'timestamp')::numeric);
-
-  -- Fast path:
-  -- Try to normalize the task event directly. In the common case, the workflow
-  -- instance already exists because workflow events have already created it.
-  BEGIN
-    INSERT INTO task_instances (
-      instance_id,
-      task_name,
-      task,
-      status,
-      started_at,
-      ended_at,
-      input,
-      output,
-      error_type,
-      error_title,
-      error_detail,
-      error_status,
-      error_instance,
-      last_event_time,
-      created_at,
-      updated_at
-    ) VALUES (
-      NEW.data->>'instanceId',
-      NEW.data->>'taskName',
-      NEW.data->>'taskPosition',
-      NEW.data->>'status',
-      CASE
-        WHEN NEW.data ? 'startTime'
-        THEN to_timestamp((NEW.data->>'startTime')::numeric)
-        ELSE NULL
-      END,
-      CASE
-        WHEN NEW.data ? 'endTime'
-        THEN to_timestamp((NEW.data->>'endTime')::numeric)
-        ELSE NULL
-      END,
-      NEW.data->'input',
-      NEW.data->'output',
-      NEW.data->'error'->>'type',
-      NEW.data->'error'->>'title',
-      NEW.data->'error'->>'detail',
-      CASE
-        WHEN NEW.data->'error' ? 'status'
-        THEN (NEW.data->'error'->>'status')::integer
-        ELSE NULL
-      END,
-      NEW.data->'error'->>'instance',
-      event_timestamp,
-      NEW.time,
-      NEW.time
-    )
-    ON CONFLICT (instance_id, task) DO UPDATE SET
-      -- Keep first non-null values (immutable fields)
-      task_name = COALESCE(task_instances.task_name, EXCLUDED.task_name),
-
-      -- Update status based on event timestamp (latest wins)
-      status = CASE
-        WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
-        THEN EXCLUDED.status
-        ELSE task_instances.status
-      END,
-
-      -- Keep first start time, update end time with latest non-null value
-      started_at = COALESCE(task_instances.started_at, EXCLUDED.started_at),
-      ended_at = COALESCE(EXCLUDED.ended_at, task_instances.ended_at),
-
-      -- Keep first input, update output with latest non-null value
-      input = COALESCE(task_instances.input, EXCLUDED.input),
-      output = COALESCE(EXCLUDED.output, task_instances.output),
-
-      -- Update error fields with latest non-null values
-      error_type = COALESCE(EXCLUDED.error_type, task_instances.error_type),
-      error_title = COALESCE(EXCLUDED.error_title, task_instances.error_title),
-      error_detail = COALESCE(EXCLUDED.error_detail, task_instances.error_detail),
-      error_status = COALESCE(EXCLUDED.error_status, task_instances.error_status),
-      error_instance = COALESCE(EXCLUDED.error_instance, task_instances.error_instance),
-
-      -- Track latest event time and update timestamp
-      last_event_time = GREATEST(EXCLUDED.last_event_time, task_instances.last_event_time),
-      updated_at = EXCLUDED.updated_at;
-
-  EXCEPTION WHEN foreign_key_violation THEN
-    -- Slow fallback:
-    -- A task event arrived before its workflow event. Create a minimal workflow
-    -- placeholder to satisfy fk_task_instance_workflow, then retry the task upsert.
-    INSERT INTO workflow_instances (
-      id,
-      created_at,
-      updated_at,
-      last_event_time
-    )
-    VALUES (
-      NEW.data->>'instanceId',
-      NEW.time,
-      NEW.time,
-      event_timestamp
-    )
-    ON CONFLICT (id) DO NOTHING;
-
-    INSERT INTO task_instances (
-      instance_id,
-      task_name,
-      task,
-      status,
-      started_at,
-      ended_at,
-      input,
-      output,
-      error_type,
-      error_title,
-      error_detail,
-      error_status,
-      error_instance,
-      last_event_time,
-      created_at,
-      updated_at
-    ) VALUES (
-      NEW.data->>'instanceId',
-      NEW.data->>'taskName',
-      NEW.data->>'taskPosition',
-      NEW.data->>'status',
-      CASE
-        WHEN NEW.data ? 'startTime'
-        THEN to_timestamp((NEW.data->>'startTime')::numeric)
-        ELSE NULL
-      END,
-      CASE
-        WHEN NEW.data ? 'endTime'
-        THEN to_timestamp((NEW.data->>'endTime')::numeric)
-        ELSE NULL
-      END,
-      NEW.data->'input',
-      NEW.data->'output',
-      NEW.data->'error'->>'type',
-      NEW.data->'error'->>'title',
-      NEW.data->'error'->>'detail',
-      CASE
-        WHEN NEW.data->'error' ? 'status'
-        THEN (NEW.data->'error'->>'status')::integer
-        ELSE NULL
-      END,
-      NEW.data->'error'->>'instance',
-      event_timestamp,
-      NEW.time,
-      NEW.time
-    )
-    ON CONFLICT (instance_id, task) DO UPDATE SET
-      -- Keep first non-null values (immutable fields)
-      task_name = COALESCE(task_instances.task_name, EXCLUDED.task_name),
-
-      -- Update status based on event timestamp (latest wins)
-      status = CASE
-        WHEN EXCLUDED.last_event_time >= task_instances.last_event_time
-        THEN EXCLUDED.status
-        ELSE task_instances.status
-      END,
-
-      -- Keep first start time, update end time with latest non-null value
-      started_at = COALESCE(task_instances.started_at, EXCLUDED.started_at),
-      ended_at = COALESCE(EXCLUDED.ended_at, task_instances.ended_at),
-
-      -- Keep first input, update output with latest non-null value
-      input = COALESCE(task_instances.input, EXCLUDED.input),
-      output = COALESCE(EXCLUDED.output, task_instances.output),
-
-      -- Update error fields with latest non-null values
-      error_type = COALESCE(EXCLUDED.error_type, task_instances.error_type),
-      error_title = COALESCE(EXCLUDED.error_title, task_instances.error_title),
-      error_detail = COALESCE(EXCLUDED.error_detail, task_instances.error_detail),
-      error_status = COALESCE(EXCLUDED.error_status, task_instances.error_status),
-      error_instance = COALESCE(EXCLUDED.error_instance, task_instances.error_instance),
-
-      -- Track latest event time and update timestamp
-      last_event_time = GREATEST(EXCLUDED.last_event_time, task_instances.last_event_time),
-      updated_at = EXCLUDED.updated_at;
-  END;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- ============================================================================
--- TRIGGERS (Auto-normalize on INSERT)
--- ============================================================================
-
-CREATE TRIGGER normalize_workflow_events
-  BEFORE INSERT ON workflow_events_raw
-  FOR EACH ROW
-  EXECUTE FUNCTION normalize_workflow_event();
-
-CREATE TRIGGER normalize_task_events
-  BEFORE INSERT ON task_events_raw
-  FOR EACH ROW
-  EXECUTE FUNCTION normalize_task_event();

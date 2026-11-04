@@ -34,8 +34,9 @@
   <description>Kafka-based event ingestion for Data Index (MODE 3)</description>
 
   <modules>
-    <module>data-index-ingestion-kafka-processor</module>
+    <module>data-index-ingestion-persistence</module>
     <module>data-index-ingestion-kafka-service</module>
+    <module>data-index-ingestion-jdbc-batch-service</module>
   </modules>
 
 </project>

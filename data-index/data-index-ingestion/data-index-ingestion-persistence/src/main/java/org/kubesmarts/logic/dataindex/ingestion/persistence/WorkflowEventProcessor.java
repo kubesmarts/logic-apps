@@ -1,0 +1,59 @@
+/*
+ * Copyright 2024 KubeSmarts Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.kubesmarts.logic.dataindex.ingestion.persistence;
+
+import io.quarkus.arc.Unremovable;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.jdbc.WorkflowPersistence;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Objects;
+
+@Unremovable
+@ApplicationScoped
+public class WorkflowEventProcessor implements EventProcessor<WorkflowInstance> {
+
+    private static final Logger log = LoggerFactory.getLogger(WorkflowEventProcessor.class);
+
+    final WorkflowPersistence workflowPersistence;
+
+    @Inject
+    public WorkflowEventProcessor(WorkflowPersistence workflowPersistence) {
+        this.workflowPersistence = workflowPersistence;
+    }
+
+    public void process(final WorkflowInstance event) {
+        processBatch(List.of(event));
+    }
+   
+    public void processBatch(final List<WorkflowInstance> events) {
+        log.debug("Processing workflow batch size: {}", events.size());
+
+        try {
+            workflowPersistence.persistBatch(events);
+            log.debug("Successfully processed {} workflow events", events.size());
+        } catch (SQLException e) {
+            log.error("Error while processing workflow event batch", e);
+            throw new ProcessEventFailedException("Failed to process workflow event batch", e);
+        }
+    } 
+}
+

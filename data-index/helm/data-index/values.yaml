@@ -276,6 +276,36 @@ dataIndexIngestion:
       cpu: 1000m
       memory: 1Gi
 
+# Data Index JDBC Batch Ingestion Service (MODE 1 only)
+# Polls workflow_events_raw/task_events_raw and normalizes them idempotently
+# using the same persistence layer MODE 3's Kafka path uses.
+dataIndexJdbcBatch:
+  enabled: false
+  image:
+    repository: kubesmarts/data-index-ingestion
+    tag: "2.0.0-SNAPSHOT-jdbc-batch"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  # Poll interval / batch size - see data-index.ingestion.jdbc-batch.* properties
+  pollInterval: "1s"
+  batchSize: 1000
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+    nodePort: 30083  # Used when service.type=NodePort
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
 # ============================================================================
 # Workflow Test Application
 # ============================================================================

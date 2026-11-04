@@ -75,19 +75,11 @@ verify_mode1_infrastructure() {
         return 1
     fi
 
-    # 4. Verify triggers exist
-    log_info "Checking database triggers..."
-    SCHEMA=${POSTGRES_SCHEMA:-public}
-    TRIGGERS=$(kubectl exec -n postgresql postgresql-0 -- psql -U dataindex -d dataindex -t -c "
-        SELECT COUNT(*) FROM information_schema.triggers
-        WHERE event_object_schema = '$SCHEMA'
-        AND event_object_table IN ('workflow_events_raw', 'task_events_raw')
-    ")
-    if [ "$TRIGGERS" -ge 2 ]; then
-        log_success "Database triggers created ($TRIGGERS triggers found)"
-    else
-        log_warn "Database triggers may be missing (found $TRIGGERS triggers)"
-    fi
+    # 4. Check the JDBC batch ingestion service (normalizes workflow_events_raw/
+    #    task_events_raw - no PostgreSQL triggers in MODE 1 anymore)
+    log_info "Checking JDBC batch ingestion service..."
+    wait_for 120 curl -sf http://localhost:30083/q/health/ready
+    log_success "JDBC batch ingestion service is ready"
 
     log_success "MODE 1 infrastructure verification complete"
 }
@@ -142,6 +134,23 @@ verify_mode2_infrastructure() {
         log_error "task-executions-transform not running: $TASK_TRANSFORM_STATE"
         return 1
     fi
+
+    # 5. Check Vector has actually discovered the workflow pod's log file.
+    # Vector's kubernetes_logs source takes ~60s after startup to discover a
+    # newly created pod's log file (observed consistently in CI and locally) -
+    # the "vector" pod reporting Ready does NOT mean this has happened yet.
+    # Gate on it directly instead of hoping the rest of the setup eats enough
+    # wall-clock time before the E2E test triggers a workflow.
+    log_info "Checking Vector has discovered the workflow pod's log file..."
+    vector_found_log_file() {
+        local vector_pod
+        vector_pod=$(kubectl get pod -n logging -l app=vector -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+        [ -n "$vector_pod" ] || return 1
+        kubectl get --raw "/api/v1/namespaces/logging/pods/${vector_pod}:9598/proxy/metrics" 2>/dev/null \
+            | awk '/^vector_files_added_total\{component_id="kubernetes_logs"/ { if ($(NF-1) > 0) found=1 } END { exit !found }'
+    }
+    wait_for 90 vector_found_log_file
+    log_success "Vector has discovered the workflow pod's log file"
 
     log_success "MODE 2 infrastructure verification complete"
 }

@@ -146,13 +146,12 @@ The overhead of CloudEvent reconstruction is negligible compared to DB UPSERT op
 
 The Kafka ingestion service is composed of two Maven modules:
 
-1. **data-index-ingestion-kafka-processor**: Event models and processing logic
-   - `data/WorkflowInstanceEvent.java`, `data/TaskExecutionEvent.java` - Internal event payloads
+1. **data-index-ingestion-persistence**: source-agnostic processing and persistence logic, shared with MODE 1's JDBC batch reader
    - `EventProcessor<T>` - Generic processor interface
    - `WorkflowEventProcessor.java` / `TaskExecutionProcessor.java` - Processor implementations
-   - `persistence/WorkflowPersistence.java` - JDBC UPSERT for workflow events
-   - `persistence/TaskPersistence.java` - JDBC UPSERT for task events with FK recovery
-   - `util/LifecycleEventUtils.java` - Event-type routing + status mapping
+   - `jdbc/WorkflowPersistence.java` - JDBC UPSERT for workflow events
+   - `jdbc/TaskPersistence.java` - JDBC UPSERT for task events with FK recovery
+   - `jdbc/LoadSQL.java` - Loads SQL statements from classpath resources
    - `ProcessEventFailedException.java` - Thrown on processing failure (triggers DLQ)
 
 2. **data-index-ingestion-kafka-service**: Quarkus application

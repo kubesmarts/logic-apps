@@ -1,5 +1,5 @@
 # ============================================================================
-# Vector Configuration - MODE 1: PostgreSQL Trigger-based Normalization
+# Vector Configuration - MODE 1: JDBC Batch Normalization
 # ============================================================================
 #
 # Validation: Vector does not have a reliable JSON Schema for IDE validation
@@ -7,15 +7,17 @@
 # - Or our Maven tests: `mvn verify -pl collectors`
 # - Vector documentation: https://vector.dev/docs/reference/configuration/
 #
-# Purpose: Capture Quarkus Flow structured logs from container stdout
-#          PostgreSQL BEFORE INSERT triggers normalize raw events into
-#          structured tables (workflow_instances, task_instances).
+# Purpose: Capture Quarkus Flow structured logs from container stdout and
+#          extract typed fields into the staging tables (workflow_events_raw,
+#          task_events_raw). A separate batch JDBC reader service
+#          (data-index-ingestion-jdbc-batch-service) polls those tables and
+#          idempotently normalizes them into workflow_instances/task_instances.
 #
 # Pipeline:
 #   Quarkus Flow -> stdout -> K8s /var/log/containers/ -> Vector kubernetes_logs ->
 #   Parse JSON events -> Filter workflow events -> Route by event type ->
-#   PostgreSQL INSERT (workflow_events_raw / task_events_raw) ->
-#   PostgreSQL triggers -> Normalized tables
+#   Extract typed fields -> PostgreSQL INSERT (workflow_events_raw / task_events_raw) ->
+#   [data-index-ingestion-jdbc-batch-service polls, normalizes, deletes] -> Normalized tables
 #
 # Requires: Vector >= 0.46.0 (native `postgres` sink).
 #
@@ -52,9 +54,9 @@ transforms:
   # Parse the JSON log line into a dedicated field.
   #
   # We keep the parsed event under `.flow_event` (rather than merging it into
-  # the root) so the raw event stays isolated from Kubernetes/Vector metadata.
-  # The `build_*_row` transforms below use `.flow_event` verbatim as the JSONB
-  # payload - the PostgreSQL triggers do all field extraction.
+  # the root) so it stays isolated from Kubernetes/Vector metadata. The
+  # `build_*_row` transforms below read `.flow_event`'s fields individually to
+  # build the typed staging-table row.
   parse_json:
     type: remap
     inputs:
@@ -92,24 +94,82 @@ transforms:
         type: vrl
         source: starts_with(string(.flow_event.eventType) ?? "", "io.serverlessworkflow.task.")
 
-  # Build the row shape expected by the FluentBit-compatible raw tables:
-  #   (tag TEXT, time TIMESTAMP WITH TIME ZONE, data JSONB)
-  #
-  # - tag:  informational only (indexed) - the triggers never read it.
-  # - time: ingestion time - feeds only the created_at/updated_at audit columns.
-  #         The triggers derive event ordering from `data->>'timestamp'`.
-  # - data: the untouched Quarkus Flow event. Triggers extract instanceId,
-  #         status, startTime/endTime (epoch seconds), input/output, error, and
-  #         taskPosition straight from this JSONB.
+  # Extract typed fields from the parsed Quarkus Flow event into the columns
+  # of workflow_events_raw (see V1__initial_schema.sql). This is Vector doing
+  # the field extraction that used to live in a PostgreSQL trigger - the
+  # batch JDBC reader downstream consumes these columns directly, no JSONB
+  # blob and no trigger involved.
   build_workflow_row:
     type: remap
     inputs:
       - route_by_type.workflow_events
     source: |
+      instance_id = string(.flow_event.instanceId) ?? null
+      namespace = string(.flow_event.workflowNamespace) ?? null
+      name = string(.flow_event.workflowName) ?? null
+      version = string(.flow_event.workflowVersion) ?? null
+      status = string(.flow_event.status) ?? null
+
+      started_at = null
+      if exists(.flow_event.startTime) {
+        seconds, err = to_float(.flow_event.startTime)
+        if err == null {
+          started_at = from_unix_timestamp(to_int(seconds * 1000), unit: "milliseconds") ?? null
+        }
+      }
+
+      ended_at = null
+      if exists(.flow_event.endTime) {
+        seconds, err = to_float(.flow_event.endTime)
+        if err == null {
+          ended_at = from_unix_timestamp(to_int(seconds * 1000), unit: "milliseconds") ?? null
+        }
+      }
+
+      last_update = null
+      if exists(.flow_event.lastUpdateTime) {
+        seconds, err = to_float(.flow_event.lastUpdateTime)
+        if err == null {
+          last_update = from_unix_timestamp(to_int(seconds * 1000), unit: "milliseconds") ?? null
+        }
+      }
+
+      event_timestamp = null
+      if exists(.flow_event.timestamp) {
+        seconds, err = to_float(.flow_event.timestamp)
+        if err == null {
+          event_timestamp = from_unix_timestamp(to_int(seconds * 1000), unit: "milliseconds") ?? null
+        }
+      }
+
+      input = null
+      if exists(.flow_event.input) {
+        input = encode_json(.flow_event.input)
+      }
+
+      output = null
+      if exists(.flow_event.output) {
+        output = encode_json(.flow_event.output)
+      }
+
       . = {
-        "tag": .flow_event.eventType,
-        "time": now(),
-        "data": .flow_event
+        "instance_id": instance_id,
+        "namespace": namespace,
+        "name": name,
+        "version": version,
+        "status": status,
+        "started_at": started_at,
+        "ended_at": ended_at,
+        "last_update": last_update,
+        "input": input,
+        "output": output,
+        "error_type": string(.flow_event.error.type) ?? null,
+        "error_title": string(.flow_event.error.title) ?? null,
+        "error_detail": string(.flow_event.error.detail) ?? null,
+        "error_status": to_int(.flow_event.error.status) ?? null,
+        "error_instance": string(.flow_event.error.instance) ?? null,
+        "event_timestamp": event_timestamp,
+        "inserted_at": now()
       }
 
   build_task_row:
@@ -117,10 +177,62 @@ transforms:
     inputs:
       - route_by_type.task_events
     source: |
+      instance_id = string(.flow_event.instanceId) ?? null
+      task_name = string(.flow_event.taskName) ?? null
+      task = string(.flow_event.taskPosition) ?? null
+      status = string(.flow_event.status) ?? null
+
+      started_at = null
+      if exists(.flow_event.startTime) {
+        seconds, err = to_float(.flow_event.startTime)
+        if err == null {
+          started_at = from_unix_timestamp(to_int(seconds * 1000), unit: "milliseconds") ?? null
+        }
+      }
+
+      ended_at = null
+      if exists(.flow_event.endTime) {
+        seconds, err = to_float(.flow_event.endTime)
+        if err == null {
+          ended_at = from_unix_timestamp(to_int(seconds * 1000), unit: "milliseconds") ?? null
+        }
+      }
+
+      event_timestamp = null
+      if exists(.flow_event.timestamp) {
+        seconds, err = to_float(.flow_event.timestamp)
+        if err == null {
+          event_timestamp = from_unix_timestamp(to_int(seconds * 1000), unit: "milliseconds") ?? null
+        }
+      }
+
+      input = null
+      if exists(.flow_event.input) {
+        input = encode_json(.flow_event.input)
+      }
+
+      output = null
+      if exists(.flow_event.output) {
+        output = encode_json(.flow_event.output)
+      }
+
       . = {
-        "tag": .flow_event.eventType,
-        "time": now(),
-        "data": .flow_event
+        "instance_id": instance_id,
+        "task_name": task_name,
+        "task": task,
+        "status": status,
+        "started_at": started_at,
+        "ended_at": ended_at,
+        "input": input,
+        "output": output,
+        "error_type": string(.flow_event.error.type) ?? null,
+        "error_title": string(.flow_event.error.title) ?? null,
+        "error_detail": string(.flow_event.error.detail) ?? null,
+        "error_status": to_int(.flow_event.error.status) ?? null,
+        "error_instance": string(.flow_event.error.instance) ?? null,
+        "event_timestamp": event_timestamp,
+        # Same reasoning as build_workflow_row above.
+        "inserted_at": now()
       }
 
   # Debug filter - only pass events if DEBUG_EVENTS=true
@@ -138,26 +250,30 @@ transforms:
         to_bool(debug_enabled) ?? false
 
 # ============================================================================
-# SINKS: PostgreSQL Raw Tables
+# SINKS: PostgreSQL Staging Tables
 # ============================================================================
 #
 # Vector's `postgres` sink cannot template the table name per-event, so we use
-# one sink per raw table. Each sink serializes the event to JSON and maps the
-# top-level fields (tag, time, data) to the matching table columns via
-# jsonb_populate_recordset - extra fields are ignored, and the `data` object
-# maps cleanly to the JSONB column.
+# one sink per staging table. Each sink serializes the event to JSON and maps
+# the top-level fields (instance_id, status, started_at, ...) to the matching
+# typed table columns via jsonb_populate_recordset - extra fields are ignored,
+# missing ones become SQL NULL.
 #
-# A batch is sent as a single multi-row INSERT. If one row makes a trigger
-# raise an uncaught exception, the whole batch INSERT fails and Vector retries
-# it. The workflow trigger is INSERT ... ON CONFLICT and the task trigger
-# catches foreign_key_violation, so this is tolerable. If poison-pill rows
-# appear, set `batch.max_events: 1` for strict row-by-row parity with FluentBit.
+# This is a plain append-only INSERT, not an UPSERT - there's no trigger and
+# no ON CONFLICT here anymore. A batch is sent as a single multi-row INSERT;
+# the only way one row can fail the whole batch is a NOT NULL violation
+# (instance_id, or task for task rows) on a malformed event, and Vector
+# retries the whole batch INSERT. If poison-pill rows appear in practice,
+# set `batch.max_events: 1` to isolate them to single-row batches instead
+# of lowering max_events as a blanket default.
 #
 # Buffer: the default in-memory buffer (matches the FluentBit MODE 1 setup this
-# replaces). Do NOT switch to `buffer.type: disk` here - in Vector 0.54 the
-# postgres sink does not drain a small disk buffer until graceful shutdown,
-# which strands low-volume events. The kubernetes_logs source checkpoints, so a
-# Vector restart re-reads recent lines and the idempotent triggers dedupe them.
+# originally replaced). Do NOT switch to `buffer.type: disk` here - in Vector
+# 0.54 the postgres sink does not drain a small disk buffer until graceful
+# shutdown, which strands low-volume events. The kubernetes_logs source
+# checkpoints, so a Vector restart re-reads recent lines; re-inserted staging
+# rows are harmless duplicates since the downstream JDBC batch reader's
+# normalization UPSERT is idempotent.
 # https://vector.dev/docs/reference/configuration/sinks/postgres/
 sinks:
   # Workflow events -> workflow_events_raw
@@ -245,17 +361,21 @@ api:
 #       * ONLY FOR TROUBLESHOOTING - disabled in production
 #       * WARNING: At 1000 events/sec, generates ~43GB/day of logs
 #
-# What stays the same (handled by PostgreSQL):
-#   - BEFORE INSERT triggers: normalize_workflow_event() / normalize_task_event()
-#   - Field-level idempotency (COALESCE) and out-of-order event handling
+# Handled downstream by data-index-ingestion-jdbc-batch-service, not Vector
+# or a PostgreSQL trigger:
+#   - Polling workflow_events_raw / task_events_raw in batches
+#   - Field-level idempotency (COALESCE) and out-of-order event handling,
+#     via the same WorkflowPersistence/TaskPersistence UPSERT MODE 3 uses
 #   - Composite task identity (instance_id, task)
+#   - Deleting staging rows once normalized, and routing rows that fail
+#     normalization to workflow_events_dlq / task_events_dlq
 #
 # What this config does:
 #   * Tails Kubernetes container logs
 #   * Parses CRI/Docker format automatically
 #   * Filters workflow events (by eventType field)
 #   * Routes by event type (workflow vs task)
-#   * Inserts raw events into workflow_events_raw / task_events_raw
+#   * Extracts typed fields and inserts into workflow_events_raw / task_events_raw
 #   * Exposes Prometheus metrics
 #
 # ============================================================================

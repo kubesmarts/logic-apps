@@ -41,6 +41,9 @@ ES_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/data-index-service:$(IMAGE_TAG)-elastic
 KAFKA_SERVICE_DIR := data-index-ingestion/data-index-ingestion-kafka-service
 KAFKA_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/data-index-ingestion:$(IMAGE_TAG)-kafka
 
+JDBC_BATCH_SERVICE_DIR := data-index-ingestion/data-index-ingestion-jdbc-batch-service
+JDBC_BATCH_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/data-index-ingestion:$(IMAGE_TAG)-jdbc-batch
+
 # Colors
 BLUE := \033[0;34m
 GREEN := \033[0;32m
@@ -87,6 +90,7 @@ help: ## Show this help message
 	@echo "  make build-image-postgresql  Build PostgreSQL data-index-service image"
 	@echo "  make build-image-es          Build Elasticsearch data-index-service image"
 	@echo "  make build-image-kafka       Build Kafka ingestion service image"
+	@echo "  make build-image-jdbc-batch  Build JDBC batch ingestion service image (MODE 1)"
 	@echo ""
 
 # ============================================================================
@@ -131,6 +135,19 @@ build-image-kafka: ## Build Kafka ingestion service Docker image
 		$(KAFKA_SERVICE_DIR)
 	@echo "$(GREEN)✓ Image built: $(KAFKA_IMAGE_NAME)$(NC)"
 	@docker images $(KAFKA_IMAGE_NAME)
+
+build-image-jdbc-batch: ## Build JDBC batch ingestion service Docker image (MODE 1)
+	@echo "$(BLUE)==> Building JDBC batch ingestion service image$(NC)"
+	@echo "$(BLUE)    Step 1/2: Maven install$(NC)"
+	@cd .. && mvn clean install -DskipTests \
+		-pl data-index/$(JDBC_BATCH_SERVICE_DIR) -am
+	@echo "$(BLUE)    Step 2/2: Docker build$(NC)"
+	@docker build \
+		-f $(JDBC_BATCH_SERVICE_DIR)/src/main/docker/Dockerfile.jvm \
+		-t $(JDBC_BATCH_IMAGE_NAME) \
+		$(JDBC_BATCH_SERVICE_DIR)
+	@echo "$(GREEN)✓ Image built: $(JDBC_BATCH_IMAGE_NAME)$(NC)"
+	@docker images $(JDBC_BATCH_IMAGE_NAME)
 
 # ============================================================================
 # Test Targets

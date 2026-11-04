@@ -125,12 +125,17 @@
       </dependency>
       <dependency>
         <groupId>org.kubesmarts.logic.apps</groupId>
-        <artifactId>data-index-ingestion-kafka-processor</artifactId>
+        <artifactId>data-index-ingestion-persistence</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.kubesmarts.logic.apps</groupId>
         <artifactId>data-index-ingestion-kafka-service</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.kubesmarts.logic.apps</groupId>
+        <artifactId>data-index-ingestion-jdbc-batch-service</artifactId>
         <version>${project.version}</version>
       </dependency>
 
