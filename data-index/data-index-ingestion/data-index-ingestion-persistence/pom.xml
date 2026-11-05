@@ -31,7 +31,7 @@
 
   <artifactId>data-index-ingestion-persistence</artifactId>
   <name>KubeSmarts Logic Apps :: Data Index :: Ingestion :: Persistence</name>
-  <description>Source-agnostic idempotent JDBC persistence and event processing, shared by MODE 1 (JDBC batch) and MODE 3 (Kafka)</description>
+  <description>Source-agnostic idempotent JDBC persistence and event processing, shared by MODE 1 (data-index-service polling) and MODE 3 (Kafka)</description>
 
   <properties>
     <java.module.name>org.kubesmarts.logic.dataindex.ingestion.persistence</java.module.name>

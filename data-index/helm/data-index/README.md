@@ -34,8 +34,8 @@ helm install data-index . -f values-mode1.yaml
 ```
 Quarkus Flow → stdout → /var/log/containers/*.log (JSON)
                     ↓ (Vector kubernetes_logs → postgres sink)
-            PostgreSQL raw tables (JSONB)
-                    ↓ (BEFORE INSERT triggers)
+            PostgreSQL raw tables (typed columns)
+                    ↓ (data-index-service polls, idempotent UPSERT)
             PostgreSQL normalized tables
                     ↓ (JPA/Hibernate)
             GraphQL API (SmallRye GraphQL)

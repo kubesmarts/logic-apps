@@ -133,11 +133,6 @@
         <artifactId>data-index-ingestion-kafka-service</artifactId>
         <version>${project.version}</version>
       </dependency>
-      <dependency>
-        <groupId>org.kubesmarts.logic.apps</groupId>
-        <artifactId>data-index-ingestion-jdbc-batch-service</artifactId>
-        <version>${project.version}</version>
-      </dependency>
 
       <!-- Persistence Commons API - provides Storage interface abstraction -->
       <dependency>

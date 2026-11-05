@@ -161,19 +161,6 @@ main() {
         kind load docker-image kubesmarts/data-index-ingestion:2.0.0-SNAPSHOT-kafka --name "${CLUSTER_NAME}"
     fi
 
-    # Build JDBC Batch Ingestion Service (MODE 1 only)
-    if [[ "${BUILD_MODE}" == "all" || "${BUILD_MODE}" == "mode1" ]]; then
-        log_info "Building data-index-ingestion-jdbc-batch-service..."
-
-        # Build JDBC batch ingestion service image using Makefile target
-        log_info "  → Building JDBC batch ingestion image (via Makefile)"
-        (cd "${PROJECT_ROOT}/data-index" && make build-image-jdbc-batch)
-
-        # Load image into KIND cluster
-        log_info "  → Loading image into KIND cluster"
-        kind load docker-image kubesmarts/data-index-ingestion:2.0.0-SNAPSHOT-jdbc-batch --name "${CLUSTER_NAME}"
-    fi
-
     log_success "Images built and loaded for: ${BUILD_MODE}"
 
     # 4. Display cluster info

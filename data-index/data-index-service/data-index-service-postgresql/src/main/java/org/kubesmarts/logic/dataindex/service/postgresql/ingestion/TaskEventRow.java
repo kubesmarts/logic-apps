@@ -13,23 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.ingestion.jdbcbatch.service;
+package org.kubesmarts.logic.dataindex.service.postgresql.ingestion;
 
 import java.time.OffsetDateTime;
 
-/**
- * One row read from the {@code workflow_events_raw} staging table.
- */
-record WorkflowEventRow(
+record TaskEventRow(
         long id,
         String instanceId,
-        String namespace,
-        String name,
-        String version,
+        String taskName,
+        String task,
         String status,
         OffsetDateTime startedAt,
         OffsetDateTime endedAt,
-        OffsetDateTime lastUpdate,
         String input,
         String output,
         String errorType,

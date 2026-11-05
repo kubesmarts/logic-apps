@@ -913,7 +913,7 @@ curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_star
 |Aspect |PostgreSQL Mode (MODE 1) |Elasticsearch Mode (MODE 2)
 
 |*Normalization*
-|PostgreSQL triggers (< 1ms)
+|JDBC polling in data-index-service (~1s interval)
 |ES Transforms (~1s frequency)
 
 |*Latency*
@@ -933,7 +933,7 @@ curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_star
 |100K+ workflows/day
 
 |*Complexity*
-|Simple (triggers, backups)
+|Simple (polling, backups)
 |Moderate (transforms, ILM)
 
 |*Lifecycle Management*

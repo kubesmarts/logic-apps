@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.ingestion.jdbcbatch.service;
+package org.kubesmarts.logic.dataindex.service.postgresql.ingestion;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Counter;
@@ -59,6 +59,9 @@ public class WorkflowEventPoller {
     private Counter dlqCounter;
     private Counter dlqWriteFailedCounter;
 
+    @ConfigProperty(name = "data-index.ingestion.jdbc-batch.enabled", defaultValue = "true")
+    boolean enabled;
+
     @ConfigProperty(name = "data-index.ingestion.jdbc-batch.batch-size", defaultValue = "1000")
     int batchSize;
 
@@ -81,8 +84,11 @@ public class WorkflowEventPoller {
         dlqWriteFailedCounter = meterRegistry.counter("data_index.jdbc_batch.dlq.write.failed", "type", "workflow");
     }
 
-    @Scheduled(every = "{data-index.ingestion.jdbc-batch.poll-interval}")
+    @Scheduled(every = "{data-index.ingestion.jdbc-batch.poll-interval}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void poll() {
+        if (!enabled) {
+            return;
+        }
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);
             try {

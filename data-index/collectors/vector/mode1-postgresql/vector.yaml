@@ -9,15 +9,15 @@
 #
 # Purpose: Capture Quarkus Flow structured logs from container stdout and
 #          extract typed fields into the staging tables (workflow_events_raw,
-#          task_events_raw). A separate batch JDBC reader service
-#          (data-index-ingestion-jdbc-batch-service) polls those tables and
+#          task_events_raw). Pollers inside
+#          data-index-service poll those tables and
 #          idempotently normalizes them into workflow_instances/task_instances.
 #
 # Pipeline:
 #   Quarkus Flow -> stdout -> K8s /var/log/containers/ -> Vector kubernetes_logs ->
 #   Parse JSON events -> Filter workflow events -> Route by event type ->
 #   Extract typed fields -> PostgreSQL INSERT (workflow_events_raw / task_events_raw) ->
-#   [data-index-ingestion-jdbc-batch-service polls, normalizes, deletes] -> Normalized tables
+#   [data-index-service polls, normalizes, deletes] -> Normalized tables
 #
 # Requires: Vector >= 0.46.0 (native `postgres` sink).
 #
@@ -97,7 +97,7 @@ transforms:
   # Extract typed fields from the parsed Quarkus Flow event into the columns
   # of workflow_events_raw (see V1__initial_schema.sql). This is Vector doing
   # the field extraction that used to live in a PostgreSQL trigger - the
-  # batch JDBC reader downstream consumes these columns directly, no JSONB
+  # data-index-service poller consumes these columns directly, no JSONB
   # blob and no trigger involved.
   build_workflow_row:
     type: remap
@@ -272,7 +272,7 @@ transforms:
 # 0.54 the postgres sink does not drain a small disk buffer until graceful
 # shutdown, which strands low-volume events. The kubernetes_logs source
 # checkpoints, so a Vector restart re-reads recent lines; re-inserted staging
-# rows are harmless duplicates since the downstream JDBC batch reader's
+# rows are harmless duplicates since the data-index-service poller's
 # normalization UPSERT is idempotent.
 # https://vector.dev/docs/reference/configuration/sinks/postgres/
 sinks:
@@ -361,7 +361,7 @@ api:
 #       * ONLY FOR TROUBLESHOOTING - disabled in production
 #       * WARNING: At 1000 events/sec, generates ~43GB/day of logs
 #
-# Handled downstream by data-index-ingestion-jdbc-batch-service, not Vector
+# Handled downstream by data-index-service, not Vector
 # or a PostgreSQL trigger:
 #   - Polling workflow_events_raw / task_events_raw in batches
 #   - Field-level idempotency (COALESCE) and out-of-order event handling,

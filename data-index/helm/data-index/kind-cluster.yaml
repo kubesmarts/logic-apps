@@ -34,12 +34,6 @@ nodes:
         hostPort: 30082
         protocol: TCP
 
-      # Data Index JDBC Batch Ingestion Service (MODE 1 only)
-      # Mapped from NodePort 30083 to host localhost:30083
-      - containerPort: 30083
-        hostPort: 30083
-        protocol: TCP
-
       # PostgreSQL (MODE 1 and MODE 3)
       # Mapped from NodePort 30432 to host localhost:30432
       - containerPort: 30432

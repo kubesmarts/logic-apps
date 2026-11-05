@@ -1,7 +1,7 @@
 = PostgreSQL Mode Architecture
 :page-aliases:
 
-Data Index with PostgreSQL storage uses trigger-based normalization for real-time event processing.
+Data Index with PostgreSQL storage normalizes events by polling raw tables with JDBC inside the Data Index service.
 
 == Architecture Diagram
 
@@ -11,8 +11,8 @@ Quarkus Flow App
     ↓ (structured logging → stdout)
 Vector DaemonSet
     ↓ (kubernetes_logs source → postgres sink)
-PostgreSQL Raw Tables (JSONB)
-    ↓ (BEFORE INSERT triggers)
+PostgreSQL Raw Tables (typed columns)
+    ↓ (data-index-service polls, idempotent UPSERT)
 PostgreSQL Normalized Tables
     ↓ (JPA/Hibernate)
 GraphQL API
@@ -23,9 +23,9 @@ GraphQL API
 1. **Quarkus Flow emits events** - JSON to stdout
 2. **Kubernetes captures logs** - `/var/log/containers/POD_NAME.log`
 3. **Vector collects** - `kubernetes_logs` source tails container logs, filters events by `eventType`, routes workflow vs task
-4. **INSERT to raw tables** - `postgres` sinks write `workflow_events_raw`, `task_events_raw` (JSONB `data` column)
-5. **Triggers fire immediately** - Extract fields from JSONB
-6. **UPSERT to normalized tables** - `workflow_instances`, `task_instances`
+4. **INSERT to raw tables** - `postgres` sinks write typed rows to `workflow_events_raw`, `task_events_raw`
+5. **Data Index polls** - Reads up to `batch-size` rows per table with `FOR UPDATE SKIP LOCKED`
+6. **UPSERT to normalized tables** - `workflow_instances`, `task_instances`, then deletes the raw rows
 7. **GraphQL queries** - Via JPA entities
 
 == Key Characteristics
@@ -35,16 +35,16 @@ GraphQL API
 |Characteristic |Details
 
 |**Latency**
-|< 1ms for normalization, 5-10s end-to-end
+|~1s for normalization (poll interval), 5-10s end-to-end
 
 |**Consistency**
-|ACID transactions, guaranteed consistency
+|ACID transactions; normalized data lags raw events by up to the poll interval
 
 |**Throughput**
 |< 50K workflows/day (PostgreSQL write limit)
 
 |**Complexity**
-|Simple - no separate event processor service
+|Simple - normalization runs inside the Data Index service
 
 |**Search**
 |Limited - basic filtering, no full-text search
@@ -54,40 +54,37 @@ GraphQL API
 
 |===
 
-== Real-Time Normalization
+== JDBC Polling Normalization
 
-Events are normalized in real-time as they arrive:
+Each Data Index instance runs one poller per raw table:
 
-1. **Vector writes raw events** - Complete events stored as JSON for debugging
-2. **Events normalized automatically** - Fields extracted and stored in optimized tables
-3. **Immediate availability** - Data ready for querying in less than 1ms
+1. **Select a batch** - Oldest rows first, locked with `FOR UPDATE SKIP LOCKED`
+2. **UPSERT** - Through the same `WorkflowPersistence` / `TaskPersistence` layer MODE 3 uses
+3. **Delete** - Normalized rows are removed from the raw table
+
+If a batch fails, its rows are retried one at a time. A row that still fails moves to `workflow_events_dlq` or `task_events_dlq` with a `failure_reason`, so it can't block the rows behind it.
 
 **Benefits:**
 
-- Real-time processing (<1ms latency)
-- No separate event processor service
-- ACID transaction guarantees
+- No separate ingestion service to deploy
+- Same idempotent persistence code as MODE 3
 - Handles duplicates and out-of-order events automatically
+- Failed events are kept and inspectable
 
 **Trade-offs:**
 
-- PostgreSQL-specific implementation
+- Normalization lag of up to one poll interval (default 1s)
+- Polling shares the service's connection pool with GraphQL queries (up to 2 connections per poller during a batch)
 - Limited throughput vs. Elasticsearch mode (< 50K workflows/day)
-- Schema changes require database updates
 
 == Raw Event Storage
 
-Raw events are preserved in their original JSON format:
+Raw tables are a short-lived inbox with typed columns, not an event history:
 
-- **workflow_events_raw** - All workflow-related events
-- **task_events_raw** - All task-related events
+- **workflow_events_raw** - Workflow events waiting to be normalized
+- **task_events_raw** - Task events waiting to be normalized
 
-**Benefits:**
-
-- **Debugging** - Original events preserved for troubleshooting
-- **Replay** - Can reprocess if normalization logic changes
-- **Audit** - Complete event history maintained
-- **Flexibility** - Accepts any event structure without schema changes
+Rows are deleted as soon as they are normalized, so these tables stay near-empty. A growing row count means normalization is falling behind or disabled.
 
 == Normalized Tables
 
@@ -148,6 +145,11 @@ See xref:deployment/vector-config.adoc[Vector Configuration] for the full pipeli
 quarkus.datasource.db-kind=postgresql
 quarkus.datasource.jdbc.url=jdbc:postgresql://postgresql:5432/dataindex
 quarkus.hibernate-orm.schema-management.strategy=none
+
+# MODE 1 polling. Disable in MODE 3, which shares this image.
+data-index.ingestion.jdbc-batch.enabled=true
+data-index.ingestion.jdbc-batch.poll-interval=1s
+data-index.ingestion.jdbc-batch.batch-size=1000
 ----
 
 [NOTE]
@@ -161,16 +163,16 @@ PostgreSQL mode scales well for moderate workloads:
 
 **Vertical scaling:**
 - Increase PostgreSQL instance size
-- More CPU/memory for trigger processing
+- More CPU/memory for write throughput
 - SSD storage for write performance
 
 **Horizontal scaling:**
 - Read replicas for GraphQL queries
 - Connection pooling in Data Index service
-- Multiple Data Index instances (stateless)
+- Multiple Data Index instances (each one also polls; `SKIP LOCKED` keeps them from claiming the same rows)
 
 **Limitations:**
-- Single PostgreSQL writer (triggers can't be distributed)
+- Single PostgreSQL writer
 - ~50K workflows/day practical limit
 - For higher throughput, consider xref:architecture/elasticsearch-mode.adoc[Elasticsearch mode]
 

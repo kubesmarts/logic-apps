@@ -7,10 +7,10 @@
 #
 # Architecture:
 #   Quarkus Flow → stdout → Vector (kubernetes_logs) → staging tables
-#   (workflow_events_raw/task_events_raw) → data-index-jdbc-batch polls,
+#   (workflow_events_raw/task_events_raw) → data-index-service polls,
 #   normalizes idempotently → Normalized tables → GraphQL API
 #
-# No PostgreSQL triggers - normalization happens in data-index-jdbc-batch.
+# No PostgreSQL triggers - normalization happens in data-index-service.
 #
 # ============================================================================
 
@@ -32,7 +32,7 @@ elasticsearch:
 kafka:
   enabled: false
 
-# Vector - MODE 1 log collector (postgres sink -> staging tables -> jdbc-batch polls)
+# Vector - MODE 1 log collector (postgres sink -> staging tables -> data-index-service polls)
 vector:
   enabled: true
   config: mode1-postgresql
@@ -43,6 +43,9 @@ dataIndex:
     repository: kubesmarts/data-index-service
     tag: "2.0.0-SNAPSHOT-postgresql"
   storage: postgresql
+  # MODE 1 normalization runs inside this service
+  jdbcBatch:
+    enabled: true
   # Use NodePort for easy testing in KIND
   service:
     type: NodePort
@@ -50,16 +53,6 @@ dataIndex:
 # Data Index Ingestion (Kafka) - disabled for MODE 1 (no Kafka)
 dataIndexIngestion:
   enabled: false
-
-# Data Index JDBC Batch Ingestion - MODE 1's normalization service
-# (polls workflow_events_raw/task_events_raw; no PostgreSQL triggers)
-dataIndexJdbcBatch:
-  enabled: true
-  image:
-    repository: kubesmarts/data-index-ingestion
-    tag: "2.0.0-SNAPSHOT-jdbc-batch"
-  service:
-    type: NodePort
 
 # Workflow Test App - enabled
 workflowApp:

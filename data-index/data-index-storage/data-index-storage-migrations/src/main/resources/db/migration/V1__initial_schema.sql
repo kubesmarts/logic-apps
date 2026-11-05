@@ -5,7 +5,7 @@
 -- This schema includes:
 -- - Staging tables (typed columns, populated by Vector; append-only inbox)
 -- - Normalized tables with idempotency fields (GraphQL API queries these;
---   populated by a batch JDBC reader - see data-index-ingestion-jdbc-batch-*,
+--   populated by the pollers in data-index-service-postgresql,
 --   reusing the same idempotent UPSERT persistence as MODE 3's Kafka path -
 --   NOT by triggers)
 -- - Dead-letter tables for staging rows that fail normalization
@@ -18,7 +18,7 @@
 --
 -- Append-only inbox, not a keyed table: no ON CONFLICT on insert, idempotency
 -- happens downstream in the normalized-table UPSERT. A row is deleted as soon
--- as the JDBC batch reader has successfully normalized it - no retention
+-- as the poller has successfully normalized it - no retention
 -- window, the table stays near-empty.
 
 -- Vector's native `postgres` sink always inserts via
@@ -27,7 +27,7 @@
 -- (id included) becomes an explicit NULL, bypassing the BIGSERIAL column's
 -- own DEFAULT entirely. The BEFORE INSERT trigger below fills `id` whenever
 -- it comes in NULL, regardless of whether the column was omitted or set
--- explicitly, so the JDBC batch reader can select/delete by `id` like any
+-- explicitly, so the poller can select/delete by `id` like any
 -- normal PK. `inserted_at` must still be supplied by VRL (`now()`), not left
 -- to its DEFAULT, since the same bypass applies to it.
 CREATE TABLE IF NOT EXISTS workflow_events_raw (

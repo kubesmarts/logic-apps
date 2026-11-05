@@ -35,7 +35,7 @@ wait_for() {
 }
 
 # ============================================================================
-# MODE 1: PostgreSQL + Vector + Triggers
+# MODE 1: PostgreSQL + Vector + JDBC Polling
 # ============================================================================
 
 verify_mode1_infrastructure() {
@@ -75,11 +75,11 @@ verify_mode1_infrastructure() {
         return 1
     fi
 
-    # 4. Check the JDBC batch ingestion service (normalizes workflow_events_raw/
-    #    task_events_raw - no PostgreSQL triggers in MODE 1 anymore)
-    log_info "Checking JDBC batch ingestion service..."
-    wait_for 120 curl -sf http://localhost:30083/q/health/ready
-    log_success "JDBC batch ingestion service is ready"
+    # 4. Check data-index-service (polls workflow_events_raw/task_events_raw;
+    #    no PostgreSQL triggers in MODE 1 anymore)
+    log_info "Checking data-index-service..."
+    wait_for 120 curl -sf http://localhost:30080/q/health/ready
+    log_success "data-index-service is ready"
 
     log_success "MODE 1 infrastructure verification complete"
 }

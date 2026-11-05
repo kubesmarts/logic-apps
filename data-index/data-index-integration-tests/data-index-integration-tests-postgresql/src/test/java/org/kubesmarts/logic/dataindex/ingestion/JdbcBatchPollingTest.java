@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kubesmarts.logic.dataindex.ingestion.jdbcbatch;
+package org.kubesmarts.logic.dataindex.ingestion;
 
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -34,12 +34,12 @@ import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests for the MODE 1 JDBC batch normalization path: insert typed rows into the
- * staging tables (as Vector will, once its config is updated), let the workflow/task event
+ * staging tables (as Vector does), let the workflow/task event
  * pollers pick them up, and assert the normalized tables are populated and the staging rows
  * are deleted.
  */
 @QuarkusTest
-class JdbcBatchServiceIT {
+class JdbcBatchPollingTest {
 
     @Inject
     DataSource dataSource;

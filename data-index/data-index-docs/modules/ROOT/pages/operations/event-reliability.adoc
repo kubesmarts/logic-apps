@@ -22,7 +22,7 @@ Vector transforms (parse_json -> filter -> route -> build row)
 Vector per-sink buffer (MODE 1: in-memory; MODE 2: disk)
     ↓ (postgres / elasticsearch sink - retries with backoff)
 Storage Backend (PostgreSQL raw tables / Elasticsearch raw indices)
-    ↓ (Normalization: PostgreSQL triggers / ES Transforms)
+    ↓ (Normalization: data-index-service JDBC polling / ES Transforms)
 Normalized Data
 ----
 
@@ -199,9 +199,9 @@ Vector restarts, resumes from the last persisted offset
 
 **Risk:** Low - duplicates are harmless:
 
-* MODE 1: `normalize_workflow_event()` uses `INSERT ... ON CONFLICT (id) DO UPDATE`;
-  `normalize_task_event()` upserts on `(instance_id, task)`. Re-inserting a raw
-  row just re-runs the idempotent trigger.
+* MODE 1: the poller upserts workflows with `INSERT ... ON CONFLICT (id) DO UPDATE`
+  and tasks on `(instance_id, task)`. A re-inserted raw row just re-runs the
+  idempotent UPSERT.
 * MODE 2: ES Transforms aggregate by document key; re-processing converges.
 
 Optionally enable end-to-end acknowledgements so the source offset only advances
@@ -295,7 +295,7 @@ curl -s http://<vector-pod>:9598/metrics | grep vector_component_errors_total
 * **Back-pressure, not silent drop** - `when_full: block` (default) stalls the
   source rather than discarding buffered events.
 * **Crash recovery** - resumes from the last persisted offset; duplicates are
-  absorbed by the idempotent triggers / transforms.
+  absorbed by the idempotent UPSERT / transforms.
 
 **Vector does NOT guarantee:**
 
@@ -437,7 +437,7 @@ kubectl exec -n logging <vector-pod> -- sh -c 'grep eventType /var/log/container
 (the Vector image is distroless - if `sh` is unavailable, read the files from a
 debug pod or the node.)
 
-**3. Manual replay into the raw tables** (MODE 1) - the triggers normalize on INSERT:
+**3. Manual replay into the raw tables** (MODE 1) - the poller normalizes them on its next run. Workflow events shown; this recipe skips `error` fields, so don't use it for faulted events:
 
 [source,bash]
 ----
@@ -447,7 +447,13 @@ kubectl exec -n logging <vector-pod> -- \
 while IFS= read -r ev; do
   kubectl exec -i -n postgresql postgresql-0 -- \
     psql -U dataindex -d dataindex -c \
-    "INSERT INTO workflow_events_raw (tag, time, data) VALUES ('replay', NOW(), '$(printf '%s' "$ev" | sed "s/'/''/g")'::jsonb);"
+    "WITH e AS (SELECT '$(printf '%s' "$ev" | sed "s/'/''/g")'::jsonb AS d)
+     INSERT INTO workflow_events_raw
+       (instance_id, namespace, name, version, status, started_at, ended_at, input, output, event_timestamp, inserted_at)
+     SELECT d->>'instanceId', d->>'workflowNamespace', d->>'workflowName', d->>'workflowVersion', d->>'status',
+            to_timestamp((d->>'startTime')::numeric), to_timestamp((d->>'endTime')::numeric),
+            d->>'input', d->>'output', to_timestamp((d->>'timestamp')::numeric), NOW()
+     FROM e;"
 done < missed.jsonl
 ----
 
