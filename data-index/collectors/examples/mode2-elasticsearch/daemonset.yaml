@@ -84,9 +84,9 @@ spec:
 
       containers:
       - name: vector
-        # Vector official image
-        # Production: Use specific version tag (not latest)
-        image: timberio/vector:0.41.1-distroless-libc
+        # Production: pin a specific version tag (not latest).
+        # Managed in data-index/collectors/pom.xml (<vector.version>).
+        image: timberio/vector:0.54.0-distroless-libc
         imagePullPolicy: IfNotPresent
 
         # Security context
