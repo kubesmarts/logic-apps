@@ -7,7 +7,7 @@
 
 ## Overview
 
-MODE 3 is a Kafka-based event ingestion service that provides an alternative to the Vector + PostgreSQL triggers approach (MODE 1). This guide covers deployment, configuration, and troubleshooting for production environments.
+MODE 3 is a Kafka-based event ingestion service that provides an alternative to the Vector + JDBC polling approach (MODE 1). This guide covers deployment, configuration, and troubleshooting for production environments.
 
 **Event Pipeline:**
 ```
@@ -57,7 +57,7 @@ PostgreSQL normalized tables
 |--------|----------|-----------|
 | **Event Format** | CloudEvents (v1.0) | Standard, platform-independent, includes metadata |
 | **Database Access** | JDBC (not JPA) | Direct SQL for performance, UPSERT idempotency |
-| **Normalization** | Java processors (not SQL triggers) | Same idempotency logic as MODE 1, but in-service |
+| **Normalization** | Java processors | Same persistence layer as MODE 1, in a separate ingestion service |
 | **Error Handling** | Dead-letter queue | Failed events captured for replay/investigation |
 | **Task Identity** | Composite key `(instance_id, task_position)` | Handles Quarkus Flow's changing taskExecutionId per event |
 | **FK Recovery** | SavePoint + placeholder workflow | Handles out-of-order task events (before workflow) |
@@ -518,15 +518,15 @@ kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic data-index-event
 |---------|-------------------------------|------------------------------------|----|
 | **Event Source** | Log files | Log files | Kafka topics |
 | **Ingestion** | Vector DaemonSet | Vector DaemonSet | SmallRye Reactive Messaging |
-| **Normalization** | PostgreSQL triggers | Elasticsearch transforms | Java processors (JDBC) |
+| **Normalization** | Java processors (polling in data-index-service) | Elasticsearch transforms | Java processors (JDBC) |
 | **Raw Storage** | `workflow_events_raw` table | `workflow-events` index | None (direct to normalized) |
 | **Normalized Storage** | PostgreSQL tables | Elasticsearch indices | PostgreSQL tables |
 | **GraphQL API** | QueryService (PostgreSQL) | QueryService (Elasticsearch) | QueryService (PostgreSQL) |
 | **Security** | Files on disk | Files on disk | Kafka (SSL/SASL capable) |
-| **Performance** | Trigger latency (~10ms) | Transform latency (~1s) | Message latency (~100ms) |
-| **Scaling** | Limited by DB triggers | Unlimited (ES scales) | Kafka parallelism |
+| **Performance** | Poll interval (~1s) | Transform latency (~1s) | Message latency (~100ms) |
+| **Scaling** | Limited by PostgreSQL | Unlimited (ES scales) | Kafka parallelism |
 | **Query Capabilities** | Standard SQL | Full-text search, aggregations | Standard SQL |
-| **DLQ** | N/A (triggers atomic) | N/A (no failures) | Yes (`data-index-events-dlq`) |
+| **DLQ** | Yes (DLQ tables) | N/A (no failures) | Yes (`data-index-events-dlq`) |
 
 **Choose MODE 3 if:**
 - ✅ Kafka already deployed in your infrastructure
@@ -536,8 +536,7 @@ kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic data-index-event
 - ✅ Want to leverage Kafka's at-least-once guarantees
 
 **Choose MODE 1 if:**
-- ✅ Simplest setup (triggers are atomic, no DLQ needed)
-- ✅ Low latency critical (~10ms)
+- ✅ Simplest setup (no ingestion service)
 - ✅ No Kafka infrastructure available
 - ✅ Log-based ingestion acceptable for your use case
 

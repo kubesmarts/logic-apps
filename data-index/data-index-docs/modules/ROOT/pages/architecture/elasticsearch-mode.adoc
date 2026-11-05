@@ -657,7 +657,7 @@ Elasticsearch MODE 2 scales horizontally by design:
 |Aspect |MODE 1 (PostgreSQL) |MODE 2 (Elasticsearch)
 
 |*Normalization*
-|PostgreSQL triggers (< 1ms)
+|JDBC polling in data-index-service (~1s interval)
 |ES Transforms (~1s frequency)
 
 |*Consistency*
@@ -681,7 +681,7 @@ Elasticsearch MODE 2 scales horizontally by design:
 |100K+ workflows/day
 
 |*Complexity*
-|Simple (triggers, backups)
+|Simple (polling, backups)
 |Moderate (transforms, ILM)
 
 |*Dependencies*

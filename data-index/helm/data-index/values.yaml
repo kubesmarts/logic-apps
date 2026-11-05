@@ -206,6 +206,13 @@ dataIndex:
   # Storage backend (postgresql or elasticsearch)
   storage: postgresql
 
+  # Polls workflow_events_raw/task_events_raw and normalizes them idempotently.
+  # Enabled by values-mode1.yaml; MODE 3 writes normalized tables directly.
+  jdbcBatch:
+    enabled: false
+    pollInterval: "1s"
+    batchSize: 1000
+
   # Replicas
   replicas: 1
 

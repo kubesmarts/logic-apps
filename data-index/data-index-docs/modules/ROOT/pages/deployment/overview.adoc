@@ -20,8 +20,8 @@ All deployments share the same core architecture:
 |===
 |Status |✅ Production Ready
 |Storage |PostgreSQL with JSONB columns
-|Processing |BEFORE INSERT triggers (real-time)
-|Latency |< 1ms normalization, 5-10s end-to-end
+|Processing |JDBC polling inside data-index-service
+|Latency |~1s normalization, 5-10s end-to-end
 |Throughput |< 50K workflows/day
 |Use Case |Production deployments, local development, ACID transactions
 |===
@@ -31,7 +31,7 @@ All deployments share the same core architecture:
 [source,text]
 ----
 Quarkus Flow → Vector → PostgreSQL (raw tables)
-                                ↓ (triggers)
+                                ↓ (data-index-service polls)
                             PostgreSQL (normalized tables)
                                 ↓ (JPA)
                             GraphQL API
@@ -91,7 +91,7 @@ Quarkus Flow → Vector → Elasticsearch (raw indices)
 |✅ Yes
 
 |**Normalization Latency**
-|< 1ms (triggers)
+|~1s (JDBC polling)
 |~1s (ES Transform)
 
 |**Consistency**
