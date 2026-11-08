@@ -118,7 +118,7 @@ jobs:
             -pl data-index/data-index-service/data-index-service-postgresql -am
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -172,7 +172,7 @@ jobs:
             -pl data-index/data-index-service/data-index-service-elasticsearch -am
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -226,7 +226,7 @@ jobs:
             -pl data-index/data-index-ingestion/data-index-ingestion-kafka-service -am
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
