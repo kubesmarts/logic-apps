@@ -142,7 +142,7 @@ jobs:
           gzip artifact-postgresql.tar
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artifact-postgresql
           path: artifact-postgresql.tar.gz
@@ -196,7 +196,7 @@ jobs:
           gzip artifact-elasticsearch.tar
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artifact-elasticsearch
           path: artifact-elasticsearch.tar.gz
@@ -250,7 +250,7 @@ jobs:
           gzip artifact-kafka.tar
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artifact-kafka
           path: artifact-kafka.tar.gz
