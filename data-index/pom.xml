@@ -48,7 +48,7 @@
     <cloudevents.version>5.1.0</cloudevents.version>
 
     <!-- Legacy Kogito dependencies (temporary - will be removed in future phases) -->
-    <kogito.version>2.0.0-SNAPSHOT</kogito.version>
+    <kogito.version>10.2.0</kogito.version>
   </properties>
 
   <dependencyManagement>

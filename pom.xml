@@ -45,7 +45,7 @@
     <version.io.quarkus>${quarkus.platform.version}</version.io.quarkus>
 
     <!-- Persistence Commons API version (legacy, minimal dependency) -->
-    <kogito.version>2.0.0-SNAPSHOT</kogito.version>
+    <kogito.version>10.2.0</kogito.version>
 
     <!-- Testing - enabled by default, can override with -DskipTests -->
     <skipTests>false</skipTests>
