@@ -49,10 +49,12 @@ main() {
     bash "${SCRIPT_DIR}/common-setup.sh"
 
     log_step "Step 3: Deploy MODE 2 with Helm"
+    # TODO(#130): remove vector.debugEvents once the flaky MODE 2 E2E is understood
     helm upgrade --install "${RELEASE_NAME}" "${HELM_CHART_DIR}" \
         --namespace "${NAMESPACE}" \
         --create-namespace \
         --values "${HELM_CHART_DIR}/values-mode2.yaml" \
+        --set vector.debugEvents=true \
         --wait \
         --timeout 10m
 
