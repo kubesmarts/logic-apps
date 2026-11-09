@@ -16,6 +16,12 @@ on:
       - 'persistence-commons/**'
       - '.github/workflows/data-index-integration-tests.yml'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      maven-args:
+        description: Extra arguments passed to every Maven invocation (MAVEN_ARGS)
+        type: string
+        default: ''
 
 jobs:
   e2e-test:
@@ -59,6 +65,8 @@ jobs:
           version: 'latest'
 
       - name: Run Helm-based E2E test
+        env:
+          MAVEN_ARGS: ${{ inputs.maven-args }}
         run: |
           cd data-index
           bash scripts/e2e/${{ matrix.mode.script }}
