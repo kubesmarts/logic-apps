@@ -7,4 +7,4 @@
                            ( )_) |
                             \___/'
 ${project.name} ${project.version}
-Powered by Quarkus ${quarkus.platform.version}
+Powered by Quarkus ${quarkus.platform.version} and Quarkus Flow ${version.quarkus.flow}
