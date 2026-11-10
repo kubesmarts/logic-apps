@@ -1,0 +1,43 @@
+name: Quarkus Flow Snapshot Nightly
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    if: github.repository == 'kubesmarts/logic-apps' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/data-index-integration-tests.yml
+    with:
+      maven-args: -Pquarkus-flow-snapshot
+
+  report-failure:
+    name: Report failure
+    runs-on: ubuntu-latest
+    needs: e2e
+    if: failure()
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      LABEL: quarkus-flow-snapshot-failure
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Open or update tracking issue
+        run: |
+          gh label create "$LABEL" --color B60205 \
+            --description "Nightly E2E against Quarkus Flow SNAPSHOT is failing" 2>/dev/null || true
+
+          issue=$(gh issue list --label "$LABEL" --state open --limit 1 --json number --jq '.[0].number')
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --body "Still failing: $RUN_URL"
+          else
+            gh issue create --label "$LABEL" \
+              --title "Nightly E2E against Quarkus Flow SNAPSHOT is failing" \
+              --body "The nightly E2E run against Quarkus Flow \`2.0.0-SNAPSHOT\` failed: $RUN_URL"
+          fi
