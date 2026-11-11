@@ -197,7 +197,7 @@ The Kafka ingestion service is composed of two Maven modules:
 | `mp.messaging.incoming.data-index-events.group.id` | `data-index-ingestion` | Kafka consumer group |
 | `mp.messaging.incoming.data-index-events.batch` | `true` | Enable batch consumption (required for high throughput) |
 | `mp.messaging.incoming.data-index-events.cloud-events` | `false` | Disable SmallRye auto-extraction (manual handling for batch mode) |
-| `data-index.ingestion.db-batch-size` | `1000` | Max workflows/tasks per DB transaction |
+| `logic.apps.data-index.ingestion.db-batch-size` | `1000` | Max workflows/tasks per DB transaction |
 | `mp.messaging.incoming.data-index-events.auto.offset.reset` | `earliest` | Offset reset strategy |
 | `mp.messaging.outgoing.data-index-events-dlq.topic` | `data-index-events-dlq` | Dead letter queue topic |
 

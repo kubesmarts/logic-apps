@@ -27,8 +27,8 @@ public class ElasticsearchSchemaTestProfile implements QuarkusTestProfile {
     @Override
     public Map<String, String> getConfigOverrides() {
         return Map.of(
-                "data-index.storage.skip-init-schema", "false",
-                "data-index.elasticsearch.schema.init.enabled", "true"
+                "logic.apps.data-index.storage.skip-init-schema", "false",
+                "logic.apps.data-index.elasticsearch.schema.init.enabled", "true"
         );
     }
 }

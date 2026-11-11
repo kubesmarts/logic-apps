@@ -107,9 +107,9 @@ mvn quarkus:dev
 %dev.quarkus.elasticsearch.devservices.port=9200
 
 # Schema initialization (enabled in dev, disabled in production)
-%dev.data-index.storage.skip-init-schema=false
-%dev.data-index.elasticsearch.schema.init.enabled=true
-%prod.data-index.storage.skip-init-schema=true
+%dev.logic.apps.data-index.storage.skip-init-schema=false
+%dev.logic.apps.data-index.elasticsearch.schema.init.enabled=true
+%prod.logic.apps.data-index.storage.skip-init-schema=true
 
 # Logging
 quarkus.log.category."org.kubesmarts.logic.dataindex".level=INFO
@@ -250,7 +250,7 @@ kubectl create namespace data-index
 kubectl create configmap data-index-config \
   --namespace data-index \
   --from-literal=QUARKUS_ELASTICSEARCH_HOSTS=elasticsearch.elasticsearch.svc.cluster.local:9200 \
-  --from-literal=DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA=true
+  --from-literal=LOGIC_APPS_DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA=true
 ----
 
 **Deploy service:**
@@ -290,11 +290,11 @@ spec:
             configMapKeyRef:
               name: data-index-config
               key: QUARKUS_ELASTICSEARCH_HOSTS
-        - name: DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA
+        - name: LOGIC_APPS_DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA
           valueFrom:
             configMapKeyRef:
               name: data-index-config
-              key: DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA
+              key: LOGIC_APPS_DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA
         - name: QUARKUS_HTTP_PORT
           value: "8080"
         - name: QUARKUS_LOG_LEVEL
@@ -361,7 +361,7 @@ If you deploy with schema initialization enabled, the service will create all re
 # Enable schema initialization in ConfigMap
 kubectl create configmap data-index-config \
   --namespace data-index \
-  --from-literal=DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA=false \
+  --from-literal=LOGIC_APPS_DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA=false \
   --dry-run=client -o yaml | kubectl apply -f -
 
 # Restart deployment to trigger initialization
@@ -385,7 +385,7 @@ kubectl port-forward -n elasticsearch svc/elasticsearch 9200:9200 &
 
 # Run service locally to initialize schema
 QUARKUS_ELASTICSEARCH_HOSTS=localhost:9200 \
-DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA=false \
+LOGIC_APPS_DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA=false \
 mvn quarkus:dev
 
 # Schema is created, then stop the service (Ctrl+C)
@@ -537,12 +537,12 @@ curl -X POST http://localhost:8080/test-workflows/simple-set \
 quarkus.elasticsearch.hosts=elasticsearch:9200
 
 # Schema initialization flags
-data-index.storage.skip-init-schema=false  # Enable for first startup
-data-index.elasticsearch.schema.init.enabled=true
+logic.apps.data-index.storage.skip-init-schema=false  # Enable for first startup
+logic.apps.data-index.elasticsearch.schema.init.enabled=true
 
 # Index names (optional, defaults provided)
-data-index.elasticsearch.workflow-instance-index=workflow-instances
-data-index.elasticsearch.task-execution-index=task-executions
+logic.apps.data-index.elasticsearch.workflow-instance-index=workflow-instances
+logic.apps.data-index.elasticsearch.task-execution-index=task-executions
 ----
 
 **TLS/Authentication configuration:**
@@ -571,7 +571,7 @@ QUARKUS_ELASTICSEARCH_USERNAME=elastic
 QUARKUS_ELASTICSEARCH_PASSWORD=<from-secret>
 
 # Control schema initialization
-DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA=true  # Disable in production
+LOGIC_APPS_DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA=true  # Disable in production
 ----
 
 === Vector Configuration
@@ -867,7 +867,7 @@ curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_star
 
 === Schema Management
 
-* **Disable auto-initialization**: Set `data-index.storage.skip-init-schema=true`
+* **Disable auto-initialization**: Set `logic.apps.data-index.storage.skip-init-schema=true`
 * **Manage externally**: Use GitOps (ArgoCD, Flux) or Kubernetes operators
 * **Version control**: Store schema JSON files in source control
 * **Apply via CI/CD**: Run schema updates in deployment pipeline

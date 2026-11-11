@@ -23,7 +23,7 @@ import io.smallrye.config.WithDefault;
 /**
  * Elasticsearch storage configuration.
  *
- * <p>Configuration prefix: {@code data-index.elasticsearch}
+ * <p>Configuration prefix: {@code logic.apps.data-index.elasticsearch}
  *
  * <p><b>Usage:</b>
  * <pre>{@code
@@ -39,11 +39,11 @@ import io.smallrye.config.WithDefault;
  * quarkus.elasticsearch.hosts=localhost:9200
  *
  * # Index names
- * data-index.elasticsearch.workflow-instance-index=workflow-instances
- * data-index.elasticsearch.task-execution-index=task-executions
+ * logic.apps.data-index.elasticsearch.workflow-instance-index=workflow-instances
+ * logic.apps.data-index.elasticsearch.task-execution-index=task-executions
  *
  * # Index refresh behavior
- * data-index.elasticsearch.refresh-policy=wait_for
+ * logic.apps.data-index.elasticsearch.refresh-policy=wait_for
  * </pre>
  *
  * <p><b>Note:</b> Elasticsearch connection settings (hosts, credentials, TLS) are configured
@@ -52,7 +52,7 @@ import io.smallrye.config.WithDefault;
  * @see <a href="https://quarkus.io/guides/elasticsearch">Quarkus Elasticsearch Guide</a>
  */
 @ConfigRoot(phase = ConfigPhase.RUN_TIME)
-@ConfigMapping(prefix = "data-index.elasticsearch")
+@ConfigMapping(prefix = "logic.apps.data-index.elasticsearch")
 public interface ElasticsearchConfiguration {
 
     /**

@@ -60,7 +60,7 @@ public class EventProcessorMetrics {
     Instance<PollingEventProcessor<?>> eventProcessors;
     @Inject
     MeterRegistry meterRegistry;
-    @ConfigProperty(name = "data-index.event-processor.enabled", defaultValue = "true")
+    @ConfigProperty(name = "logic.apps.data-index.event-processor.enabled", defaultValue = "true")
     boolean enabled;
 
     /**

@@ -28,8 +28,8 @@ public class CustomTimeWindowProfile implements QuarkusTestProfile {
     @Override
     public Map<String, String> getConfigOverrides() {
         return Map.of(
-            "data-index.transform.smart-filter.time-window", "30m",
-            "data-index.ilm.raw-events-retention", "30d"
+            "logic.apps.data-index.transform.smart-filter.time-window", "30m",
+            "logic.apps.data-index.ilm.raw-events-retention", "30d"
         );
     }
 }

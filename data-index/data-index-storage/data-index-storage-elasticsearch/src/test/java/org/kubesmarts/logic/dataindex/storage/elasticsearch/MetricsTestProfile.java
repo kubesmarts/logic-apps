@@ -30,9 +30,9 @@ public class MetricsTestProfile implements QuarkusTestProfile {
     public Map<String, String> getConfigOverrides() {
         return Map.of(
             // Fast poll interval for tests (5s instead of 30s)
-            "data-index.metrics.transform.poll-interval", "5s",
+            "logic.apps.data-index.metrics.transform.poll-interval", "5s",
             // Ensure metrics are enabled
-            "data-index.metrics.transform.enabled", "true"
+            "logic.apps.data-index.metrics.transform.enabled", "true"
         );
     }
 }

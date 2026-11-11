@@ -56,16 +56,16 @@ public class ElasticsearchSchemaInitializer {
     @Inject
     ElasticsearchClient client;
 
-    @ConfigProperty(name = "data-index.storage.skip-init-schema", defaultValue = "false")
+    @ConfigProperty(name = "logic.apps.data-index.storage.skip-init-schema", defaultValue = "false")
     boolean skipInitSchema;
 
-    @ConfigProperty(name = "data-index.elasticsearch.schema.init.enabled", defaultValue = "true")
+    @ConfigProperty(name = "logic.apps.data-index.elasticsearch.schema.init.enabled", defaultValue = "true")
     boolean schemaInitEnabled;
 
-    @ConfigProperty(name = "data-index.transform.smart-filter.time-window", defaultValue = "1h")
+    @ConfigProperty(name = "logic.apps.data-index.transform.smart-filter.time-window", defaultValue = "1h")
     String smartFilterTimeWindow;
 
-    @ConfigProperty(name = "data-index.ilm.raw-events-retention", defaultValue = "30d")
+    @ConfigProperty(name = "logic.apps.data-index.ilm.raw-events-retention", defaultValue = "30d")
     String rawEventsRetention;
 
     String[] ilmPolicyResources = new String[]{
@@ -88,12 +88,12 @@ public class ElasticsearchSchemaInitializer {
 
     void onStart(@Observes StartupEvent event) {
         if (skipInitSchema) {
-            LOGGER.info("Elasticsearch schema initialization disabled (universal flag: data-index.storage.skip-init-schema=true)");
+            LOGGER.info("Elasticsearch schema initialization disabled (universal flag: logic.apps.data-index.storage.skip-init-schema=true)");
             return;
         }
 
         if (!schemaInitEnabled) {
-            LOGGER.info("Elasticsearch schema initialization disabled (backend-specific flag: data-index.elasticsearch.schema.init.enabled=false)");
+            LOGGER.info("Elasticsearch schema initialization disabled (backend-specific flag: logic.apps.data-index.elasticsearch.schema.init.enabled=false)");
             return;
         }
 

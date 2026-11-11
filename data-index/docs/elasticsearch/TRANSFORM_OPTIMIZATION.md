@@ -62,7 +62,7 @@ Skip IF:
 
 ```properties
 # application-elasticsearch.properties
-data-index.transform.smart-filter.time-window=1h
+logic.apps.data-index.transform.smart-filter.time-window=1h
 ```
 
 **Tuning Guidelines:**
@@ -83,7 +83,7 @@ data-index.transform.smart-filter.time-window=1h
 
 ```properties
 # application-elasticsearch.properties
-data-index.ilm.raw-events-retention=30d
+logic.apps.data-index.ilm.raw-events-retention=30d
 ```
 
 **Tuning Guidelines:**
@@ -130,8 +130,8 @@ mvn test -Dtest=ElasticsearchTransformConfigurationIT
 ```bash
 # Start with custom config
 mvn quarkus:dev \
-  -Ddata-index.transform.smart-filter.time-window=30m \
-  -Ddata-index.ilm.raw-events-retention=30d
+  -Dlogic.apps.data-index.transform.smart-filter.time-window=30m \
+  -Dlogic.apps.data-index.ilm.raw-events-retention=30d
 
 # Verify transform query
 curl http://localhost:9200/_transform/workflow-instances-transform | jq '.transforms[0].source.query'
@@ -182,13 +182,13 @@ data_index_transform_lag{transform="task-executions-transform"} 15.0
 
 ```properties
 # Enable/disable transform metrics collection
-data-index.metrics.transform.enabled=true
+logic.apps.data-index.metrics.transform.enabled=true
 
 # How often to poll Transform Stats API
 # Default: 30s (recommended for production)
 # Lower values (5s-10s) for development
 # Higher values (60s-120s) for high-scale deployments
-data-index.metrics.transform.poll-interval=30s
+logic.apps.data-index.metrics.transform.poll-interval=30s
 ```
 
 ### Grafana Dashboard
@@ -275,7 +275,7 @@ Possible causes:
 Symptom: Metrics stuck at same value
 
 Possible causes:
-1. **Metrics collection disabled** - Check `data-index.metrics.transform.enabled=true`
+1. **Metrics collection disabled** - Check `logic.apps.data-index.metrics.transform.enabled=true`
 2. **Transform not running** - Check transform state via Elasticsearch API
 3. **Scheduler not running** - Check application logs for scheduled job execution
 
@@ -304,8 +304,8 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats?pretty
 **Error:** "Smart filter time window (8d) cannot exceed ILM retention (7d)"
 
 **Solution:** Either:
-1. Reduce time window: `data-index.transform.smart-filter.time-window=7d`
-2. Increase retention: `data-index.ilm.raw-events-retention=8d`
+1. Reduce time window: `logic.apps.data-index.transform.smart-filter.time-window=7d`
+2. Increase retention: `logic.apps.data-index.ilm.raw-events-retention=8d`
 
 ---
 
