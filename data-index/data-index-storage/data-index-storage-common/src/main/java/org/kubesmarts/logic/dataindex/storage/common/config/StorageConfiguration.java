@@ -23,7 +23,7 @@ import io.smallrye.config.WithDefault;
 /**
  * Storage backend configuration.
  *
- * <p>Configuration prefix: {@code data-index.storage}
+ * <p>Configuration prefix: {@code logic.apps.data-index.storage}
  *
  * <p><b>Usage:</b>
  * <pre>{@code
@@ -38,13 +38,13 @@ import io.smallrye.config.WithDefault;
  * <p><b>Configuration example:</b>
  * <pre>
  * # Storage backend: postgresql | elasticsearch
- * data-index.storage.backend=postgresql
+ * logic.apps.data-index.storage.backend=postgresql
  * </pre>
  *
  * @see Backend
  */
 @ConfigRoot(phase = ConfigPhase.RUN_TIME)
-@ConfigMapping(prefix = "data-index.storage")
+@ConfigMapping(prefix = "logic.apps.data-index.storage")
 public interface StorageConfiguration {
 
     /**

@@ -462,18 +462,18 @@ POST _transform/task-executions-transform/_start
 
 ```properties
 # Event processor (disabled - ES Transform handles it)
-data-index.event-processor.enabled=false
+logic.apps.data-index.event-processor.enabled=false
 
 # Storage backend
-data-index.storage.backend=elasticsearch
+logic.apps.data-index.storage.backend=elasticsearch
 
 # Elasticsearch connection
 quarkus.elasticsearch.hosts=elasticsearch:9200
 quarkus.elasticsearch.protocol=http
 
 # Normalized indices (created by ES Transform)
-data-index.elasticsearch.index.workflow-instances=workflow-instances
-data-index.elasticsearch.index.task-executions=task-executions
+logic.apps.data-index.elasticsearch.index.workflow-instances=workflow-instances
+logic.apps.data-index.elasticsearch.index.task-executions=task-executions
 ```
 
 ---

@@ -70,15 +70,15 @@ public class ElasticsearchTransformMetricsCollector {
     Rest5Client restClient;
     @Inject
     ObjectMapper objectMapper;
-    @ConfigProperty(name = "data-index.metrics.transform.enabled", defaultValue = "true")
+    @ConfigProperty(name = "logic.apps.data-index.metrics.transform.enabled", defaultValue = "true")
     boolean metricsEnabled;
 
     /**
      * Collect metrics for all transforms on schedule.
      * <p>
-     * Default: every 30s (configurable via data-index.metrics.transform.poll-interval)
+     * Default: every 30s (configurable via logic.apps.data-index.metrics.transform.poll-interval)
      */
-    @Scheduled(every = "{data-index.metrics.transform.poll-interval:30s}")
+    @Scheduled(every = "{logic.apps.data-index.metrics.transform.poll-interval:30s}")
     void collectTransformMetrics() {
         if (!metricsEnabled) {
             return;

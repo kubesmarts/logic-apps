@@ -270,10 +270,10 @@ Quarkus Flow → /tmp/quarkus-flow-events.log (JSON)
 **Configuration:**
 ```properties
 # Time window for smart filtering (default: 1h)
-data-index.transform.smart-filter.time-window=1h
+logic.apps.data-index.transform.smart-filter.time-window=1h
 
 # Raw event retention (default: 30d)
-data-index.ilm.raw-events-retention=30d
+logic.apps.data-index.ilm.raw-events-retention=30d
 ```
 
 **Query Logic:**
@@ -359,7 +359,7 @@ Quarkus Flow → Kafka (CloudEvents: binary or structured, topic: flow-lifecycle
 **Batch Processing Architecture:**
 - Consumes up to 1000 Kafka records per poll for high throughput (configurable)
 - Manual CloudEvent reconstruction required (batch mode bypasses SmallRye's automatic extraction)
-- DB writes in configurable batches (`data-index.ingestion.db-batch-size=1000`)
+- DB writes in configurable batches (`logic.apps.data-index.ingestion.db-batch-size=1000`)
 - Trade-off: Higher throughput vs manual CE handling (acceptable for high-volume workflow environments)
 
 **NOT used in MODE 3:**
@@ -480,8 +480,8 @@ mvn quarkus:dev -Dquarkus.profile=elasticsearch
 **Schema initialization (MODE 2 only):**
 - Auto-applied on startup via `ElasticsearchSchemaInitializer`
 - Creates ILM policies, index templates, transforms
-- Controlled by `data-index.storage.skip-init-schema` property
-- Skip in production: `-Ddata-index.storage.skip-init-schema=true`
+- Controlled by `logic.apps.data-index.storage.skip-init-schema` property
+- Skip in production: `-Dlogic.apps.data-index.storage.skip-init-schema=true`
 
 **Schema components:**
 1. **ILM Policy** (`data-index-events-retention`) - 7-day retention for raw events
@@ -600,10 +600,10 @@ task.completed event: taskExecutionId = 97469968-64b5-3cdd-b809-e58e4b6e3be7
 **Configuration:**
 ```properties
 # Enable/disable metrics (default: true)
-data-index.metrics.transform.enabled=true
+logic.apps.data-index.metrics.transform.enabled=true
 
 # Poll interval (default: 30s)
-data-index.metrics.transform.poll-interval=30s
+logic.apps.data-index.metrics.transform.poll-interval=30s
 ```
 
 **Grafana Integration:**
@@ -977,7 +977,7 @@ mvn clean package -Dquarkus.profile=elasticsearch -DskipTests
 
 **Elasticsearch schema in production:**
 - Include schema module by default
-- Control initialization via runtime flag: `-Ddata-index.storage.skip-init-schema=true`
+- Control initialization via runtime flag: `-Dlogic.apps.data-index.storage.skip-init-schema=true`
 - Or use init job to pre-create schema before starting service
 
 ### KIND Deployment
@@ -1306,7 +1306,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - Check transform filter matches events (smart filtering may exclude old data)
 
 **"Schema not created on startup"**
-- Check `data-index.storage.skip-init-schema` is false
+- Check `logic.apps.data-index.storage.skip-init-schema` is false
 - Check service logs for schema initialization errors
 - Verify Elasticsearch is reachable before service starts
 - Check Elasticsearch version compatibility (must be 8.11.1)

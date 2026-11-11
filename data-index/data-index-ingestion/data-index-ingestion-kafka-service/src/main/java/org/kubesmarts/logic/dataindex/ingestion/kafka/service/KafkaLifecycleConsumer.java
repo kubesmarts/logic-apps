@@ -79,7 +79,7 @@ import java.util.concurrent.CompletionStage;
  *
  * <p><b>Performance:</b>
  * - Kafka batch size: SmallRye default (max.poll.records)
- * - DB batch size: {@code data-index.ingestion.db-batch-size} (default: 1000)
+ * - DB batch size: {@code logic.apps.data-index.ingestion.db-batch-size} (default: 1000)
  * - CloudEvent reconstruction overhead: negligible compared to DB operations
  */
 @ApplicationScoped
@@ -105,7 +105,7 @@ public class KafkaLifecycleConsumer {
     @Channel("data-index-events-dlq")
     MutinyEmitter<String> deadLetterEmitter;
 
-    @ConfigProperty(name = "data-index.ingestion.db-batch-size", defaultValue = "1000")
+    @ConfigProperty(name = "logic.apps.data-index.ingestion.db-batch-size", defaultValue = "1000")
     int dbBatchSize;
 
     @Incoming("data-index-events")

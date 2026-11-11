@@ -43,8 +43,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>Configuration</b>:
  * <pre>
- * data-index.event-processor.lag.threshold.seconds=60
- * data-index.event-processor.backlog.threshold=1000
+ * logic.apps.data-index.event-processor.lag.threshold.seconds=60
+ * logic.apps.data-index.event-processor.backlog.threshold=1000
  * </pre>
  */
 @Liveness
@@ -56,13 +56,13 @@ public class EventProcessorHealthCheck implements HealthCheck {
     @Inject
     Instance<PollingEventProcessor<?>> eventProcessors;
 
-    @ConfigProperty(name = "data-index.event-processor.enabled", defaultValue = "true")
+    @ConfigProperty(name = "logic.apps.data-index.event-processor.enabled", defaultValue = "true")
     boolean enabled;
 
-    @ConfigProperty(name = "data-index.event-processor.lag.threshold.seconds", defaultValue = "60")
+    @ConfigProperty(name = "logic.apps.data-index.event-processor.lag.threshold.seconds", defaultValue = "60")
     long lagThresholdSeconds;
 
-    @ConfigProperty(name = "data-index.event-processor.backlog.threshold", defaultValue = "1000")
+    @ConfigProperty(name = "logic.apps.data-index.event-processor.backlog.threshold", defaultValue = "1000")
     long backlogThreshold;
 
     @Override

@@ -33,8 +33,8 @@ class ElasticsearchConfigurationValidationIT {
         @Override
         public Map<String, String> getConfigOverrides() {
             return Map.of(
-                "data-index.transform.smart-filter.time-window", "invalid",
-                "data-index.ilm.raw-events-retention", "30d"
+                "logic.apps.data-index.transform.smart-filter.time-window", "invalid",
+                "logic.apps.data-index.ilm.raw-events-retention", "30d"
             );
         }
     }
@@ -46,8 +46,8 @@ class ElasticsearchConfigurationValidationIT {
         @Override
         public Map<String, String> getConfigOverrides() {
             return Map.of(
-                "data-index.transform.smart-filter.time-window", "8d",
-                "data-index.ilm.raw-events-retention", "7d"
+                "logic.apps.data-index.transform.smart-filter.time-window", "8d",
+                "logic.apps.data-index.ilm.raw-events-retention", "7d"
             );
         }
     }
@@ -59,8 +59,8 @@ class ElasticsearchConfigurationValidationIT {
         @Override
         public Map<String, String> getConfigOverrides() {
             return Map.of(
-                "data-index.transform.smart-filter.time-window", "1h",
-                "data-index.ilm.raw-events-retention", "30" // Missing 'd'
+                "logic.apps.data-index.transform.smart-filter.time-window", "1h",
+                "logic.apps.data-index.ilm.raw-events-retention", "30" // Missing 'd'
             );
         }
     }

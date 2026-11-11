@@ -30,7 +30,7 @@ Quarkus Flow --> Kafka (CloudEvents: binary or structured, topic: flow-lifecycle
 **Batch Processing:**
 - Consumes up to 1000 Kafka records per poll for high throughput
 - Manually reconstructs CloudEvent objects (batch mode requires manual handling)
-- DB writes in configurable batches (`data-index.ingestion.db-batch-size=1000`)
+- DB writes in configurable batches (`logic.apps.data-index.ingestion.db-batch-size=1000`)
 
 ## Modules
 

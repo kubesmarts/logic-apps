@@ -462,10 +462,10 @@ Input and output data use Elasticsearch's **flattened** field type:
 [source,properties]
 ----
 # Universal flag (both PostgreSQL and Elasticsearch)
-data-index.storage.skip-init-schema=false
+logic.apps.data-index.storage.skip-init-schema=false
 
 # Backend-specific flag
-data-index.elasticsearch.schema.init.enabled=true
+logic.apps.data-index.elasticsearch.schema.init.enabled=true
 ----
 
 **Schema resources location:**
@@ -486,7 +486,7 @@ data-index-storage-elasticsearch-schema/
 
 **Manual schema creation:**
 
-Set `data-index.storage.skip-init-schema=true` for production environments where schema is managed externally (operators, GitOps, etc.).
+Set `logic.apps.data-index.storage.skip-init-schema=true` for production environments where schema is managed externally (operators, GitOps, etc.).
 
 == Configuration
 
@@ -516,8 +516,8 @@ quarkus.elasticsearch.password=changeme
 quarkus.elasticsearch.protocol=https
 
 # Schema initialization (disable in production)
-data-index.storage.skip-init-schema=false
-data-index.elasticsearch.schema.init.enabled=true
+logic.apps.data-index.storage.skip-init-schema=false
+logic.apps.data-index.elasticsearch.schema.init.enabled=true
 
 # Dev Services (auto-starts Elasticsearch in dev mode)
 # Uses version from Quarkus BOM automatically (no image-name override needed)

@@ -175,7 +175,7 @@ ELASTICSEARCH_USERNAME=elastic
 ELASTICSEARCH_PASSWORD=***
 
 # Schema initialization control
-DATA_INDEX_ELASTICSEARCH_SCHEMA_INIT_ENABLED=false
+LOGIC_APPS_DATA_INDEX_ELASTICSEARCH_SCHEMA_INIT_ENABLED=false
 ----
 
 **How it works:**
@@ -228,13 +228,13 @@ quarkus.elasticsearch.password=${ELASTICSEARCH_PASSWORD}
 [source,properties]
 ----
 # Enable automatic schema setup (ILM, templates, transforms)
-data-index.elasticsearch.schema.init.enabled=true
+logic.apps.data-index.elasticsearch.schema.init.enabled=true
 
 # Disable in production (use init job)
-%prod.data-index.elasticsearch.schema.init.enabled=false
+%prod.logic.apps.data-index.elasticsearch.schema.init.enabled=false
 
 # Universal control (all backends)
-# data-index.storage.skip-init-schema=false
+# logic.apps.data-index.storage.skip-init-schema=false
 ----
 
 **What schema initialization creates:**
