@@ -75,6 +75,25 @@ class ElasticsearchSchemaInitializationIT {
     }
 
     @Test
+    void testIngestTimestampPipelineApplied() throws IOException {
+        var response = client.ingest().getPipeline(r -> r.id("data-index-ingest-timestamp"));
+        assertThat(response.get("data-index-ingest-timestamp")).isNotNull();
+
+        for (String name : new String[]{"workflow-events", "task-events"}) {
+            var template = client.indices().getIndexTemplate(r -> r.name(name))
+                    .indexTemplates().get(0).indexTemplate().template();
+            // ES returns template settings nested under "index"
+            var settings = template.settings();
+            String defaultPipeline = settings.defaultPipeline() != null
+                    ? settings.defaultPipeline()
+                    : settings.index().defaultPipeline();
+            assertThat(defaultPipeline).isEqualTo("data-index-ingest-timestamp");
+            assertThat(template.mappings().properties().get("event").object().properties())
+                    .containsKey("ingested");
+        }
+    }
+
+    @Test
     void testWorkflowEventsIndexTemplateApplied() throws IOException {
         GetIndexTemplateRequest request = GetIndexTemplateRequest.of(b -> b.name("workflow-events"));
         GetIndexTemplateResponse response = client.indices().getIndexTemplate(request);
@@ -244,9 +263,9 @@ class ElasticsearchSchemaInitializationIT {
 
         assertThat(transform.sync()).isNotNull();
         assertThat(transform.sync().time()).isNotNull();
-        assertThat(transform.sync().time().field()).isEqualTo("event_time");
+        assertThat(transform.sync().time().field()).isEqualTo("event.ingested");
         assertThat(transform.sync().time().delay()).isNotNull();
-        assertThat(transform.sync().time().delay().time()).isEqualTo("5m");
+        assertThat(transform.sync().time().delay().time()).isEqualTo("5s");
 
         assertThat(transform.pivot()).isNotNull();
         assertThat(transform.pivot().groupBy()).isNotNull();

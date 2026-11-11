@@ -3,13 +3,21 @@
   "template": {
     "settings": {
       "number_of_shards": 3,
-      "number_of_replicas": 1
+      "number_of_replicas": 1,
+      "default_pipeline": "data-index-ingest-timestamp"
     },
     "mappings": {
       "properties": {
         "@timestamp": {
           "type": "date",
           "doc_values": true
+        },
+        "event": {
+          "properties": {
+            "ingested": {
+              "type": "date"
+            }
+          }
         },
         "timestamp": {
           "type": "date",

@@ -237,39 +237,58 @@ logic.apps.data-index.elasticsearch.schema.init.enabled=true
 # logic.apps.data-index.storage.skip-init-schema=false
 ----
 
+**Transform tuning:**
+
+[source,properties]
+----
+# Smart filter window: older events are only reprocessed for non-terminal instances
+data-index.transform.smart-filter.time-window=1h
+
+# Raw event retention (ILM); must be >= the smart filter window
+data-index.ilm.raw-events-retention=30d
+
+# Transform checkpoint delay. Must cover the time between ingest and the
+# document becoming searchable, or the transform can skip it for good.
+data-index.transform.sync-delay=5s
+----
+
 **What schema initialization creates:**
 
-* **ILM Policy** - `data-index-events-policy` (deletes raw events after 7 days)
-* **Index Templates** - `workflow-instance-events-raw-template`, `task-execution-events-raw-template`
-* **Transforms** - `workflow-instance-transform`, `task-execution-transform`
-* **Normalized Indices** - `workflow-instances`, `task-executions`
+* **ILM Policy** - `data-index-events-retention` (deletes raw events after the retention period)
+* **Ingest Pipeline** - `data-index-ingest-timestamp` (sets `event.ingested`, used as the transforms' `sync.time.field`)
+* **Index Templates** - `workflow-events`, `task-events` (raw, use the ingest pipeline as `default_pipeline`), `workflow-instances`, `task-executions`
+* **Transforms** - `workflow-instances-transform`, `task-executions-transform`
 
 **Production configuration:**
 
-Schema initialization is disabled by default in production. Initialize schema manually or via init job:
+Schema initialization is disabled by default in production. Initialize schema manually or via init job.
+The ingest pipeline must exist before any raw event is indexed, otherwise indexing into `workflow-events-*` / `task-events-*` fails.
 
 [source,bash]
 ----
 # Port-forward to Elasticsearch
 kubectl port-forward -n elasticsearch svc/elasticsearch 9200:9200 &
 
-# Create ILM policy
-curl -X PUT http://localhost:9200/_ilm/policy/data-index-events-policy \
-  -H "Content-Type: application/json" \
-  -d @data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/ilm-policy.json
+SCHEMA=data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch
 
-# Create index templates (workflow and task)
-curl -X PUT http://localhost:9200/_index_template/workflow-instance-events-raw-template \
+# 1. ILM policy (replace {RETENTION_PERIOD}, send only the "policy" object)
+# 2. Ingest pipeline
+curl -X PUT http://localhost:9200/_ingest/pipeline/data-index-ingest-timestamp \
   -H "Content-Type: application/json" \
-  -d @data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/workflow-index-template.json
+  -d @$SCHEMA/ingest-pipelines/data-index-ingest-timestamp.json
 
-# Create transforms (workflow and task)
-curl -X PUT http://localhost:9200/_transform/workflow-instance-transform \
+# 3. Index templates (repeat for task-events, workflow-instances, task-executions)
+curl -X PUT http://localhost:9200/_index_template/workflow-events \
   -H "Content-Type: application/json" \
-  -d @data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/workflow-transform.json
+  -d @$SCHEMA/index-templates/workflow-events.json
 
-# Start transforms
-curl -X POST http://localhost:9200/_transform/workflow-instance-transform/_start
+# 4. Transforms (replace {TIME_WINDOW} and {SYNC_DELAY} first; repeat for task-executions-transform)
+sed -e 's/{TIME_WINDOW}/1h/g' -e 's/{SYNC_DELAY}/5s/g' $SCHEMA/transforms/workflow-instances-transform.json \
+  | curl -X PUT http://localhost:9200/_transform/workflow-instances-transform \
+      -H "Content-Type: application/json" -d @-
+
+# 5. Start transforms
+curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_start
 ----
 
 See: xref:deployment/elasticsearch.adoc#_step_2_initialize_elasticsearch_schema[Elasticsearch Deployment - Schema Initialization]

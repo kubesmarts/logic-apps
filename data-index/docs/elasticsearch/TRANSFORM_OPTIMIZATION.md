@@ -79,6 +79,17 @@ logic.apps.data-index.transform.smart-filter.time-window=1h
 - **Maximum:** Must be ≤ ILM retention period
 - **Recommended:** 1h-4h (balance between safety and performance)
 
+### Sync Delay
+
+```properties
+# application-elasticsearch.properties
+data-index.transform.sync-delay=5s
+```
+
+Each checkpoint only checks `event.ingested` up to `now - sync-delay`. Documents that are not yet
+searchable when their window closes are never picked up, so keep this above the index refresh
+interval (1s by default). Larger values add latency before data shows up in GraphQL.
+
 ### ILM Retention
 
 ```properties

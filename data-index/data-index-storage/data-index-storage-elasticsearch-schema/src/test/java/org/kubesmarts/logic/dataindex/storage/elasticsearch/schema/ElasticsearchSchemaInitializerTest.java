@@ -31,6 +31,9 @@ import co.elastic.clients.elasticsearch.indices.GetIndexTemplateRequest;
 import co.elastic.clients.elasticsearch.indices.GetIndexTemplateResponse;
 import co.elastic.clients.elasticsearch.indices.PutIndexTemplateRequest;
 import co.elastic.clients.elasticsearch.indices.PutIndexTemplateResponse;
+import co.elastic.clients.elasticsearch.ingest.ElasticsearchIngestClient;
+import co.elastic.clients.elasticsearch.ingest.PutPipelineRequest;
+import co.elastic.clients.elasticsearch.ingest.PutPipelineResponse;
 import co.elastic.clients.elasticsearch.transform.ElasticsearchTransformClient;
 import co.elastic.clients.elasticsearch.transform.GetTransformRequest;
 import co.elastic.clients.elasticsearch.transform.GetTransformResponse;
@@ -68,6 +71,9 @@ class ElasticsearchSchemaInitializerTest {
     @Mock
     private ElasticsearchTransformClient transformClient;
 
+    @Mock
+    private ElasticsearchIngestClient ingestClient;
+
     @InjectMocks
     private ElasticsearchSchemaInitializer initializer;
 
@@ -76,10 +82,12 @@ class ElasticsearchSchemaInitializerTest {
         when(client.ilm()).thenReturn(ilmClient);
         when(client.indices()).thenReturn(indicesClient);
         when(client.transform()).thenReturn(transformClient);
+        when(client.ingest()).thenReturn(ingestClient);
 
         // Initialize configuration properties (not injected by @InjectMocks)
         initializer.smartFilterTimeWindow = "1h";
         initializer.rawEventsRetention = "30d";
+        initializer.transformSyncDelay = "5s";
     }
 
     @Test
@@ -101,10 +109,12 @@ class ElasticsearchSchemaInitializerTest {
         when(ilmClient.putLifecycle(any(PutLifecycleRequest.class))).thenReturn(mock(PutLifecycleResponse.class));
         when(indicesClient.putIndexTemplate(any(PutIndexTemplateRequest.class))).thenReturn(mock(PutIndexTemplateResponse.class));
         when(transformClient.putTransform(any(PutTransformRequest.class))).thenReturn(mock(PutTransformResponse.class));
+        when(ingestClient.putPipeline(any(PutPipelineRequest.class))).thenReturn(mock(PutPipelineResponse.class));
 
         initializer.onStart(mock(StartupEvent.class));
 
         verify(ilmClient, times(1)).putLifecycle(any(PutLifecycleRequest.class));
+        verify(ingestClient, times(1)).putPipeline(any(PutPipelineRequest.class));
         verify(indicesClient, times(4)).putIndexTemplate(any(PutIndexTemplateRequest.class));
         verify(transformClient, times(2)).putTransform(any(PutTransformRequest.class));
     }
@@ -168,6 +178,16 @@ class ElasticsearchSchemaInitializerTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Failed to initialize Elasticsearch schema")
                 .hasCauseInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void shouldRejectInvalidSyncDelay() {
+        initializer.schemaInitEnabled = true;
+        initializer.transformSyncDelay = "5 seconds";
+
+        assertThatThrownBy(() -> initializer.onStart(mock(StartupEvent.class)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid transform sync delay format");
     }
 
     @Test

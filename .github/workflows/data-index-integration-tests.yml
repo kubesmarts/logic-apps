@@ -91,6 +91,14 @@ jobs:
           if [ "${{ matrix.mode.id }}" == "mode2" ]; then
             echo "=== Elasticsearch Logs ==="
             kubectl logs -n elasticsearch -l app=elasticsearch --tail=100 || true
+
+            echo ""
+            echo "=== Elasticsearch Indices ==="
+            curl -s "http://localhost:30920/_cat/indices?v" || true
+
+            echo ""
+            echo "=== Elasticsearch Transform Stats ==="
+            curl -s "http://localhost:30920/_transform/_all/_stats?pretty" || true
           fi
 
           echo ""

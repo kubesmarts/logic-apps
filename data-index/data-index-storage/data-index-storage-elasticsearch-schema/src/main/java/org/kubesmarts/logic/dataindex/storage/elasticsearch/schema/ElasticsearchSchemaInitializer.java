@@ -24,6 +24,7 @@ import co.elastic.clients.elasticsearch.ilm.GetLifecycleRequest;
 import co.elastic.clients.elasticsearch.ilm.PutLifecycleRequest;
 import co.elastic.clients.elasticsearch.indices.GetIndexTemplateRequest;
 import co.elastic.clients.elasticsearch.indices.PutIndexTemplateRequest;
+import co.elastic.clients.elasticsearch.ingest.PutPipelineRequest;
 import co.elastic.clients.elasticsearch.transform.GetTransformRequest;
 import co.elastic.clients.elasticsearch.transform.PutTransformRequest;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -68,8 +69,17 @@ public class ElasticsearchSchemaInitializer {
     @ConfigProperty(name = "logic.apps.data-index.ilm.raw-events-retention", defaultValue = "30d")
     String rawEventsRetention;
 
+    // Must cover the time between ingest and the document becoming searchable (refresh),
+    // otherwise a continuous transform checkpoint can move past it and never pick it up.
+    @ConfigProperty(name = "data-index.transform.sync-delay", defaultValue = "5s")
+    String transformSyncDelay;
+
     String[] ilmPolicyResources = new String[]{
             "/elasticsearch/ilm/data-index-events-retention.json"
+    };
+
+    String[] ingestPipelineResources = new String[]{
+            "/elasticsearch/ingest-pipelines/data-index-ingest-timestamp.json"
     };
 
     private final Map<String, String> indexTemplateResources = new HashMap<>() {{
@@ -103,6 +113,7 @@ public class ElasticsearchSchemaInitializer {
 
         try {
             applyIlmPolicies();
+            applyIngestPipelines();
             applyIndexTemplates();
             applyTransforms();
             LOGGER.info("Elasticsearch schema initialization complete");
@@ -114,11 +125,12 @@ public class ElasticsearchSchemaInitializer {
 
     private void validateConfiguration() {
         // Check for null (should not happen in production due to defaultValue, but can happen in tests)
-        if (smartFilterTimeWindow == null || rawEventsRetention == null) {
+        if (smartFilterTimeWindow == null || rawEventsRetention == null || transformSyncDelay == null) {
             throw new IllegalArgumentException(
                 "Configuration properties cannot be null. " +
                 "smartFilterTimeWindow: " + smartFilterTimeWindow + ", " +
-                "rawEventsRetention: " + rawEventsRetention
+                "rawEventsRetention: " + rawEventsRetention + ", " +
+                "transformSyncDelay: " + transformSyncDelay
             );
         }
 
@@ -138,6 +150,14 @@ public class ElasticsearchSchemaInitializer {
             );
         }
 
+        // Validate transform sync delay format (Elasticsearch time units)
+        if (!transformSyncDelay.matches("\\d+(ms|s|m)")) {
+            throw new IllegalArgumentException(
+                "Invalid transform sync delay format: " + transformSyncDelay +
+                ". Expected: '500ms', '5s', '1m'"
+            );
+        }
+
         // Validate: time window ≤ ILM retention
         long windowMillis = parseToMillis(smartFilterTimeWindow);
         long retentionMillis = parseToMillis(rawEventsRetention);
@@ -150,14 +170,20 @@ public class ElasticsearchSchemaInitializer {
             );
         }
 
-        LOGGER.info("Configuration validated: time-window={}, ilm-retention={}",
-            smartFilterTimeWindow, rawEventsRetention);
+        LOGGER.info("Configuration validated: time-window={}, ilm-retention={}, sync-delay={}",
+            smartFilterTimeWindow, rawEventsRetention, transformSyncDelay);
     }
 
     private void applyIlmPolicies() throws IOException {
         for (String resourcePath : ilmPolicyResources) {
             String policyName = extractResourceName(resourcePath);
             applyIlmPolicy(policyName, resourcePath);
+        }
+    }
+
+    private void applyIngestPipelines() throws IOException {
+        for (String resourcePath : ingestPipelineResources) {
+            applyIngestPipeline(extractResourceName(resourcePath), resourcePath);
         }
     }
 
@@ -202,6 +228,21 @@ public class ElasticsearchSchemaInitializer {
         }
     }
 
+    // Always (re)applied: PUT is idempotent and the raw index templates depend on it as default_pipeline.
+    private void applyIngestPipeline(String name, String resourcePath) throws IOException {
+        LOGGER.info("Applying ingest pipeline '{}'...", name);
+        String json = loadResourceAsString(resourcePath);
+
+        try (InputStream is = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8))) {
+            PutPipelineRequest request = PutPipelineRequest.of(builder -> builder
+                    .id(name)
+                    .withJson(is));
+
+            client.ingest().putPipeline(request);
+            LOGGER.info("Ingest pipeline '{}' applied successfully", name);
+        }
+    }
+
     private void applyIndexTemplate(String name, String resourcePath) throws IOException {
         if (indexTemplateExists(name)) {
             LOGGER.info("Index template '{}' already exists, skipping", name);
@@ -231,8 +272,8 @@ public class ElasticsearchSchemaInitializer {
         LOGGER.info("Applying transform '{}'...", name);
         String json = loadResourceAsString(resourcePath);
 
-        // Replace time window placeholder
         json = json.replace("{TIME_WINDOW}", smartFilterTimeWindow);
+        json = json.replace("{SYNC_DELAY}", transformSyncDelay);
 
         try (InputStream is = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8))) {
             PutTransformRequest request = PutTransformRequest.of(builder -> builder
