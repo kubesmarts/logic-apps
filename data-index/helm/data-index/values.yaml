@@ -37,7 +37,7 @@ postgresql:
   enabled: true
   image:
     repository: postgres
-    tag: "15"
+    tag: "18"
     pullPolicy: IfNotPresent
 
   # Hostname of the PostgreSQL service. Override to point at an external/managed
