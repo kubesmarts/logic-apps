@@ -8,6 +8,6 @@
     "clean": "rm -f output/*.png"
   },
   "dependencies": {
-    "puppeteer": "^22.6.0"
+    "puppeteer": "^25.0.0"
   }
 }
