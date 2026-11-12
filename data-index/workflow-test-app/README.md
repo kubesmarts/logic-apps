@@ -278,7 +278,7 @@ Vector DaemonSet tails container logs
     ↓
 PostgreSQL raw tables (workflow_events_raw, task_events_raw)
     ↓
-PostgreSQL triggers normalize to workflow_instances, task_instances
+data-index-service polls and normalizes to workflow_instances, task_instances
     ↓
 Data Index GraphQL API
 ```
@@ -397,7 +397,7 @@ Vector's `kubernetes_logs` source filters by `metadata.namespace=${WORKFLOW_NAME
 quarkus.flow.structured-logging.timestamp-format=epoch-seconds
 ```
 
-Other formats (ISO 8601, epoch-millis) will cause parsing errors in Data Index triggers.
+Other formats (ISO 8601) leave MODE 1 timestamp columns `NULL`; epoch-millis is read as seconds and gives wrong dates.
 
 ## Related Documentation
 

@@ -206,6 +206,12 @@ dataIndex:
   # Storage backend (postgresql or elasticsearch)
   storage: postgresql
 
+  # Polls workflow_events_raw/task_events_raw and normalizes them idempotently.
+  jdbcBatch:
+    enabled: true
+    pollInterval: "1s"
+    batchSize: 10000
+
   # Replicas
   replicas: 1
 

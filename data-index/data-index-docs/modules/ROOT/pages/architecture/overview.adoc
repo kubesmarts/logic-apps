@@ -1,7 +1,7 @@
 = How Data Index Works
 :page-aliases:
 
-Data Index is a read-only query service that captures and normalizes workflow execution events from Quarkus Flow applications.
+Data Index is a query service that captures and normalizes workflow execution events from Quarkus Flow applications.
 
 == High-Level Architecture
 
@@ -14,7 +14,7 @@ Quarkus Flow App
 Vector DaemonSet
     ↓ (tail container logs)
 Storage Backend
-    ├─ PostgreSQL (triggers) → < 1ms normalization
+    ├─ PostgreSQL (JDBC polling) → ~1s normalization
     └─ Elasticsearch (transforms) → ~1s normalization
     ↓
 GraphQL API
@@ -173,7 +173,7 @@ Quarkus application providing:
 |Metric |PostgreSQL (MODE 1) |Elasticsearch (MODE 2)
 
 |**Normalization**
-|< 1ms (database triggers)
+|~1s (JDBC polling, default interval)
 |~1s (transforms)
 
 |**End-to-end latency**
@@ -185,21 +185,21 @@ Quarkus application providing:
 |near real-time (log tail)
 
 |**Data consistency**
-|Immediate (ACID)
+|Eventual (~1s delay)
 |Eventual (~1s delay)
 
 |===
 
-**Note:** End-to-end latency includes Vector log tailing and batching, network transit, and storage processing. The primary difference is normalization speed: PostgreSQL triggers are synchronous (< 1ms), while Elasticsearch transforms run asynchronously (~1s).
+**Note:** End-to-end latency includes Vector log tailing and batching, network transit, and storage processing. Both modes normalize on a ~1s cycle: PostgreSQL through JDBC polling, Elasticsearch through continuous transforms.
 
 == Key Design Features
 
 === Real-Time Processing
 
-Events are normalized immediately as they arrive:
+Events are normalized shortly after they arrive:
 
 * No separate event processor service required
-* No polling or batch processing
+* MODE 1 polls raw tables in batches inside data-index-service; MODE 2 uses transforms
 * Sub-second latency from event to query
 * Handles duplicates and out-of-order events automatically
 
@@ -223,7 +223,7 @@ Events stored in both raw and normalized formats:
 
 [IMPORTANT]
 ====
-Data Index is **read-only**. It does NOT:
+The Data Index API is **read-only**. It does NOT:
 
 * ❌ Execute workflows
 * ❌ Modify workflow state
@@ -234,14 +234,14 @@ Data Index is **read-only**. It does NOT:
 
 == Architecture Differences
 
-=== PostgreSQL (MODE 1) - Trigger-Based Normalization
+=== PostgreSQL (MODE 1) - JDBC Polling Normalization
 
 **Data Flow:**
 
 [source,text]
 ----
 Vector (postgres sink) → PostgreSQL raw tables (workflow_events_raw, task_events_raw)
-                ↓ (BEFORE INSERT triggers, < 1ms)
+                ↓ (data-index-service polls every 1s, idempotent UPSERT)
             Normalized tables (workflow_instances, task_instances)
                 ↓ (JPA/Hibernate)
             GraphQL API
@@ -249,7 +249,8 @@ Vector (postgres sink) → PostgreSQL raw tables (workflow_events_raw, task_even
 
 **Key characteristics:**
 
-* **Synchronous normalization** - Triggers execute during INSERT (< 1ms)
+* **Batch normalization** - data-index-service polls raw tables (default: every 1s, up to 1000 rows)
+* **Dead-letter tables** - Rows that fail move to `workflow_events_dlq` / `task_events_dlq`
 * **ACID guarantees** - Transactions ensure consistency
 * **Upsert logic** - COALESCE handles out-of-order events
 * **Single writer** - Vertical scaling only

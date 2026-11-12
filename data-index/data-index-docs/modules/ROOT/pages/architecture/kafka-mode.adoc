@@ -282,13 +282,13 @@ Replay failed events:
 
 | Event source | Log files | Log files | Kafka topics
 | Ingestion layer | Vector | Vector | SmallRye Messaging
-| Normalization | SQL triggers | ES transforms | Java JDBC
+| Normalization | Java JDBC (polling in data-index-service) | ES transforms | Java JDBC
 | Raw storage | PostgreSQL tables | ES indices | None (direct)
 | Normalized storage | PostgreSQL | Elasticsearch | PostgreSQL
 | Query API | GraphQL on PostgreSQL | GraphQL on Elasticsearch | GraphQL on PostgreSQL
-| Latency | ~10ms | ~1000ms | -
-| Idempotency | SQL COALESCE | Painless script | SQL CASE/COALESCE
-| DLQ support | N/A | N/A | Yes
+| Latency | ~1000ms | ~1000ms | -
+| Idempotency | SQL CASE/COALESCE | Painless script | SQL CASE/COALESCE
+| DLQ support | Yes (DLQ tables) | N/A | Yes
 | Security | File-based (log files) | File-based (log files) | Kafka (SSL/SASL)
 | Query capabilities | Standard SQL | Full-text, aggregations | Standard SQL
 |===
@@ -301,8 +301,7 @@ Replay failed events:
 * Prefer stream-based ingestion
 
 **Choose MODE 1 when:**
-* Simplest setup (triggers are atomic)
-* Low latency critical (~10ms)
+* Simplest setup (no ingestion service)
 * No Kafka infrastructure
 * Log-based ingestion acceptable
 

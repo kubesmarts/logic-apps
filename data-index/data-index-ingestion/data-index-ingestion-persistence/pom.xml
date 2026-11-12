@@ -29,12 +29,12 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>data-index-ingestion-kafka-processor</artifactId>
-  <name>KubeSmarts Logic Apps :: Data Index :: Ingestion :: Kafka Processor</name>
-  <description>Event processing and normalization logic for Kafka mode</description>
+  <artifactId>data-index-ingestion-persistence</artifactId>
+  <name>KubeSmarts Logic Apps :: Data Index :: Ingestion :: Persistence</name>
+  <description>Source-agnostic idempotent JDBC persistence and event processing, shared by MODE 1 (data-index-service polling) and MODE 3 (Kafka)</description>
 
   <properties>
-    <java.module.name>org.kubesmarts.logic.dataindex.ingestion.kafka.processor</java.module.name>
+    <java.module.name>org.kubesmarts.logic.dataindex.ingestion.persistence</java.module.name>
   </properties>
 
   <dependencies>
@@ -57,10 +57,6 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.cloudevents</groupId>
-      <artifactId>cloudevents-core</artifactId>
     </dependency>
     <!-- test dependencies
       All test dependencies must live below

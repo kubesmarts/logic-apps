@@ -144,13 +144,13 @@ public class WorkflowInstanceEntity extends AbstractEntity {
 
     /**
      * Record creation timestamp.
-     * <p>Auto-populated by database trigger when row is inserted
+     * <p>Set by the normalization UPSERT when the row is inserted
      */
     private ZonedDateTime createdAt;
 
     /**
      * Record last update timestamp.
-     * <p>Auto-populated by database trigger when row is updated
+     * <p>Set by the normalization UPSERT when the row is updated
      */
     private ZonedDateTime updatedAt;
 

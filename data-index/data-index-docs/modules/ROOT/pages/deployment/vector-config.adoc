@@ -4,8 +4,8 @@
 Data Index uses https://vector.dev[Vector] as the log collector for both
 MODE 1 (PostgreSQL) and MODE 2 (Elasticsearch). Vector tails Quarkus Flow
 container logs, keeps only structured workflow/task events, and writes them to
-the mode's raw storage. Normalization then happens in the storage layer
-(PostgreSQL triggers or Elasticsearch Transforms).
+the mode's raw storage. Normalization then happens downstream (JDBC polling
+in data-index-service or Elasticsearch Transforms).
 
 == Sources of truth
 
@@ -98,24 +98,19 @@ The Helm chart does not automatically create the schema. Either:
 The sinks use the default in-memory buffer (parity with the FluentBit MODE 1
 setup). Do not set `buffer.type: disk` on the `postgres` sink: in Vector 0.54 it
 is not drained until graceful shutdown, stranding low-volume events. The
-`kubernetes_logs` checkpoint plus idempotent triggers cover a restart.
+`kubernetes_logs` checkpoint plus the idempotent UPSERT cover a restart.
 
-Row shape maps directly to the raw table columns `(tag TEXT, time TIMESTAMPTZ, data JSONB)`:
+VRL builds one typed row per event, matching the raw table columns:
 
-* `tag` — informational only (indexed); the triggers never read it.
-* `time` — ingestion time; feeds only the `created_at`/`updated_at` audit columns.
-* `data` — the untouched Quarkus Flow event. `normalize_workflow_event()` /
-  `normalize_task_event()` extract `instanceId`, `status`, `startTime`/`endTime`
-  (epoch seconds), `input`/`output`, `error`, and `taskPosition` from this JSONB.
+* `build_workflow_row` → `workflow_events_raw`: `instance_id`, `namespace`, `name`,
+  `version`, `status`, `started_at`, `ended_at`, `last_update`, `input`, `output`,
+  `error_*`, `event_timestamp`, `inserted_at`.
+* `build_task_row` → `task_events_raw`: `instance_id`, `task_name`, `task`, `status`,
+  `started_at`, `ended_at`, `input`, `output`, `error_*`, `event_timestamp`, `inserted_at`.
 
-[NOTE]
-====
-A Vector batch is one multi-row `INSERT`. If a row makes a trigger raise an
-uncaught exception the whole batch fails and is retried. The workflow trigger is
-`INSERT ... ON CONFLICT` and the task trigger catches `foreign_key_violation`, so
-this is tolerable. If a poison-pill row appears, set `batch.max_events: 1` for
-strict row-by-row parity with FluentBit.
-====
+VRL converts epoch-second timestamps and JSON-encodes `input`/`output`. It must also
+set `inserted_at` because the sink bypasses column defaults. data-index-service then
+polls these rows, normalizes them and deletes them.
 
 Required environment (set on the DaemonSet):
 `WORKFLOW_NAMESPACE`, `NODE_NAME`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`,

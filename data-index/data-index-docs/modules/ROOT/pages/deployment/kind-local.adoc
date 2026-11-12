@@ -11,7 +11,7 @@ tests:
 
 [source,bash]
 ----
-make m1   # PostgreSQL + Vector + triggers
+make m1   # PostgreSQL + Vector + JDBC polling
 make m2   # Elasticsearch + Vector + transforms
 make m3   # Kafka ingestion
 ----
