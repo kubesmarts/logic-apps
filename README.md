@@ -18,6 +18,8 @@ Requires Java 17 and Maven 3.9.11+.
 ## Documentation
 
 - [Data Index Documentation](data-index/data-index-docs/) - User-facing documentation
+- [CONTRIBUTING.md](CONTRIBUTING.md) - How to contribute
+- [docs/RELEASE.md](docs/RELEASE.md) - Versioning and release process
 - [CLAUDE.md](CLAUDE.md) - AI assistant guidelines for this codebase
 
 ## License

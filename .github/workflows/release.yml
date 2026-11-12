@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  tag:
+    name: Tag release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate version
+        env:
+          RELEASE: ${{ inputs.version }}
+        run: |
+          if [[ ! "${RELEASE}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "❌ ERROR: version ${RELEASE} must be MAJOR.MINOR.PATCH"
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      # GITHUB_TOKEN on purpose: this tag push must not trigger publish-images.yml, the publish job calls it.
+      - name: Create tag
+        env:
+          RELEASE: ${{ inputs.version }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/v${RELEASE}" > /dev/null; then
+            echo "❌ ERROR: tag v${RELEASE} already exists"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${RELEASE}" -m "Release v${RELEASE}"
+          git push origin "v${RELEASE}"
+
+  publish:
+    name: Publish images
+    needs: tag
+    uses: ./.github/workflows/publish-images.yml
+    secrets: inherit
+    with:
+      tag: v${{ inputs.version }}
+      release: true
