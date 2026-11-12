@@ -271,24 +271,34 @@ kubectl port-forward -n elasticsearch svc/elasticsearch 9200:9200 &
 
 SCHEMA=data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch
 
-# 1. ILM policy (replace {RETENTION_PERIOD}, send only the "policy" object)
+# 1. ILM policy
+sed -e 's/{RETENTION_PERIOD}/30d/g' $SCHEMA/ilm/data-index-events-retention.json \
+  | curl -X PUT http://localhost:9200/_ilm/policy/data-index-events-retention \
+      -H "Content-Type: application/json" -d @-
+
 # 2. Ingest pipeline
 curl -X PUT http://localhost:9200/_ingest/pipeline/data-index-ingest-timestamp \
   -H "Content-Type: application/json" \
   -d @$SCHEMA/ingest-pipelines/data-index-ingest-timestamp.json
 
-# 3. Index templates (repeat for task-events, workflow-instances, task-executions)
-curl -X PUT http://localhost:9200/_index_template/workflow-events \
-  -H "Content-Type: application/json" \
-  -d @$SCHEMA/index-templates/workflow-events.json
+# 3. Index templates
+for t in workflow-events task-events workflow-instances task-executions; do
+  curl -X PUT http://localhost:9200/_index_template/$t \
+    -H "Content-Type: application/json" \
+    -d @$SCHEMA/index-templates/$t.json
+done
 
-# 4. Transforms (replace {TIME_WINDOW} and {SYNC_DELAY} first; repeat for task-executions-transform)
-sed -e 's/{TIME_WINDOW}/1h/g' -e 's/{SYNC_DELAY}/5s/g' $SCHEMA/transforms/workflow-instances-transform.json \
-  | curl -X PUT http://localhost:9200/_transform/workflow-instances-transform \
-      -H "Content-Type: application/json" -d @-
+# 4. Transforms
+for t in workflow-instances-transform task-executions-transform; do
+  sed -e 's/{TIME_WINDOW}/1h/g' -e 's/{SYNC_DELAY}/5s/g' $SCHEMA/transforms/$t.json \
+    | curl -X PUT http://localhost:9200/_transform/$t \
+        -H "Content-Type: application/json" -d @-
+done
 
 # 5. Start transforms
-curl -X POST http://localhost:9200/_transform/workflow-instances-transform/_start
+for t in workflow-instances-transform task-executions-transform; do
+  curl -X POST http://localhost:9200/_transform/$t/_start
+done
 ----
 
 See: xref:deployment/elasticsearch.adoc#_step_2_initialize_elasticsearch_schema[Elasticsearch Deployment - Schema Initialization]

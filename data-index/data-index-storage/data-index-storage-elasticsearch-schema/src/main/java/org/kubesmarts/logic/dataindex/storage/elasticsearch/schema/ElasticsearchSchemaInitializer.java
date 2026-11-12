@@ -158,6 +158,12 @@ public class ElasticsearchSchemaInitializer {
             );
         }
 
+        // Valid for Elasticsearch, but documents not yet searchable when the checkpoint closes are skipped:
+        // https://www.elastic.co/guide/en/elasticsearch/reference/8.11/transform-limitations.html#transform-availability-limitations
+        if (transformSyncDelay.matches("0+(ms|s|m)")) {
+            LOGGER.warn("Transform sync delay is {}: raw events not yet searchable when a checkpoint runs may be skipped", transformSyncDelay);
+        }
+
         // Validate: time window ≤ ILM retention
         long windowMillis = parseToMillis(smartFilterTimeWindow);
         long retentionMillis = parseToMillis(rawEventsRetention);
