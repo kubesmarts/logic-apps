@@ -47,8 +47,8 @@
   "frequency": "1s",
   "sync": {
     "time": {
-      "field": "@timestamp",
-      "delay": "0s"
+      "field": "event.ingested",
+      "delay": "{SYNC_DELAY}"
     }
   },
   "pivot": {

@@ -1,0 +1,11 @@
+{
+  "description": "Stamps raw events with the Elasticsearch ingest time, used by the transforms as sync.time.field",
+  "processors": [
+    {
+      "set": {
+        "field": "event.ingested",
+        "value": "{{{_ingest.timestamp}}}"
+      }
+    }
+  ]
+}

@@ -325,7 +325,7 @@ public class DataIndexE2ETest {
 
         // 1. Check raw events index
         try {
-            Response rawResponse = given().get(esUrl + "/workflow-events/_count");
+            Response rawResponse = given().get(esUrl + "/workflow-events-*/_count");
             if (rawResponse.statusCode() == 200) {
                 int count = rawResponse.jsonPath().getInt("count");
                 log.error("  Raw workflow-events: {} documents", count);
@@ -363,6 +363,8 @@ public class DataIndexE2ETest {
                 long docsProcessed = transformResponse.jsonPath().getLong("transforms[0].stats.documents_processed");
                 long docsIndexed = transformResponse.jsonPath().getLong("transforms[0].stats.documents_indexed");
                 log.error("  Transform: state={}, processed={}, indexed={}", state, docsProcessed, docsIndexed);
+                log.error("  Transform checkpointing: {}",
+                        transformResponse.jsonPath().getMap("transforms[0].checkpointing"));
 
                 if (!"started".equals(state) && !"indexing".equals(state)) {
                     log.error("  → ISSUE: Transform is not running (state: {})", state);
@@ -377,11 +379,11 @@ public class DataIndexE2ETest {
 
         // 4. Search for specific instance in raw events
         try {
-            String searchQuery = String.format("{\"query\":{\"term\":{\"id\":\"%s\"}}}", instanceId);
+            String searchQuery = String.format("{\"query\":{\"term\":{\"instanceId.keyword\":\"%s\"}}}", instanceId);
             Response searchResponse = given()
                     .contentType(ContentType.JSON)
                     .body(searchQuery)
-                    .post(esUrl + "/workflow-events/_search");
+                    .post(esUrl + "/workflow-events-*/_search");
             if (searchResponse.statusCode() == 200) {
                 int hits = searchResponse.jsonPath().getInt("hits.total.value");
                 log.error("  Instance {} in raw events: {} hits", instanceId, hits);
