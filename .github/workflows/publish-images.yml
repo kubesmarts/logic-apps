@@ -4,12 +4,29 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag/ref to build from (e.g., 1.0.0, main) - leave empty for current branch'
+        description: 'Tag/ref to build from (e.g., v1.0.0, main) - leave empty for current branch'
         required: false
         type: string
+      release:
+        description: 'Official release (re-publish an existing vX.Y.Z tag): verify version and publish latest-* tags'
+        required: false
+        type: boolean
+        default: false
   push:
     tags:
       - 'v*'
+  # Called by release.yml: a tag pushed with GITHUB_TOKEN does not trigger the push event above.
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag to build from (e.g., v1.0.0)'
+        required: true
+        type: string
+      release:
+        description: 'Official release: verify version and publish latest-* tags'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,7 +48,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Java 17
         uses: actions/setup-java@v6
@@ -42,11 +59,15 @@ jobs:
 
       - id: set-version
         name: Set VERSION and TAG outputs
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_RELEASE: ${{ inputs.release }}
         run: |
           # Determine version source
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
-            # Manual dispatch with explicit tag
-            TAG="${{ github.event.inputs.tag }}"
+          if [ -n "${INPUT_TAG}" ]; then
+            # Manual dispatch or workflow_call with explicit tag
+            TAG="${INPUT_TAG}"
+            TAG="${TAG#v}"
           elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             # Git tag push
             TAG="${GITHUB_REF##*/}"
@@ -57,7 +78,7 @@ jobs:
           fi
 
           IS_LATEST="false"
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          if [[ "${GITHUB_REF}" == refs/tags/* || "${INPUT_RELEASE}" == "true" ]]; then
             IS_LATEST="true"
           fi
 
@@ -66,29 +87,33 @@ jobs:
           echo "IS_LATEST=${IS_LATEST}" >> $GITHUB_OUTPUT
 
       - name: Verify release version
+        env:
+          TAG: ${{ steps.set-version.outputs.TAG }}
+          VERSION: ${{ steps.set-version.outputs.VERSION }}
+          IS_LATEST: ${{ steps.set-version.outputs.IS_LATEST }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          TRIGGER: ${{ github.event_name }}
         run: |
-          TAG="${{ steps.set-version.outputs.TAG }}"
-          VERSION="${{ steps.set-version.outputs.VERSION }}"
           POM_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          TRIGGER="${{ github.event_name }}"
 
           echo "Release tag: ${TAG}"
           echo "Release version: ${VERSION}"
           echo "POM version: ${POM_VERSION}"
           echo "Trigger: ${TRIGGER}"
 
-          if [[ "${TRIGGER}" == "push" ]]; then
-            if [[ "${POM_VERSION}" != "${VERSION}" ]]; then
-              echo "❌ ERROR: Tag ${VERSION} does not match pom.xml version ${POM_VERSION}"
+          if [[ "${IS_LATEST}" == "true" ]]; then
+            # Releases only build from an existing vX.Y.Z tag, never from a branch.
+            if [[ ! "${RELEASE_TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+              echo "❌ ERROR: Release tag ${RELEASE_TAG} must be vMAJOR.MINOR.PATCH"
               exit 1
             fi
-
-            if [[ "${POM_VERSION}" == *"-SNAPSHOT" ]]; then
-              echo "❌ ERROR: Cannot release SNAPSHOT version ${POM_VERSION} from tag push"
+            if ! git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" > /dev/null; then
+              echo "❌ ERROR: tag ${RELEASE_TAG} does not exist"
               exit 1
             fi
+            # The poms stay on the SNAPSHOT; the build jobs apply VERSION with versions:set.
 
-            echo "✅ Official release verified: ${POM_VERSION}"
+            echo "✅ Official release verified: ${VERSION}"
           else
             echo "⚠️  Manual build - SNAPSHOT allowed for testing"
             echo "✅ Building version: ${POM_VERSION}"
@@ -102,7 +127,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Java 17
         uses: actions/setup-java@v6
@@ -110,6 +135,14 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
+
+      - name: Set release version
+        if: needs.setup.outputs.IS_LATEST == 'true'
+        env:
+          VERSION: ${{ needs.setup.outputs.VERSION }}
+        run: |
+          mvn -B -ntp versions:set -DnewVersion="${VERSION}" \
+            -DprocessAllModules -DgenerateBackupPoms=false
 
       - name: Build JAR
         run: |
@@ -124,18 +157,19 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build and save Docker image
+        env:
+          VERSION: ${{ needs.setup.outputs.VERSION }}
+          REVISION: ${{ github.sha }}
         run: |
-          VERSION="${{ needs.setup.outputs.VERSION }}"
-          REVISION="${{ github.sha }}"
           BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            --build-arg VERSION=${VERSION} \
-            --build-arg REVISION=${REVISION} \
-            --build-arg BUILD_DATE=${BUILD_DATE} \
+            --build-arg VERSION="${VERSION}" \
+            --build-arg REVISION="${REVISION}" \
+            --build-arg BUILD_DATE="${BUILD_DATE}" \
             -f data-index/data-index-service/data-index-service-postgresql/src/main/docker/Dockerfile.jvm \
-            -t localhost/kubesmarts/data-index-service:${VERSION}-postgresql \
+            -t "localhost/kubesmarts/data-index-service:${VERSION}-postgresql" \
             -o type=oci,dest=artifact-postgresql.tar \
             data-index/data-index-service/data-index-service-postgresql
 
@@ -156,7 +190,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Java 17
         uses: actions/setup-java@v6
@@ -164,6 +198,14 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
+
+      - name: Set release version
+        if: needs.setup.outputs.IS_LATEST == 'true'
+        env:
+          VERSION: ${{ needs.setup.outputs.VERSION }}
+        run: |
+          mvn -B -ntp versions:set -DnewVersion="${VERSION}" \
+            -DprocessAllModules -DgenerateBackupPoms=false
 
       - name: Build JAR
         run: |
@@ -178,18 +220,19 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build and save Docker image
+        env:
+          VERSION: ${{ needs.setup.outputs.VERSION }}
+          REVISION: ${{ github.sha }}
         run: |
-          VERSION="${{ needs.setup.outputs.VERSION }}"
-          REVISION="${{ github.sha }}"
           BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            --build-arg VERSION=${VERSION} \
-            --build-arg REVISION=${REVISION} \
-            --build-arg BUILD_DATE=${BUILD_DATE} \
+            --build-arg VERSION="${VERSION}" \
+            --build-arg REVISION="${REVISION}" \
+            --build-arg BUILD_DATE="${BUILD_DATE}" \
             -f data-index/data-index-service/data-index-service-elasticsearch/src/main/docker/Dockerfile.jvm \
-            -t localhost/kubesmarts/data-index-service:${VERSION}-elasticsearch \
+            -t "localhost/kubesmarts/data-index-service:${VERSION}-elasticsearch" \
             -o type=oci,dest=artifact-elasticsearch.tar \
             data-index/data-index-service/data-index-service-elasticsearch
 
@@ -210,7 +253,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Java 17
         uses: actions/setup-java@v6
@@ -218,6 +261,14 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
+
+      - name: Set release version
+        if: needs.setup.outputs.IS_LATEST == 'true'
+        env:
+          VERSION: ${{ needs.setup.outputs.VERSION }}
+        run: |
+          mvn -B -ntp versions:set -DnewVersion="${VERSION}" \
+            -DprocessAllModules -DgenerateBackupPoms=false
 
       - name: Build JAR
         run: |
@@ -232,18 +283,19 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build and save Docker image
+        env:
+          VERSION: ${{ needs.setup.outputs.VERSION }}
+          REVISION: ${{ github.sha }}
         run: |
-          VERSION="${{ needs.setup.outputs.VERSION }}"
-          REVISION="${{ github.sha }}"
           BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            --build-arg VERSION=${VERSION} \
-            --build-arg REVISION=${REVISION} \
-            --build-arg BUILD_DATE=${BUILD_DATE} \
+            --build-arg VERSION="${VERSION}" \
+            --build-arg REVISION="${REVISION}" \
+            --build-arg BUILD_DATE="${BUILD_DATE}" \
             -f data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/main/docker/Dockerfile.jvm \
-            -t localhost/kubesmarts/data-index-ingestion:${VERSION}-kafka \
+            -t "localhost/kubesmarts/data-index-ingestion:${VERSION}-kafka" \
             -o type=oci,dest=artifact-kafka.tar \
             data-index/data-index-ingestion/data-index-ingestion-kafka-service
 
@@ -295,8 +347,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Display summary
+        env:
+          VERSION: ${{ needs.setup.outputs.VERSION }}
+          IS_LATEST: ${{ needs.setup.outputs.IS_LATEST }}
         run: |
-          VERSION="${{ needs.setup.outputs.VERSION }}"
           echo "### ✅ All Images Published Successfully!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
@@ -306,7 +360,7 @@ jobs:
           echo "- \`quay.io/kubesmarts/data-index-service:${VERSION}-elasticsearch\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`quay.io/kubesmarts/data-index-ingestion:${VERSION}-kafka\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.setup.outputs.IS_LATEST }}" == "true" ]; then
+          if [ "${IS_LATEST}" == "true" ]; then
             echo "**Additional tags:**" >> $GITHUB_STEP_SUMMARY
             echo "- \`quay.io/kubesmarts/data-index-service:latest-postgresql\`" >> $GITHUB_STEP_SUMMARY
             echo "- \`quay.io/kubesmarts/data-index-service:latest-elasticsearch\`" >> $GITHUB_STEP_SUMMARY
