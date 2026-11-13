@@ -9,7 +9,7 @@
 Data Index provides a GraphQL API for querying workflow execution data from Quarkus Flow applications.
 
 **Deployment Modes:**
-- **MODE 1** (PostgreSQL + Vector + Triggers) - Production ready
+- **MODE 1** (PostgreSQL + Vector + JDBC polling) - Production ready
 - **MODE 2** (Elasticsearch + Vector + Transforms) - Production ready
 - **MODE 3** (Kafka + SmallRye Reactive Messaging) - Production ready
 

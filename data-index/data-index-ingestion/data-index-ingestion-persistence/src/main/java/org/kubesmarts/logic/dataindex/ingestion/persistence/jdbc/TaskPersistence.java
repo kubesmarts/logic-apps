@@ -1,4 +1,4 @@
-package org.kubesmarts.logic.dataindex.ingestion.kafka.processor.persistence;
+package org.kubesmarts.logic.dataindex.ingestion.persistence.jdbc;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

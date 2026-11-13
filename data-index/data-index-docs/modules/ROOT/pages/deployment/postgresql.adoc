@@ -5,7 +5,7 @@ Deploy Data Index with PostgreSQL storage backend for production workloads.
 
 == Overview
 
-PostgreSQL mode uses trigger-based normalization for real-time event processing with ACID guarantees.
+PostgreSQL mode normalizes events by polling raw tables inside the Data Index service, with ACID guarantees.
 
 **Architecture:**
 
@@ -14,7 +14,7 @@ PostgreSQL mode uses trigger-based normalization for real-time event processing 
 Quarkus Flow Apps → Container Logs → Vector DaemonSet (postgres sink)
                                            ↓
                                     PostgreSQL (raw tables)
-                                           ↓ (triggers < 1ms)
+                                           ↓ (data-index-service polls, ~1s)
                                     PostgreSQL (normalized tables)
                                            ↓
                                     Data Index GraphQL API
@@ -163,7 +163,7 @@ kubectl exec -n postgresql postgresql-0 -- \
 
 * Raw tables: `workflow_events_raw`, `task_events_raw`
 * Normalized tables: `workflow_instances`, `task_instances`
-* Trigger functions: `normalize_workflow_event()`, `normalize_task_event()`
+* Dead-letter tables: `workflow_events_dlq`, `task_events_dlq`
 * Indexes for performance
 
 **Verify schema:**
@@ -447,7 +447,7 @@ kubectl set env daemonset/vector -n logging DEBUG_EVENTS=true
 kubectl logs -n logging -l app=vector -f
 ----
 
-**3. Check raw events in PostgreSQL:**
+**3. Check for a normalization backlog (rows are deleted once normalized, so this is normally near zero):**
 
 [source,bash]
 ----
@@ -512,7 +512,7 @@ spec:
 * Runs as DaemonSet (one pod per node)
 * The `postgres` sinks use the default in-memory buffer with a 1s batch flush
   (matches the FluentBit MODE 1 setup). The `kubernetes_logs` source checkpoints,
-  so a Vector restart re-reads recent lines and the idempotent triggers dedupe.
+  so a Vector restart re-reads recent lines and the idempotent UPSERT dedupes.
 
 === Performance Tuning
 
@@ -676,10 +676,10 @@ kubectl get pods -n workflows
 kubectl exec -n postgresql postgresql-0 -- \
   env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex -c 'SELECT 1;'
 
-# Events flowing?
+# Normalization backlog? (should stay near zero)
 kubectl exec -n postgresql postgresql-0 -- \
   env PGPASSWORD=dataindex123 psql -U dataindex -d dataindex \
-  -c 'SELECT COUNT(*), MAX(time) FROM workflow_events_raw;'
+  -c 'SELECT COUNT(*), MAX(inserted_at) FROM workflow_events_raw;'
 
 # GraphQL working?
 curl http://localhost:8080/graphql -d '{"query":"{ __typename }"}'

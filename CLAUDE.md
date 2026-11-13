@@ -131,18 +131,18 @@ Claude: I've created the ADR and committed it.  ❌ WRONG - no approval!
 
 ## Project Overview
 
-This is a **read-only query service** for Open Workflow (OW 1.0.0) runtime execution data. It provides a GraphQL API for querying workflow instances and task executions.
+This is a **query service with a read-only API** for Open Workflow (OW 1.0.0) runtime execution data. It provides a GraphQL API for querying workflow instances and task executions.
 
 **What it does:**
 - Captures Quarkus Flow structured logging events via Vector (MODE 1 & MODE 2)
 - Stores raw events in PostgreSQL (MODE 1) or Elasticsearch (MODE 2)
-- Normalizes events using PostgreSQL triggers (MODE 1) or Elasticsearch Transforms (MODE 2)
+- Normalizes events by polling raw tables in data-index-service (MODE 1) or with Elasticsearch Transforms (MODE 2)
 - Exposes normalized data via GraphQL API (SmallRye GraphQL)
 
 **What it does NOT do:**
 - Does NOT execute workflows (that's Quarkus Flow's job)
 - Does NOT modify workflow state (read-only)
-- Does NOT use polling/Event Processor (removed in Phase 1)
+- Does NOT run a separate ingestion service in MODE 1 (polling is inside data-index-service)
 
 ---
 
@@ -196,8 +196,8 @@ graphify --update
 ```
 Quarkus Flow → stdout → /var/log/containers/*.log (JSON)
                       ↓ (Vector kubernetes_logs → postgres sink)
-              PostgreSQL raw tables (JSONB)
-                      ↓ (BEFORE INSERT triggers)
+              PostgreSQL raw tables (typed columns)
+                      ↓ (data-index-service polls, idempotent JDBC UPSERT)
               PostgreSQL normalized tables
                       ↓ (JPA/Hibernate)
               GraphQL API (SmallRye GraphQL)
@@ -205,14 +205,15 @@ Quarkus Flow → stdout → /var/log/containers/*.log (JSON)
 
 **Key Components:**
 - **Vector DaemonSet** - Tails container logs, writes raw events to PostgreSQL (`postgres` sink; config: `data-index/collectors/vector/mode1-postgresql/vector.yaml`).
-- **PostgreSQL Triggers** - Normalize events immediately on INSERT
+- **WorkflowEventPoller / TaskEventPoller** - In `data-index-service-postgresql`; poll raw tables, UPSERT via `data-index-ingestion-persistence`, delete normalized rows, move failures to `*_events_dlq`
 - **Data Index Service** - Quarkus app with GraphQL API
 - **JPA Entities** - Map to normalized tables (workflow_instances, task_instances)
 
 **NOT used in MODE 1:**
-- ❌ Event Processor service (removed in Phase 1)
-- ❌ Polling (triggers are immediate)
-- ❌ Staging tables (raw tables → triggers → normalized tables)
+- ❌ A separate ingestion service (polling runs inside data-index-service)
+- ❌ Normalization triggers (the only triggers left fill raw-table `id`s)
+
+**MODE 3 shares this image**, so Helm sets `data-index.ingestion.jdbc-batch.enabled=false` outside MODE 1.
 
 ---
 
@@ -300,7 +301,7 @@ curl http://localhost:8080/q/metrics | grep data_index_transform
 - Standard relational queries are sufficient
 - ACID guarantees are important
 - Existing PostgreSQL infrastructure
-- Simpler operations (triggers, backups)
+- Simpler operations (no ingestion service, backups)
 - Smaller deployment footprint
 
 **Use MODE 2 (Elasticsearch) when:**
@@ -317,10 +318,9 @@ curl http://localhost:8080/q/metrics | grep data_index_transform
 - Need encrypted transport (SSL/SASL_SSL)
 
 **All modes share:**
-- Same normalized PostgreSQL tables (workflow_instances, task_instances)
-- Same domain model
+- Same domain model and GraphQL API
 - Idempotent event processing
-- No Event Processor service
+- MODE 1 and MODE 3 share the same normalized PostgreSQL tables (workflow_instances, task_instances)
 
 ---
 
@@ -364,7 +364,7 @@ Quarkus Flow → Kafka (CloudEvents: binary or structured, topic: flow-lifecycle
 
 **NOT used in MODE 3:**
 - ❌ Vector / log collector (events come from Kafka, not container logs)
-- ❌ PostgreSQL triggers (normalization done in Java via JDBC)
+- ❌ Raw-table polling (`data-index.ingestion.jdbc-batch.enabled=false`)
 - ❌ Raw event tables (writes directly to normalized tables)
 - ❌ SmallRye automatic CloudEvent extraction (requires per-message mode, lower throughput)
 
@@ -399,7 +399,7 @@ data-index/
 │   └── service/                   # JAX-RS resources
 │       └── RootResource.java      # Landing page
 ├── data-index-ingestion/           # MODE 3 Kafka ingestion
-│   ├── data-index-ingestion-kafka-processor/ # Normalizers (JDBC UPSERT)
+│   ├── data-index-ingestion-persistence/ # JDBC UPSERT (shared by MODE 1 and MODE 3)
 │   └── data-index-ingestion-kafka-service/  # Quarkus Kafka consumer service
 ├── data-index-integration-tests/  # E2E tests (MODE 1 & MODE 2)
 │   ├── WorkflowInstanceGraphQLApiTest.java (PostgreSQL)
@@ -504,18 +504,18 @@ mvn quarkus:dev -Dquarkus.profile=elasticsearch
 
 ## Important Design Decisions
 
-### 1. Trigger-Based Normalization (Not Polling)
+### 1. JDBC Polling Normalization (MODE 1)
 
 **DO:**
-- ✅ Raw events stored in `workflow_events_raw` and `task_events_raw` (tag, time, data JSONB)
-- ✅ Triggers extract fields from JSONB and UPSERT into normalized tables
-- ✅ COALESCE handles out-of-order events
-- ✅ Real-time processing (< 1ms latency)
+- ✅ Vector writes typed rows to `workflow_events_raw` and `task_events_raw`
+- ✅ Pollers in `data-index-service-postgresql` UPSERT via `data-index-ingestion-persistence` and delete normalized rows
+- ✅ COALESCE and `last_event_time` handle out-of-order events
+- ✅ Failed rows move to `workflow_events_dlq` / `task_events_dlq`
+- ✅ Configure with `data-index.ingestion.jdbc-batch.{enabled,poll-interval,batch-size}`
 
 **DON'T:**
-- ❌ Don't add Event Processor service (we removed it in Phase 1)
-- ❌ Don't use polling architecture
-- ❌ Don't reference "staging tables" (we use raw tables + triggers)
+- ❌ Don't split polling back out into a separate service
+- ❌ Don't add normalization triggers
 
 **See:** `data-index/data-index-docs/modules/ROOT/pages/architecture/postgresql-mode.adoc`
 
@@ -783,12 +783,12 @@ error_instance   → ErrorEntity.instance → Error.instance
 **DO:**
 - ✅ Use Flyway migrations in `data-index-storage-migrations`
 - ✅ Use JSONB for dynamic/heterogeneous data (input/output)
-- ✅ Use triggers for normalization
+- ✅ Use the shared JDBC persistence layer for normalization
 - ✅ Use COALESCE in UPSERT for idempotency
 
 **DON'T:**
 - ❌ Don't manually create tables (use Flyway)
-- ❌ Don't add staging tables (we use raw → triggers → normalized)
+- ❌ Don't add more staging tables (raw → poller → normalized)
 
 ### Elasticsearch (MODE 2)
 
@@ -1089,11 +1089,7 @@ private Integer priority;
 
 4. **Update MapStruct mapper** (auto-maps if names match)
 
-5. **Update trigger** if field comes from events:
-```sql
--- In normalize_workflow_event() function
-priority = (NEW.data->>'priority')::integer
-```
+5. **If the field comes from events**, update the raw table, the Vector VRL, the poller's row mapping and SELECT/DLQ SQL, and the UPSERT SQL in `data-index-ingestion-persistence`.
 
 ### Adding an Elasticsearch Field (MODE 2)
 
@@ -1219,9 +1215,8 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 
 ### ❌ Architecture
 
-- Don't add Event Processor service (MODE 1 uses triggers, MODE 2 uses transforms)
-- Don't use polling architecture
-- Don't create staging tables (MODE 1) or separate processing indices (MODE 2)
+- Don't add a separate MODE 1 ingestion service (polling runs inside data-index-service; MODE 2 uses transforms)
+- Don't create extra staging tables (MODE 1) or separate processing indices (MODE 2)
 - Don't mix MODE 3 Kafka ingestion with MODE 1 Vector log ingestion in the same deployment
 - Don't mix PostgreSQL and Elasticsearch in same deployment
 
@@ -1281,10 +1276,11 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - Enable event tracing: `kubectl set env daemonset/vector -n logging DEBUG_EVENTS=true`
 - Confirm Vector can reach PostgreSQL (`POSTGRES_HOST`/`POSTGRES_PORT` env on the DaemonSet)
 
-**"Raw tables populated but normalized tables empty"**
-- Check triggers exist: `\d workflow_events_raw` in psql
-- Check trigger functions: `\df normalize_workflow_event`
-- Check PostgreSQL logs for trigger errors
+**"Raw tables growing but normalized tables empty"**
+- Rows are deleted once normalized, so raw tables should stay near-empty
+- Check polling is on: `DATA_INDEX_INGESTION_JDBC_BATCH_ENABLED=true` on data-index-service
+- Check data-index-service logs for poller errors
+- Check `workflow_events_dlq` / `task_events_dlq` for `failure_reason`
 
 **"GraphQL query returns empty taskExecutions"**
 - Check foreign key relationship: `instance_id` in task_instances → `id` in workflow_instances
@@ -1342,7 +1338,9 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - `data-index-storage-postgresql/src/main/java/.../entity/` - JPA entities
 - `data-index-storage-postgresql/src/main/java/.../mapper/` - MapStruct mappers
 - `data-index-storage-migrations/src/main/resources/db/migration/` - Flyway migrations
-- `V1__initial_schema.sql` - Schema with triggers
+- `V1__initial_schema.sql` - Staging, DLQ and normalized tables
+- `data-index-service-postgresql/src/main/java/.../ingestion/` - `WorkflowEventPoller`, `TaskEventPoller`
+- `data-index-ingestion/data-index-ingestion-persistence/` - JDBC UPSERT shared with MODE 3
 
 **Code (MODE 2 - Elasticsearch):**
 - `data-index-storage-elasticsearch/src/main/java/.../` - Storage implementation
@@ -1351,7 +1349,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 - `data-index-elasticsearch-schema/src/main/resources/schema/` - ILM, templates, transforms
 
 **Code (MODE 3 - Kafka):**
-- `data-index-ingestion/data-index-ingestion-kafka-processor/` - `EventProcessor<T>`, `WorkflowEventProcessor`, `TaskExecutionProcessor`, `persistence/WorkflowPersistence`, `persistence/TaskPersistence`, `data/WorkflowInstanceEvent`, `data/TaskExecutionEvent`, `util/LifecycleEventUtils`, `ProcessEventFailedException`
+- `data-index-ingestion/data-index-ingestion-persistence/` - `EventProcessor<T>`, `WorkflowEventProcessor`, `TaskExecutionProcessor`, `jdbc/WorkflowPersistence`, `jdbc/TaskPersistence`, `ProcessEventFailedException`
 - `data-index-ingestion/data-index-ingestion-kafka-service/` - `KafkaLifecycleConsumer`, `Mapper`, `LifecycleEvent`, `HealthChecks`, `RootResource`
 
 **Configuration:**
@@ -1380,7 +1378,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 
 ### ✅ Complete (Phase 1 - MODE 1)
 
-- Trigger-based MODE 1 architecture
+- MODE 1 architecture (superseded: normalization now polls inside data-index-service)
 - GraphQL API with input/output JSON exposure (String getters)
 - Integration tests with proper test data setup
 - POM structure consolidation
@@ -1436,8 +1434,8 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 → MODE 1: Write `@QuarkusTest` integration test with PostgreSQL profile
 → MODE 2: Write `@QuarkusTest` integration test with Elasticsearch profile + wait for transforms
 
-**"Where are the database triggers?"**
-→ MODE 1: `data-index-storage-migrations/.../V1__initial_schema.sql`
+**"Where does MODE 1 normalization happen?"**
+→ `data-index-service-postgresql/.../ingestion/` pollers + `data-index-ingestion-persistence`
 → MODE 2: Not applicable (uses Elasticsearch transforms)
 
 **"Where are the Elasticsearch transforms?"**
@@ -1445,7 +1443,7 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 → `data-index-elasticsearch-schema/resources/schema/task-executions-transform.json`
 
 **"How does data flow from Quarkus Flow to GraphQL?"**
-→ MODE 1: Quarkus Flow → stdout → Vector → PostgreSQL raw → triggers → normalized → JPA → GraphQL
+→ MODE 1: Quarkus Flow → stdout → Vector → PostgreSQL raw → data-index-service poller → normalized → JPA → GraphQL
 → MODE 2: Quarkus Flow → stdout → Vector → ES raw indices → transforms → normalized indices → ES client → GraphQL
 
 **"Which mode should I use?"**
@@ -1461,9 +1459,8 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 ## Remember
 
 - **Knowledge graph available** - Use `graphify query` or `graphify-out/graph.html` to explore architecture
-- **Read-only** - We don't modify workflow state
-- **Two modes** - PostgreSQL (triggers) or Elasticsearch (transforms)
-- **No Event Processor** - MODE 1 uses triggers, MODE 2 uses transforms
+- **Read-only API** - We don't modify workflow state
+- **Normalization** - MODE 1 polls inside data-index-service, MODE 2 uses transforms, MODE 3 uses the Kafka ingestion service
 - **Minimal dependencies** - Only persistence-commons-api from Kogito
 - **String for JSON** - Pragmatic, not ideal, but works (both modes)
 - **Test with data** - Always setup/cleanup in tests

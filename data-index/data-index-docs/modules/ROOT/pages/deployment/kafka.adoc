@@ -280,14 +280,14 @@ Common causes:
 
 [cols="1,1,1,1"]
 |===
-| Feature | MODE 1 (Vector + Triggers) | MODE 2 (Vector + ES) | MODE 3 (Kafka)
+| Feature | MODE 1 (Vector + JDBC polling) | MODE 2 (Vector + ES) | MODE 3 (Kafka)
 
 | Event Source | Container logs | Container logs | Kafka topics
 | Ingestion | Vector DaemonSet | Vector DaemonSet | SmallRye Reactive Messaging
-| Normalization | PostgreSQL triggers | ES transforms | Java processors (JDBC)
+| Normalization | Java processors (polling in data-index-service) | ES transforms | Java processors (JDBC)
 | Raw Storage | `workflow_events_raw` | `workflow-events` index | None (direct to normalized)
-| Performance | ~10ms latency | ~1s latency | ~100ms latency
-| DLQ | N/A | N/A | Yes (`data-index-events-dlq`)
+| Performance | ~1s latency | ~1s latency | ~100ms latency
+| DLQ | Yes (DLQ tables) | N/A | Yes (`data-index-events-dlq`)
 | Security | Disk files | Disk files | Kafka (SSL/SASL capable)
 |===
 

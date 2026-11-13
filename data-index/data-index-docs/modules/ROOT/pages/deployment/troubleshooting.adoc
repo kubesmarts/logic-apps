@@ -150,7 +150,7 @@ If empty, Vector is not capturing events. Check:
 * Vector DaemonSet is running on the same node as workflow pods
 * The event's `eventType` starts with `io.serverlessworkflow.`
 
-3. **Check raw events in PostgreSQL:**
+3. **Check the raw-table backlog in PostgreSQL:**
 +
 [source,bash]
 ----
@@ -159,7 +159,7 @@ kubectl exec -n postgresql postgresql-0 -- \
   -c "SELECT COUNT(*) FROM workflow_events_raw;"
 ----
 +
-If zero, Vector is not inserting to the database. Check:
+Rows are deleted once normalized, so zero is normal. If the normalized tables in step 4 are also empty, Vector is not inserting to the database. Check:
 +
 * PostgreSQL reachability from the Vector pod (`POSTGRES_HOST`/`POSTGRES_PORT` DaemonSet env)
 * `postgres` sink errors in the Vector logs
@@ -174,11 +174,11 @@ kubectl exec -n postgresql postgresql-0 -- \
   -c "SELECT id, name, status FROM workflow_instances;"
 ----
 +
-If raw tables have data but normalized tables are empty, triggers may have failed. Check:
+If raw tables keep growing while normalized tables stay empty, polling is not running or is failing. Check:
 +
-* PostgreSQL logs for trigger errors: `kubectl logs -n postgresql postgresql-0`
-* Trigger functions exist: `\df normalize_workflow_event`
-* Triggers are attached: `\d workflow_events_raw`
+* Polling is enabled: `DATA_INDEX_INGESTION_JDBC_BATCH_ENABLED` must be `true` on `data-index-service`
+* Poller errors in the service logs: `kubectl logs -l app=data-index-service`
+* Failed rows: `SELECT instance_id, failure_reason FROM workflow_events_dlq;` (and `task_events_dlq`)
 
 === Wrong namespace - Vector not collecting
 
@@ -218,7 +218,7 @@ Workflow executes, but Data Index doesn't show it for 10+ seconds.
 **Expected latency:**
 
 * Vector `postgres` sink batch: `timeout_secs: 1` (flushes at least every second)
-* PostgreSQL insert + trigger: < 1ms
+* data-index-service poll interval: 1s by default
 * Total end-to-end: 5-10 seconds
 
 **If latency is higher:**
@@ -298,7 +298,7 @@ kubectl exec -n data-index deployment/data-index-service -- \
 
 GraphQL returns multiple TaskExecution objects for the same task position.
 
-**Cause:** Trigger normalization logic may not be handling task events correctly.
+**Cause:** Task normalization may not be handling task events correctly.
 
 **Workaround:**
 
@@ -318,7 +318,7 @@ Filter by latest `endDate` or `status=COMPLETED` on client side:
 
 **Long-term fix:**
 
-Verify database trigger uses UPDATE-first pattern with `"end" IS NULL` condition. See database schema documentation.
+Check that the `sql/task-instance-upsert.sql` UPSERT in `data-index-ingestion-persistence` matches on `(instance_id, task)`.
 
 === Missing task executions
 

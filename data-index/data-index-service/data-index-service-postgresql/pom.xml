@@ -50,6 +50,25 @@
       <artifactId>data-index-storage-postgresql</artifactId>
     </dependency>
 
+    <!-- MODE 1 normalization: idempotent JDBC persistence shared with MODE 3 -->
+    <dependency>
+      <groupId>org.kubesmarts.logic.apps</groupId>
+      <artifactId>data-index-ingestion-persistence</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-scheduler</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jackson</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+    </dependency>
+
     <!-- Quarkus PostgreSQL -->
     <dependency>
       <groupId>io.quarkus</groupId>
