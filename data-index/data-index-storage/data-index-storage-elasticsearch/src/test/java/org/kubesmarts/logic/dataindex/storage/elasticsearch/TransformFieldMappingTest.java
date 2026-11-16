@@ -86,6 +86,7 @@ public class TransformFieldMappingTest {
 
         // Replace placeholders (same logic as ElasticsearchSchemaInitializer)
         transformJson = transformJson.replace("{TIME_WINDOW}", "1h");
+        transformJson = transformJson.replace("{SYNC_DELAY}", "1s");
 
         // Create transform
         try (InputStream is = new ByteArrayInputStream(transformJson.getBytes(StandardCharsets.UTF_8))) {

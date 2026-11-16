@@ -94,8 +94,8 @@ Transforms are defined in JSON and applied via `ElasticsearchSchemaInitializer`:
   "frequency": "1s",
   "sync": {
     "time": {
-      "field": "@timestamp",
-      "delay": "0s"
+      "field": "event.ingested",
+      "delay": "{SYNC_DELAY}"
     }
   },
   "pivot": {
@@ -108,6 +108,19 @@ Transforms are defined in JSON and applied via `ElasticsearchSchemaInitializer`:
 ----
 
 Location: `data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/transforms/workflow-instances-transform.json`
+
+=== Checkpoint Sync
+
+Each checkpoint looks for changed entities with `sync.time.field` between the previous checkpoint and `now - sync.time.delay`, and never looks back.
+A document that becomes searchable after its window has closed is skipped for good.
+
+* `sync.time.field` is `event.ingested`, set by the `data-index-ingest-timestamp` ingest pipeline (the raw templates' `default_pipeline`) when the document reaches Elasticsearch.
+  This keeps Vector batching and network latency out of the window, as the Elasticsearch docs recommend.
+* `sync.time.delay` covers the remaining gap until the document is searchable (refresh).
+  Configured with `data-index.transform.sync-delay` (default `5s`).
+* The smart filter still uses `@timestamp` (set by Vector), since it only needs coarse, hour-level precision.
+
+See https://www.elastic.co/guide/en/elasticsearch/reference/8.11/transform-limitations.html[Transform limitations - Continuous transforms may give incorrect results if documents are not yet available to search].
 
 == Field-Level Idempotency
 
