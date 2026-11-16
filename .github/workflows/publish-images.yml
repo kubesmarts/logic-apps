@@ -101,6 +101,11 @@ jobs:
           echo "POM version: ${POM_VERSION}"
           echo "Trigger: ${TRIGGER}"
 
+          if [[ "${VERSION}" == v* ]]; then
+            echo "❌ ERROR: image tag ${VERSION} must not start with 'v'"
+            exit 1
+          fi
+
           if [[ "${IS_LATEST}" == "true" ]]; then
             # Releases only build from an existing vX.Y.Z tag, never from a branch.
             if [[ ! "${RELEASE_TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
