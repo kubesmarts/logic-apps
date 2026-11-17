@@ -1,5 +1,6 @@
 package org.kubesmarts.logic.dataindex.ingestion.kafka.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cloudevents.CloudEvent;
 import io.serverlessworkflow.impl.LifecycleEvents;
@@ -19,16 +20,16 @@ import io.serverlessworkflow.impl.lifecycle.ce.WorkflowFailedCEData;
 import io.serverlessworkflow.impl.lifecycle.ce.WorkflowStartedCEData;
 import io.serverlessworkflow.impl.lifecycle.ce.WorkflowStartedCEDataWithInput;
 import io.serverlessworkflow.impl.lifecycle.ce.WorkflowStatusCEDataEvent;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.TaskExecution;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.WorkflowInstance;
 import org.kubesmarts.logic.dataindex.model.Error;
 import org.kubesmarts.logic.dataindex.model.LifecycleEventUtils;
-import org.kubesmarts.logic.dataindex.model.TaskExecution;
-import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstanceStatus;
 public final class Mapper {
 
     private Mapper() {}
 
-    public static WorkflowInstance mapWorkflowInstanceEvent(CloudEvent cloudEvent, WorkflowCEData data, ObjectMapper jackson) {
+    public static WorkflowInstance mapWorkflowInstanceEvent(CloudEvent cloudEvent, WorkflowCEData data, ObjectMapper objectMapper) throws JsonProcessingException {
 
         String id = data.getName();
         if (id == null || id.isBlank()) {
@@ -43,34 +44,34 @@ public final class Mapper {
         workflow.setName(data.getDefinition().name());
         workflow.setVersion(data.getDefinition().version());
         workflow.setStatus(WorkflowInstanceStatus.valueOf(status));
-        workflow.setEventTimestamp(cloudEvent.getTime().toZonedDateTime());
+        workflow.setEventTimestamp(cloudEvent.getTime());
 
         if (data instanceof WorkflowStartedCEData started) {
-            workflow.setStartedAt(started.getStartedAt().toZonedDateTime());
+            workflow.setStartedAt(started.getStartedAt());
         } else if (data instanceof WorkflowCompletedCEData completed) {
-            workflow.setEndedAt(completed.getCompletedAt().toZonedDateTime());
+            workflow.setEndedAt(completed.getCompletedAt());
         } else if (data instanceof WorkflowFailedCEData failed) {
-            workflow.setEndedAt(failed.getFaultedAt().toZonedDateTime());
+            workflow.setEndedAt(failed.getFaultedAt());
             if (failed.getError() != null) {
                 workflow.setError(mapError(failed.getError()));
             }
         } else if (data instanceof WorkflowCancelledCEData cancelled) {
-            workflow.setEndedAt(cancelled.getCancelledAt().toZonedDateTime());
+            workflow.setEndedAt(cancelled.getCancelledAt());
         } else if (data instanceof WorkflowStatusCEDataEvent statusChanged) {
-            workflow.setLastUpdate(statusChanged.getUpdatedAt().toZonedDateTime());
+            workflow.setLastUpdate(statusChanged.getUpdatedAt());
         }
 
         if (data instanceof WorkflowStartedCEDataWithInput withInput && withInput.getInput() != null) {
-            workflow.setInput(jackson.valueToTree(withInput.getInput()));
+            workflow.setInput(objectMapper.writeValueAsString(withInput.getInput()));
         }
         if (data instanceof WorkflowCompletedCEDataWithOutput withOutput && withOutput.getOutput() != null) {
-            workflow.setOutput(jackson.valueToTree(withOutput.getOutput()));
+            workflow.setOutput(objectMapper.writeValueAsString(withOutput.getOutput()));
         }
 
         return workflow;
     }
 
-    public static TaskExecution mapTaskExecutionEvent(CloudEvent cloudEvent, TaskCEData data, ObjectMapper jackson) {
+    public static TaskExecution mapTaskExecutionEvent(CloudEvent cloudEvent, TaskCEData data, ObjectMapper jackson) throws JsonProcessingException {
 
         String instanceId = data.getWorkflow();
         if (instanceId == null || instanceId.isBlank()) {
@@ -86,31 +87,31 @@ public final class Mapper {
 
         TaskExecution taskExecution = new TaskExecution();
         taskExecution.setInstanceId(instanceId);
-        taskExecution.setEventTimestamp(cloudEvent.getTime().toZonedDateTime());
+        taskExecution.setEventTimestamp(cloudEvent.getTime());
         taskExecution.setStatus(status);
         taskExecution.setTask(taskPosition);
         taskExecution.setTaskName(taskPosition.substring(taskPosition.lastIndexOf("/") + 1));
 
         if (data instanceof TaskStartedCEData started) {
-            taskExecution.setStartedAt(started.getStartedAt().toZonedDateTime());
+            taskExecution.setStartedAt(started.getStartedAt());
         }
 
         if (data instanceof TaskCompletedCEData completed) {
-            taskExecution.setEndedAt(completed.getCompletedAt().toZonedDateTime());
+            taskExecution.setEndedAt(completed.getCompletedAt());
         } else if (data instanceof TaskFailedCEData failed) {
-            taskExecution.setEndedAt(failed.getFaultedAt().toZonedDateTime());
+            taskExecution.setEndedAt(failed.getFaultedAt());
             if (failed.getError() != null) {
                 taskExecution.setError(mapError(failed.getError()));
             }
         } else if (data instanceof TaskCancelledCEData cancelled) {
-            taskExecution.setEndedAt(cancelled.getCancelledAt().toZonedDateTime());
+            taskExecution.setEndedAt(cancelled.getCancelledAt());
         }
 
         if (data instanceof TaskStartedCEDataWithInput withInput && withInput.getInput() != null) {
-            taskExecution.setInput(jackson.valueToTree(withInput.getInput()));
+            taskExecution.setInput(jackson.writeValueAsString(withInput.getInput()));
         }
         if (data instanceof TaskCompletedCEDataWithOutput withOutput && withOutput.getOutput() != null) {
-            taskExecution.setOutput(jackson.valueToTree(withOutput.getOutput()));
+            taskExecution.setOutput(jackson.writeValueAsString(withOutput.getOutput()));
         }
 
         return taskExecution;

@@ -40,10 +40,10 @@ import org.eclipse.microprofile.reactive.messaging.Metadata;
 import org.kubesmarts.logic.dataindex.ingestion.persistence.ProcessEventFailedException;
 import org.kubesmarts.logic.dataindex.ingestion.persistence.WorkflowEventProcessor;
 import org.kubesmarts.logic.dataindex.ingestion.persistence.TaskExecutionProcessor;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.TaskExecution;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.WorkflowInstance;
 
 import org.kubesmarts.logic.dataindex.model.LifecycleEventUtils;
-import org.kubesmarts.logic.dataindex.model.TaskExecution;
-import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

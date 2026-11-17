@@ -18,7 +18,6 @@ package org.kubesmarts.logic.dataindex.ingestion.persistence;
 import io.quarkus.arc.Unremovable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.kubesmarts.logic.dataindex.model.TaskExecution;
 import org.kubesmarts.logic.dataindex.ingestion.persistence.jdbc.TaskPersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -15,7 +15,6 @@
  */
 package org.kubesmarts.logic.dataindex.service.postgresql.ingestion;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.scheduler.Scheduled;
@@ -24,8 +23,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.kubesmarts.logic.dataindex.ingestion.persistence.WorkflowEventProcessor;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.WorkflowInstance;
 import org.kubesmarts.logic.dataindex.ingestion.persistence.jdbc.LoadSQL;
-import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +51,6 @@ public class WorkflowEventPoller {
 
     final DataSource dataSource;
     final WorkflowEventProcessor workflowEventProcessor;
-    final ObjectMapper objectMapper;
     final MeterRegistry meterRegistry;
 
     private Counter processedCounter;
@@ -66,10 +64,9 @@ public class WorkflowEventPoller {
     int batchSize;
 
     @Inject
-    public WorkflowEventPoller(DataSource dataSource, WorkflowEventProcessor workflowEventProcessor, ObjectMapper objectMapper, MeterRegistry meterRegistry) {
+    public WorkflowEventPoller(DataSource dataSource, WorkflowEventProcessor workflowEventProcessor, MeterRegistry meterRegistry) {
         this.dataSource = dataSource;
         this.workflowEventProcessor = workflowEventProcessor;
-        this.objectMapper = objectMapper;
         this.meterRegistry = meterRegistry;
     }
 
@@ -109,7 +106,7 @@ public class WorkflowEventPoller {
     private void processBatch(Connection conn, List<WorkflowEventRow> rows) {
         try {
             List<WorkflowInstance> events = rows.stream()
-                    .map(row -> WorkflowEventRowMapper.toWorkflowInstance(row, objectMapper))
+                    .map(WorkflowEventRowMapper::toUpsert)
                     .toList();
             workflowEventProcessor.processBatch(events);
         } catch (Exception batchFailure) {
@@ -124,7 +121,7 @@ public class WorkflowEventPoller {
         List<WorkflowEventRow> normalized = new ArrayList<>();
         for (WorkflowEventRow row : rows) {
             try {
-                WorkflowInstance event = WorkflowEventRowMapper.toWorkflowInstance(row, objectMapper);
+                WorkflowInstance event = WorkflowEventRowMapper.toUpsert(row);
                 workflowEventProcessor.process(event);
                 normalized.add(row);
             } catch (Exception singleFailure) {

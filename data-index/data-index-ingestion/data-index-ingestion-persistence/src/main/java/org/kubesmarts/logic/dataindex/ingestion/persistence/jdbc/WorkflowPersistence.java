@@ -1,40 +1,29 @@
 package org.kubesmarts.logic.dataindex.ingestion.persistence.jdbc;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.arc.Unremovable;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.WorkflowInstance;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Unremovable
 @ApplicationScoped
 public class WorkflowPersistence {
 
-    private static final Logger log = LoggerFactory.getLogger(WorkflowPersistence.class);
-
     private String insertWorkflowUpsert;
 
     final DataSource dataSource;
-    final ObjectMapper objectMapper;
 
     @Inject
-    public WorkflowPersistence(DataSource dataSource, ObjectMapper objectMapper) {
+    public WorkflowPersistence(DataSource dataSource) {
         this.dataSource = dataSource;
-        this.objectMapper = objectMapper;
     }
 
     @PostConstruct
@@ -94,13 +83,13 @@ public class WorkflowPersistence {
         } else {
             stmt.setNull(5, Types.VARCHAR);
         }
-        stmt.setObject(6, Optional.ofNullable(event.getStartedAt()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
-        stmt.setObject(7, Optional.ofNullable(event.getEndedAt()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
-        stmt.setObject(8, Optional.ofNullable(event.getLastUpdate()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
+        stmt.setObject(6, event.getStartedAt());
+        stmt.setObject(7, event.getEndedAt());
+        stmt.setObject(8, event.getLastUpdate());
 
         // JSON fields
-        stmt.setString(9, toJsonString(event.getInput()));
-        stmt.setString(10, toJsonString(event.getOutput()));
+        stmt.setString(9, event.getInput());
+        stmt.setString(10, event.getOutput());
 
         // Error fields
         if (event.getError() != null) {
@@ -116,19 +105,7 @@ public class WorkflowPersistence {
             stmt.setNull(14, Types.INTEGER);
             stmt.setNull(15, Types.VARCHAR);
         }
-        stmt.setObject(16, Optional.ofNullable(event.getEventTimestamp()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
-    }
-
-    private String toJsonString(JsonNode node) {
-        if (node == null) {
-            return null;
-        }
-        try {
-            return objectMapper.writeValueAsString(node);
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to serialize JSON node, returning null", e);
-            return null;
-        }
+        stmt.setObject(16, event.getEventTimestamp());
     }
 
 }

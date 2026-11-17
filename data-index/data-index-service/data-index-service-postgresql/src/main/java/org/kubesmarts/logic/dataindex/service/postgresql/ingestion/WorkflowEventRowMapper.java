@@ -15,21 +15,16 @@
  */
 package org.kubesmarts.logic.dataindex.service.postgresql.ingestion;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.WorkflowInstance;
 import org.kubesmarts.logic.dataindex.model.Error;
-import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstanceStatus;
-
-import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
 
 final class WorkflowEventRowMapper {
 
     private WorkflowEventRowMapper() {
     }
 
-    static WorkflowInstance toWorkflowInstance(WorkflowEventRow row, ObjectMapper objectMapper) {
+    static WorkflowInstance toUpsert(WorkflowEventRow row) {
         WorkflowInstance instance = new WorkflowInstance();
         instance.setId(row.instanceId());
         instance.setNamespace(row.namespace());
@@ -38,12 +33,12 @@ final class WorkflowEventRowMapper {
         if (row.status() != null) {
             instance.setStatus(WorkflowInstanceStatus.valueOf(row.status()));
         }
-        instance.setStartedAt(toZonedDateTime(row.startedAt()));
-        instance.setEndedAt(toZonedDateTime(row.endedAt()));
-        instance.setLastUpdate(toZonedDateTime(row.lastUpdate()));
-        instance.setInput(toJsonNode(row.input(), objectMapper));
-        instance.setOutput(toJsonNode(row.output(), objectMapper));
-        instance.setEventTimestamp(toZonedDateTime(row.eventTimestamp()));
+        instance.setStartedAt(row.startedAt());
+        instance.setEndedAt(row.endedAt());
+        instance.setLastUpdate(row.lastUpdate());
+        instance.setInput(row.input());
+        instance.setOutput(row.output());
+        instance.setEventTimestamp(row.eventTimestamp());
 
         if (hasErrorFields(row)) {
             Error error = new Error();
@@ -61,20 +56,5 @@ final class WorkflowEventRowMapper {
     private static boolean hasErrorFields(WorkflowEventRow row) {
         return row.errorType() != null || row.errorTitle() != null || row.errorDetail() != null
                 || row.errorStatus() != null || row.errorInstance() != null;
-    }
-
-    private static ZonedDateTime toZonedDateTime(OffsetDateTime value) {
-        return value != null ? value.toZonedDateTime() : null;
-    }
-
-    private static JsonNode toJsonNode(String json, ObjectMapper objectMapper) {
-        if (json == null) {
-            return null;
-        }
-        try {
-            return objectMapper.readTree(json);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to parse staging column as JSON: " + json, e);
-        }
     }
 }
