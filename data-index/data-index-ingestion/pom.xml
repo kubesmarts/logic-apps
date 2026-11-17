@@ -31,10 +31,10 @@
   <artifactId>data-index-ingestion</artifactId>
   <packaging>pom</packaging>
   <name>KubeSmarts Logic Apps :: Data Index :: Ingestion</name>
-  <description>Kafka-based event ingestion for Data Index (MODE 3)</description>
+  <description>Event ingestion for Data Index: Kafka service (MODE 3) and shared JDBC persistence (MODE 1, MODE 3)</description>
 
   <modules>
-    <module>data-index-ingestion-kafka-processor</module>
+    <module>data-index-ingestion-persistence</module>
     <module>data-index-ingestion-kafka-service</module>
   </modules>
 

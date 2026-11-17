@@ -228,18 +228,16 @@ public class PostgreSQLWorkflowInstanceStorage
 
 Schema is managed by Flyway migrations in `data-index-storage-migrations` module:
 
-- `V1__initial_schema.sql` - Create tables, triggers, functions
+- `V1__initial_schema.sql` - Create tables and indexes
 - Future: `V2__*.sql`, `V3__*.sql`, etc.
 
 **Tables:**
 - `workflow_instances` - Normalized workflow data
 - `task_instances` - Normalized task data
-- `workflow_events_raw` - Raw JSONB events from the Vector postgres sink
-- `task_events_raw` - Raw JSONB task events
+- `workflow_events_raw`, `task_events_raw` - Typed staging rows from the Vector postgres sink
+- `workflow_events_dlq`, `task_events_dlq` - Staging rows that failed normalization
 
-**Triggers:**
-- `normalize_workflow_event()` - Extracts fields from JSONB, UPSERTs to normalized tables
-- `normalize_task_event()` - Same for task events
+**Normalization:** `data-index-service-postgresql` polls the staging tables and UPSERTs through `data-index-ingestion-persistence`.
 
 See: [Database Schema Documentation](../../data-index-docs/modules/ROOT/pages/developers/database-schema.adoc)
 
@@ -386,7 +384,7 @@ public class PostgreSQLStorageTest {
 2. Add field to JPA entity
 3. Add field to domain model
 4. MapStruct auto-maps if names match (or add `@Mapping`)
-5. Update trigger if field comes from events
+5. If the field comes from events, update the staging table, Vector VRL, poller and UPSERT SQL
 
 **Code style:**
 - Use MapStruct for entity ↔ domain conversion

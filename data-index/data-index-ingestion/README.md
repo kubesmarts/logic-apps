@@ -34,7 +34,7 @@ Quarkus Flow --> Kafka (CloudEvents: binary or structured, topic: flow-lifecycle
 
 ## Modules
 
-- **data-index-ingestion-kafka-processor** - Event models (`WorkflowInstanceEvent`, `TaskExecutionEvent`), processors (`WorkflowEventProcessor`, `TaskExecutionProcessor`), and JDBC UPSERT persistence (`WorkflowPersistence`, `TaskPersistence`)
+- **data-index-ingestion-persistence** - Source-agnostic processors (`WorkflowEventProcessor`, `TaskExecutionProcessor`) and JDBC UPSERT persistence (`WorkflowPersistence`, `TaskPersistence`); shared with MODE 1's JDBC batch reader
 - **data-index-ingestion-kafka-service** - Quarkus service with the Kafka consumer (`KafkaLifecycleConsumer`), CloudEvent mapping (`Mapper`), health checks, and dead-letter queue handling
 
 ## Development

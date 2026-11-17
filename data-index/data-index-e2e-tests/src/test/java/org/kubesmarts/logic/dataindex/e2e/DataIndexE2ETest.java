@@ -46,7 +46,7 @@ import static org.awaitility.Awaitility.await;
  * - Full lifecycle (trigger → ingestion → storage → GraphQL)
  * <p>
  * Each mode has different ingestion paths but same GraphQL API:
- * - MODE 1: FluentBit → PostgreSQL triggers → GraphQL
+ * - MODE 1: Vector → PostgreSQL → data-index-service polling → GraphQL
  * - MODE 2: Vector → Elasticsearch transforms → GraphQL
  * - MODE 3: Kafka → Ingestion Service → PostgreSQL → GraphQL
  * <p>

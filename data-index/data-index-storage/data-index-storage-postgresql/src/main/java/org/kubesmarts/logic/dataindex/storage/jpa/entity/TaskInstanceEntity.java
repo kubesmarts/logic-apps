@@ -38,12 +38,12 @@ import jakarta.persistence.Table;
  * JPA entity for task instances.
  *
  * <p><b>Design principle:</b> This entity stores normalized task data populated by
- * PostgreSQL triggers from raw events. Maps to the {@code task_instances} table.
+ * the data-index-service poller from raw events. Maps to the {@code task_instances} table.
  *
- * <p><b>Data Source:</b> PostgreSQL triggers extract from {@code task_events_raw.data} JSONB
- * and UPSERT into this table.
+ * <p><b>Data Source:</b> The poller reads typed {@code task_events_raw} rows
+ * and UPSERTs into this table.
  *
- * <p><b>Event sources (via triggers):</b>
+ * <p><b>Event sources:</b>
  * <ul>
  *   <li>workflow.task.started → taskName, task, startedAt, input, status
  *   <li>workflow.task.completed → endedAt, output, status
@@ -72,14 +72,14 @@ public class TaskInstanceEntity extends AbstractEntity {
     /**
      * Task name.
      * <p>Source: taskName from Quarkus Flow task events
-     * <p>Extracted by trigger from: data->>'taskName'
+     * <p>Populated from {@code task_events_raw} by the poller
      */
     private String taskName;
 
     /**
      * Task instance status.
      * <p>Source: status from Quarkus Flow events
-     * <p>Extracted by trigger from: data->>'status'
+     * <p>Populated from {@code task_events_raw} by the poller
      * <p>Values: RUNNING, COMPLETED, FAULTED
      */
     private String status;
@@ -87,7 +87,7 @@ public class TaskInstanceEntity extends AbstractEntity {
     /**
      * Task execution start time.
      * <p>Source: startTime from workflow.task.started event
-     * <p>Extracted by trigger from: to_timestamp((data->>'startTime')::numeric)
+     * <p>Populated from {@code task_events_raw} by the poller
      * <p>Column: 'started_at' (PostgreSQL snake_case convention)
      */
     @Column(name = "started_at")
@@ -96,7 +96,7 @@ public class TaskInstanceEntity extends AbstractEntity {
     /**
      * Task execution end time (terminal timestamp).
      * <p>Source: endTime from workflow.task.completed/faulted/cancelled events
-     * <p>Extracted by trigger from: to_timestamp((data->>'endTime')::numeric)
+     * <p>Populated from {@code task_events_raw} by the poller
      * <p>Column: 'ended_at' (PostgreSQL snake_case convention, generic terminal timestamp)
      */
     @Column(name = "ended_at")
@@ -105,7 +105,7 @@ public class TaskInstanceEntity extends AbstractEntity {
     /**
      * Input data (JSONB).
      * <p>Source: input from workflow.task.started event
-     * <p>Extracted by trigger from: data->'input'
+     * <p>Populated from {@code task_events_raw} by the poller
      * <p>Stored as JSONB in PostgreSQL
      */
     @JdbcTypeCode(SqlTypes.JSON)
@@ -115,7 +115,7 @@ public class TaskInstanceEntity extends AbstractEntity {
     /**
      * Output data (JSONB).
      * <p>Source: output from workflow.task.completed event
-     * <p>Extracted by trigger from: data->'output'
+     * <p>Populated from {@code task_events_raw} by the poller
      * <p>Stored as JSONB in PostgreSQL
      */
     @JdbcTypeCode(SqlTypes.JSON)
@@ -125,7 +125,7 @@ public class TaskInstanceEntity extends AbstractEntity {
     /**
      * Error information if task failed.
      * <p>Source: error object from workflow.task.faulted event
-     * <p>Extracted by trigger from: data->'error'
+     * <p>Populated from {@code task_events_raw} by the poller
      * <p>Stored in error_* columns
      */
     @Embedded
@@ -133,13 +133,13 @@ public class TaskInstanceEntity extends AbstractEntity {
 
     /**
      * Record creation timestamp.
-     * <p>Auto-populated by database trigger when row is inserted
+     * <p>Set by the normalization UPSERT when the row is inserted
      */
     private ZonedDateTime createdAt;
 
     /**
      * Record last update timestamp.
-     * <p>Auto-populated by database trigger when row is updated
+     * <p>Set by the normalization UPSERT when the row is updated
      */
     private ZonedDateTime updatedAt;
 

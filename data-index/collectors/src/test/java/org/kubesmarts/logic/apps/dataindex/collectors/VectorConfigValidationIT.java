@@ -164,8 +164,9 @@ class VectorConfigValidationIT {
 
             // Make sure there are no errors (warnings are OK)
             assertThat(logs)
-                    .as("Vector config should not have errors (warnings are OK)")
-                    .doesNotContain("Failed to load");
+                    .as("Vector config should not have errors (warnings are OK)\nLogs:\n%s", logs)
+                    .doesNotContain("Failed to load")
+                    .doesNotContain("Component errors");
         }
     }
 

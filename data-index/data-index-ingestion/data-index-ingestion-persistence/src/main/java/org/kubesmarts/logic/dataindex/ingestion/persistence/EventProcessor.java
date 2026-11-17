@@ -1,4 +1,4 @@
-package org.kubesmarts.logic.dataindex.ingestion.kafka.processor;
+package org.kubesmarts.logic.dataindex.ingestion.persistence;
 
 public interface EventProcessor<T> {
 

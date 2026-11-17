@@ -3,14 +3,14 @@
 
 == What is Data Index?
 
-Data Index is a *read-only query service* for Open Workflow 1.0.0 runtime execution data. It provides a GraphQL API for querying workflow instances and task executions from Quarkus Flow applications.
+Data Index is a *query service* for Open Workflow 1.0.0 runtime execution data. It provides a GraphQL API for querying workflow instances and task executions from Quarkus Flow applications.
 
 [sidebar]
 ****
 *Key Features:*
 
 * 📊 **GraphQL API** - Query workflow instances and task executions
-* 🚀 **Real-time Processing** - PostgreSQL: <1ms triggers, Elasticsearch: ~1s transforms
+* 🚀 **Real-time Processing** - PostgreSQL: ~1s JDBC polling, Elasticsearch: ~1s transforms
 * 🔍 **Flexible Filtering** - Filter by status, name, namespace, time ranges
 * 🎯 **Production Ready** - Both PostgreSQL and Elasticsearch backends fully tested
 * 📝 **Structured Logging** - Captures events from Quarkus Flow apps via Vector
@@ -69,7 +69,7 @@ Choose based on your requirements - see xref:architecture/overview.adoc#_decisio
 
 [WARNING]
 ====
-Data Index is a *read-only* query service. It does **NOT**:
+The Data Index API is *read-only*. It does **NOT**:
 
 * Execute workflows (that's Quarkus Flow's job)
 * Modify workflow state

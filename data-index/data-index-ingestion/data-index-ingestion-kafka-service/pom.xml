@@ -40,7 +40,7 @@
   <dependencies>
     <dependency>
       <groupId>org.kubesmarts.logic.apps</groupId>
-      <artifactId>data-index-ingestion-kafka-processor</artifactId>
+      <artifactId>data-index-ingestion-persistence</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

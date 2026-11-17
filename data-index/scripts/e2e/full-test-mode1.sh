@@ -71,7 +71,7 @@ cleanup_cluster() {
 main() {
     echo ""
     echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║  MODE 1 Full E2E Test - PostgreSQL + Vector + Triggers        ║"
+    echo "║  MODE 1 Full E2E Test - PostgreSQL + Vector + JDBC Polling    ║"
     echo "╚════════════════════════════════════════════════════════════════╝"
     echo ""
 
@@ -157,8 +157,8 @@ main() {
     log_info "Architecture verified:"
     echo "  Quarkus Flow → stdout → /var/log/containers/"
     echo "            ↓ (Vector kubernetes_logs → postgres sink)"
-    echo "  PostgreSQL raw tables (JSONB)"
-    echo "            ↓ (BEFORE INSERT triggers)"
+    echo "  PostgreSQL staging tables (typed columns)"
+    echo "            ↓ (data-index-service polls, idempotent UPSERT)"
     echo "  PostgreSQL normalized tables"
     echo "            ↓ (JPA/Hibernate)"
     echo "  GraphQL API (SmallRye GraphQL)"

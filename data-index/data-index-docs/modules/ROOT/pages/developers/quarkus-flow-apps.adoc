@@ -99,9 +99,8 @@ See the https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html[Qua
 
 == Why Epoch Seconds?
 
-The MODE 1 PostgreSQL triggers parse the event's `timestamp`/`startTime`/`endTime` fields
-with `to_timestamp(... ::numeric)`, so they must be Unix epoch seconds. Using `epoch-seconds`
-ensures proper timestamp parsing.
+The MODE 1 Vector config converts the event's `timestamp`/`startTime`/`endTime` fields from
+numeric Unix epoch seconds. Other formats end up as `NULL` columns, so use `epoch-seconds`.
 
 == JAX-RS Endpoints (Required)
 

@@ -2,7 +2,7 @@
 {{/*
 Vector ConfigMap
 Embeds the mode-specific vector.yaml (configs/vector/vector-<vector.config>.yaml):
-  mode1-postgresql  -> postgres sinks + PostgreSQL triggers
+  mode1-postgresql  -> postgres sinks + data-index-service polling
   mode2-elasticsearch -> elasticsearch sinks + ES transforms
 */}}
 

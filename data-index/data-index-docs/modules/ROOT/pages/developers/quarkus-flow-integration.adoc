@@ -144,8 +144,8 @@ quarkus.smallrye-health.ui.enabled=true
 ====
 *Why epoch-seconds timestamp format?*
 
-The MODE 1 PostgreSQL triggers parse the event's `timestamp`, `startTime`, and `endTime`
-fields with `to_timestamp(... ::numeric)`, so they must be Unix epoch seconds.
+The MODE 1 Vector config converts the event's `timestamp`, `startTime`, and `endTime`
+fields from numeric Unix epoch seconds. Other formats end up as `NULL` columns.
 ====
 
 == Step 3: Configure Kubernetes Deployment

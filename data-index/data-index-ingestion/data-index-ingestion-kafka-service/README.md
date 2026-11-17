@@ -6,17 +6,17 @@ Consumes CloudEvents from Kafka topics published by Quarkus Flow and writes norm
 
 ## MODE 3 vs MODE 1 & MODE 2
 
-| Feature | MODE 1 (FluentBit + Triggers) | MODE 2 (FluentBit + ES Transforms) | MODE 3 (Kafka + JDBC) |
+| Feature | MODE 1 (Vector + JDBC polling) | MODE 2 (Vector + ES Transforms) | MODE 3 (Kafka + JDBC) |
 |---|---|---|---|
 | **Event source** | Log files | Log files | Kafka topics |
-| **Ingestion** | FluentBit DaemonSet | FluentBit DaemonSet | SmallRye Reactive Messaging |
-| **Normalization** | PostgreSQL triggers | Elasticsearch transforms | Java JDBC processors |
+| **Ingestion** | Vector DaemonSet | Vector DaemonSet | SmallRye Reactive Messaging |
+| **Normalization** | Java JDBC (polling in data-index-service) | Elasticsearch transforms | Java JDBC processors |
 | **Raw storage** | `workflow_events_raw` table | `workflow-events` index | None (direct to normalized) |
 | **Transport security** | File system | File system | SSL/SASL_SSL supported |
-| **Dead letter queue** | N/A | N/A | Yes (`data-index-events-dlq`) |
-| **Timestamp format** | Converted by trigger | Converted by transform | **OffsetDateTime (UTC)** |
-| **Idempotency** | SQL `COALESCE` | Painless script | SQL `COALESCE` + `last_event_time` |
-| **FK recovery** | N/A (triggers atomic) | N/A (no FK) | **Savepoint + retry** |
+| **Dead letter queue** | DLQ tables | N/A | Yes (`data-index-events-dlq`) |
+| **Timestamp format** | Converted by Vector | Converted by transform | **OffsetDateTime (UTC)** |
+| **Idempotency** | SQL `COALESCE` + `last_event_time` | Painless script | SQL `COALESCE` + `last_event_time` |
+| **FK recovery** | Savepoint + retry | N/A (no FK) | **Savepoint + retry** |
 
 **Use MODE 3 when:**
 - Kafka infrastructure already exists
@@ -146,13 +146,12 @@ The overhead of CloudEvent reconstruction is negligible compared to DB UPSERT op
 
 The Kafka ingestion service is composed of two Maven modules:
 
-1. **data-index-ingestion-kafka-processor**: Event models and processing logic
-   - `data/WorkflowInstanceEvent.java`, `data/TaskExecutionEvent.java` - Internal event payloads
+1. **data-index-ingestion-persistence**: source-agnostic processing and persistence logic, shared with MODE 1's JDBC batch reader
    - `EventProcessor<T>` - Generic processor interface
    - `WorkflowEventProcessor.java` / `TaskExecutionProcessor.java` - Processor implementations
-   - `persistence/WorkflowPersistence.java` - JDBC UPSERT for workflow events
-   - `persistence/TaskPersistence.java` - JDBC UPSERT for task events with FK recovery
-   - `util/LifecycleEventUtils.java` - Event-type routing + status mapping
+   - `jdbc/WorkflowPersistence.java` - JDBC UPSERT for workflow events
+   - `jdbc/TaskPersistence.java` - JDBC UPSERT for task events with FK recovery
+   - `jdbc/LoadSQL.java` - Loads SQL statements from classpath resources
    - `ProcessEventFailedException.java` - Thrown on processing failure (triggers DLQ)
 
 2. **data-index-ingestion-kafka-service**: Quarkus application

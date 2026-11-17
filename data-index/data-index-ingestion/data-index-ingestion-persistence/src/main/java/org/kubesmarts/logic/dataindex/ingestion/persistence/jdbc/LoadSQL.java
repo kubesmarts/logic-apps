@@ -1,4 +1,4 @@
-package org.kubesmarts.logic.dataindex.ingestion.kafka.processor.persistence;
+package org.kubesmarts.logic.dataindex.ingestion.persistence.jdbc;
 
 import java.io.BufferedReader;
 import java.io.IOException;

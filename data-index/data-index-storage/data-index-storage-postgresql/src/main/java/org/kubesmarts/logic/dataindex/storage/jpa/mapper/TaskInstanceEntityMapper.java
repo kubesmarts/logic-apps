@@ -28,7 +28,7 @@ import org.mapstruct.MappingTarget;
  * <p>Maps between:
  * <ul>
  *   <li>TaskExecution (domain model) - used by GraphQL API
- *   <li>TaskInstanceEntity (JPA entity) - persisted in PostgreSQL via triggers
+ *   <li>TaskInstanceEntity (JPA entity) - persisted in PostgreSQL
  * </ul>
  */
 @Mapper(componentModel = "cdi", injectionStrategy = InjectionStrategy.CONSTRUCTOR, uses = {ErrorEntityMapper.class})
