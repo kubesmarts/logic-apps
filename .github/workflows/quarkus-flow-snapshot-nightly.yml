@@ -26,18 +26,41 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       LABEL: quarkus-flow-snapshot-failure
-      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
     steps:
       - name: Open or update tracking issue
         run: |
           gh label create "$LABEL" --color B60205 \
             --description "Nightly E2E against Quarkus Flow SNAPSHOT is failing" 2>/dev/null || true
 
-          issue=$(gh issue list --label "$LABEL" --state open --limit 1 --json number --jq '.[0].number')
+          read -r issue state < <(gh issue list --label "$LABEL" --state all --limit 1 \
+            --json number,state --jq '.[0] // empty | "\(.number) \(.state)"')
           if [ -n "$issue" ]; then
-            gh issue comment "$issue" --body "Still failing: $RUN_URL"
+            if [ "$state" = "CLOSED" ]; then
+              gh issue reopen "$issue"
+            fi
+            gh issue comment "$issue" --body "Failing: $RUN_URL"
           else
             gh issue create --label "$LABEL" \
               --title "Nightly E2E against Quarkus Flow SNAPSHOT is failing" \
               --body "The nightly E2E run against Quarkus Flow \`2.0.0-SNAPSHOT\` failed: $RUN_URL"
+          fi
+
+  report-success:
+    name: Report success
+    runs-on: ubuntu-latest
+    needs: e2e
+    if: success()
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      LABEL: quarkus-flow-snapshot-failure
+    steps:
+      - name: Close tracking issue
+        run: |
+          issue=$(gh issue list --label "$LABEL" --state open --limit 1 --json number --jq '.[0].number')
+          if [ -n "$issue" ]; then
+            gh issue close "$issue"
           fi
