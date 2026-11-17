@@ -1,753 +1,687 @@
 {
   "data-index/collectors/go.mod": {
-    "mtime": 1789655586.6005094,
-    "seen": 1789655607.2030096,
+    "mtime": 1794935112.2779796,
+    "seen": 1794935148.412736,
     "ast_hash": "568d904569ffbc53bd64a329331810a8",
     "semantic_hash": "568d904569ffbc53bd64a329331810a8"
   },
   "data-index/collectors/pom.xml": {
-    "mtime": 1789655586.6005094,
-    "seen": 1789655607.203015,
-    "ast_hash": "e0f528fbb8f751373d6c08853feb5096",
+    "mtime": 1794935112.2779796,
+    "seen": 1794935148.4127374,
+    "ast_hash": "8583b421c3cecbd3433d3371de2a5cde",
     "semantic_hash": ""
   },
   "data-index/collectors/src/test/java/org/kubesmarts/logic/apps/dataindex/collectors/VectorConfigValidationIT.java": {
-    "mtime": 1789655586.6007054,
-    "seen": 1789655607.2030175,
-    "ast_hash": "a8e5e46c5f90cdeed4bbf35b031a5866",
+    "mtime": 1794935112.2781708,
+    "seen": 1794935148.4127386,
+    "ast_hash": "1bd90bf8313b6e911253eb9aa8a0800c",
     "semantic_hash": ""
   },
   "data-index/data-index-docs/package.json": {
-    "mtime": 1789655586.6019466,
-    "seen": 1789655607.2030187,
+    "mtime": 1794935112.2794602,
+    "seen": 1794935148.4127452,
     "ast_hash": "fe49cf06de3eeabe6e242326d1f4cbf9",
     "semantic_hash": "fe49cf06de3eeabe6e242326d1f4cbf9"
   },
   "data-index/data-index-docs/pom.xml": {
-    "mtime": 1789655586.6019466,
-    "seen": 1789655607.2030199,
-    "ast_hash": "83e8bd501604ed13f7b9b4d4e7b274f2",
-    "semantic_hash": "83e8bd501604ed13f7b9b4d4e7b274f2"
+    "mtime": 1794935112.2794602,
+    "seen": 1794935148.4127464,
+    "ast_hash": "1bdcc3bf6c77379ef47e1280f5278122",
+    "semantic_hash": ""
   },
   "data-index/data-index-e2e-tests/pom.xml": {
-    "mtime": 1789655586.6023023,
-    "seen": 1789655607.2030208,
-    "ast_hash": "8163a1c74bba7532ce2b7de815a7cd0b",
-    "semantic_hash": "8163a1c74bba7532ce2b7de815a7cd0b"
+    "mtime": 1794935112.2798226,
+    "seen": 1794935148.4127476,
+    "ast_hash": "7b2a5b2dc84c4fc240cf73c92cc976a3",
+    "semantic_hash": ""
   },
   "data-index/data-index-e2e-tests/src/test/java/org/kubesmarts/logic/dataindex/e2e/DataIndexE2ETest.java": {
-    "mtime": 1789655586.6023924,
-    "seen": 1789655607.2030215,
-    "ast_hash": "ad47203b553afe9e6055d917e101824f",
-    "semantic_hash": "ad47203b553afe9e6055d917e101824f"
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/pom.xml": {
-    "mtime": 1789655586.6025014,
-    "seen": 1789655607.2030225,
-    "ast_hash": "62b5938a1b3e3361c5c2bb4361c2c3fa",
-    "semantic_hash": "62b5938a1b3e3361c5c2bb4361c2c3fa"
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/processor/EventProcessor.java": {
-    "mtime": 1789655586.6025991,
-    "seen": 1789655607.2030237,
-    "ast_hash": "4cf92910ec657bdcced14713849a194c",
-    "semantic_hash": "4cf92910ec657bdcced14713849a194c"
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/processor/ProcessEventFailedException.java": {
-    "mtime": 1789655586.6026425,
-    "seen": 1789655607.2030246,
-    "ast_hash": "84a2f346e6f90b082d8a50bc57f2e327",
-    "semantic_hash": "84a2f346e6f90b082d8a50bc57f2e327"
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/processor/TaskExecutionProcessor.java": {
-    "mtime": 1789655586.6026425,
-    "seen": 1789655607.2030253,
-    "ast_hash": "5c3237312b6b7c100449e74ac6e56b87",
-    "semantic_hash": "5c3237312b6b7c100449e74ac6e56b87"
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/processor/WorkflowEventProcessor.java": {
-    "mtime": 1789655586.6026425,
-    "seen": 1789655607.2030265,
-    "ast_hash": "d4dfef3715426d2b68e1f006f7aa32d9",
-    "semantic_hash": "d4dfef3715426d2b68e1f006f7aa32d9"
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/processor/persistence/LoadSQL.java": {
-    "mtime": 1789655586.6026425,
-    "seen": 1789655607.2030272,
-    "ast_hash": "d7c286209747597e6e6a5e12f455fcf0",
-    "semantic_hash": "d7c286209747597e6e6a5e12f455fcf0"
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/processor/persistence/TaskPersistence.java": {
-    "mtime": 1789655586.6027184,
-    "seen": 1789655607.203028,
-    "ast_hash": "0611b65ebadbd1e7a2e14ff4326e1505",
-    "semantic_hash": "0611b65ebadbd1e7a2e14ff4326e1505"
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/processor/persistence/WorkflowPersistence.java": {
-    "mtime": 1789655586.6027184,
-    "seen": 1789655607.203029,
-    "ast_hash": "7ec7cbc1b3a3e464df79320080e075a4",
-    "semantic_hash": "7ec7cbc1b3a3e464df79320080e075a4"
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/src/main/resources/sql/task-instance-upsert.sql": {
-    "mtime": 1788284070.1010008,
-    "seen": 1788971506.624758,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/src/main/resources/sql/task-placeholder-workflow-insert.sql": {
-    "mtime": 1782142236.9626145,
-    "seen": 1788971506.624758,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "data-index/data-index-ingestion/data-index-ingestion-kafka-processor/src/main/resources/sql/workflow-instance-upsert.sql": {
-    "mtime": 1788284070.1013203,
-    "seen": 1788971506.624759,
-    "ast_hash": "",
+    "mtime": 1794935112.279913,
+    "seen": 1794935148.4127486,
+    "ast_hash": "2d377008acd48e59acd4f941a35646d4",
     "semantic_hash": ""
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/pom.xml": {
-    "mtime": 1789655586.6029606,
-    "seen": 1789655607.2030299,
-    "ast_hash": "1c5484ca7531199554c053dd28359674",
+    "mtime": 1794935112.2801194,
+    "seen": 1794935148.4127498,
+    "ast_hash": "eb950a23a2f687859104f5463757c573",
     "semantic_hash": ""
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/service/HealthChecks.java": {
-    "mtime": 1789655586.6031265,
-    "seen": 1789655607.203031,
+    "mtime": 1794935112.2802825,
+    "seen": 1794935148.4127512,
     "ast_hash": "036eec1bbc31df35481f2d55dcff273e",
     "semantic_hash": "036eec1bbc31df35481f2d55dcff273e"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/service/KafkaIngestionObjectMapperCustomizer.java": {
-    "mtime": 1789655586.603165,
-    "seen": 1789655607.2030323,
+    "mtime": 1794935112.2803333,
+    "seen": 1794935148.4127524,
     "ast_hash": "e9fefa4016c48578903ddab16a3c4bb7",
     "semantic_hash": "e9fefa4016c48578903ddab16a3c4bb7"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/service/KafkaLifecycleConsumer.java": {
-    "mtime": 1789655586.603165,
-    "seen": 1789655607.203033,
-    "ast_hash": "dac887ebf7b5e2078bb40850f4f93639",
-    "semantic_hash": "dac887ebf7b5e2078bb40850f4f93639"
+    "mtime": 1794935112.2803333,
+    "seen": 1794935148.4127533,
+    "ast_hash": "63c19373fd260d00831b0c6c4dcb0160",
+    "semantic_hash": ""
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/service/Mapper.java": {
-    "mtime": 1789655586.603165,
-    "seen": 1789655607.2030342,
+    "mtime": 1794935112.2803333,
+    "seen": 1794935148.4127545,
     "ast_hash": "e14a6d7b2aaa5b3b7aea65df5949e0ef",
     "semantic_hash": "e14a6d7b2aaa5b3b7aea65df5949e0ef"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/main/java/org/kubesmarts/logic/dataindex/ingestion/kafka/service/RootResource.java": {
-    "mtime": 1789655586.603165,
-    "seen": 1789655607.2030349,
-    "ast_hash": "19bb74545526c5991a46a3eb045588be",
-    "semantic_hash": "19bb74545526c5991a46a3eb045588be"
+    "mtime": 1794935112.2803333,
+    "seen": 1794935148.4127555,
+    "ast_hash": "78d033b58b4e866697686a0fed43b76c",
+    "semantic_hash": ""
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/org/kubesmarts/logic/dataindex/ingestion/kafka/BaseWorkflowLifecycleIT.java": {
-    "mtime": 1789655586.6034513,
-    "seen": 1789655607.2030358,
+    "mtime": 1794935112.280611,
+    "seen": 1794935148.4127564,
     "ast_hash": "287f68ca464fd5e433bd942c631e3d05",
     "semantic_hash": "287f68ca464fd5e433bd942c631e3d05"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/org/kubesmarts/logic/dataindex/ingestion/kafka/BatchProcessingIT.java": {
-    "mtime": 1789655586.6035233,
-    "seen": 1789655607.2030368,
+    "mtime": 1794935112.2806816,
+    "seen": 1794935148.4127574,
     "ast_hash": "5e2ab8ec60aa346c2ddd622363ab1e7c",
     "semantic_hash": "5e2ab8ec60aa346c2ddd622363ab1e7c"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/org/kubesmarts/logic/dataindex/ingestion/kafka/BinaryCloudEventExtractionIT.java": {
-    "mtime": 1789655586.6035233,
-    "seen": 1789655607.2030375,
+    "mtime": 1794935112.2806816,
+    "seen": 1794935148.4127588,
     "ast_hash": "ef4d33c3c8c5655ea644eeb1c79c0aaf",
     "semantic_hash": "ef4d33c3c8c5655ea644eeb1c79c0aaf"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/org/kubesmarts/logic/dataindex/ingestion/kafka/CancelledWorkflowIT.java": {
-    "mtime": 1789655586.6035233,
-    "seen": 1789655607.2030387,
+    "mtime": 1794935112.2806816,
+    "seen": 1794935148.4127595,
     "ast_hash": "08e51b3adadd955c78607a0e6fa3cf8c",
     "semantic_hash": "08e51b3adadd955c78607a0e6fa3cf8c"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/org/kubesmarts/logic/dataindex/ingestion/kafka/FaultedWorkflowIT.java": {
-    "mtime": 1789655586.6035233,
-    "seen": 1789655607.2030394,
+    "mtime": 1794935112.2806816,
+    "seen": 1794935148.4127605,
     "ast_hash": "8eb370e21cd0baf7f255eccb0909b5ed",
     "semantic_hash": "8eb370e21cd0baf7f255eccb0909b5ed"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/org/kubesmarts/logic/dataindex/ingestion/kafka/KafkaIngestionIT.java": {
-    "mtime": 1789655586.6035233,
-    "seen": 1789655607.2030406,
+    "mtime": 1794935112.2806816,
+    "seen": 1794935148.4127617,
     "ast_hash": "76ee7d464b0babb0bce4127f1afd1fab",
     "semantic_hash": "76ee7d464b0babb0bce4127f1afd1fab"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/org/kubesmarts/logic/dataindex/ingestion/kafka/QuarkusFlowLifecycleIT.java": {
-    "mtime": 1789655586.6035233,
-    "seen": 1789655607.2030423,
+    "mtime": 1794935112.2806816,
+    "seen": 1794935148.4127626,
     "ast_hash": "67e3901240ce2f8c9531e8112551c88c",
     "semantic_hash": "67e3901240ce2f8c9531e8112551c88c"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/org/kubesmarts/logic/dataindex/ingestion/kafka/StartupHealthIT.java": {
-    "mtime": 1789655586.6035233,
-    "seen": 1789655607.2030432,
+    "mtime": 1794935112.2806816,
+    "seen": 1794935148.4127636,
     "ast_hash": "a302c3cfbf01bc6e2d0b6b5acad4c422",
     "semantic_hash": "a302c3cfbf01bc6e2d0b6b5acad4c422"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/java/org/kubesmarts/logic/dataindex/ingestion/kafka/SuspendedWorkflowIT.java": {
-    "mtime": 1789655586.6035233,
-    "seen": 1789655607.2030447,
+    "mtime": 1794935112.2806816,
+    "seen": 1794935148.412765,
     "ast_hash": "a5feb893cf27cee51534d7c19bed3d44",
     "semantic_hash": "a5feb893cf27cee51534d7c19bed3d44"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/resources/cancelled-workflow.json": {
-    "mtime": 1789655586.6038904,
-    "seen": 1789655607.2030456,
+    "mtime": 1794935112.2810266,
+    "seen": 1794935148.412766,
     "ast_hash": "1e2105081226a0ad4f63364af408a71f",
     "semantic_hash": "1e2105081226a0ad4f63364af408a71f"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/resources/faulted-workflow.json": {
-    "mtime": 1789655586.6038904,
-    "seen": 1789655607.2030466,
+    "mtime": 1794935112.2810266,
+    "seen": 1794935148.4127672,
     "ast_hash": "a334e865a4c0929e46e561622d1fec5a",
     "semantic_hash": "a334e865a4c0929e46e561622d1fec5a"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/resources/retryable-workflow.json": {
-    "mtime": 1789655586.6038904,
-    "seen": 1789655607.2030478,
+    "mtime": 1794935112.2810266,
+    "seen": 1794935148.4127684,
     "ast_hash": "8a2aa65a298b1bb2817debccb19f0f42",
     "semantic_hash": "8a2aa65a298b1bb2817debccb19f0f42"
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/test/resources/suspended-workflow.json": {
-    "mtime": 1789655586.6038904,
-    "seen": 1789655607.2030482,
+    "mtime": 1794935112.2810266,
+    "seen": 1794935148.4127693,
     "ast_hash": "710a4de3749745f89d04b63191ba7811",
     "semantic_hash": "710a4de3749745f89d04b63191ba7811"
   },
   "data-index/data-index-ingestion/pom.xml": {
-    "mtime": 1789655586.6038904,
-    "seen": 1789655607.2030492,
-    "ast_hash": "f8388fcb8f8b59333df3f52b268064fe",
-    "semantic_hash": "f8388fcb8f8b59333df3f52b268064fe"
+    "mtime": 1794935112.2815619,
+    "seen": 1794935148.412779,
+    "ast_hash": "cdfd030a4fa3e32291b91632a026d899",
+    "semantic_hash": ""
   },
   "data-index/data-index-integration-tests/data-index-integration-tests-elasticsearch/pom.xml": {
-    "mtime": 1789655586.6041327,
-    "seen": 1789655607.2030501,
-    "ast_hash": "cf84ab7419661f303519b5ff53db9ff1",
-    "semantic_hash": "cf84ab7419661f303519b5ff53db9ff1"
+    "mtime": 1794935112.2816787,
+    "seen": 1794935148.4127803,
+    "ast_hash": "d483bbee91d354410d86bde91d8e4222",
+    "semantic_hash": ""
   },
   "data-index/data-index-integration-tests/data-index-integration-tests-postgresql/pom.xml": {
-    "mtime": 1789655586.6041327,
-    "seen": 1789655607.203051,
-    "ast_hash": "f8342cdf325c5918aa22ddc758e53434",
-    "semantic_hash": "f8342cdf325c5918aa22ddc758e53434"
+    "mtime": 1794935112.2816787,
+    "seen": 1794935148.4127812,
+    "ast_hash": "7070a675c44866f3d4dae6bbad73d60c",
+    "semantic_hash": ""
   },
   "data-index/data-index-integration-tests/data-index-integration-tests-postgresql/src/test/java/org/kubesmarts/logic/dataindex/graphql/TaskExecutionFilteringIT.java": {
-    "mtime": 1789655586.60427,
-    "seen": 1789655607.203052,
+    "mtime": 1794935112.2817938,
+    "seen": 1794935148.4127827,
     "ast_hash": "a654052841c4de1d4c861bcc763baa3f",
     "semantic_hash": "a654052841c4de1d4c861bcc763baa3f"
   },
   "data-index/data-index-integration-tests/data-index-integration-tests-postgresql/src/test/java/org/kubesmarts/logic/dataindex/graphql/WorkflowInstanceGraphQLApiTest.java": {
-    "mtime": 1789655586.6043375,
-    "seen": 1789655607.203053,
+    "mtime": 1794935112.2818623,
+    "seen": 1794935148.4127834,
     "ast_hash": "7621d9c74aa3723aa1361483b4364c5f",
     "semantic_hash": "7621d9c74aa3723aa1361483b4364c5f"
   },
   "data-index/data-index-integration-tests/data-index-integration-tests-postgresql/src/test/java/org/kubesmarts/logic/dataindex/storage/TaskExecutionStorageIT.java": {
-    "mtime": 1789655586.6043375,
-    "seen": 1789655607.2030542,
+    "mtime": 1794935112.2819583,
+    "seen": 1794935148.4127877,
     "ast_hash": "50029d984ad72bccac6559110a094db5",
     "semantic_hash": "50029d984ad72bccac6559110a094db5"
   },
   "data-index/data-index-integration-tests/pom.xml": {
-    "mtime": 1789655586.6043375,
-    "seen": 1789655607.2030551,
-    "ast_hash": "d76c4b55f600f95bb1ebc7f1ee754b2b",
-    "semantic_hash": "d76c4b55f600f95bb1ebc7f1ee754b2b"
+    "mtime": 1794935112.2819583,
+    "seen": 1794935148.4127886,
+    "ast_hash": "4e646be146a15d7b5c6e88a65a9994fa",
+    "semantic_hash": ""
   },
   "data-index/data-index-model/pom.xml": {
-    "mtime": 1789655586.6045966,
-    "seen": 1789655607.2030559,
-    "ast_hash": "e1b7435b8fbe1170292d5fc570dab9a9",
-    "semantic_hash": "e1b7435b8fbe1170292d5fc570dab9a9"
+    "mtime": 1794935112.282199,
+    "seen": 1794935148.4127896,
+    "ast_hash": "ae008a41d88dafeb035db52539439709",
+    "semantic_hash": ""
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/api/TaskExecutionStorage.java": {
-    "mtime": 1789655586.6046846,
-    "seen": 1789655607.2030566,
+    "mtime": 1794935112.2822933,
+    "seen": 1794935148.4127905,
     "ast_hash": "482c7b6e854da66710b3ad9593332494",
     "semantic_hash": "482c7b6e854da66710b3ad9593332494"
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/api/WorkflowInstanceStorage.java": {
-    "mtime": 1789655586.6047564,
-    "seen": 1789655607.2030573,
+    "mtime": 1794935112.282363,
+    "seen": 1794935148.4127917,
     "ast_hash": "52c4b3846f853d13f6e176a24c8c602b",
     "semantic_hash": "52c4b3846f853d13f6e176a24c8c602b"
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/BucketEnumDeserializer.java": {
-    "mtime": 1789655586.6047564,
-    "seen": 1789655607.2030582,
+    "mtime": 1794935112.282363,
+    "seen": 1794935148.4127927,
     "ast_hash": "90b50ac9d102d88eae8f7010d7251b54",
     "semantic_hash": "90b50ac9d102d88eae8f7010d7251b54"
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/BucketStringDeserializer.java": {
-    "mtime": 1789655586.604817,
-    "seen": 1789655607.2030592,
+    "mtime": 1794935112.2824137,
+    "seen": 1794935148.4127939,
     "ast_hash": "b6206b7a28e3c3b21984d96add2d9717",
     "semantic_hash": "b6206b7a28e3c3b21984d96add2d9717"
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/EpochMillisZonedDateTimeDeserializer.java": {
-    "mtime": 1789655586.604817,
-    "seen": 1789655607.20306,
+    "mtime": 1794935112.2824137,
+    "seen": 1794935148.4127948,
     "ast_hash": "9df477773a31ed8e40d45096053a077b",
     "semantic_hash": "9df477773a31ed8e40d45096053a077b"
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/Error.java": {
-    "mtime": 1789655586.604817,
-    "seen": 1789655607.2030606,
+    "mtime": 1794935112.2824137,
+    "seen": 1794935148.412796,
     "ast_hash": "730e091ae20a7d7ecb1433b255120f23",
     "semantic_hash": "730e091ae20a7d7ecb1433b255120f23"
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/LifecycleEventUtils.java": {
-    "mtime": 1789655586.604817,
-    "seen": 1789655607.2030616,
+    "mtime": 1794935112.2824137,
+    "seen": 1794935148.412797,
     "ast_hash": "238eaca63a0e5f1fbe5cb2379cb6e7af",
     "semantic_hash": "238eaca63a0e5f1fbe5cb2379cb6e7af"
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/TaskExecution.java": {
-    "mtime": 1789655586.604817,
-    "seen": 1789655607.2030623,
+    "mtime": 1794935112.2824137,
+    "seen": 1794935148.412798,
     "ast_hash": "2b6bb653f950dadfe451e689fa9ca6ca",
     "semantic_hash": "2b6bb653f950dadfe451e689fa9ca6ca"
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/Workflow.java": {
-    "mtime": 1789655586.604817,
-    "seen": 1789655607.2030632,
+    "mtime": 1794935112.2824137,
+    "seen": 1794935148.412799,
     "ast_hash": "f831c3b6e0c8a5ee37467aba9258f9b6",
     "semantic_hash": "f831c3b6e0c8a5ee37467aba9258f9b6"
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/WorkflowInstance.java": {
-    "mtime": 1789655586.604817,
-    "seen": 1789655607.203064,
+    "mtime": 1794935112.2824137,
+    "seen": 1794935148.4127998,
     "ast_hash": "525be8a73ac22f12d8eaae754119611c",
     "semantic_hash": "525be8a73ac22f12d8eaae754119611c"
   },
   "data-index/data-index-model/src/main/java/org/kubesmarts/logic/dataindex/model/WorkflowInstanceStatus.java": {
-    "mtime": 1789655586.604817,
-    "seen": 1789655607.2030652,
+    "mtime": 1794935112.2824137,
+    "seen": 1794935148.4128008,
     "ast_hash": "285176ae18f1cbc357425bb5ff980506",
     "semantic_hash": "285176ae18f1cbc357425bb5ff980506"
   },
   "data-index/data-index-model/src/test/java/org/kubesmarts/logic/dataindex/model/BucketEnumDeserializerTest.java": {
-    "mtime": 1789655586.6051433,
-    "seen": 1789655607.2030656,
+    "mtime": 1794935112.282748,
+    "seen": 1794935148.4128017,
     "ast_hash": "db43e79b64b7405dc9b2e5ca30c1f879",
     "semantic_hash": "db43e79b64b7405dc9b2e5ca30c1f879"
   },
   "data-index/data-index-model/src/test/java/org/kubesmarts/logic/dataindex/model/BucketStringDeserializerTest.java": {
-    "mtime": 1789655586.6052127,
-    "seen": 1789655607.2030663,
+    "mtime": 1794935112.2828074,
+    "seen": 1794935148.4128025,
     "ast_hash": "af6bf8bf4bedda7dc5f9cf65cf4523cd",
     "semantic_hash": "af6bf8bf4bedda7dc5f9cf65cf4523cd"
   },
   "data-index/data-index-service/data-index-service-core/pom.xml": {
-    "mtime": 1789655586.6053264,
-    "seen": 1789655607.203067,
-    "ast_hash": "7a72d8a34c095bb3c3491f216476e925",
-    "semantic_hash": "7a72d8a34c095bb3c3491f216476e925"
+    "mtime": 1794935112.2829242,
+    "seen": 1794935148.4128036,
+    "ast_hash": "3f3d04efe73266a87264f0eb581dcd80",
+    "semantic_hash": ""
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/GraphQLConfiguration.java": {
-    "mtime": 1789655586.6054134,
-    "seen": 1789655607.203068,
+    "mtime": 1794935112.2830315,
+    "seen": 1794935148.4128046,
     "ast_hash": "92979ba223901d0a2b9ebddd7a4b5483",
     "semantic_hash": "92979ba223901d0a2b9ebddd7a4b5483"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/WorkflowInstanceGraphQLApi.java": {
-    "mtime": 1789655586.605482,
-    "seen": 1789655607.2030687,
+    "mtime": 1794935112.2830963,
+    "seen": 1794935148.4128056,
     "ast_hash": "1756e967fc7e4e48f09e28e0904d12e3",
     "semantic_hash": "1756e967fc7e4e48f09e28e0904d12e3"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/DataIndexAttributeFilter.java": {
-    "mtime": 1789655586.605482,
-    "seen": 1789655607.2030697,
+    "mtime": 1794935112.2830963,
+    "seen": 1794935148.4128067,
     "ast_hash": "9f641fa910f31c6558d36ffc87b4d3ea",
     "semantic_hash": "9f641fa910f31c6558d36ffc87b4d3ea"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/DataIndexAttributeSort.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030702,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128077,
     "ast_hash": "bd46dd05dbde4baef4da16bbcf995053",
     "semantic_hash": "bd46dd05dbde4baef4da16bbcf995053"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/DateTimeFilter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030709,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128115,
     "ast_hash": "628212b455d0f4d8ab76fc845e40e096",
     "semantic_hash": "628212b455d0f4d8ab76fc845e40e096"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/ErrorFilter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030718,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128125,
     "ast_hash": "950fa1b20751cbaf215b1b6daff67ae2",
     "semantic_hash": "950fa1b20751cbaf215b1b6daff67ae2"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/FilterConverter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030728,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.412814,
     "ast_hash": "672d489684a0baf968b6bc0103afa768",
     "semantic_hash": "672d489684a0baf968b6bc0103afa768"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/IntFilter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030735,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128146,
     "ast_hash": "0f1f13c6781525084bc33efd4fdfef6f",
     "semantic_hash": "0f1f13c6781525084bc33efd4fdfef6f"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/JsonFieldFilter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030742,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128156,
     "ast_hash": "114f1da3ef4a5e6e7e033538eb9f435e",
     "semantic_hash": "114f1da3ef4a5e6e7e033538eb9f435e"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/JsonFilter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.203075,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128165,
     "ast_hash": "91d0c37d8e5b5a0c72479a100a041510",
     "semantic_hash": "91d0c37d8e5b5a0c72479a100a041510"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/OrderBy.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030756,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128177,
     "ast_hash": "d248e0788cb9d9351e13ce587170c367",
     "semantic_hash": "d248e0788cb9d9351e13ce587170c367"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/OrderByConverter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030761,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128187,
     "ast_hash": "a9e9643ad74be00a889e6383572156a5",
     "semantic_hash": "a9e9643ad74be00a889e6383572156a5"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/StringFilter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030768,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128199,
     "ast_hash": "b8fc868d93a99f52be71a3fd3eb4a54a",
     "semantic_hash": "b8fc868d93a99f52be71a3fd3eb4a54a"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/TaskExecutionFilter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030776,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128208,
     "ast_hash": "64e8bb9d4b4fc0c3339f88c0b1ddab4b",
     "semantic_hash": "64e8bb9d4b4fc0c3339f88c0b1ddab4b"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/TaskExecutionOrderBy.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.203078,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128218,
     "ast_hash": "10564bf88527f7984cc457f9dcd6ab73",
     "semantic_hash": "10564bf88527f7984cc457f9dcd6ab73"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/WorkflowInstanceFilter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.203079,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.4128227,
     "ast_hash": "1f57ad5993078ab073fc88925188f56c",
     "semantic_hash": "1f57ad5993078ab073fc88925188f56c"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/WorkflowInstanceOrderBy.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030797,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.412824,
     "ast_hash": "c02b7788609e1f2e8322cd97340346ab",
     "semantic_hash": "c02b7788609e1f2e8322cd97340346ab"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/graphql/filter/WorkflowInstanceStatusFilter.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030804,
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.412825,
     "ast_hash": "8a50f06f84f7633a5b7287b88a399ab2",
     "semantic_hash": "8a50f06f84f7633a5b7287b88a399ab2"
   },
   "data-index/data-index-service/data-index-service-core/src/main/java/org/kubesmarts/logic/dataindex/service/RootResource.java": {
-    "mtime": 1789655586.6055665,
-    "seen": 1789655607.2030811,
-    "ast_hash": "b39adede74618289268da851e7b34d2d",
-    "semantic_hash": "b39adede74618289268da851e7b34d2d"
+    "mtime": 1794935112.2831814,
+    "seen": 1794935148.412826,
+    "ast_hash": "f063adb627120df2e3c6f610ee50f8f8",
+    "semantic_hash": ""
   },
   "data-index/data-index-service/data-index-service-elasticsearch/pom.xml": {
-    "mtime": 1789655586.606119,
-    "seen": 1789655607.2030823,
-    "ast_hash": "ead12c6f9f2c7adf4da04085638e50eb",
+    "mtime": 1794935112.283749,
+    "seen": 1794935148.4128275,
+    "ast_hash": "d6e8348b836890297921f0046d5370b3",
     "semantic_hash": ""
   },
   "data-index/data-index-service/data-index-service-postgresql/pom.xml": {
-    "mtime": 1789655586.6062334,
-    "seen": 1789655607.2030833,
-    "ast_hash": "ee995684a7824994b0e1ec2504cffdf0",
+    "mtime": 1794935112.2838488,
+    "seen": 1794935148.4128284,
+    "ast_hash": "d8f36845764390fd94b29c0b1a651056",
     "semantic_hash": ""
   },
   "data-index/data-index-service/pom.xml": {
-    "mtime": 1789655586.6063359,
-    "seen": 1789655607.2030838,
-    "ast_hash": "2a159aa34556ba178681a0400fea7103",
-    "semantic_hash": "2a159aa34556ba178681a0400fea7103"
+    "mtime": 1794935112.2842994,
+    "seen": 1794935148.4128377,
+    "ast_hash": "6b9701a9f19bbcc427d6f29187ef53c1",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-common/pom.xml": {
-    "mtime": 1789655586.6064508,
-    "seen": 1789655607.2030845,
-    "ast_hash": "98468ac281518bc7b2202587cbb2942d",
-    "semantic_hash": "98468ac281518bc7b2202587cbb2942d"
+    "mtime": 1794935112.284429,
+    "seen": 1794935148.4128387,
+    "ast_hash": "2abb3f2d6a7729139691e924bc4d4587",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-common/src/main/java/org/kubesmarts/logic/dataindex/storage/common/api/PollingEventProcessor.java": {
-    "mtime": 1789655586.606588,
-    "seen": 1789655607.2030857,
+    "mtime": 1794935112.284536,
+    "seen": 1794935148.4128397,
     "ast_hash": "3c54657dc6dbac69f84fe57eb24791bd",
     "semantic_hash": "3c54657dc6dbac69f84fe57eb24791bd"
   },
   "data-index/data-index-storage/data-index-storage-common/src/main/java/org/kubesmarts/logic/dataindex/storage/common/config/StorageConfiguration.java": {
-    "mtime": 1789655586.606588,
-    "seen": 1789655607.2030864,
-    "ast_hash": "7516469968897e83fa6e5317ddafd8cc",
-    "semantic_hash": "7516469968897e83fa6e5317ddafd8cc"
+    "mtime": 1794935112.284536,
+    "seen": 1794935148.4128406,
+    "ast_hash": "24588956a13d9f3f710f85b21c3f4da3",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-common/src/main/java/org/kubesmarts/logic/dataindex/storage/common/ingestion/EventProcessorHealthCheck.java": {
-    "mtime": 1789655586.606588,
-    "seen": 1789655607.203087,
-    "ast_hash": "8c9b1dfb025cac32b548ba4d66ac9042",
-    "semantic_hash": "8c9b1dfb025cac32b548ba4d66ac9042"
+    "mtime": 1794935112.284536,
+    "seen": 1794935148.412842,
+    "ast_hash": "d9fb07efdfa863b51322ab08f6ee7cd0",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-common/src/main/java/org/kubesmarts/logic/dataindex/storage/common/ingestion/EventProcessorMetrics.java": {
-    "mtime": 1789655586.6067185,
-    "seen": 1789655607.2030876,
-    "ast_hash": "fd621cde38cf5914199a745d20cd35d2",
-    "semantic_hash": "fd621cde38cf5914199a745d20cd35d2"
+    "mtime": 1794935112.2846603,
+    "seen": 1794935148.412843,
+    "ast_hash": "1ffb20c39e9164c9ae4b80c6257a2a37",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-common/src/main/java/org/kubesmarts/logic/dataindex/storage/common/metrics/EventMetrics.java": {
-    "mtime": 1789655586.6067185,
-    "seen": 1789655607.2030885,
+    "mtime": 1794935112.2846603,
+    "seen": 1794935148.412844,
     "ast_hash": "5a1749d882ce31e8120040000eb7e2c3",
     "semantic_hash": "5a1749d882ce31e8120040000eb7e2c3"
   },
   "data-index/data-index-storage/data-index-storage-common/src/main/java/org/kubesmarts/logic/dataindex/storage/common/metrics/EventProcessorMetricsResource.java": {
-    "mtime": 1789655586.6067789,
-    "seen": 1789655607.2030892,
+    "mtime": 1794935112.2847202,
+    "seen": 1794935148.4128451,
     "ast_hash": "eb7144225a4bb759d8fd8646f1a5c359",
     "semantic_hash": "eb7144225a4bb759d8fd8646f1a5c359"
   },
   "data-index/data-index-storage/data-index-storage-common/src/main/java/org/kubesmarts/logic/dataindex/storage/common/metrics/EventProcessorMetricsResponse.java": {
-    "mtime": 1789655586.6067789,
-    "seen": 1789655607.20309,
+    "mtime": 1794935112.2847202,
+    "seen": 1794935148.412846,
     "ast_hash": "13e148867ed1be61235912274e30fd38",
     "semantic_hash": "13e148867ed1be61235912274e30fd38"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/pom.xml": {
-    "mtime": 1789655586.6067789,
-    "seen": 1789655607.2030907,
-    "ast_hash": "cf6a5828591de083c0e543d0f47db02e",
-    "semantic_hash": "cf6a5828591de083c0e543d0f47db02e"
+    "mtime": 1794935112.2847202,
+    "seen": 1794935148.412847,
+    "ast_hash": "480cdcb6bd549bb5f30eeeff41f74e65",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/schema/ElasticsearchSchemaInitializer.java": {
-    "mtime": 1789655586.606961,
-    "seen": 1789655607.2030914,
-    "ast_hash": "74cd2aff3a44068ca712348eb1558671",
-    "semantic_hash": "74cd2aff3a44068ca712348eb1558671"
+    "mtime": 1794935112.2848823,
+    "seen": 1794935148.4128482,
+    "ast_hash": "65247ad45081385e05a71ce9f993174e",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/ilm/data-index-events-retention.json": {
-    "mtime": 1789655586.6070871,
-    "seen": 1789655607.2030926,
+    "mtime": 1794935112.2849874,
+    "seen": 1794935148.4128492,
     "ast_hash": "9c7e69b0d2c8d8b9d948d2bd31193398",
     "semantic_hash": "9c7e69b0d2c8d8b9d948d2bd31193398"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/index-templates/task-events.json": {
-    "mtime": 1789655586.6070871,
-    "seen": 1789655607.2030933,
-    "ast_hash": "9ab16d36b178585128364df3e5f46541",
-    "semantic_hash": "9ab16d36b178585128364df3e5f46541"
+    "mtime": 1794935112.2849874,
+    "seen": 1794935148.4128501,
+    "ast_hash": "2e6d87efa4674d128557a6392372b37c",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/index-templates/task-executions.json": {
-    "mtime": 1789655586.6071408,
-    "seen": 1789655607.2030942,
+    "mtime": 1794935112.2850401,
+    "seen": 1794935148.412851,
     "ast_hash": "e37b80480f0b4782fd1cc0f8deeb311e",
     "semantic_hash": "e37b80480f0b4782fd1cc0f8deeb311e"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/index-templates/workflow-events.json": {
-    "mtime": 1789655586.6071408,
-    "seen": 1789655607.2030947,
-    "ast_hash": "c479384080a5513dfbb702b6bc23b364",
-    "semantic_hash": "c479384080a5513dfbb702b6bc23b364"
+    "mtime": 1794935112.2850401,
+    "seen": 1794935148.4128523,
+    "ast_hash": "98df3155192bf496c4cd45916e568843",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/index-templates/workflow-instances.json": {
-    "mtime": 1789655586.6071408,
-    "seen": 1789655607.203096,
+    "mtime": 1794935112.2850401,
+    "seen": 1794935148.4128532,
     "ast_hash": "eed94cbcda37c2f7f873aedcc38c1ae9",
     "semantic_hash": "eed94cbcda37c2f7f873aedcc38c1ae9"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/transforms/task-executions-transform.json": {
-    "mtime": 1789655586.6071408,
-    "seen": 1789655607.2030966,
-    "ast_hash": "557b5ae59ae635462554a2f167b1a612",
-    "semantic_hash": "557b5ae59ae635462554a2f167b1a612"
+    "mtime": 1794935112.2850401,
+    "seen": 1794935148.4128554,
+    "ast_hash": "11435bd2eb40f7d6aa17cc74644ffedc",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/transforms/workflow-instances-transform.json": {
-    "mtime": 1789655586.607226,
-    "seen": 1789655607.2030973,
-    "ast_hash": "033b721546e27d78384da10d0ea4da49",
-    "semantic_hash": "033b721546e27d78384da10d0ea4da49"
+    "mtime": 1794935112.2851489,
+    "seen": 1794935148.4128563,
+    "ast_hash": "9e5bc7944dc826720377fc2daaf6478c",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/schema/ElasticsearchSchemaInitializationIT.java": {
-    "mtime": 1789655586.6073103,
-    "seen": 1789655607.2030983,
-    "ast_hash": "05a5fefa26c2ff35bee23a043e4ef288",
-    "semantic_hash": "05a5fefa26c2ff35bee23a043e4ef288"
+    "mtime": 1794935112.2852347,
+    "seen": 1794935148.412857,
+    "ast_hash": "663c931e72796f97a4ddc243b9c53466",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/schema/ElasticsearchSchemaInitializerTest.java": {
-    "mtime": 1789655586.6073802,
-    "seen": 1789655607.2030988,
-    "ast_hash": "cf103c633a1dddf85ba7c92b7dc8a594",
-    "semantic_hash": "cf103c633a1dddf85ba7c92b7dc8a594"
+    "mtime": 1794935112.2853081,
+    "seen": 1794935148.412858,
+    "ast_hash": "6f5fdb35ad07fdab4b304c2ef1276c48",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/schema/ElasticsearchSchemaTestProfile.java": {
-    "mtime": 1789655586.6073802,
-    "seen": 1789655607.2031,
-    "ast_hash": "84a7e035e09b7b1bf2fa8f45cf66bb50",
-    "semantic_hash": "84a7e035e09b7b1bf2fa8f45cf66bb50"
+    "mtime": 1794935112.2853081,
+    "seen": 1794935148.4128592,
+    "ast_hash": "51d63ddf03878d50ce9977c8133ed170",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/schema/TestElasticsearchClientProducer.java": {
-    "mtime": 1789655586.6073802,
-    "seen": 1789655607.2031007,
+    "mtime": 1794935112.2853081,
+    "seen": 1794935148.4128604,
     "ast_hash": "3335e71e71075b044e11deec17c6aaaf",
     "semantic_hash": "3335e71e71075b044e11deec17c6aaaf"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/pom.xml": {
-    "mtime": 1789655586.6075778,
-    "seen": 1789655607.2031012,
-    "ast_hash": "12f7b445f9ffa3c42590e68bed3d6510",
-    "semantic_hash": "12f7b445f9ffa3c42590e68bed3d6510"
+    "mtime": 1794935112.2855432,
+    "seen": 1794935148.4128613,
+    "ast_hash": "ed40e387b8de7549edc61629766c3e8d",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/scripts/setup-es-transform.sh": {
-    "mtime": 1789655586.6075778,
-    "seen": 1789655607.203102,
+    "mtime": 1794935112.2855432,
+    "seen": 1794935148.4128625,
     "ast_hash": "efea68345897e3f4b3f446b135f5d197",
     "semantic_hash": "efea68345897e3f4b3f446b135f5d197"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/main/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchQuery.java": {
-    "mtime": 1789655586.6076968,
-    "seen": 1789655607.203103,
+    "mtime": 1794935112.2856646,
+    "seen": 1794935148.4128635,
     "ast_hash": "e6f893c331cc7188a12ebdf466a04df8",
     "semantic_hash": "e6f893c331cc7188a12ebdf466a04df8"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/main/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTaskExecutionStorage.java": {
-    "mtime": 1789655586.6077843,
-    "seen": 1789655607.2031035,
+    "mtime": 1794935112.2857378,
+    "seen": 1794935148.4128644,
     "ast_hash": "efa5b010fb5cfede63cbeb0d7825494d",
     "semantic_hash": "efa5b010fb5cfede63cbeb0d7825494d"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/main/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchWorkflowInstanceStorage.java": {
-    "mtime": 1789655586.6077843,
-    "seen": 1789655607.2031045,
+    "mtime": 1794935112.2857378,
+    "seen": 1794935148.4128652,
     "ast_hash": "ced58b5fda27531bc6b527049a2e9dc2",
     "semantic_hash": "ced58b5fda27531bc6b527049a2e9dc2"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/main/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/config/ElasticsearchConfiguration.java": {
-    "mtime": 1789655586.6077843,
-    "seen": 1789655607.203105,
-    "ast_hash": "f3445c51e44d0d826c1ae83b4acda392",
-    "semantic_hash": "f3445c51e44d0d826c1ae83b4acda392"
+    "mtime": 1794935112.2857378,
+    "seen": 1794935148.4128664,
+    "ast_hash": "1b9d5774b0dec39c9832f34beedefd8e",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/main/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/metrics/ElasticsearchTransformMetricsCollector.java": {
-    "mtime": 1789655586.6077843,
-    "seen": 1789655607.2031057,
-    "ast_hash": "168f7ce846dc9efe4eac1f8af0bffd6b",
-    "semantic_hash": "168f7ce846dc9efe4eac1f8af0bffd6b"
+    "mtime": 1794935112.2857378,
+    "seen": 1794935148.4128673,
+    "ast_hash": "a552682662315b883382b32471451ae3",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/CustomTimeWindowProfile.java": {
-    "mtime": 1789655586.6080194,
-    "seen": 1789655607.2031066,
-    "ast_hash": "f5f832a5dc8527dcb99e9838cd5682d7",
-    "semantic_hash": "f5f832a5dc8527dcb99e9838cd5682d7"
+    "mtime": 1794935112.285945,
+    "seen": 1794935148.4128683,
+    "ast_hash": "ada717c0c04907c0caacacaefe5115ce",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchConfigurationValidationIT.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.2031074,
-    "ast_hash": "b347c3087cfb3a8cf3265a77857f687e",
-    "semantic_hash": "b347c3087cfb3a8cf3265a77857f687e"
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.4128695,
+    "ast_hash": "21a08800dec07f1af1e0af1452658810",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchDevServicesTest.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.203108,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.4128704,
     "ast_hash": "18f0710af2857a2e4b79ba6c04f2447c",
     "semantic_hash": "18f0710af2857a2e4b79ba6c04f2447c"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchSmartFilteringIT.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.203109,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.4128711,
     "ast_hash": "7aa52591ef10388bdecd9aeecd33044d",
     "semantic_hash": "7aa52591ef10388bdecd9aeecd33044d"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchStorageIntegrationTest.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.20311,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.412872,
     "ast_hash": "705fe29a93c02d9f0320d462fa423ec5",
     "semantic_hash": "705fe29a93c02d9f0320d462fa423ec5"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTaskExecutionStorageIT.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.2031107,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.4128733,
     "ast_hash": "50b5fc32c8a8f9ff4ee5d05710ed5347",
     "semantic_hash": "50b5fc32c8a8f9ff4ee5d05710ed5347"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTransformConfigurationIT.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.203112,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.412874,
     "ast_hash": "1420e8200edf16570df083c4adee1798",
     "semantic_hash": "1420e8200edf16570df083c4adee1798"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTransformIntegrationTest.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.2031126,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.4128752,
     "ast_hash": "1aac682a270447c355170d5371dac38e",
     "semantic_hash": "1aac682a270447c355170d5371dac38e"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTransformMetricsIT.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.2031136,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.4128761,
     "ast_hash": "1b6cf945f36b54a6557851e4c43ea881",
     "semantic_hash": "1b6cf945f36b54a6557851e4c43ea881"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTransformNormalizationIT.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.2031145,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.412877,
     "ast_hash": "a67df9f45097a5a0578d4d67bb5caf60",
     "semantic_hash": "a67df9f45097a5a0578d4d67bb5caf60"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchTransformPerformanceBenchmarkIT.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.2031152,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.412878,
     "ast_hash": "89060d0fc597753514c0e36a1e46fb51",
     "semantic_hash": "89060d0fc597753514c0e36a1e46fb51"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/ElasticsearchWorkflowInstanceStorageIT.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.203116,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.412879,
     "ast_hash": "838d51b0123fc6ecb0a1d1d760e16ccd",
     "semantic_hash": "838d51b0123fc6ecb0a1d1d760e16ccd"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/MetricsTestProfile.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.203117,
-    "ast_hash": "972987ac29c539e48b7d71b733eb4c48",
-    "semantic_hash": "972987ac29c539e48b7d71b733eb4c48"
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.4128802,
+    "ast_hash": "6e315e31de1cb1eb416704a0c979146c",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/TestAttributeFilter.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.2031174,
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.4128811,
     "ast_hash": "9f18c45bb2d17f7f0d053154d83bd8c3",
     "semantic_hash": "9f18c45bb2d17f7f0d053154d83bd8c3"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/src/test/java/org/kubesmarts/logic/dataindex/storage/elasticsearch/TransformFieldMappingTest.java": {
-    "mtime": 1789655586.6080725,
-    "seen": 1789655607.203118,
-    "ast_hash": "84de6b3721ffcc09fe289c788188fd0d",
-    "semantic_hash": "84de6b3721ffcc09fe289c788188fd0d"
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.412882,
+    "ast_hash": "2a85574d116398e53f74cd2d9ab56e22",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-migrations/pom.xml": {
-    "mtime": 1789655586.6088724,
-    "seen": 1789655607.2031186,
-    "ast_hash": "3115781f9adc8981c392b01aa76c45d2",
-    "semantic_hash": "3115781f9adc8981c392b01aa76c45d2"
+    "mtime": 1794935112.2867591,
+    "seen": 1794935148.4128833,
+    "ast_hash": "ae98a9b2256ac371451d16af7baef2c0",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-migrations/src/main/resources/db/migration/V1__initial_schema.sql": {
     "mtime": 1788284070.1043591,
@@ -756,873 +690,1089 @@
     "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-postgresql/pom.xml": {
-    "mtime": 1789655586.6090608,
-    "seen": 1789655607.2031193,
-    "ast_hash": "160809d9324e9011357e091af420e3b9",
-    "semantic_hash": "160809d9324e9011357e091af420e3b9"
+    "mtime": 1794935112.286916,
+    "seen": 1794935148.4128842,
+    "ast_hash": "13ff6825c810d79109128465cccbc878",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/AbstractJPAStorageFetcher.java": {
-    "mtime": 1789655586.6091542,
-    "seen": 1789655607.2031205,
+    "mtime": 1794935112.2870004,
+    "seen": 1794935148.4128852,
     "ast_hash": "90edd0b3c1d6f26bae2adb42bb9a6f41",
     "semantic_hash": "90edd0b3c1d6f26bae2adb42bb9a6f41"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/AbstractStorage.java": {
-    "mtime": 1789655586.6092107,
-    "seen": 1789655607.2031212,
+    "mtime": 1794935112.2870588,
+    "seen": 1794935148.4128864,
     "ast_hash": "d27ceefb1a7be1b27fc37983ba568ef0",
     "semantic_hash": "d27ceefb1a7be1b27fc37983ba568ef0"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/DependencyInjectionUtils.java": {
-    "mtime": 1789655586.6092107,
-    "seen": 1789655607.2031217,
+    "mtime": 1794935112.2870588,
+    "seen": 1794935148.4128873,
     "ast_hash": "00c94ec74d5439b08d980855c623e1a8",
     "semantic_hash": "00c94ec74d5439b08d980855c623e1a8"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/JPAQuery.java": {
-    "mtime": 1789655586.6092107,
-    "seen": 1789655607.2031224,
+    "mtime": 1794935112.2870588,
+    "seen": 1794935148.4128883,
     "ast_hash": "37b1b70dbdaa3893efe0844860b070da",
     "semantic_hash": "37b1b70dbdaa3893efe0844860b070da"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/JsonPredicateBuilder.java": {
-    "mtime": 1789655586.6092107,
-    "seen": 1789655607.2031229,
+    "mtime": 1794935112.2870588,
+    "seen": 1794935148.412889,
     "ast_hash": "18e7bda5fa3b161be56395b11f6cbbd0",
     "semantic_hash": "18e7bda5fa3b161be56395b11f6cbbd0"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/TaskExecutionJPAStorage.java": {
-    "mtime": 1789655586.6092107,
-    "seen": 1789655607.2031238,
+    "mtime": 1794935112.2870588,
+    "seen": 1794935148.4128902,
     "ast_hash": "4d1e1c65e545c809680ae784cc9f1e9e",
     "semantic_hash": "4d1e1c65e545c809680ae784cc9f1e9e"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/WorkflowInstanceJPAStorage.java": {
-    "mtime": 1789655586.6092107,
-    "seen": 1789655607.2031245,
+    "mtime": 1794935112.2870588,
+    "seen": 1794935148.4128911,
     "ast_hash": "dd41457a8f33d5d337e0458a8d96636c",
     "semantic_hash": "dd41457a8f33d5d337e0458a8d96636c"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/entity/AbstractEntity.java": {
-    "mtime": 1789655586.6092107,
-    "seen": 1789655607.203125,
+    "mtime": 1794935112.2870588,
+    "seen": 1794935148.412892,
     "ast_hash": "a629e9bcff735a25e9c20569cab32c55",
     "semantic_hash": "a629e9bcff735a25e9c20569cab32c55"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/entity/ErrorEntity.java": {
-    "mtime": 1789655586.609411,
-    "seen": 1789655607.2031257,
+    "mtime": 1794935112.2872772,
+    "seen": 1794935148.4128933,
     "ast_hash": "d6af3bc01e6486893b491bd2004615f5",
     "semantic_hash": "d6af3bc01e6486893b491bd2004615f5"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/entity/TaskInstanceEntity.java": {
-    "mtime": 1789655586.609411,
-    "seen": 1789655607.2031264,
-    "ast_hash": "26dc9978ff2d8fa1fcd9c137cd252e26",
-    "semantic_hash": "26dc9978ff2d8fa1fcd9c137cd252e26"
+    "mtime": 1794935112.2872772,
+    "seen": 1794935148.412894,
+    "ast_hash": "31c7c957db40f55b3af4e51e74df15bb",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/entity/TaskInstanceEntityId.java": {
-    "mtime": 1789655586.609411,
-    "seen": 1789655607.2031271,
+    "mtime": 1794935112.2872772,
+    "seen": 1794935148.412895,
     "ast_hash": "af47d3056b10de8786f3be8e26d6ab11",
     "semantic_hash": "af47d3056b10de8786f3be8e26d6ab11"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/entity/WorkflowInstanceEntity.java": {
-    "mtime": 1789655586.609411,
-    "seen": 1789655607.203128,
-    "ast_hash": "5be4419d7ac010e28cb306a0bb1e72a1",
-    "semantic_hash": "5be4419d7ac010e28cb306a0bb1e72a1"
+    "mtime": 1794935112.2872772,
+    "seen": 1794935148.412896,
+    "ast_hash": "60ab10e8f3ccea9c90b786c52e4b1fe9",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/json/JsonUtils.java": {
-    "mtime": 1789655586.609411,
-    "seen": 1789655607.2031286,
+    "mtime": 1794935112.2872772,
+    "seen": 1794935148.412897,
     "ast_hash": "a7590465ae979edf31471763b8cd6a0e",
     "semantic_hash": "a7590465ae979edf31471763b8cd6a0e"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/json/ObjectMapperProducer.java": {
-    "mtime": 1789655586.6095226,
-    "seen": 1789655607.2031293,
+    "mtime": 1794935112.2874532,
+    "seen": 1794935148.412898,
     "ast_hash": "68bd43111c9e4ec421000f8ab0e74c09",
     "semantic_hash": "68bd43111c9e4ec421000f8ab0e74c09"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/mapper/ErrorEntityMapper.java": {
-    "mtime": 1789655586.6095226,
-    "seen": 1789655607.2031305,
+    "mtime": 1794935112.2874532,
+    "seen": 1794935148.4128988,
     "ast_hash": "5f877d276f614651a070d8ab00498377",
     "semantic_hash": "5f877d276f614651a070d8ab00498377"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/mapper/TaskInstanceEntityMapper.java": {
-    "mtime": 1789655586.6095884,
-    "seen": 1789655607.2031312,
-    "ast_hash": "ca6b6fb894de49944dcedf0fedc5e15d",
-    "semantic_hash": "ca6b6fb894de49944dcedf0fedc5e15d"
+    "mtime": 1794935112.2875147,
+    "seen": 1794935148.4129002,
+    "ast_hash": "06148dfa194fbeda1d7be00dbf3acc96",
+    "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/jpa/mapper/WorkflowInstanceEntityMapper.java": {
-    "mtime": 1789655586.6095884,
-    "seen": 1789655607.203132,
+    "mtime": 1794935112.2875147,
+    "seen": 1794935148.412901,
     "ast_hash": "c76163648cd36a4e0cbb1d4ce87233f8",
     "semantic_hash": "c76163648cd36a4e0cbb1d4ce87233f8"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/package-info.java": {
-    "mtime": 1789655586.6095884,
-    "seen": 1789655607.2031329,
+    "mtime": 1794935112.2875147,
+    "seen": 1794935148.412902,
     "ast_hash": "337bc11e2b4f8230552213600656cf3f",
     "semantic_hash": "337bc11e2b4f8230552213600656cf3f"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/postgresql/ContainsSQLFunction.java": {
-    "mtime": 1789655586.6095884,
-    "seen": 1789655607.2031333,
+    "mtime": 1794935112.2875147,
+    "seen": 1794935148.412903,
     "ast_hash": "133993e01de6eaab3feff7603cba5fb6",
     "semantic_hash": "133993e01de6eaab3feff7603cba5fb6"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/postgresql/CustomFunctionsContributor.java": {
-    "mtime": 1789655586.6096632,
-    "seen": 1789655607.2031345,
+    "mtime": 1794935112.2876062,
+    "seen": 1794935148.4129045,
     "ast_hash": "384d0c6288d023c5ac2a9eb55c0d1f13",
     "semantic_hash": "384d0c6288d023c5ac2a9eb55c0d1f13"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/postgresql/JsonBinaryConverter.java": {
-    "mtime": 1789655586.6096632,
-    "seen": 1789655607.2031355,
+    "mtime": 1794935112.2876062,
+    "seen": 1794935148.4129052,
     "ast_hash": "c890d0bacd1db6887dfeea62ce106f08",
     "semantic_hash": "c890d0bacd1db6887dfeea62ce106f08"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/postgresql/PostgresqlJsonPredicateBuilder.java": {
-    "mtime": 1789655586.6096632,
-    "seen": 1789655607.2031362,
+    "mtime": 1794935112.2876062,
+    "seen": 1794935148.4129064,
     "ast_hash": "5c2cece259e399e80fd852ec721bae2c",
     "semantic_hash": "5c2cece259e399e80fd852ec721bae2c"
   },
   "data-index/data-index-storage/data-index-storage-postgresql/src/main/java/org/kubesmarts/logic/dataindex/storage/postgresql/PostgresqlStorageServiceCapabilities.java": {
-    "mtime": 1789655586.6096632,
-    "seen": 1789655607.2031367,
+    "mtime": 1794935112.2876062,
+    "seen": 1794935148.4129074,
     "ast_hash": "4a0638ac09f7fed3987bbe3d9eb5e72b",
     "semantic_hash": "4a0638ac09f7fed3987bbe3d9eb5e72b"
   },
   "data-index/data-index-storage/pom.xml": {
-    "mtime": 1789655586.6097455,
-    "seen": 1789655607.2031379,
-    "ast_hash": "83062694f8e927cd84ad959afb311b38",
-    "semantic_hash": "83062694f8e927cd84ad959afb311b38"
+    "mtime": 1794935112.287691,
+    "seen": 1794935148.4129083,
+    "ast_hash": "d4c4cfeee0e2c919b326bed44c605d9c",
+    "semantic_hash": ""
   },
   "data-index/pom.xml": {
-    "mtime": 1789655586.6101453,
-    "seen": 1789655607.2031386,
-    "ast_hash": "19aaf276603bd5cd22723fd7ce17ae83",
-    "semantic_hash": "19aaf276603bd5cd22723fd7ce17ae83"
+    "mtime": 1794935112.2880783,
+    "seen": 1794935148.4129183,
+    "ast_hash": "f5766acc9edca342da138c19c6f3253b",
+    "semantic_hash": ""
   },
   "data-index/scripts/e2e/common-setup.sh": {
-    "mtime": 1789655586.610451,
-    "seen": 1789655607.2031395,
-    "ast_hash": "d3ed8a9d5a148a3e83cc597433d990f5",
+    "mtime": 1794935112.2884593,
+    "seen": 1794935148.4129193,
+    "ast_hash": "4615defa7adb0234c362e9bfdbd6a157",
     "semantic_hash": ""
   },
   "data-index/scripts/e2e/full-test-mode1.sh": {
-    "mtime": 1789655586.61049,
-    "seen": 1789655607.2031403,
-    "ast_hash": "51903cc03712766f1f948db8455f8538",
+    "mtime": 1794935112.2884986,
+    "seen": 1794935148.4129202,
+    "ast_hash": "4fa48810b2d062ac6476608e405143fc",
     "semantic_hash": ""
   },
   "data-index/scripts/e2e/full-test-mode2.sh": {
-    "mtime": 1789655586.61049,
-    "seen": 1789655607.2031412,
-    "ast_hash": "9d7cb40fd87dd4a768dbd35c0e0dfcb0",
-    "semantic_hash": "9d7cb40fd87dd4a768dbd35c0e0dfcb0"
+    "mtime": 1794935112.2884986,
+    "seen": 1794935148.4129214,
+    "ast_hash": "b8361cae73d688cd75f2351eb39bb897",
+    "semantic_hash": ""
   },
   "data-index/scripts/e2e/full-test-mode3.sh": {
-    "mtime": 1789655586.61049,
-    "seen": 1789655607.203142,
-    "ast_hash": "6c4383c79c594d1997a5b8f1640a32f3",
-    "semantic_hash": "6c4383c79c594d1997a5b8f1640a32f3"
+    "mtime": 1794935112.2884986,
+    "seen": 1794935148.4129224,
+    "ast_hash": "4c7edb52773606d8d1f1602436774038",
+    "semantic_hash": ""
   },
   "data-index/scripts/e2e/verify-infrastructure.sh": {
-    "mtime": 1789655586.61049,
-    "seen": 1789655607.2031426,
-    "ast_hash": "54a8d8eae3ce32912c52a5d766978e1c",
+    "mtime": 1794935112.2884986,
+    "seen": 1794935148.4129233,
+    "ast_hash": "7ba94cdb9a617a6f5dc180de9c9f9d4a",
     "semantic_hash": ""
   },
   "data-index/scripts/fluentbit/deploy-fluentbit.sh": {
-    "mtime": 1789655586.6106198,
-    "seen": 1789655607.2031434,
+    "mtime": 1794935112.2886343,
+    "seen": 1794935148.4129245,
     "ast_hash": "5421e12dbf3ea8dcb5c0c4e9c5f4984e",
     "semantic_hash": ""
   },
   "data-index/scripts/fluentbit/generate-configmap.sh": {
-    "mtime": 1789655586.6106198,
-    "seen": 1789655607.203144,
+    "mtime": 1794935112.2886343,
+    "seen": 1794935148.4129255,
     "ast_hash": "c73e1ca6e00c48f2f02338f2300cfce1",
     "semantic_hash": ""
   },
   "data-index/workflow-test-app/pom.xml": {
-    "mtime": 1789655586.6108923,
-    "seen": 1789655607.2031453,
-    "ast_hash": "0b925e3a5fc1a7773341e83539fc22c6",
-    "semantic_hash": "0b925e3a5fc1a7773341e83539fc22c6"
+    "mtime": 1794935112.2888982,
+    "seen": 1794935148.4129274,
+    "ast_hash": "e552d1378891154a56333e5f75042c1a",
+    "semantic_hash": ""
   },
   "data-index/workflow-test-app/src/main/java/org/kubesmarts/logic/dataindex/test/FailingWorkflow.java": {
-    "mtime": 1789655586.6110096,
-    "seen": 1789655607.203146,
+    "mtime": 1794935112.2889886,
+    "seen": 1794935148.4129288,
     "ast_hash": "bb63ac178811f9b45e8ce154e0707606",
     "semantic_hash": "bb63ac178811f9b45e8ce154e0707606"
   },
   "data-index/workflow-test-app/src/main/java/org/kubesmarts/logic/dataindex/test/HelloWorldWorkflow.java": {
-    "mtime": 1789655586.6110454,
-    "seen": 1789655607.2031467,
+    "mtime": 1794935112.289023,
+    "seen": 1794935148.4129298,
     "ast_hash": "5819d8526c53e269a51ba874304c42b6",
     "semantic_hash": "5819d8526c53e269a51ba874304c42b6"
   },
   "data-index/workflow-test-app/src/main/java/org/kubesmarts/logic/dataindex/test/SimpleSetWorkflow.java": {
-    "mtime": 1789655586.6110454,
-    "seen": 1789655607.2031472,
+    "mtime": 1794935112.289023,
+    "seen": 1794935148.4129307,
     "ast_hash": "facd75504b79b3969a724232b545606c",
     "semantic_hash": "facd75504b79b3969a724232b545606c"
   },
   "data-index/workflow-test-app/src/main/java/org/kubesmarts/logic/dataindex/test/WorkflowTestResource.java": {
-    "mtime": 1789655586.6110454,
-    "seen": 1789655607.2031481,
+    "mtime": 1794935112.289023,
+    "seen": 1794935148.4129317,
     "ast_hash": "f9f47506200c1bf9ea5999340b113389",
     "semantic_hash": "f9f47506200c1bf9ea5999340b113389"
   },
   "data-index/workflow-test-app/src/test/java/org/kubesmarts/logic/dataindex/test/HttpBinMockServer.java": {
-    "mtime": 1789655586.6111906,
-    "seen": 1789655607.2031488,
+    "mtime": 1794935112.2891734,
+    "seen": 1794935148.4129326,
     "ast_hash": "498794734438f59448a1010997ac8c28",
     "semantic_hash": "498794734438f59448a1010997ac8c28"
   },
   "data-index/workflow-test-app/src/test/java/org/kubesmarts/logic/dataindex/test/KafkaTestProfile.java": {
-    "mtime": 1789655586.6112344,
-    "seen": 1789655607.2031496,
+    "mtime": 1794935112.2892313,
+    "seen": 1794935148.4129338,
     "ast_hash": "469f12fe10c548fa2f7c8edb1c39bb71",
     "semantic_hash": "469f12fe10c548fa2f7c8edb1c39bb71"
   },
   "data-index/workflow-test-app/src/test/java/org/kubesmarts/logic/dataindex/test/WorkflowExecutionTest.java": {
-    "mtime": 1789655586.6112344,
-    "seen": 1789655607.20315,
+    "mtime": 1794935112.2892313,
+    "seen": 1794935148.412935,
     "ast_hash": "7ab762d301e8bae7cdd6122f70564cbb",
     "semantic_hash": "7ab762d301e8bae7cdd6122f70564cbb"
   },
   "docs/presentations/2026-05-20-data-index-poc/generate-slides.js": {
-    "mtime": 1789655586.6114197,
-    "seen": 1789655607.2031507,
+    "mtime": 1794935112.289838,
+    "seen": 1794935148.4129472,
     "ast_hash": "ae30e5acb0efd9c4144f4a61eaaf9c7a",
     "semantic_hash": "ae30e5acb0efd9c4144f4a61eaaf9c7a"
   },
   "docs/presentations/2026-05-20-data-index-poc/package.json": {
-    "mtime": 1789655586.6114197,
-    "seen": 1789655607.2031517,
-    "ast_hash": "16c1fff1d21c09641c769ed7ce26b3f5",
-    "semantic_hash": "16c1fff1d21c09641c769ed7ce26b3f5"
+    "mtime": 1794935112.289838,
+    "seen": 1794935148.4129481,
+    "ast_hash": "273799a11d7fe82ba0d5970912c16c89",
+    "semantic_hash": ""
   },
   "persistence-commons/persistence-commons-api/pom.xml": {
-    "mtime": 1789655586.612113,
-    "seen": 1789655607.2031524,
-    "ast_hash": "84671c19b70de498df667cb6734b965c",
-    "semantic_hash": "84671c19b70de498df667cb6734b965c"
+    "mtime": 1794935112.2905216,
+    "seen": 1794935148.4129493,
+    "ast_hash": "a35ee5b9e16d197c402022fbb4281ac2",
+    "semantic_hash": ""
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/Storage.java": {
-    "mtime": 1789655586.6122053,
-    "seen": 1789655607.2031531,
+    "mtime": 1794935112.29059,
+    "seen": 1794935148.4129505,
     "ast_hash": "cf5d6c5b2005d50aff2a300939fc23be",
     "semantic_hash": "cf5d6c5b2005d50aff2a300939fc23be"
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/StorageFetcher.java": {
-    "mtime": 1789655586.6122575,
-    "seen": 1789655607.2031536,
+    "mtime": 1794935112.2906451,
+    "seen": 1794935148.4129515,
     "ast_hash": "7a1d02f4e1cc7285f4d230aad66252b8",
     "semantic_hash": "7a1d02f4e1cc7285f4d230aad66252b8"
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/StorageService.java": {
-    "mtime": 1789655586.6122575,
-    "seen": 1789655607.2031543,
+    "mtime": 1794935112.2906451,
+    "seen": 1794935148.4129524,
     "ast_hash": "9ca9f8820065800666963c6506819512",
     "semantic_hash": "9ca9f8820065800666963c6506819512"
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/StorageServiceCapability.java": {
-    "mtime": 1789655586.6122575,
-    "seen": 1789655607.2031555,
+    "mtime": 1794935112.2906451,
+    "seen": 1794935148.4129536,
     "ast_hash": "85f40f14bc2cc6bfa191e0b3a50c9d35",
     "semantic_hash": "85f40f14bc2cc6bfa191e0b3a50c9d35"
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/StorageServiceCapabilityProvider.java": {
-    "mtime": 1789655586.6122575,
-    "seen": 1789655607.2031562,
+    "mtime": 1794935112.2906451,
+    "seen": 1794935148.4129546,
     "ast_hash": "86860c3a5b1dcc32452469ae7680ba60",
     "semantic_hash": "86860c3a5b1dcc32452469ae7680ba60"
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/query/AttributeFilter.java": {
-    "mtime": 1789655586.6122575,
-    "seen": 1789655607.203157,
+    "mtime": 1794935112.2906451,
+    "seen": 1794935148.4129558,
     "ast_hash": "7434cbea42d645826a807ef92a0aaf29",
     "semantic_hash": "7434cbea42d645826a807ef92a0aaf29"
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/query/AttributeSort.java": {
-    "mtime": 1789655586.612512,
-    "seen": 1789655607.2031577,
+    "mtime": 1794935112.2909067,
+    "seen": 1794935148.4129565,
     "ast_hash": "1881e2ec5acd1c3bca7f9ae345674ad6",
     "semantic_hash": "1881e2ec5acd1c3bca7f9ae345674ad6"
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/query/FilterCondition.java": {
-    "mtime": 1789655586.612512,
-    "seen": 1789655607.2031586,
+    "mtime": 1794935112.2909067,
+    "seen": 1794935148.4129574,
     "ast_hash": "e99e29b44b0ced652321f10738b274d3",
     "semantic_hash": "e99e29b44b0ced652321f10738b274d3"
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/query/Query.java": {
-    "mtime": 1789655586.612512,
-    "seen": 1789655607.2031593,
+    "mtime": 1794935112.2909067,
+    "seen": 1794935148.4129581,
     "ast_hash": "af8a736136f9efd6353dea6bff0e5201",
     "semantic_hash": "af8a736136f9efd6353dea6bff0e5201"
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/query/QueryFilterFactory.java": {
-    "mtime": 1789655586.612512,
-    "seen": 1789655607.2031603,
+    "mtime": 1794935112.2909067,
+    "seen": 1794935148.4129593,
     "ast_hash": "e9b1be76b117044df7f0baade15a5845",
     "semantic_hash": "e9b1be76b117044df7f0baade15a5845"
   },
   "persistence-commons/persistence-commons-api/src/main/java/org/kie/kogito/persistence/api/query/SortDirection.java": {
-    "mtime": 1789655586.612512,
-    "seen": 1789655607.203161,
+    "mtime": 1794935112.2909067,
+    "seen": 1794935148.4129603,
     "ast_hash": "44e925ee9f4709b58a0d04cdd6479d4e",
     "semantic_hash": "44e925ee9f4709b58a0d04cdd6479d4e"
   },
   "persistence-commons/persistence-commons-api/src/main/resources/META-INF/native-image/reflect-config.json": {
-    "mtime": 1789655586.6127396,
-    "seen": 1789655607.203162,
+    "mtime": 1794935112.2911298,
+    "seen": 1794935148.4129612,
     "ast_hash": "fa0a47dc39eb5256fccc9a505c1b9da3",
     "semantic_hash": "fa0a47dc39eb5256fccc9a505c1b9da3"
   },
   "persistence-commons/pom.xml": {
-    "mtime": 1789655586.6127396,
-    "seen": 1789655607.2031627,
-    "ast_hash": "ec4ec73f4125e139a0f54b77259e225f",
-    "semantic_hash": "ec4ec73f4125e139a0f54b77259e225f"
+    "mtime": 1794935112.2911298,
+    "seen": 1794935148.4129622,
+    "ast_hash": "21bc045a23ccc8736e3d6671459017f3",
+    "semantic_hash": ""
   },
   "pom.xml": {
-    "mtime": 1789655586.6127396,
-    "seen": 1789655607.2031636,
-    "ast_hash": "919b7bc4fdbd2e0d269b1edf5933d7a5",
-    "semantic_hash": "919b7bc4fdbd2e0d269b1edf5933d7a5"
+    "mtime": 1794935112.2911298,
+    "seen": 1794935148.4129634,
+    "ast_hash": "992261d8bbbfa2747b254245b130e95d",
+    "semantic_hash": ""
   },
   ".github/workflows/build.yml": {
-    "mtime": 1789655586.5906098,
-    "seen": 1789655607.2031643,
-    "ast_hash": "4b58424c8705b465917ce20157a21832",
-    "semantic_hash": "4b58424c8705b465917ce20157a21832"
+    "mtime": 1794935112.2641113,
+    "seen": 1794935148.4127138,
+    "ast_hash": "0bfc9791f0a9fac6fd95c70319f283dd",
+    "semantic_hash": ""
   },
   ".github/workflows/data-index-integration-tests.yml": {
-    "mtime": 1789655586.5906537,
-    "seen": 1789655607.2031653,
-    "ast_hash": "742c2bc09222c3f38edf1d4357e29bf1",
+    "mtime": 1794935112.264137,
+    "seen": 1794935148.4127204,
+    "ast_hash": "e83568bb19f7a51aa92660ab0dbd6696",
     "semantic_hash": ""
   },
   ".github/workflows/deploy-docs.yml": {
-    "mtime": 1789655586.5906537,
-    "seen": 1789655607.203166,
-    "ast_hash": "254e8e254b592648b2a73ce06d02912e",
-    "semantic_hash": "254e8e254b592648b2a73ce06d02912e"
+    "mtime": 1794935112.264137,
+    "seen": 1794935148.4127233,
+    "ast_hash": "28a574d1ae737e0d616553cede28d003",
+    "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1789655586.5992043,
-    "seen": 1789655607.2031717,
-    "ast_hash": "e67ce8d9374dd85039d55fe1f47e977a",
-    "semantic_hash": "e67ce8d9374dd85039d55fe1f47e977a"
+    "mtime": 1794935112.276295,
+    "seen": 1794935148.4129696,
+    "ast_hash": "ba4fd529e55799fd300910d5c8c16b40",
+    "semantic_hash": ""
   },
   "adrs/0001-migrate-to-vector-for-openshift-alignment.md": {
-    "mtime": 1789655586.5992043,
-    "seen": 1789655607.203173,
+    "mtime": 1794935112.276295,
+    "seen": 1794935148.4129708,
     "ast_hash": "31c19da64582e494e6f00672fa075120",
     "semantic_hash": "31c19da64582e494e6f00672fa075120"
   },
   "data-index/README.md": {
-    "mtime": 1789655586.6003466,
-    "seen": 1789655607.2031753,
-    "ast_hash": "3d85444eb3dca64177ce6d0e23374666",
+    "mtime": 1794935112.2778234,
+    "seen": 1794935148.4129739,
+    "ast_hash": "e5efd773e1811038e0ffedc5152e8606",
     "semantic_hash": ""
   },
   "data-index/collectors/README.md": {
-    "mtime": 1789655586.6003466,
-    "seen": 1789655607.2031763,
+    "mtime": 1794935112.2778234,
+    "seen": 1794935148.4129748,
     "ast_hash": "c279cf6d7b63b9c7db5d852e73b3fa9e",
     "semantic_hash": "c279cf6d7b63b9c7db5d852e73b3fa9e"
   },
   "data-index/collectors/vector/mode2-elasticsearch/vector.yaml": {
-    "mtime": 1789655586.6007848,
-    "seen": 1789655607.2031803,
+    "mtime": 1794935112.2782812,
+    "seen": 1794935148.4127412,
     "ast_hash": "69ae424046cb68cc16a2c87b08f9b0a3",
     "semantic_hash": ""
   },
   "data-index/data-index-docs/README.md": {
-    "mtime": 1789655586.6009297,
-    "seen": 1789655607.203181,
-    "ast_hash": "76679a6db3e2ce5d090a6996acd47c99",
+    "mtime": 1794935112.2784193,
+    "seen": 1794935148.4129772,
+    "ast_hash": "461b637e94a1d7eacda36bd4d072ec91",
     "semantic_hash": ""
   },
   "data-index/data-index-e2e-tests/README.md": {
-    "mtime": 1789655586.6019466,
-    "seen": 1789655607.2031834,
+    "mtime": 1794935112.2794602,
+    "seen": 1794935148.4129782,
     "ast_hash": "aa7c626a803de3fff25649e8d0bbd903",
     "semantic_hash": ""
   },
   "data-index/data-index-ingestion/README.md": {
-    "mtime": 1789655586.6023924,
-    "seen": 1789655607.2031841,
-    "ast_hash": "8e20df6a61cffb5ff4d15a409fe366e0",
-    "semantic_hash": "8e20df6a61cffb5ff4d15a409fe366e0"
+    "mtime": 1794935112.279913,
+    "seen": 1794935148.4129791,
+    "ast_hash": "e538659335365e56548944ce639a38cd",
+    "semantic_hash": ""
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/README.md": {
-    "mtime": 1789655586.6028566,
-    "seen": 1789655607.2031848,
-    "ast_hash": "be2cbaf697b2dac4bb7cd6535131ce56",
+    "mtime": 1794935112.2800322,
+    "seen": 1794935148.4129803,
+    "ast_hash": "281a1a48a6750942d4e52d82429640c3",
     "semantic_hash": ""
   },
   "data-index/data-index-integration-tests/README.md": {
-    "mtime": 1789655586.6038904,
-    "seen": 1789655607.2031865,
+    "mtime": 1794935112.2815619,
+    "seen": 1794935148.412982,
     "ast_hash": "1c80d77e38702ac414928748dbbd5dea",
     "semantic_hash": "1c80d77e38702ac414928748dbbd5dea"
   },
   "data-index/data-index-model/README.md": {
-    "mtime": 1789655586.6043375,
-    "seen": 1789655607.2031872,
-    "ast_hash": "e38d81d55cd4963fba7429ca52e5985e",
-    "semantic_hash": "e38d81d55cd4963fba7429ca52e5985e"
+    "mtime": 1794935112.2819583,
+    "seen": 1794935148.4129832,
+    "ast_hash": "8b7944e811a1aebdcfbd87b527d2e540",
+    "semantic_hash": ""
   },
   "data-index/data-index-service/README.md": {
-    "mtime": 1789655586.6052127,
-    "seen": 1789655607.203188,
-    "ast_hash": "fc8aba0b3de30f625df1fabeda7f7f1f",
+    "mtime": 1794935112.2828074,
+    "seen": 1794935148.4129844,
+    "ast_hash": "99812e8fe560e69dfccb5678c38a2397",
     "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-common/README.md": {
-    "mtime": 1789655586.6064072,
-    "seen": 1789655607.2031896,
+    "mtime": 1794935112.284392,
+    "seen": 1794935148.4129863,
     "ast_hash": "e164ca11e9644b864445b7264a85376f",
     "semantic_hash": "e164ca11e9644b864445b7264a85376f"
   },
   "data-index/data-index-storage/data-index-storage-elasticsearch/README.md": {
-    "mtime": 1789655586.6073802,
-    "seen": 1789655607.2031906,
-    "ast_hash": "9a726ad507eceb36e19a4a1881e6a015",
+    "mtime": 1794935112.2853081,
+    "seen": 1794935148.4129875,
+    "ast_hash": "f7fdf78dbc7fa146361bb2606931e166",
     "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-migrations/README.md": {
-    "mtime": 1789655586.608205,
-    "seen": 1789655607.2031913,
-    "ast_hash": "3244379e7c6e50890648c226d9582c53",
+    "mtime": 1794935112.2859802,
+    "seen": 1794935148.4129887,
+    "ast_hash": "6667485ea4c2f8c9d4880a51bff0ad0b",
     "semantic_hash": ""
   },
   "data-index/data-index-storage/data-index-storage-postgresql/README.md": {
-    "mtime": 1789655586.6089163,
-    "seen": 1789655607.203192,
-    "ast_hash": "cba13974db2b25f1f780dfb361cda0f8",
+    "mtime": 1794935112.2867968,
+    "seen": 1794935148.4129894,
+    "ast_hash": "0417a212aaf048c9489cef72c73b2586",
     "semantic_hash": ""
   },
   "data-index/docs/README.md": {
-    "mtime": 1789655586.6098094,
-    "seen": 1789655607.2031925,
+    "mtime": 1794935112.2877398,
+    "seen": 1794935148.4129908,
     "ast_hash": "a5ce75413ef9409a5c05e49d79a6bf69",
     "semantic_hash": ""
   },
   "data-index/docs/deployment/MODE3_KAFKA_INGESTION.md": {
-    "mtime": 1789655586.6098094,
-    "seen": 1789655607.2031934,
-    "ast_hash": "5114ae2455133177c091fe0bfe176ecd",
+    "mtime": 1794935112.2877398,
+    "seen": 1794935148.4129915,
+    "ast_hash": "a5bb7f5b43d900798441c7afe281384d",
     "semantic_hash": ""
   },
   "data-index/docs/elasticsearch/TRANSFORM_OPTIMIZATION.md": {
-    "mtime": 1789655586.6098094,
-    "seen": 1789655607.2031941,
-    "ast_hash": "cba3eceede6bad3ecb47bf3a4964210c",
+    "mtime": 1794935112.2877398,
+    "seen": 1794935148.4129925,
+    "ast_hash": "d02813a8cb1d5a0c9e74c5704a6bd8db",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/Chart.yaml": {
-    "mtime": 1789655586.6100142,
-    "seen": 1789655607.2031949,
-    "ast_hash": "3c1ff38aa3fef8ba2491cfca5e06dfb5",
-    "semantic_hash": "3c1ff38aa3fef8ba2491cfca5e06dfb5"
+    "mtime": 1794935112.2879527,
+    "seen": 1794935148.4129095,
+    "ast_hash": "43187ef1c22754f7951b3fe7108d697d",
+    "semantic_hash": ""
   },
   "data-index/helm/data-index/README.md": {
-    "mtime": 1789655586.6100142,
-    "seen": 1789655607.203196,
-    "ast_hash": "008b544d374866ca94299b5206b6d266",
+    "mtime": 1794935112.2879527,
+    "seen": 1794935148.4129934,
+    "ast_hash": "b8358f786d6513984487a44bb14f9268",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/kind-cluster.yaml": {
-    "mtime": 1789655586.610094,
-    "seen": 1789655607.2031984,
+    "mtime": 1794935112.2880282,
+    "seen": 1794935148.4129126,
     "ast_hash": "e85377c485d47f7fab1caa0584332275",
     "semantic_hash": "e85377c485d47f7fab1caa0584332275"
   },
   "data-index/helm/data-index/templates/data-index-ingestion.yaml": {
     "mtime": 1789655586.6101453,
     "seen": 1789655607.2031994,
-    "ast_hash": "6fcedfba9a7ce5d54849b1f8ce69f02d",
-    "semantic_hash": "6fcedfba9a7ce5d54849b1f8ce69f02d"
+    "ast_hash": "",
+    "semantic_hash": ""
   },
   "data-index/helm/data-index/templates/data-index-service.yaml": {
     "mtime": 1789655586.6101453,
     "seen": 1789655607.2032003,
-    "ast_hash": "12c7a018cd772c17072bd92fe1bcbf66",
+    "ast_hash": "",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/templates/elasticsearch.yaml": {
     "mtime": 1789655586.6101453,
     "seen": 1789655607.203201,
-    "ast_hash": "20e82cd3f6fd8210105d86000e1f08f6",
-    "semantic_hash": "20e82cd3f6fd8210105d86000e1f08f6"
+    "ast_hash": "",
+    "semantic_hash": ""
   },
   "data-index/helm/data-index/templates/kafka.yaml": {
     "mtime": 1789655586.6101453,
     "seen": 1789655607.203202,
-    "ast_hash": "543520eea7385e6a9f361de562da3a53",
-    "semantic_hash": "543520eea7385e6a9f361de562da3a53"
+    "ast_hash": "",
+    "semantic_hash": ""
   },
   "data-index/helm/data-index/templates/namespace.yaml": {
     "mtime": 1789655586.6101453,
     "seen": 1789655607.2032027,
-    "ast_hash": "eeaac76443a82e012b08fac57de3dadd",
+    "ast_hash": "",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/templates/postgresql.yaml": {
     "mtime": 1789655586.6101453,
     "seen": 1789655607.2032034,
-    "ast_hash": "e51f2267fce0ea35ddc7220f5430bedc",
-    "semantic_hash": "e51f2267fce0ea35ddc7220f5430bedc"
+    "ast_hash": "",
+    "semantic_hash": ""
   },
   "data-index/helm/data-index/templates/vector-configmap.yaml": {
     "mtime": 1789655586.6101453,
     "seen": 1789655607.2032044,
-    "ast_hash": "d21e576aabf00743373e5fc717cc5c00",
+    "ast_hash": "",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/templates/vector-daemonset.yaml": {
     "mtime": 1789655586.6101453,
     "seen": 1789655607.203205,
-    "ast_hash": "75debb6e20d8174d77a45a2654bd20c1",
+    "ast_hash": "",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/templates/workflow-test-app.yaml": {
     "mtime": 1789655586.6101453,
     "seen": 1789655607.2032058,
-    "ast_hash": "8cee0c6053a46950c53f08524f77f2de",
+    "ast_hash": "",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/values-mode1.yaml": {
-    "mtime": 1789655586.6101453,
-    "seen": 1789655607.2032065,
-    "ast_hash": "7b1a4c6a44bc20f1b2c86b6848b11e05",
+    "mtime": 1794935112.2880783,
+    "seen": 1794935148.412914,
+    "ast_hash": "53a0c65a6bb5f395c9286e2dd7c21476",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/values-mode2.yaml": {
-    "mtime": 1789655586.6101453,
-    "seen": 1789655607.2032077,
-    "ast_hash": "56c06dbfaeedac34a38f436c6cc31deb",
+    "mtime": 1794935112.2880783,
+    "seen": 1794935148.4129152,
+    "ast_hash": "d0a492700155d720fc31d9bb68e60c9e",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/values-mode3.yaml": {
-    "mtime": 1789655586.6101453,
-    "seen": 1789655607.2032084,
-    "ast_hash": "9cb9902783961ef69a6a4eab073024c0",
+    "mtime": 1794935112.2880783,
+    "seen": 1794935148.4129162,
+    "ast_hash": "a3126039271b9ee7804d61a091d06095",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/values.yaml": {
-    "mtime": 1789655586.6101453,
-    "seen": 1789655607.2032092,
-    "ast_hash": "97e84562b37b26172881fb3a10cc652f",
+    "mtime": 1794935112.2880783,
+    "seen": 1794935148.4129171,
+    "ast_hash": "bb3f6f8edbb25614e4ca181fb14f90f4",
     "semantic_hash": ""
   },
   "data-index/scripts/fluentbit/README.md": {
-    "mtime": 1789655586.6106198,
-    "seen": 1789655607.2032104,
+    "mtime": 1794935112.2886343,
+    "seen": 1794935148.4129946,
     "ast_hash": "e69ed5ff6f6829c637df2f62c3805caf",
     "semantic_hash": ""
   },
   "data-index/scripts/kafka/README.md": {
-    "mtime": 1789655586.6106198,
-    "seen": 1789655607.2032108,
+    "mtime": 1794935112.2886343,
+    "seen": 1794935148.4129956,
     "ast_hash": "4eea4b6b7cc1910a4dc98a7f31104e88",
     "semantic_hash": ""
   },
   "data-index/scripts/kafka/kubernetes/kafka.yaml": {
-    "mtime": 1789655586.610764,
-    "seen": 1789655607.2032115,
+    "mtime": 1794935112.2887828,
+    "seen": 1794935148.4129264,
     "ast_hash": "62022ad086dade4c374c1560b0d98791",
     "semantic_hash": "62022ad086dade4c374c1560b0d98791"
   },
   "data-index/workflow-test-app/README.md": {
-    "mtime": 1789655586.610764,
-    "seen": 1789655607.2032123,
-    "ast_hash": "1dce5172b59844ad29aa189a0d3ab80d",
+    "mtime": 1794935112.2887828,
+    "seen": 1794935148.4129965,
+    "ast_hash": "eff2508f42307e3239e672de1338b7bb",
     "semantic_hash": ""
   },
   "docs/presentations/2026-05-20-data-index-poc/README.md": {
-    "mtime": 1789655586.6113322,
-    "seen": 1789655607.203213,
+    "mtime": 1794935112.28975,
+    "seen": 1794935148.4129996,
     "ast_hash": "23e17c50c5dfbb95a9e5c71669d8affe",
     "semantic_hash": "23e17c50c5dfbb95a9e5c71669d8affe"
   },
   "docs/presentations/2026-05-20-data-index-poc/SLIDES.md": {
-    "mtime": 1789655586.6113322,
-    "seen": 1789655607.203214,
+    "mtime": 1794935112.28975,
+    "seen": 1794935148.413001,
     "ast_hash": "49a7ed6c0e68399b022844469ce88e82",
     "semantic_hash": "49a7ed6c0e68399b022844469ce88e82"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-01-title.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032154,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.413003,
     "ast_hash": "cf0a8c9dcdf6aa32263f225a329a4187",
     "semantic_hash": "cf0a8c9dcdf6aa32263f225a329a4187"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-02-migration.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.203216,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130044,
     "ast_hash": "f050efc18a51cc3226c6de96251cb3e6",
     "semantic_hash": "f050efc18a51cc3226c6de96251cb3e6"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-03-event-flow.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032168,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130054,
     "ast_hash": "9a41a11dc92d7cdd6f104d369c5874bb",
     "semantic_hash": "9a41a11dc92d7cdd6f104d369c5874bb"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-04-mode1-arch.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032177,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130063,
     "ast_hash": "96ce3c6c2a1a9b2c27b225497f7e2bc6",
     "semantic_hash": "96ce3c6c2a1a9b2c27b225497f7e2bc6"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-05-mode1-trigger.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032185,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130073,
     "ast_hash": "e4d863bcd2c2570cce47c2c78c261c83",
     "semantic_hash": "e4d863bcd2c2570cce47c2c78c261c83"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-06-mode2-arch.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032192,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130085,
     "ast_hash": "b8e269cb3137f9c40f25adc2c930df90",
     "semantic_hash": "b8e269cb3137f9c40f25adc2c930df90"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-07-mode2-transform.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.20322,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130092,
     "ast_hash": "7229073bee6cabda126a1059115d8519",
     "semantic_hash": "7229073bee6cabda126a1059115d8519"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-08-comparison.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032208,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130101,
     "ast_hash": "b7e81fd46e709fe1bafd4eaa34fd2aeb",
     "semantic_hash": "b7e81fd46e709fe1bafd4eaa34fd2aeb"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-09-demo-setup.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032216,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130113,
     "ast_hash": "97e9b66fe618750e5da7c989eba64d90",
     "semantic_hash": "97e9b66fe618750e5da7c989eba64d90"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-10-demo-commands.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032223,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130123,
     "ast_hash": "1e296e0f1b94a0a3fe21334495c367d2",
     "semantic_hash": "1e296e0f1b94a0a3fe21334495c367d2"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-11-fluentbit.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.203223,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130132,
     "ast_hash": "b6cb1284d7c9549bdee2436f50bb3bf3",
     "semantic_hash": "b6cb1284d7c9549bdee2436f50bb3bf3"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-12-log-replay.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032235,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130142,
     "ast_hash": "2e41844198c6f2392c6a2bfd59f27ea8",
     "semantic_hash": "2e41844198c6f2392c6a2bfd59f27ea8"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-13-reliability.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032244,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130151,
     "ast_hash": "541b96fc63c3d59514a34c53659724c0",
     "semantic_hash": "541b96fc63c3d59514a34c53659724c0"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-14-decision.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032251,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.413016,
     "ast_hash": "b6d2b6c5a0165e36f162ddd56b7f669a",
     "semantic_hash": "b6d2b6c5a0165e36f162ddd56b7f669a"
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/slide-15-redhat.html": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032259,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130173,
     "ast_hash": "9f70b78543adf4dcc476ca4fdd96f1d4",
     "semantic_hash": "9f70b78543adf4dcc476ca4fdd96f1d4"
   },
   "docs/presentations/README.md": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032266,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130182,
     "ast_hash": "003ced87ac3220e5274306275f74f99a",
     "semantic_hash": "003ced87ac3220e5274306275f74f99a"
   },
   "persistence-commons/README.md": {
-    "mtime": 1789655586.611716,
-    "seen": 1789655607.2032273,
+    "mtime": 1794935112.2901304,
+    "seen": 1794935148.4130192,
     "ast_hash": "6de96e402c733c2d7e6069c0987c5a78",
     "semantic_hash": "6de96e402c733c2d7e6069c0987c5a78"
   },
   "docs/presentations/2026-05-20-data-index-poc/diagrams/event-flow.svg": {
-    "mtime": 1789655586.6113322,
-    "seen": 1789655607.2032282,
+    "mtime": 1794935112.28975,
+    "seen": 1794935148.4130204,
     "ast_hash": "d1a10ed721971bfe7319961f9a3cad73",
     "semantic_hash": "d1a10ed721971bfe7319961f9a3cad73"
   },
   "docs/presentations/2026-05-20-data-index-poc/diagrams/fluentbit-daemonset.svg": {
-    "mtime": 1789655586.6114197,
-    "seen": 1789655607.2032287,
+    "mtime": 1794935112.289838,
+    "seen": 1794935148.4130213,
     "ast_hash": "cf5d90e8e50e5e33b5338b445d52eb37",
     "semantic_hash": "cf5d90e8e50e5e33b5338b445d52eb37"
   },
   "docs/presentations/2026-05-20-data-index-poc/diagrams/log-replay-scenario.svg": {
-    "mtime": 1789655586.6114197,
-    "seen": 1789655607.2032294,
+    "mtime": 1794935112.289838,
+    "seen": 1794935148.4130225,
     "ast_hash": "abbe3ff47b87e37d79ea1abfeb2f3b86",
     "semantic_hash": "abbe3ff47b87e37d79ea1abfeb2f3b86"
   },
   "docs/presentations/2026-05-20-data-index-poc/diagrams/mode-comparison.svg": {
-    "mtime": 1789655586.6114197,
-    "seen": 1789655607.2032301,
+    "mtime": 1794935112.289838,
+    "seen": 1794935148.4130232,
     "ast_hash": "d51fe20a1c9714fb18e299a9921dd65d",
     "semantic_hash": "d51fe20a1c9714fb18e299a9921dd65d"
   },
   "docs/presentations/2026-05-20-data-index-poc/diagrams/mode1-architecture.svg": {
-    "mtime": 1789655586.6114197,
-    "seen": 1789655607.2032306,
+    "mtime": 1794935112.289838,
+    "seen": 1794935148.4130242,
     "ast_hash": "9fe9c6ed2185ab0b189fe618ea0f4cfb",
     "semantic_hash": "9fe9c6ed2185ab0b189fe618ea0f4cfb"
   },
   "docs/presentations/2026-05-20-data-index-poc/diagrams/mode1-idempotency.svg": {
-    "mtime": 1789655586.6114197,
-    "seen": 1789655607.2032316,
+    "mtime": 1794935112.289838,
+    "seen": 1794935148.4130254,
     "ast_hash": "663209161915ed979f8ff9e737f1f2bf",
     "semantic_hash": "663209161915ed979f8ff9e737f1f2bf"
   },
   "docs/presentations/2026-05-20-data-index-poc/diagrams/mode2-architecture.svg": {
-    "mtime": 1789655586.6114197,
-    "seen": 1789655607.2032323,
+    "mtime": 1794935112.289838,
+    "seen": 1794935148.4130263,
     "ast_hash": "951bb6b86d03ce2509e8d03dbfda27b5",
     "semantic_hash": "951bb6b86d03ce2509e8d03dbfda27b5"
   },
   "docs/presentations/2026-05-20-data-index-poc/diagrams/redhat-productization.svg": {
-    "mtime": 1789655586.6114197,
-    "seen": 1789655607.203233,
+    "mtime": 1794935112.289838,
+    "seen": 1794935148.4130273,
     "ast_hash": "ff8f459844814ed1a3c59204b50edc82",
     "semantic_hash": "ff8f459844814ed1a3c59204b50edc82"
   },
   ".github/workflows/graphify/requirements.txt": {
-    "mtime": 1789655586.5906537,
-    "seen": 1789655607.2031689,
+    "mtime": 1794935112.264137,
+    "seen": 1794935148.4129646,
     "ast_hash": "6269e2b9bb3a9fb4f0abd3bde051fc42",
     "semantic_hash": ""
   },
   ".github/workflows/update-knowledge-graph.yml": {
-    "mtime": 1789655586.5906537,
-    "seen": 1789655607.2031703,
-    "ast_hash": "30207551ab8cffc5f6045c74eba54e4a",
+    "mtime": 1794935112.264137,
+    "seen": 1794935148.4127314,
+    "ast_hash": "5e9e0a86289cf7f032da0aec0b5ac0f9",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1789655586.5992043,
-    "seen": 1789655607.203171,
-    "ast_hash": "bb7d18b89980a78fe5147f67c41bd27d",
+    "mtime": 1794935112.276295,
+    "seen": 1794935148.412967,
+    "ast_hash": "7715cac138fd292047cac3024ff4015c",
     "semantic_hash": ""
   },
   "data-index/CLAUDE.md": {
-    "mtime": 1789655586.600129,
-    "seen": 1789655607.2031744,
+    "mtime": 1794935112.277716,
+    "seen": 1794935148.4129727,
     "ast_hash": "82efb97a359f5c7290bf2513d14686be",
     "semantic_hash": ""
   },
   "data-index/collectors/examples/README.md": {
-    "mtime": 1789655586.60048,
-    "seen": 1789655607.2031772,
+    "mtime": 1794935112.2779505,
+    "seen": 1794935148.412976,
     "ast_hash": "dce4fc7e56a08f7dcafdac2bf5a78a42",
     "semantic_hash": ""
   },
   "data-index/collectors/examples/mode2-elasticsearch/daemonset.yaml": {
-    "mtime": 1789655586.6005094,
-    "seen": 1789655607.2031786,
-    "ast_hash": "f5854993ffae9c208ee2173fcc5f3cd9",
+    "mtime": 1794935112.2779796,
+    "seen": 1794935148.4127343,
+    "ast_hash": "230c3ffe981a41fb1bc6cf0df4a2c5fa",
     "semantic_hash": ""
   },
   "data-index/data-index-docs/antora-playbook.yaml": {
-    "mtime": 1789655586.6009297,
-    "seen": 1789655607.2031817,
+    "mtime": 1794935112.2784193,
+    "seen": 1794935148.4127426,
     "ast_hash": "fe4f88e3bad4a1798f5b1b3b0d2f4778",
     "semantic_hash": ""
   },
   "data-index/data-index-docs/antora.yml": {
-    "mtime": 1789655586.6009297,
-    "seen": 1789655607.2031827,
-    "ast_hash": "ac4bf1b69f5b06c3709bb3d6f76e08e3",
+    "mtime": 1794935112.2784193,
+    "seen": 1794935148.4127443,
+    "ast_hash": "07a075e0c112fb172bd0ed8cb18b16c0",
     "semantic_hash": ""
   },
   "data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/main/resources/templates/index.html": {
-    "mtime": 1789655586.6033483,
-    "seen": 1789655607.2031856,
+    "mtime": 1794935112.2805176,
+    "seen": 1794935148.4129813,
     "ast_hash": "73d6f1c744a1fcacdb18d9307c1d857f",
     "semantic_hash": ""
   },
   "data-index/data-index-service/data-index-service-core/src/main/resources/templates/index.html": {
-    "mtime": 1789655586.606119,
-    "seen": 1789655607.2031887,
+    "mtime": 1794935112.283749,
+    "seen": 1794935148.4129853,
     "ast_hash": "b021e794dddaa74f27b2b899d1b84bb9",
     "semantic_hash": ""
   },
   "docs/presentations/2026-05-20-data-index-poc/templates/base.html": {
-    "mtime": 1789655586.6114197,
-    "seen": 1789655607.2032146,
+    "mtime": 1794935112.289838,
+    "seen": 1794935148.413002,
     "ast_hash": "48375fb8132c6fb77676f59f93beecf3",
     "semantic_hash": ""
   },
   "data-index/collectors/examples/mode1-postgresql/daemonset.yaml": {
-    "mtime": 1789655586.6005094,
-    "seen": 1789655607.203178,
+    "mtime": 1794935112.2779796,
+    "seen": 1794935148.412733,
     "ast_hash": "19ed7197ec7f956eec3d7c1c5be76b1a",
     "semantic_hash": ""
   },
   "data-index/collectors/vector/mode1-postgresql/vector.yaml": {
-    "mtime": 1789655586.6007848,
-    "seen": 1789655607.2031796,
-    "ast_hash": "78bf026a67790534e8835f40e4fd75e6",
+    "mtime": 1794935112.2782812,
+    "seen": 1794935148.4127395,
+    "ast_hash": "41dcdd40a685d813de98533ad29f6a50",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/configs/vector/vector-mode1-postgresql.yaml": {
-    "mtime": 1789655586.6007848,
-    "seen": 1789655607.203197,
-    "ast_hash": "78bf026a67790534e8835f40e4fd75e6",
+    "mtime": 1794935112.2782812,
+    "seen": 1794935148.4129107,
+    "ast_hash": "41dcdd40a685d813de98533ad29f6a50",
     "semantic_hash": ""
   },
   "data-index/helm/data-index/configs/vector/vector-mode2-elasticsearch.yaml": {
-    "mtime": 1789655586.6007848,
-    "seen": 1789655607.203198,
+    "mtime": 1794935112.2782812,
+    "seen": 1794935148.4129117,
     "ast_hash": "69ae424046cb68cc16a2c87b08f9b0a3",
     "semantic_hash": ""
   },
   ".github/workflows/deploy-image.yml": {
-    "mtime": 1789655586.5906537,
-    "seen": 1789655607.2031674,
-    "ast_hash": "fd5323c24e9e23ccbd51c995d8e6d9c4",
+    "mtime": 1794935112.264137,
+    "seen": 1794935148.4127247,
+    "ast_hash": "7247a14d67588e01eec8c948b1e86e91",
     "semantic_hash": ""
   },
   ".github/workflows/publish-images.yml": {
-    "mtime": 1789655586.5906537,
-    "seen": 1789655607.2031696,
-    "ast_hash": "0b84fd3faa573fa864c6d2b1ecb94dd2",
+    "mtime": 1794935112.264137,
+    "seen": 1794935148.4127276,
+    "ast_hash": "afedfe0011d81b1b8352128cc263ba98",
     "semantic_hash": ""
   },
-  "adrs/0002-workflow-gateway-architecture.md": {
-    "mtime": 1789655586.600129,
-    "seen": 1789655607.2031736,
-    "ast_hash": "f4acd98c62370eed1763bba2ea594911",
+  ".github/workflows/pr-title.yml": {
+    "mtime": 1794935112.264137,
+    "seen": 1794935148.4127262,
+    "ast_hash": "7ba9ba6e0bb13363aafc4b6cf8adad39",
+    "semantic_hash": ""
+  },
+  ".github/workflows/quarkus-flow-snapshot-nightly.yml": {
+    "mtime": 1794935112.264137,
+    "seen": 1794935148.4127288,
+    "ast_hash": "a2a114c9449377e5820997ede2b8a911",
+    "semantic_hash": ""
+  },
+  ".github/workflows/release.yml": {
+    "mtime": 1794935112.264137,
+    "seen": 1794935148.4127302,
+    "ast_hash": "0664b8c5518786c2c3096dac18a12b64",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-ingestion/data-index-ingestion-persistence/pom.xml": {
+    "mtime": 1794935112.2810266,
+    "seen": 1794935148.4127703,
+    "ast_hash": "2ae03d2ff759ac7bdf7b498ea17ac908",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-ingestion/data-index-ingestion-persistence/src/main/java/org/kubesmarts/logic/dataindex/ingestion/persistence/EventProcessor.java": {
+    "mtime": 1794935112.281315,
+    "seen": 1794935148.4127717,
+    "ast_hash": "fc45df73c1d2b971a3c8fb39038f10ef",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-ingestion/data-index-ingestion-persistence/src/main/java/org/kubesmarts/logic/dataindex/ingestion/persistence/ProcessEventFailedException.java": {
+    "mtime": 1794935112.281353,
+    "seen": 1794935148.4127727,
+    "ast_hash": "ea845b9bb181d9d8316755f1775dee2b",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-ingestion/data-index-ingestion-persistence/src/main/java/org/kubesmarts/logic/dataindex/ingestion/persistence/TaskExecutionProcessor.java": {
+    "mtime": 1794935112.281353,
+    "seen": 1794935148.4127736,
+    "ast_hash": "e81049723c59a7268eff848f4d9d134c",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-ingestion/data-index-ingestion-persistence/src/main/java/org/kubesmarts/logic/dataindex/ingestion/persistence/WorkflowEventProcessor.java": {
+    "mtime": 1794935112.281353,
+    "seen": 1794935148.4127746,
+    "ast_hash": "30d9ba6e16973e1abf3147ed6ba62d63",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-ingestion/data-index-ingestion-persistence/src/main/java/org/kubesmarts/logic/dataindex/ingestion/persistence/jdbc/LoadSQL.java": {
+    "mtime": 1794935112.281353,
+    "seen": 1794935148.4127758,
+    "ast_hash": "6b13a7b4f6e6c16149bdaa67346e0eb1",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-ingestion/data-index-ingestion-persistence/src/main/java/org/kubesmarts/logic/dataindex/ingestion/persistence/jdbc/TaskPersistence.java": {
+    "mtime": 1794935112.2814343,
+    "seen": 1794935148.412777,
+    "ast_hash": "b779dd82ff65333b9133ac579e5382ae",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-ingestion/data-index-ingestion-persistence/src/main/java/org/kubesmarts/logic/dataindex/ingestion/persistence/jdbc/WorkflowPersistence.java": {
+    "mtime": 1794935112.2814343,
+    "seen": 1794935148.412778,
+    "ast_hash": "52b1b9f31a048d23f396016ff9de07b6",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-integration-tests/data-index-integration-tests-postgresql/src/test/java/org/kubesmarts/logic/dataindex/ingestion/JdbcBatchPollingDisabledTest.java": {
+    "mtime": 1794935112.2818623,
+    "seen": 1794935148.4127846,
+    "ast_hash": "75a9fd983c6865a8d1b040d402adba42",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-integration-tests/data-index-integration-tests-postgresql/src/test/java/org/kubesmarts/logic/dataindex/ingestion/JdbcBatchPollingTest.java": {
+    "mtime": 1794935112.2819583,
+    "seen": 1794935148.4127858,
+    "ast_hash": "2766c8511f3cc46b01205648b2e0718f",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-integration-tests/data-index-integration-tests-postgresql/src/test/java/org/kubesmarts/logic/dataindex/ingestion/JdbcBatchPollingTestHelper.java": {
+    "mtime": 1794935112.2819583,
+    "seen": 1794935148.4127865,
+    "ast_hash": "dcb0b5682d5313616f44ee0f5fb4cafc",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-service/data-index-service-postgresql/src/main/java/org/kubesmarts/logic/dataindex/service/postgresql/ingestion/FailureReason.java": {
+    "mtime": 1794935112.2840316,
+    "seen": 1794935148.4128296,
+    "ast_hash": "be4c416566159807749212e390aee324",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-service/data-index-service-postgresql/src/main/java/org/kubesmarts/logic/dataindex/service/postgresql/ingestion/SavepointHelper.java": {
+    "mtime": 1794935112.284093,
+    "seen": 1794935148.412831,
+    "ast_hash": "d0ac09ab56170685aaac2c15f4e9744f",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-service/data-index-service-postgresql/src/main/java/org/kubesmarts/logic/dataindex/service/postgresql/ingestion/TaskEventPoller.java": {
+    "mtime": 1794935112.284093,
+    "seen": 1794935148.412832,
+    "ast_hash": "22790d64220b5a291f9412b084c7904c",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-service/data-index-service-postgresql/src/main/java/org/kubesmarts/logic/dataindex/service/postgresql/ingestion/TaskEventRow.java": {
+    "mtime": 1794935112.284093,
+    "seen": 1794935148.412833,
+    "ast_hash": "67ada59b638b1b01e02f308b407a8960",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-service/data-index-service-postgresql/src/main/java/org/kubesmarts/logic/dataindex/service/postgresql/ingestion/TaskEventRowMapper.java": {
+    "mtime": 1794935112.284093,
+    "seen": 1794935148.4128337,
+    "ast_hash": "6151f262437d3aa71d35a01d6ed1d4e3",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-service/data-index-service-postgresql/src/main/java/org/kubesmarts/logic/dataindex/service/postgresql/ingestion/WorkflowEventPoller.java": {
+    "mtime": 1794935112.284093,
+    "seen": 1794935148.4128346,
+    "ast_hash": "b6552ff81977fa11640ab011dd77ea95",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-service/data-index-service-postgresql/src/main/java/org/kubesmarts/logic/dataindex/service/postgresql/ingestion/WorkflowEventRow.java": {
+    "mtime": 1794935112.284093,
+    "seen": 1794935148.4128356,
+    "ast_hash": "e40e693c2ec154de9e16fa2b2bed0124",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-service/data-index-service-postgresql/src/main/java/org/kubesmarts/logic/dataindex/service/postgresql/ingestion/WorkflowEventRowMapper.java": {
+    "mtime": 1794935112.284093,
+    "seen": 1794935148.4128366,
+    "ast_hash": "f02bafd1abb985bff4ef3ba6b8ba6e24",
+    "semantic_hash": ""
+  },
+  "data-index/data-index-storage/data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/ingest-pipelines/data-index-ingest-timestamp.json": {
+    "mtime": 1794935112.2850401,
+    "seen": 1794935148.4128542,
+    "ast_hash": "a64a597d4c072ef692c4876131bd9804",
+    "semantic_hash": ""
+  },
+  "db-migrator/pom.xml": {
+    "mtime": 1794935112.289309,
+    "seen": 1794935148.412936,
+    "ast_hash": "b9f0b7ebe485ac707dbd741c2b24177c",
+    "semantic_hash": ""
+  },
+  "db-migrator/src/main/java/org/kubesmarts/logic/apps/dbmigrator/LogicAppsMigratorConfig.java": {
+    "mtime": 1794935112.2894073,
+    "seen": 1794935148.412937,
+    "ast_hash": "c0ca78cadb53cb039c6f416f48193e6f",
+    "semantic_hash": ""
+  },
+  "db-migrator/src/main/java/org/kubesmarts/logic/apps/dbmigrator/Main.java": {
+    "mtime": 1794935112.2894354,
+    "seen": 1794935148.4129384,
+    "ast_hash": "15f6c5ee5402745002faf8422560d81a",
+    "semantic_hash": ""
+  },
+  "db-migrator/src/main/java/org/kubesmarts/logic/apps/dbmigrator/MigrationReport.java": {
+    "mtime": 1794935112.2894354,
+    "seen": 1794935148.4129395,
+    "ast_hash": "9ac6cd791f56a7c70084cc3f77a018cb",
+    "semantic_hash": ""
+  },
+  "db-migrator/src/main/java/org/kubesmarts/logic/apps/dbmigrator/MigrationRunner.java": {
+    "mtime": 1794935112.2894354,
+    "seen": 1794935148.4129403,
+    "ast_hash": "0686e4c355e1102e7a568ec7d3e3f7fa",
+    "semantic_hash": ""
+  },
+  "db-migrator/src/main/java/org/kubesmarts/logic/apps/dbmigrator/MigrationStreams.java": {
+    "mtime": 1794935112.2894354,
+    "seen": 1794935148.4129412,
+    "ast_hash": "bf397f65cb1e2a33d6b45f060ff01e4a",
+    "semantic_hash": ""
+  },
+  "db-migrator/src/main/java/org/kubesmarts/logic/apps/dbmigrator/StreamResult.java": {
+    "mtime": 1794935112.2894354,
+    "seen": 1794935148.4129424,
+    "ast_hash": "85d7f5afed4b1033cf7dc9617737369a",
+    "semantic_hash": ""
+  },
+  "db-migrator/src/test/java/org/kubesmarts/logic/apps/dbmigrator/it/MigrationRunnerIT.java": {
+    "mtime": 1794935112.2896173,
+    "seen": 1794935148.4129453,
+    "ast_hash": "68295fb55406151c612723416c5e8708",
+    "semantic_hash": ""
+  },
+  "db-migrator/src/test/java/org/kubesmarts/logic/apps/dbmigrator/it/PostgresTestResource.java": {
+    "mtime": 1794935112.2896507,
+    "seen": 1794935148.4129462,
+    "ast_hash": "dba4f1538d24b82f6bbb694e68d73904",
+    "semantic_hash": ""
+  },
+  "CHANGELOG.md": {
+    "mtime": 1794935112.276295,
+    "seen": 1794935148.4129658,
+    "ast_hash": "f4fd63e09f667f5c8687114fa67da799",
+    "semantic_hash": ""
+  },
+  "CONTRIBUTING.md": {
+    "mtime": 1794935112.276295,
+    "seen": 1794935148.412968,
+    "ast_hash": "6407641ea16e4c47d931a9c949583274",
+    "semantic_hash": ""
+  },
+  "adrs/0002-jdbc-batch-normalization-mode1.md": {
+    "mtime": 1794935112.277716,
+    "seen": 1794935148.4129717,
+    "ast_hash": "eed8e88bfd147318560b14ab52b2a8c3",
+    "semantic_hash": ""
+  },
+  "db-migrator/src/main/resources/logic-apps-db-migrator.txt": {
+    "mtime": 1794935112.2895393,
+    "seen": 1794935148.4129977,
+    "ast_hash": "269de90086567ccaca895522dc5259d2",
+    "semantic_hash": ""
+  },
+  "docs/RELEASE.md": {
+    "mtime": 1794935112.2896507,
+    "seen": 1794935148.4129987,
+    "ast_hash": "f9567f6fcd685ec5140a08e9fcd205f6",
     "semantic_hash": ""
   }
 }
