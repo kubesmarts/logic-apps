@@ -24,7 +24,7 @@ final class WorkflowEventRowMapper {
     private WorkflowEventRowMapper() {
     }
 
-    static WorkflowInstance toUpsert(WorkflowEventRow row) {
+    static WorkflowInstance toWorkflowInstance(WorkflowEventRow row) {
         WorkflowInstance instance = new WorkflowInstance();
         instance.setId(row.instanceId());
         instance.setNamespace(row.namespace());

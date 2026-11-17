@@ -106,7 +106,7 @@ public class WorkflowEventPoller {
     private void processBatch(Connection conn, List<WorkflowEventRow> rows) {
         try {
             List<WorkflowInstance> events = rows.stream()
-                    .map(WorkflowEventRowMapper::toUpsert)
+                    .map(WorkflowEventRowMapper::toWorkflowInstance)
                     .toList();
             workflowEventProcessor.processBatch(events);
         } catch (Exception batchFailure) {
@@ -121,7 +121,7 @@ public class WorkflowEventPoller {
         List<WorkflowEventRow> normalized = new ArrayList<>();
         for (WorkflowEventRow row : rows) {
             try {
-                WorkflowInstance event = WorkflowEventRowMapper.toUpsert(row);
+                WorkflowInstance event = WorkflowEventRowMapper.toWorkflowInstance(row);
                 workflowEventProcessor.process(event);
                 normalized.add(row);
             } catch (Exception singleFailure) {

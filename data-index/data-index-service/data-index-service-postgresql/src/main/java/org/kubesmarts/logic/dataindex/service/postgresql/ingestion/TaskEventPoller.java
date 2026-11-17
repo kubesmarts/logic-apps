@@ -112,7 +112,7 @@ public class TaskEventPoller {
     private void processBatch(Connection conn, List<TaskEventRow> rows) {
         try {
             List<TaskExecution> events = rows.stream()
-                    .map(TaskEventRowMapper::toUpsert)
+                    .map(TaskEventRowMapper::toTaskExecution)
                     .toList();
             taskExecutionProcessor.processBatch(events);
         } catch (Exception batchFailure) {
@@ -127,7 +127,7 @@ public class TaskEventPoller {
         List<TaskEventRow> normalized = new ArrayList<>();
         for (TaskEventRow row : rows) {
             try {
-                TaskExecution event = TaskEventRowMapper.toUpsert(row);
+                TaskExecution event = TaskEventRowMapper.toTaskExecution(row);
                 taskExecutionProcessor.process(event);
                 normalized.add(row);
             } catch (Exception singleFailure) {

@@ -23,7 +23,7 @@ final class TaskEventRowMapper {
     private TaskEventRowMapper() {
     }
 
-    static TaskExecution toUpsert(TaskEventRow row) {
+    static TaskExecution toTaskExecution(TaskEventRow row) {
         TaskExecution execution = new TaskExecution();
         execution.setInstanceId(row.instanceId());
         execution.setTaskName(row.taskName());
