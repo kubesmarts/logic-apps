@@ -74,30 +74,30 @@ public class WorkflowPersistence {
    }
 
     private void setWorkflowParameters(PreparedStatement stmt, WorkflowInstance event) throws SQLException {
-        stmt.setString(1, event.getId());
-        stmt.setString(2, event.getNamespace());
-        stmt.setString(3, event.getName());
-        stmt.setString(4, event.getVersion());
-        if (event.getStatus() != null) {
-            stmt.setString(5, event.getStatus().name());
+        stmt.setString(1, event.id());
+        stmt.setString(2, event.namespace());
+        stmt.setString(3, event.name());
+        stmt.setString(4, event.version());
+        if (event.status() != null) {
+            stmt.setString(5, event.status().name());
         } else {
             stmt.setNull(5, Types.VARCHAR);
         }
-        stmt.setObject(6, event.getStartedAt());
-        stmt.setObject(7, event.getEndedAt());
-        stmt.setObject(8, event.getLastUpdate());
+        stmt.setObject(6, event.startedAt());
+        stmt.setObject(7, event.endedAt());
+        stmt.setObject(8, event.lastUpdate());
 
         // JSON fields
-        stmt.setString(9, event.getInput());
-        stmt.setString(10, event.getOutput());
+        stmt.setString(9, event.input());
+        stmt.setString(10, event.output());
 
         // Error fields
-        if (event.getError() != null) {
-            stmt.setString(11, event.getError().getType());
-            stmt.setString(12, event.getError().getTitle());
-            stmt.setString(13, event.getError().getDetail());
-            stmt.setObject(14, event.getError().getStatus());
-            stmt.setString(15, event.getError().getInstance());
+        if (event.error() != null) {
+            stmt.setString(11, event.error().getType());
+            stmt.setString(12, event.error().getTitle());
+            stmt.setString(13, event.error().getDetail());
+            stmt.setObject(14, event.error().getStatus());
+            stmt.setString(15, event.error().getInstance());
         } else {
             stmt.setNull(11, Types.VARCHAR);
             stmt.setNull(12, Types.VARCHAR);
@@ -105,7 +105,7 @@ public class WorkflowPersistence {
             stmt.setNull(14, Types.INTEGER);
             stmt.setNull(15, Types.VARCHAR);
         }
-        stmt.setObject(16, event.getEventTimestamp());
+        stmt.setObject(16, event.eventTimestamp());
     }
 
 }

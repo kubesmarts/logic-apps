@@ -24,28 +24,30 @@ final class TaskEventRowMapper {
     }
 
     static TaskExecution toTaskExecution(TaskEventRow row) {
-        TaskExecution execution = new TaskExecution();
-        execution.setInstanceId(row.instanceId());
-        execution.setTaskName(row.taskName());
-        execution.setTask(row.task());
-        execution.setStatus(row.status());
-        execution.setStartedAt(row.startedAt());
-        execution.setEndedAt(row.endedAt());
-        execution.setInput(row.input());
-        execution.setOutput(row.output());
-        execution.setEventTimestamp(row.eventTimestamp());
+        return new TaskExecution(
+                row.instanceId(),
+                row.taskName(),
+                row.task(),
+                row.status(),
+                row.startedAt(),
+                row.endedAt(),
+                row.input(),
+                row.output(),
+                toError(row),
+                row.eventTimestamp());
+    }
 
-        if (hasErrorFields(row)) {
-            Error error = new Error();
-            error.setType(row.errorType());
-            error.setTitle(row.errorTitle());
-            error.setDetail(row.errorDetail());
-            error.setStatus(row.errorStatus());
-            error.setInstance(row.errorInstance());
-            execution.setError(error);
+    private static Error toError(TaskEventRow row) {
+        if (!hasErrorFields(row)) {
+            return null;
         }
-
-        return execution;
+        Error error = new Error();
+        error.setType(row.errorType());
+        error.setTitle(row.errorTitle());
+        error.setDetail(row.errorDetail());
+        error.setStatus(row.errorStatus());
+        error.setInstance(row.errorInstance());
+        return error;
     }
 
     private static boolean hasErrorFields(TaskEventRow row) {

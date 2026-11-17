@@ -25,6 +25,9 @@ import org.kubesmarts.logic.dataindex.ingestion.persistence.WorkflowInstance;
 import org.kubesmarts.logic.dataindex.model.Error;
 import org.kubesmarts.logic.dataindex.model.LifecycleEventUtils;
 import org.kubesmarts.logic.dataindex.model.WorkflowInstanceStatus;
+
+import java.time.OffsetDateTime;
+
 public final class Mapper {
 
     private Mapper() {}
@@ -38,37 +41,47 @@ public final class Mapper {
 
         String status = defineStatus(cloudEvent, data);
 
-        WorkflowInstance workflow = new WorkflowInstance();
-        workflow.setId(id);
-        workflow.setNamespace(data.getDefinition().namespace());
-        workflow.setName(data.getDefinition().name());
-        workflow.setVersion(data.getDefinition().version());
-        workflow.setStatus(WorkflowInstanceStatus.valueOf(status));
-        workflow.setEventTimestamp(cloudEvent.getTime());
-
+        OffsetDateTime startedAt = null;
+        OffsetDateTime endedAt = null;
+        OffsetDateTime lastUpdate = null;
+        Error error = null;
         if (data instanceof WorkflowStartedCEData started) {
-            workflow.setStartedAt(started.getStartedAt());
+            startedAt = started.getStartedAt();
         } else if (data instanceof WorkflowCompletedCEData completed) {
-            workflow.setEndedAt(completed.getCompletedAt());
+            endedAt = completed.getCompletedAt();
         } else if (data instanceof WorkflowFailedCEData failed) {
-            workflow.setEndedAt(failed.getFaultedAt());
+            endedAt = failed.getFaultedAt();
             if (failed.getError() != null) {
-                workflow.setError(mapError(failed.getError()));
+                error = mapError(failed.getError());
             }
         } else if (data instanceof WorkflowCancelledCEData cancelled) {
-            workflow.setEndedAt(cancelled.getCancelledAt());
+            endedAt = cancelled.getCancelledAt();
         } else if (data instanceof WorkflowStatusCEDataEvent statusChanged) {
-            workflow.setLastUpdate(statusChanged.getUpdatedAt());
+            lastUpdate = statusChanged.getUpdatedAt();
         }
 
+        String input = null;
+        String output = null;
         if (data instanceof WorkflowStartedCEDataWithInput withInput && withInput.getInput() != null) {
-            workflow.setInput(objectMapper.writeValueAsString(withInput.getInput()));
+            input = objectMapper.writeValueAsString(withInput.getInput());
         }
         if (data instanceof WorkflowCompletedCEDataWithOutput withOutput && withOutput.getOutput() != null) {
-            workflow.setOutput(objectMapper.writeValueAsString(withOutput.getOutput()));
+            output = objectMapper.writeValueAsString(withOutput.getOutput());
         }
 
-        return workflow;
+        return new WorkflowInstance(
+                id,
+                data.getDefinition().namespace(),
+                data.getDefinition().name(),
+                data.getDefinition().version(),
+                WorkflowInstanceStatus.valueOf(status),
+                startedAt,
+                endedAt,
+                lastUpdate,
+                input,
+                output,
+                error,
+                cloudEvent.getTime());
     }
 
     public static TaskExecution mapTaskExecutionEvent(CloudEvent cloudEvent, TaskCEData data, ObjectMapper jackson) throws JsonProcessingException {
@@ -85,36 +98,44 @@ public final class Mapper {
 
         String status = defineStatus(cloudEvent, data);
 
-        TaskExecution taskExecution = new TaskExecution();
-        taskExecution.setInstanceId(instanceId);
-        taskExecution.setEventTimestamp(cloudEvent.getTime());
-        taskExecution.setStatus(status);
-        taskExecution.setTask(taskPosition);
-        taskExecution.setTaskName(taskPosition.substring(taskPosition.lastIndexOf("/") + 1));
-
+        OffsetDateTime startedAt = null;
         if (data instanceof TaskStartedCEData started) {
-            taskExecution.setStartedAt(started.getStartedAt());
+            startedAt = started.getStartedAt();
         }
 
+        OffsetDateTime endedAt = null;
+        Error error = null;
         if (data instanceof TaskCompletedCEData completed) {
-            taskExecution.setEndedAt(completed.getCompletedAt());
+            endedAt = completed.getCompletedAt();
         } else if (data instanceof TaskFailedCEData failed) {
-            taskExecution.setEndedAt(failed.getFaultedAt());
+            endedAt = failed.getFaultedAt();
             if (failed.getError() != null) {
-                taskExecution.setError(mapError(failed.getError()));
+                error = mapError(failed.getError());
             }
         } else if (data instanceof TaskCancelledCEData cancelled) {
-            taskExecution.setEndedAt(cancelled.getCancelledAt());
+            endedAt = cancelled.getCancelledAt();
         }
 
+        String input = null;
+        String output = null;
         if (data instanceof TaskStartedCEDataWithInput withInput && withInput.getInput() != null) {
-            taskExecution.setInput(jackson.writeValueAsString(withInput.getInput()));
+            input = jackson.writeValueAsString(withInput.getInput());
         }
         if (data instanceof TaskCompletedCEDataWithOutput withOutput && withOutput.getOutput() != null) {
-            taskExecution.setOutput(jackson.writeValueAsString(withOutput.getOutput()));
+            output = jackson.writeValueAsString(withOutput.getOutput());
         }
 
-        return taskExecution;
+        return new TaskExecution(
+                instanceId,
+                taskPosition.substring(taskPosition.lastIndexOf("/") + 1),
+                taskPosition,
+                status,
+                startedAt,
+                endedAt,
+                input,
+                output,
+                error,
+                cloudEvent.getTime());
     }
 
     private static String defineStatus(CloudEvent cloudEvent, Object data) {

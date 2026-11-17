@@ -126,32 +126,32 @@ public class TaskPersistence {
     private void tryCreatePlaceholder(TaskExecution event, Connection conn) throws SQLException {
         // Create placeholder workflow and retry
         log.debug("Task arrived before workflow. Creating placeholder for instance: {}",
-                event.getInstanceId());
+                event.instanceId());
         try (PreparedStatement placeholderStmt = conn.prepareStatement(insertPlaceholderWorkflow)) {
-            placeholderStmt.setString(1, event.getInstanceId());
-            placeholderStmt.setObject(2, event.getEventTimestamp());
+            placeholderStmt.setString(1, event.instanceId());
+            placeholderStmt.setObject(2, event.eventTimestamp());
             placeholderStmt.executeUpdate();
         }
     }
 
     private void setTaskParameters(PreparedStatement stmt, TaskExecution event) throws SQLException {
 
-        stmt.setString(1, event.getInstanceId());
-        stmt.setString(2, event.getTaskName());
-        stmt.setString(3, event.getTask());
-        stmt.setString(4, event.getStatus());
-        stmt.setObject(5, event.getStartedAt());
-        stmt.setObject(6, event.getEndedAt());
-        stmt.setString(7, event.getInput());
-        stmt.setString(8, event.getOutput());
+        stmt.setString(1, event.instanceId());
+        stmt.setString(2, event.taskName());
+        stmt.setString(3, event.task());
+        stmt.setString(4, event.status());
+        stmt.setObject(5, event.startedAt());
+        stmt.setObject(6, event.endedAt());
+        stmt.setString(7, event.input());
+        stmt.setString(8, event.output());
 
         // Error fields
-        if (event.getError() != null) {
-            stmt.setString(9, event.getError().getType());
-            stmt.setString(10, event.getError().getTitle());
-            stmt.setString(11, event.getError().getDetail());
-            stmt.setObject(12, event.getError().getStatus());
-            stmt.setString(13, event.getError().getInstance());
+        if (event.error() != null) {
+            stmt.setString(9, event.error().getType());
+            stmt.setString(10, event.error().getTitle());
+            stmt.setString(11, event.error().getDetail());
+            stmt.setObject(12, event.error().getStatus());
+            stmt.setString(13, event.error().getInstance());
         } else {
             stmt.setNull(9, VARCHAR);
             stmt.setNull(10, VARCHAR);
@@ -160,7 +160,7 @@ public class TaskPersistence {
             stmt.setNull(13, VARCHAR);
         }
 
-        stmt.setObject(14, event.getEventTimestamp());
+        stmt.setObject(14, event.eventTimestamp());
     }
 
 }

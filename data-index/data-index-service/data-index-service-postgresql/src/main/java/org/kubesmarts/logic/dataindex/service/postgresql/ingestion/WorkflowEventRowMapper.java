@@ -25,32 +25,32 @@ final class WorkflowEventRowMapper {
     }
 
     static WorkflowInstance toWorkflowInstance(WorkflowEventRow row) {
-        WorkflowInstance instance = new WorkflowInstance();
-        instance.setId(row.instanceId());
-        instance.setNamespace(row.namespace());
-        instance.setName(row.name());
-        instance.setVersion(row.version());
-        if (row.status() != null) {
-            instance.setStatus(WorkflowInstanceStatus.valueOf(row.status()));
-        }
-        instance.setStartedAt(row.startedAt());
-        instance.setEndedAt(row.endedAt());
-        instance.setLastUpdate(row.lastUpdate());
-        instance.setInput(row.input());
-        instance.setOutput(row.output());
-        instance.setEventTimestamp(row.eventTimestamp());
+        return new WorkflowInstance(
+                row.instanceId(),
+                row.namespace(),
+                row.name(),
+                row.version(),
+                row.status() != null ? WorkflowInstanceStatus.valueOf(row.status()) : null,
+                row.startedAt(),
+                row.endedAt(),
+                row.lastUpdate(),
+                row.input(),
+                row.output(),
+                toError(row),
+                row.eventTimestamp());
+    }
 
-        if (hasErrorFields(row)) {
-            Error error = new Error();
-            error.setType(row.errorType());
-            error.setTitle(row.errorTitle());
-            error.setDetail(row.errorDetail());
-            error.setStatus(row.errorStatus());
-            error.setInstance(row.errorInstance());
-            instance.setError(error);
+    private static Error toError(WorkflowEventRow row) {
+        if (!hasErrorFields(row)) {
+            return null;
         }
-
-        return instance;
+        Error error = new Error();
+        error.setType(row.errorType());
+        error.setTitle(row.errorTitle());
+        error.setDetail(row.errorDetail());
+        error.setStatus(row.errorStatus());
+        error.setInstance(row.errorInstance());
+        return error;
     }
 
     private static boolean hasErrorFields(WorkflowEventRow row) {
