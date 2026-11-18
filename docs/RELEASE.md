@@ -23,8 +23,9 @@ Published to quay.io for `linux/amd64` and `linux/arm64`:
 | `quay.io/kubesmarts/logic-data-index` | MODE 1, MODE 3 (query) | `<version>-postgresql`, `latest-postgresql` |
 | `quay.io/kubesmarts/logic-data-index` | MODE 2 | `<version>-elasticsearch`, `latest-elasticsearch` |
 | `quay.io/kubesmarts/logic-data-index-ingestion` | MODE 3 (ingestion) | `<version>-kafka`, `latest-kafka` |
+| `quay.io/kubesmarts/logic-db-migrator` | DB migration Job | `<version>`, `latest` |
 
-`latest-*` points to the most recent release. Pin `<version>-*` in production.
+`latest*` tags point to the most recent release. Pin `<version>*` in production.
 
 ## How a release works
 
@@ -49,6 +50,7 @@ The Helm chart (`data-index/helm/data-index`) is for local/e2e testing only and 
    skopeo inspect docker://quay.io/kubesmarts/logic-data-index:X.Y.Z-postgresql
    skopeo inspect docker://quay.io/kubesmarts/logic-data-index:X.Y.Z-elasticsearch
    skopeo inspect docker://quay.io/kubesmarts/logic-data-index-ingestion:X.Y.Z-kafka
+   skopeo inspect docker://quay.io/kubesmarts/logic-db-migrator:X.Y.Z
    ```
 5. Create the GitHub release with the changelog section:
    ```bash
