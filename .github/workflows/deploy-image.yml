@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       image_name:
-        description: 'Image name (e.g., kubesmarts/data-index-service)'
+        description: 'Image name (e.g., kubesmarts/logic-data-index)'
         required: true
         type: string
       image_tag:

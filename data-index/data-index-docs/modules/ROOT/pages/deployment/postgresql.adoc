@@ -225,7 +225,7 @@ spec:
     spec:
       containers:
       - name: data-index
-        image: kubesmarts/data-index-service:1.0.0  # Replace with your version
+        image: kubesmarts/logic-data-index:1.0.0-postgresql  # Replace with your version
         ports:
         - containerPort: 8080
           name: http

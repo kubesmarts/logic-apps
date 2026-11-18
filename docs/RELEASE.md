@@ -20,9 +20,9 @@ Published to quay.io for `linux/amd64` and `linux/arm64`:
 
 | Image | Mode | Tags |
 |---|---|---|
-| `quay.io/kubesmarts/data-index-service` | MODE 1, MODE 3 (query) | `<version>-postgresql`, `latest-postgresql` |
-| `quay.io/kubesmarts/data-index-service` | MODE 2 | `<version>-elasticsearch`, `latest-elasticsearch` |
-| `quay.io/kubesmarts/data-index-ingestion` | MODE 3 (ingestion) | `<version>-kafka`, `latest-kafka` |
+| `quay.io/kubesmarts/logic-data-index` | MODE 1, MODE 3 (query) | `<version>-postgresql`, `latest-postgresql` |
+| `quay.io/kubesmarts/logic-data-index` | MODE 2 | `<version>-elasticsearch`, `latest-elasticsearch` |
+| `quay.io/kubesmarts/logic-data-index-ingestion` | MODE 3 (ingestion) | `<version>-kafka`, `latest-kafka` |
 
 `latest-*` points to the most recent release. Pin `<version>-*` in production.
 
@@ -46,9 +46,9 @@ The Helm chart (`data-index/helm/data-index`) is for local/e2e testing only and 
 3. Run the *Release* workflow and check it is green.
 4. Verify the images on quay.io:
    ```bash
-   skopeo inspect docker://quay.io/kubesmarts/data-index-service:X.Y.Z-postgresql
-   skopeo inspect docker://quay.io/kubesmarts/data-index-service:X.Y.Z-elasticsearch
-   skopeo inspect docker://quay.io/kubesmarts/data-index-ingestion:X.Y.Z-kafka
+   skopeo inspect docker://quay.io/kubesmarts/logic-data-index:X.Y.Z-postgresql
+   skopeo inspect docker://quay.io/kubesmarts/logic-data-index:X.Y.Z-elasticsearch
+   skopeo inspect docker://quay.io/kubesmarts/logic-data-index-ingestion:X.Y.Z-kafka
    ```
 5. Create the GitHub release with the changelog section:
    ```bash

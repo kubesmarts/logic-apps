@@ -57,7 +57,7 @@ Before deploying Elasticsearch mode, ensure you have:
    - Optional: TLS/authentication configured
 
 3. **Container images built**
-   - Data Index service: `kubesmarts/data-index-service-elasticsearch:2.0.0-SNAPSHOT`
+   - Data Index service: `kubesmarts/logic-data-index:2.0.0-SNAPSHOT-elasticsearch`
    - Vector: `timberio/vector:0.54.0-distroless-libc` (version managed in `data-index/collectors/pom.xml`)
 
 4. **Vector RBAC permissions**
@@ -235,7 +235,7 @@ mvn clean package \
 
 # For KIND: Load image to cluster
 kind load docker-image \
-  kubesmarts/data-index-service-elasticsearch:2.0.0-SNAPSHOT \
+  kubesmarts/logic-data-index:2.0.0-SNAPSHOT-elasticsearch \
   --name data-index-test
 ----
 
@@ -278,7 +278,7 @@ spec:
     spec:
       containers:
       - name: data-index-service
-        image: kubesmarts/data-index-service-elasticsearch:2.0.0-SNAPSHOT
+        image: kubesmarts/logic-data-index:2.0.0-SNAPSHOT-elasticsearch
         imagePullPolicy: Never  # For KIND; use IfNotPresent for production
         ports:
         - containerPort: 8080
