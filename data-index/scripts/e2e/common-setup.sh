@@ -122,7 +122,7 @@ main() {
 
         # Load images into KIND cluster
         log_info "  → Loading images into KIND cluster"
-        kind load docker-image kubesmarts/data-index-service:2.0.0-SNAPSHOT-postgresql --name "${CLUSTER_NAME}"
+        kind load docker-image kubesmarts/logic-data-index:2.0.0-SNAPSHOT-postgresql --name "${CLUSTER_NAME}"
         kind load docker-image kubesmarts/workflow-test-app:2.0.0-SNAPSHOT --name "${CLUSTER_NAME}"
     fi
 
@@ -144,7 +144,7 @@ main() {
 
         # Load images into KIND cluster
         log_info "  → Loading images into KIND cluster"
-        kind load docker-image kubesmarts/data-index-service:2.0.0-SNAPSHOT-elasticsearch --name "${CLUSTER_NAME}"
+        kind load docker-image kubesmarts/logic-data-index:2.0.0-SNAPSHOT-elasticsearch --name "${CLUSTER_NAME}"
         kind load docker-image kubesmarts/workflow-test-app:2.0.0-SNAPSHOT --name "${CLUSTER_NAME}"
     fi
 
@@ -158,7 +158,7 @@ main() {
 
         # Load image into KIND cluster
         log_info "  → Loading image into KIND cluster"
-        kind load docker-image kubesmarts/data-index-ingestion:2.0.0-SNAPSHOT-kafka --name "${CLUSTER_NAME}"
+        kind load docker-image kubesmarts/logic-data-index-ingestion:2.0.0-SNAPSHOT-kafka --name "${CLUSTER_NAME}"
     fi
 
     log_success "Images built and loaded for: ${BUILD_MODE}"

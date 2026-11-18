@@ -81,7 +81,7 @@ mvn clean package -DskipFlyway=true -DskipTests
 
 **Result:**
 - Optimized Quarkus app at `target/quarkus-app/`
-- Container image: `kubesmarts/data-index-service:2.0.0-SNAPSHOT-postgresql`
+- Container image: `kubesmarts/logic-data-index:2.0.0-SNAPSHOT-postgresql`
 - PostgreSQL dependencies ONLY
 - No Flyway (production uses manual schema migration)
 
@@ -93,7 +93,7 @@ mvn clean package -DskipFlyway=true -DskipTests
 ```
 
 **Result:**
-- Container image: `kubesmarts/data-index-service:2.0.0-SNAPSHOT-elasticsearch`
+- Container image: `kubesmarts/logic-data-index:2.0.0-SNAPSHOT-elasticsearch`
 
 ### Container Image
 
@@ -126,7 +126,7 @@ mvn clean package -DskipTests \
 # Build Docker image
 docker build \
   -f data-index/data-index-service/data-index-service-postgresql/src/main/docker/Dockerfile.jvm \
-  -t kubesmarts/data-index-service:2.0.0-SNAPSHOT-postgresql \
+  -t kubesmarts/logic-data-index:2.0.0-SNAPSHOT-postgresql \
   data-index/data-index-service/data-index-service-postgresql
 ```
 
@@ -138,8 +138,8 @@ Backend is selected by navigating to the appropriate module:
 
 | Module | Storage | Dependencies | Container Image |
 |--------|---------|--------------|----------------|
-| `data-index-service-postgresql` | PostgreSQL | JPA, JDBC, Flyway (dev only) | `kubesmarts/data-index-service:2.0.0-SNAPSHOT-postgresql` |
-| `data-index-service-elasticsearch` | Elasticsearch | Elasticsearch client (future) | `kubesmarts/data-index-service:2.0.0-SNAPSHOT-elasticsearch` |
+| `data-index-service-postgresql` | PostgreSQL | JPA, JDBC, Flyway (dev only) | `kubesmarts/logic-data-index:2.0.0-SNAPSHOT-postgresql` |
+| `data-index-service-elasticsearch` | Elasticsearch | Elasticsearch client (future) | `kubesmarts/logic-data-index:2.0.0-SNAPSHOT-elasticsearch` |
 
 ### Configuration Files
 

@@ -199,7 +199,7 @@ vector:
 dataIndex:
   # Image configuration (set per mode in values-mode{1,2,3}.yaml)
   image:
-    repository: kubesmarts/data-index-service
+    repository: kubesmarts/logic-data-index
     tag: "2.0.0-SNAPSHOT-postgresql"
     pullPolicy: IfNotPresent
 
@@ -262,7 +262,7 @@ dataIndex:
 dataIndexIngestion:
   enabled: false
   image:
-    repository: kubesmarts/data-index-ingestion
+    repository: kubesmarts/logic-data-index-ingestion
     tag: "2.0.0-SNAPSHOT-kafka"
     pullPolicy: IfNotPresent
 

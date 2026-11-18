@@ -33,13 +33,13 @@ IMAGE_TAG := 2.0.0-SNAPSHOT
 
 # Service directories and image names
 PG_SERVICE_DIR := data-index-service/data-index-service-postgresql
-PG_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/data-index-service:$(IMAGE_TAG)-postgresql
+PG_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/logic-data-index:$(IMAGE_TAG)-postgresql
 
 ES_SERVICE_DIR := data-index-service/data-index-service-elasticsearch
-ES_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/data-index-service:$(IMAGE_TAG)-elasticsearch
+ES_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/logic-data-index:$(IMAGE_TAG)-elasticsearch
 
 KAFKA_SERVICE_DIR := data-index-ingestion/data-index-ingestion-kafka-service
-KAFKA_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/data-index-ingestion:$(IMAGE_TAG)-kafka
+KAFKA_IMAGE_NAME := $(IMAGE_REGISTRY_LOCAL)/logic-data-index-ingestion:$(IMAGE_TAG)-kafka
 
 # Colors
 BLUE := \033[0;34m

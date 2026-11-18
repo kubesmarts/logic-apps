@@ -175,7 +175,7 @@ jobs:
             --build-arg REVISION="${REVISION}" \
             --build-arg BUILD_DATE="${BUILD_DATE}" \
             -f data-index/data-index-service/data-index-service-postgresql/src/main/docker/Dockerfile.jvm \
-            -t "localhost/kubesmarts/data-index-service:${VERSION}-postgresql" \
+            -t "localhost/kubesmarts/logic-data-index:${VERSION}-postgresql" \
             -o type=oci,dest=artifact-postgresql.tar \
             data-index/data-index-service/data-index-service-postgresql
 
@@ -238,7 +238,7 @@ jobs:
             --build-arg REVISION="${REVISION}" \
             --build-arg BUILD_DATE="${BUILD_DATE}" \
             -f data-index/data-index-service/data-index-service-elasticsearch/src/main/docker/Dockerfile.jvm \
-            -t "localhost/kubesmarts/data-index-service:${VERSION}-elasticsearch" \
+            -t "localhost/kubesmarts/logic-data-index:${VERSION}-elasticsearch" \
             -o type=oci,dest=artifact-elasticsearch.tar \
             data-index/data-index-service/data-index-service-elasticsearch
 
@@ -301,7 +301,7 @@ jobs:
             --build-arg REVISION="${REVISION}" \
             --build-arg BUILD_DATE="${BUILD_DATE}" \
             -f data-index/data-index-ingestion/data-index-ingestion-kafka-service/src/main/docker/Dockerfile.jvm \
-            -t "localhost/kubesmarts/data-index-ingestion:${VERSION}-kafka" \
+            -t "localhost/kubesmarts/logic-data-index-ingestion:${VERSION}-kafka" \
             -o type=oci,dest=artifact-kafka.tar \
             data-index/data-index-ingestion/data-index-ingestion-kafka-service
 
@@ -320,7 +320,7 @@ jobs:
     uses: ./.github/workflows/deploy-image.yml
     secrets: inherit
     with:
-      image_name: kubesmarts/data-index-service
+      image_name: kubesmarts/logic-data-index
       image_tag: ${{ needs.setup.outputs.VERSION }}-postgresql
       artifact_name: artifact-postgresql
       additional_tags: ${{ needs.setup.outputs.IS_LATEST == 'true' && 'latest-postgresql' || '' }}
@@ -331,7 +331,7 @@ jobs:
     uses: ./.github/workflows/deploy-image.yml
     secrets: inherit
     with:
-      image_name: kubesmarts/data-index-service
+      image_name: kubesmarts/logic-data-index
       image_tag: ${{ needs.setup.outputs.VERSION }}-elasticsearch
       artifact_name: artifact-elasticsearch
       additional_tags: ${{ needs.setup.outputs.IS_LATEST == 'true' && 'latest-elasticsearch' || '' }}
@@ -342,7 +342,7 @@ jobs:
     uses: ./.github/workflows/deploy-image.yml
     secrets: inherit
     with:
-      image_name: kubesmarts/data-index-ingestion
+      image_name: kubesmarts/logic-data-index-ingestion
       image_tag: ${{ needs.setup.outputs.VERSION }}-kafka
       artifact_name: artifact-kafka
       additional_tags: ${{ needs.setup.outputs.IS_LATEST == 'true' && 'latest-kafka' || '' }}
@@ -362,15 +362,15 @@ jobs:
           echo "**Version:** \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Published images:**" >> $GITHUB_STEP_SUMMARY
-          echo "- \`quay.io/kubesmarts/data-index-service:${VERSION}-postgresql\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`quay.io/kubesmarts/data-index-service:${VERSION}-elasticsearch\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`quay.io/kubesmarts/data-index-ingestion:${VERSION}-kafka\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`quay.io/kubesmarts/logic-data-index:${VERSION}-postgresql\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`quay.io/kubesmarts/logic-data-index:${VERSION}-elasticsearch\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`quay.io/kubesmarts/logic-data-index-ingestion:${VERSION}-kafka\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${IS_LATEST}" == "true" ]; then
             echo "**Additional tags:**" >> $GITHUB_STEP_SUMMARY
-            echo "- \`quay.io/kubesmarts/data-index-service:latest-postgresql\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`quay.io/kubesmarts/data-index-service:latest-elasticsearch\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`quay.io/kubesmarts/data-index-ingestion:latest-kafka\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`quay.io/kubesmarts/logic-data-index:latest-postgresql\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`quay.io/kubesmarts/logic-data-index:latest-elasticsearch\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`quay.io/kubesmarts/logic-data-index-ingestion:latest-kafka\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
           echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
