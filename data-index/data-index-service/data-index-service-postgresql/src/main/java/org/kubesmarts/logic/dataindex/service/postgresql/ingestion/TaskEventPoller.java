@@ -15,7 +15,6 @@
  */
 package org.kubesmarts.logic.dataindex.service.postgresql.ingestion;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.scheduler.Scheduled;
@@ -24,8 +23,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.kubesmarts.logic.dataindex.ingestion.persistence.TaskExecutionProcessor;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.TaskExecution;
 import org.kubesmarts.logic.dataindex.ingestion.persistence.jdbc.LoadSQL;
-import org.kubesmarts.logic.dataindex.model.TaskExecution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +57,6 @@ public class TaskEventPoller {
 
     final DataSource dataSource;
     final TaskExecutionProcessor taskExecutionProcessor;
-    final ObjectMapper objectMapper;
     final MeterRegistry meterRegistry;
 
     private Counter processedCounter;
@@ -72,10 +70,9 @@ public class TaskEventPoller {
     int batchSize;
 
     @Inject
-    public TaskEventPoller(DataSource dataSource, TaskExecutionProcessor taskExecutionProcessor, ObjectMapper objectMapper, MeterRegistry meterRegistry) {
+    public TaskEventPoller(DataSource dataSource, TaskExecutionProcessor taskExecutionProcessor, MeterRegistry meterRegistry) {
         this.dataSource = dataSource;
         this.taskExecutionProcessor = taskExecutionProcessor;
-        this.objectMapper = objectMapper;
         this.meterRegistry = meterRegistry;
     }
 
@@ -115,7 +112,7 @@ public class TaskEventPoller {
     private void processBatch(Connection conn, List<TaskEventRow> rows) {
         try {
             List<TaskExecution> events = rows.stream()
-                    .map(row -> TaskEventRowMapper.toTaskExecution(row, objectMapper))
+                    .map(TaskEventRowMapper::toTaskExecution)
                     .toList();
             taskExecutionProcessor.processBatch(events);
         } catch (Exception batchFailure) {
@@ -130,7 +127,7 @@ public class TaskEventPoller {
         List<TaskEventRow> normalized = new ArrayList<>();
         for (TaskEventRow row : rows) {
             try {
-                TaskExecution event = TaskEventRowMapper.toTaskExecution(row, objectMapper);
+                TaskExecution event = TaskEventRowMapper.toTaskExecution(row);
                 taskExecutionProcessor.process(event);
                 normalized.add(row);
             } catch (Exception singleFailure) {

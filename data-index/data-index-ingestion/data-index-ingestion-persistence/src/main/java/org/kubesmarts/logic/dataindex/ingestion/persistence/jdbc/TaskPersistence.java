@@ -1,13 +1,10 @@
 package org.kubesmarts.logic.dataindex.ingestion.persistence.jdbc;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.arc.Unremovable;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.kubesmarts.logic.dataindex.model.TaskExecution;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.TaskExecution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,9 +13,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Savepoint;
-import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Optional;
+
+import static java.sql.Types.INTEGER;
+import static java.sql.Types.VARCHAR;
 
 @Unremovable
 @ApplicationScoped
@@ -31,12 +29,10 @@ public class TaskPersistence {
     private String insertPlaceholderWorkflow;
 
     final DataSource dataSource;
-    final ObjectMapper objectMapper;
 
     @Inject
-    public TaskPersistence(DataSource dataSource, ObjectMapper objectMapper) {
+    public TaskPersistence(DataSource dataSource) {
         this.dataSource = dataSource;
-        this.objectMapper = objectMapper;
     }
 
     @PostConstruct
@@ -130,53 +126,41 @@ public class TaskPersistence {
     private void tryCreatePlaceholder(TaskExecution event, Connection conn) throws SQLException {
         // Create placeholder workflow and retry
         log.debug("Task arrived before workflow. Creating placeholder for instance: {}",
-                event.getInstanceId());
+                event.instanceId());
         try (PreparedStatement placeholderStmt = conn.prepareStatement(insertPlaceholderWorkflow)) {
-            placeholderStmt.setString(1, event.getInstanceId());
-            placeholderStmt.setObject(2, Optional.ofNullable(event.getEventTimestamp()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
+            placeholderStmt.setString(1, event.instanceId());
+            placeholderStmt.setObject(2, event.eventTimestamp());
             placeholderStmt.executeUpdate();
         }
     }
 
     private void setTaskParameters(PreparedStatement stmt, TaskExecution event) throws SQLException {
 
-        stmt.setString(1, event.getInstanceId());
-        stmt.setString(2, event.getTaskName());
-        stmt.setString(3, event.getTask());
-        stmt.setString(4, event.getStatus());
-        stmt.setObject(5, Optional.ofNullable(event.getStartedAt()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
-        stmt.setObject(6, Optional.ofNullable(event.getEndedAt()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
-        stmt.setString(7, toJsonString(event.getInput()));
-        stmt.setString(8, toJsonString(event.getOutput()));
+        stmt.setString(1, event.instanceId());
+        stmt.setString(2, event.taskName());
+        stmt.setString(3, event.task());
+        stmt.setString(4, event.status());
+        stmt.setObject(5, event.startedAt());
+        stmt.setObject(6, event.endedAt());
+        stmt.setString(7, event.input());
+        stmt.setString(8, event.output());
 
         // Error fields
-        if (event.getError() != null) {
-            stmt.setString(9, event.getError().getType());
-            stmt.setString(10, event.getError().getTitle());
-            stmt.setString(11, event.getError().getDetail());
-            stmt.setObject(12, event.getError().getStatus());
-            stmt.setString(13, event.getError().getInstance());
+        if (event.error() != null) {
+            stmt.setString(9, event.error().getType());
+            stmt.setString(10, event.error().getTitle());
+            stmt.setString(11, event.error().getDetail());
+            stmt.setObject(12, event.error().getStatus());
+            stmt.setString(13, event.error().getInstance());
         } else {
-            stmt.setNull(9, java.sql.Types.VARCHAR);
-            stmt.setNull(10, java.sql.Types.VARCHAR);
-            stmt.setNull(11, java.sql.Types.VARCHAR);
-            stmt.setNull(12, java.sql.Types.INTEGER);
-            stmt.setNull(13, java.sql.Types.VARCHAR);
+            stmt.setNull(9, VARCHAR);
+            stmt.setNull(10, VARCHAR);
+            stmt.setNull(11, VARCHAR);
+            stmt.setNull(12, INTEGER);
+            stmt.setNull(13, VARCHAR);
         }
 
-        stmt.setObject(14, Optional.ofNullable(event.getEventTimestamp()).map(ZonedDateTime::toOffsetDateTime).orElse(null));
-    }
-
-    private String toJsonString(JsonNode node) {
-        if (node == null) {
-            return null;
-        }
-        try {
-            return objectMapper.writeValueAsString(node);
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to serialize JSON node, returning null", e);
-            return null;
-        }
+        stmt.setObject(14, event.eventTimestamp());
     }
 
 }

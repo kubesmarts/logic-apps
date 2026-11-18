@@ -18,14 +18,12 @@ package org.kubesmarts.logic.dataindex.ingestion.persistence;
 import io.quarkus.arc.Unremovable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.kubesmarts.logic.dataindex.model.WorkflowInstance;
 import org.kubesmarts.logic.dataindex.ingestion.persistence.jdbc.WorkflowPersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Objects;
 
 @Unremovable
 @ApplicationScoped

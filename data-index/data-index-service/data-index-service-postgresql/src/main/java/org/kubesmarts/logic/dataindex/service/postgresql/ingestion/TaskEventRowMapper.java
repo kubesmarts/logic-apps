@@ -15,61 +15,43 @@
  */
 package org.kubesmarts.logic.dataindex.service.postgresql.ingestion;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.kubesmarts.logic.dataindex.ingestion.persistence.TaskExecution;
 import org.kubesmarts.logic.dataindex.model.Error;
-import org.kubesmarts.logic.dataindex.model.TaskExecution;
-
-import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
 
 final class TaskEventRowMapper {
 
     private TaskEventRowMapper() {
     }
 
-    static TaskExecution toTaskExecution(TaskEventRow row, ObjectMapper objectMapper) {
-        TaskExecution execution = new TaskExecution();
-        execution.setInstanceId(row.instanceId());
-        execution.setTaskName(row.taskName());
-        execution.setTask(row.task());
-        execution.setStatus(row.status());
-        execution.setStartedAt(toZonedDateTime(row.startedAt()));
-        execution.setEndedAt(toZonedDateTime(row.endedAt()));
-        execution.setInput(toJsonNode(row.input(), objectMapper));
-        execution.setOutput(toJsonNode(row.output(), objectMapper));
-        execution.setEventTimestamp(toZonedDateTime(row.eventTimestamp()));
+    static TaskExecution toTaskExecution(TaskEventRow row) {
+        return new TaskExecution(
+                row.instanceId(),
+                row.taskName(),
+                row.task(),
+                row.status(),
+                row.startedAt(),
+                row.endedAt(),
+                row.input(),
+                row.output(),
+                toError(row),
+                row.eventTimestamp());
+    }
 
-        if (hasErrorFields(row)) {
-            Error error = new Error();
-            error.setType(row.errorType());
-            error.setTitle(row.errorTitle());
-            error.setDetail(row.errorDetail());
-            error.setStatus(row.errorStatus());
-            error.setInstance(row.errorInstance());
-            execution.setError(error);
+    private static Error toError(TaskEventRow row) {
+        if (!hasErrorFields(row)) {
+            return null;
         }
-
-        return execution;
+        Error error = new Error();
+        error.setType(row.errorType());
+        error.setTitle(row.errorTitle());
+        error.setDetail(row.errorDetail());
+        error.setStatus(row.errorStatus());
+        error.setInstance(row.errorInstance());
+        return error;
     }
 
     private static boolean hasErrorFields(TaskEventRow row) {
         return row.errorType() != null || row.errorTitle() != null || row.errorDetail() != null
                 || row.errorStatus() != null || row.errorInstance() != null;
-    }
-
-    private static ZonedDateTime toZonedDateTime(OffsetDateTime value) {
-        return value != null ? value.toZonedDateTime() : null;
-    }
-
-    private static JsonNode toJsonNode(String json, ObjectMapper objectMapper) {
-        if (json == null) {
-            return null;
-        }
-        try {
-            return objectMapper.readTree(json);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to parse staging column as JSON: " + json, e);
-        }
     }
 }

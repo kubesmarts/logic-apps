@@ -245,9 +245,7 @@ class JdbcBatchPollingTest {
         String goodInstanceId = "jdbc-batch-task-good-" + UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now();
 
-        // Malformed input fails at TaskEventRowMapper's JSON parsing step, not at the
-        // staging INSERT (input is a plain TEXT column, unvalidated there) - the same
-        // "invalid JSON payload" failure mode MODE 3's own BatchProcessingIT exercises.
+        // Staging input is unvalidated TEXT, so malformed JSON fails at the UPSERT's ::jsonb cast.
         helper.insertTaskEventRaw(badInstanceId, "/do/0", "step1", "RUNNING", now, null, "{not-valid-json");
         helper.insertTaskEventRaw(goodInstanceId, "/do/0", "step1", "RUNNING", now, null, null);
 
