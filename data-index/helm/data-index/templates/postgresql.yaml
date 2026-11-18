@@ -7,21 +7,6 @@ Used for storing raw events and normalized data.
 */}}
 
 ---
-# Runs only on first start (empty data directory).
-# Lets psql find the tables without qualifying postgresql.schema.
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgresql-init
-  namespace: postgresql
-  labels:
-    {{- include "data-index.labels" . | nindent 4 }}
-    app: postgresql
-data:
-  search-path.sql: |
-    ALTER ROLE CURRENT_USER SET search_path = {{ .Values.postgresql.schema | default "public" }}, public;
-
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -112,18 +97,13 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-            - name: init
-              mountPath: /docker-entrypoint-initdb.d
+      {{- if not .Values.postgresql.persistence.enabled }}
+      # No persistence - using emptyDir for testing
+      # Data will be lost when pod is deleted
       volumes:
-        - name: init
-          configMap:
-            name: postgresql-init
-        {{- if not .Values.postgresql.persistence.enabled }}
-        # No persistence - using emptyDir for testing
-        # Data will be lost when pod is deleted
         - name: data
           emptyDir: {}
-        {{- end }}
+      {{- end }}
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
