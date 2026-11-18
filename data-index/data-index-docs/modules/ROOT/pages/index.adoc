@@ -3,34 +3,52 @@
 
 == What is Data Index?
 
-Data Index is a *query service* for Open Workflow 1.0.0 runtime execution data. It provides a GraphQL API for querying workflow instances and task executions from Quarkus Flow applications.
+Data Index is a *query service* for Open Workflow 1.0.0 runtime execution data.
+It reads workflow and task lifecycle events from supported data sources and exposes them through a single GraphQL API for querying workflow instances and task executions from Quarkus Flow applications.
 
 [sidebar]
 ****
 *Key Features:*
 
 * 📊 **GraphQL API** - Query workflow instances and task executions
-* 🚀 **Real-time Processing** - PostgreSQL: ~1s JDBC polling, Elasticsearch: ~1s transforms
+* 🚀 **Near Real-time** - Events become queryable about 1s after they reach the data source
 * 🔍 **Flexible Filtering** - Filter by status, name, namespace, time ranges
-* 🎯 **Production Ready** - Both PostgreSQL and Elasticsearch backends fully tested
-* 📝 **Structured Logging** - Captures events from Quarkus Flow apps via Vector
-* 🔄 **Multiple Storage Backends** - Choose PostgreSQL (MODE 1) or Elasticsearch (MODE 2)
+* 🎯 **Production Ready** - Every supported data source is fully tested
+* 🔄 **Multiple Data Sources** - Same GraphQL API regardless of the data source
 ****
 
 == How It Works
 
-Data Index captures workflow execution events and makes them queryable via GraphQL:
+Data Index reads raw lifecycle events from a data source,
+normalizes them into workflow instances and task executions, and serves them through GraphQL.
+
+[NOTE]
+====
+Getting the events into the data source is outside Data Index.
+====
+
+Two terms are used throughout this documentation:
+
+* *Data source* - where Data Index reads raw lifecycle events from.
+* *Storage backend* - where Data Index keeps the normalized data that the GraphQL API queries.
+
+They can be the same system or different ones.
+In MODE 3, for example, Kafka is the data source and PostgreSQL is the storage backend.
+
+Example with PostgreSQL (MODE 1):
 
 [source,text]
 ----
 Quarkus Flow App
-    ↓ (structured logging to stdout)
-Vector DaemonSet
-    ↓ (tail container logs)
-Storage Backend (PostgreSQL or Elasticsearch)
-    ↓ (normalization)
+    ↓ (lifecycle events, delivered by a log collector)
+PostgreSQL raw event tables          (data source)
+    ↓ (Data Index polls and normalizes)
+PostgreSQL normalized tables         (storage backend)
+    ↓
 GraphQL API
 ----
+
+Other data sources follow the same idea: Data Index starts from the raw events and owns everything from normalization to the API.
 
 == Storage Backends
 

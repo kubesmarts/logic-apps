@@ -218,17 +218,17 @@ helm/data-index/
 kubectl get pods --all-namespaces
 
 # Check specific pod logs
-kubectl logs -n default -l app=data-index-service
+kubectl logs -n data-index -l app=data-index-service
 ```
 
 ### GraphQL API not accessible
 
 ```bash
 # Verify service
-kubectl get svc -n default data-index-service
+kubectl get svc -n data-index data-index-service
 
 # Port forward (if NodePort not working)
-kubectl port-forward -n default svc/data-index-service 8080:8080
+kubectl port-forward -n data-index svc/data-index-service 8080:8080
 ```
 
 ### Vector not collecting logs
