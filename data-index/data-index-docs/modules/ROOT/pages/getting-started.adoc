@@ -9,11 +9,30 @@ Before you begin, ensure you have:
 
 * Kubernetes cluster running (or KIND for local development)
 * `kubectl` configured to access your cluster
-* `curl` and `jq` installed
+* `git`, `curl` and `jq` installed
+* Java 17+ and Maven (to build the project)
+
+== Get the Source
+
+Clone the repository.
+All commands in this guide run from the repository root unless stated otherwise.
+
+[source,bash]
+----
+git clone https://github.com/kubesmarts/logic-apps.git
+cd logic-apps
+----
 
 == Quick Start (Development Mode)
 
-The fastest way to start Data Index locally without Kubernetes:
+The fastest way to start Data Index locally without Kubernetes.
+
+Build the project:
+
+[source,bash]
+----
+mvn clean install -DskipTests
+----
 
 === PostgreSQL Backend
 
@@ -49,7 +68,7 @@ mvn quarkus:dev
 NOTE: Development mode doesn't include the Vector log collector.
 To test with real workflow events, use the KIND installation below.
 
-== Quick Install (KIND)
+== Quick Install (KIND)`
 
 Data Index supports two storage backends. Choose one based on your needs:
 
@@ -57,57 +76,59 @@ Data Index supports two storage backends. Choose one based on your needs:
 * **Elasticsearch (MODE 2)** - For high throughput or full-text search requirements
 * **Kafka (MODE 3)** - For stream-based ingestion, requires Kafka infrastructure
 
+Each mode has a single script that sets up everything on a local KIND cluster.
+Besides `kubectl`, the scripts need `kind`, `docker` and `helm`.
+
+Each script:
+
+. Deletes the KIND cluster named `data-index-test` if it exists, then creates a new one
+. Builds the project and the container images, and loads them into the cluster
+. Installs the Helm chart with the values for that mode, including a test workflow app
+. Runs the E2E tests against the deployment
+
+[NOTE]
+====
+The scripts also run the E2E tests, so they take a few minutes.
+The cluster is kept afterwards, and the GraphQL API is available at http://localhost:30080/graphql.
+====
+
+Set `CLUSTER_NAME` to use a different cluster name.
+
+To get a cluster with data without waiting for the E2E tests, run each test workflow `N` times after the deploy and skip the tests:
+
+[source,bash]
+----
+RUN_WORKFLOWS=3 SKIP_TESTS=true bash data-index/scripts/e2e/full-test-mode1.sh
+----
+
+To generate more data later on a running cluster, run `bash data-index/scripts/e2e/run-workflows.sh <N>`.
+
 === Option 1: PostgreSQL Backend (Recommended)
 
 [source,bash]
 ----
-# 1. Setup KIND cluster and PostgreSQL
-cd data-index/scripts/kind
-./setup-cluster.sh
-MODE=postgresql ./install-dependencies.sh
-
-# 2. Deploy Data Index service
-./deploy-data-index.sh postgresql
-
-# 3. Vector (the log collector) is deployed by the Helm chart for MODE 1.
-#    Full one-command flow: bash data-index/scripts/e2e/full-test-mode1.sh
+bash data-index/scripts/e2e/full-test-mode1.sh
 ----
 
 === Option 2: Elasticsearch Backend
 
 [source,bash]
 ----
-# 1. Setup KIND cluster and Elasticsearch
-cd data-index/scripts/kind
-./setup-cluster.sh
-MODE=elasticsearch ./install-dependencies.sh
-
-# 2. Deploy Data Index service
-./deploy-data-index.sh elasticsearch
-
-# 3. Vector (the log collector) is deployed by the Helm chart for MODE 2.
-#    Full one-command flow: bash data-index/scripts/e2e/full-test-mode2.sh
+bash data-index/scripts/e2e/full-test-mode2.sh
 ----
 
 === Option 3: Kafka Ingestion
 
 [source,bash]
 ----
-# 1. Setup KIND cluster and Infrastructure dependencies (Kafka, PostgreSQL)
-./setup-cluster.sh
-MODE=kafka ./install-dependencies.sh
+bash data-index/scripts/e2e/full-test-mode3.sh
+----
 
-# 2. Deploy the data index query service (PostgreSQL backend)
-./deploy-data-index.sh kafka
+=== Cleanup
 
-# 3. Initialize the database schema
-./init-database-schema.sh
-
-# 4. Deploy the Kafka ingestion service
-./deploy-kafka-ingestion.sh
-
-# 5. Deploy test workflow app with kafka profile
-MODE=kafka ./deploy-workflow-app.sh
+[source,bash]
+----
+kind delete cluster --name data-index-test
 ----
 
 == Verify Installation
@@ -121,17 +142,20 @@ All components should be running:
 # Data Index service
 kubectl get pods -n data-index
 
-# Vector (log collector)
+# Vector (log collector: Option 1 and Option 2)
 kubectl get pods -n logging -l app=vector
 
-# PostgreSQL
+# PostgreSQL (Option 1 and Option 3)
 kubectl get pods -n postgresql
 
-# Kafka
+# Elasticsearch (Option 2)
+kubectl get pods -n elasticsearch
+
+# Kafka (Option 3)
 kubectl get pods -n kafka
 ----
 
-Expected output:
+Expected output for Option 1:
 
 [source,text]
 ----
@@ -199,18 +223,24 @@ TIP: Use `Ctrl+Space` in the query editor for autocomplete suggestions.
 kubectl exec -n postgresql postgresql-0 -- \
   env PGPASSWORD=dataindex123 \
   psql -U dataindex -d dataindex \
-  -c "\dt"
+  -c "\dt logicapps.*"
 ----
 
-Expected tables:
+The output should look something like it:
 
 [source,text]
 ----
- workflow_instances
- task_instances
- workflow_events_raw
- task_events_raw
- flyway_schema_history
+                     List of tables
+  Schema   |         Name          | Type  |   Owner
+-----------+-----------------------+-------+-----------
+ logicapps | flyway_schema_history | table | dataindex
+ logicapps | task_events_dlq       | table | dataindex
+ logicapps | task_events_raw       | table | dataindex
+ logicapps | task_instances        | table | dataindex
+ logicapps | workflow_events_dlq   | table | dataindex
+ logicapps | workflow_events_raw   | table | dataindex
+ logicapps | workflow_instances    | table | dataindex
+(7 rows)
 ----
 
 **Elasticsearch:**
@@ -224,25 +254,27 @@ kubectl port-forward -n elasticsearch svc/elasticsearch 9200:9200 &
 curl -s http://localhost:9200/_cat/indices?v
 
 # Check transforms
-curl -s http://localhost:9200/_transform?pretty
+curl -s 'http://localhost:9200/_cat/transforms?v'
 ----
 
-Expected indices:
+The output should look something like it:
 
 [source,text]
 ----
-workflow-instance-events-raw-YYYY.MM.DD
-task-execution-events-raw-YYYY.MM.DD
-workflow-instances
-task-executions
+health status index                      uuid                   pri rep docs.count docs.deleted store.size pri.store.size dataset.size
+yellow open   workflow-events-2026.11.17 zvV_k9DSSnGWhefssQYSGA   3   1          4            0       78kb           78kb         78kb
+green  open   workflow-instances         0xFw0w-KTu62rfsldHnVGQ   1   0          1            0     11.5kb         11.5kb       11.5kb
+green  open   task-executions            BQamZlX2TlCatZwyKlJH9Q   1   0          1            0      9.5kb          9.5kb        9.5kb
+yellow open   task-events-2026.11.17     jNWN3nMZSyybsT9zy6SCtg   3   1          2            0     73.3kb         73.3kb       73.3kb
 ----
 
 Expected transforms:
 
 [source,text]
 ----
-workflow-instance-transform (started)
-task-execution-transform (started)
+id                           state   checkpoint documents_processed ... last_search_time             changes_last_detection_time
+task-executions-transform    started 2          2                   ... Tue Nov 17 19:43:09 GMT 2026 Tue Nov 17 19:35:33 GMT 2026
+workflow-instances-transform started 2          4                   ... Tue Nov 17 19:43:09 GMT 2026 Tue Nov 17 19:35:33 GMT 2026
 ----
 
 == Next Steps

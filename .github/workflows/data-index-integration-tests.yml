@@ -108,12 +108,12 @@ jobs:
 
             echo ""
             echo "=== Ingestion Service Logs ==="
-            kubectl logs -l app=data-index-ingestion --tail=100 || true
+            kubectl logs -n data-index -l app=data-index-ingestion --tail=100 || true
           fi
 
           echo ""
           echo "=== Data Index Service Logs ==="
-          kubectl logs -l app=data-index-service --tail=100 || true
+          kubectl logs -n data-index -l app=data-index-service --tail=100 || true
 
           echo ""
           if [ "${{ matrix.mode.id }}" == "mode1" ] || [ "${{ matrix.mode.id }}" == "mode2" ]; then

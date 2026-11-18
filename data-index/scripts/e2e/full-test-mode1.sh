@@ -29,9 +29,11 @@ readonly HELM_CHART_DIR="${PROJECT_ROOT}/data-index/helm/data-index"
 
 # Configuration
 readonly CLUSTER_NAME="${CLUSTER_NAME:-data-index-test}"
-readonly NAMESPACE="default"
+readonly NAMESPACE="data-index"
 readonly RELEASE_NAME="data-index"
 readonly MODE="mode1"
+readonly RUN_WORKFLOWS="${RUN_WORKFLOWS:-0}"  # run each test workflow N times after deploy
+readonly SKIP_TESTS="${SKIP_TESTS:-false}"
 
 # ============================================================================
 # Helper Functions
@@ -134,6 +136,18 @@ main() {
     log_step "Step 6: Verify Infrastructure Ready"
     export POSTGRES_SCHEMA="logicapps"
     bash "${SCRIPT_DIR}/verify-infrastructure.sh" mode1
+
+    if [[ "${RUN_WORKFLOWS}" -gt 0 ]]; then
+        log_step "Running test workflows"
+        bash "${SCRIPT_DIR}/run-workflows.sh" "${RUN_WORKFLOWS}"
+    fi
+
+    if [[ "${SKIP_TESTS}" == "true" ]]; then
+        log_info "Skipping Java E2E tests (SKIP_TESTS=true)"
+        log_info "GraphQL API: http://localhost:30080/graphql"
+        log_info "To cleanup: kind delete cluster --name ${CLUSTER_NAME}"
+        return
+    fi
 
     # 7. Run Java E2E tests
     log_step "Step 7: Running Java E2E Tests"
