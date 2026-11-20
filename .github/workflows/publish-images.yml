@@ -43,6 +43,7 @@ jobs:
     outputs:
       VERSION: ${{ steps.set-version.outputs.VERSION }}
       TAG: ${{ steps.set-version.outputs.TAG }}
+      IS_RELEASE: ${{ steps.set-version.outputs.IS_RELEASE }}
       IS_LATEST: ${{ steps.set-version.outputs.IS_LATEST }}
     steps:
       - name: Checkout code
@@ -77,20 +78,27 @@ jobs:
             TAG=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           fi
 
-          IS_LATEST="false"
+          IS_RELEASE="false"
           if [[ "${GITHUB_REF}" == refs/tags/* || "${INPUT_RELEASE}" == "true" ]]; then
+            IS_RELEASE="true"
+          fi
+
+          # Pre-releases (e.g. 2.0.0-Alpha4) do not move latest-* tags.
+          IS_LATEST="false"
+          if [[ "${IS_RELEASE}" == "true" && "${TAG}" != *-* ]]; then
             IS_LATEST="true"
           fi
 
           echo "TAG=${TAG}" >> $GITHUB_OUTPUT
           echo "VERSION=${TAG}" >> $GITHUB_OUTPUT
+          echo "IS_RELEASE=${IS_RELEASE}" >> $GITHUB_OUTPUT
           echo "IS_LATEST=${IS_LATEST}" >> $GITHUB_OUTPUT
 
       - name: Verify release version
         env:
           TAG: ${{ steps.set-version.outputs.TAG }}
           VERSION: ${{ steps.set-version.outputs.VERSION }}
-          IS_LATEST: ${{ steps.set-version.outputs.IS_LATEST }}
+          IS_RELEASE: ${{ steps.set-version.outputs.IS_RELEASE }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
           TRIGGER: ${{ github.event_name }}
         run: |
@@ -107,10 +115,10 @@ jobs:
             exit 1
           fi
 
-          if [[ "${IS_LATEST}" == "true" ]]; then
-            # Releases only build from an existing vX.Y.Z tag, never from a branch.
-            if [[ ! "${RELEASE_TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-              echo "❌ ERROR: Release tag ${RELEASE_TAG} must be vMAJOR.MINOR.PATCH"
+          if [[ "${IS_RELEASE}" == "true" ]]; then
+            # Releases only build from an existing v<version> tag, never from a branch.
+            if [[ "${RELEASE_TAG}" != "v${VERSION}" ]]; then
+              echo "❌ ERROR: Release tag ${RELEASE_TAG} must be v${VERSION}"
               exit 1
             fi
             if ! git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" > /dev/null; then
@@ -143,7 +151,7 @@ jobs:
           cache: maven
 
       - name: Set release version
-        if: needs.setup.outputs.IS_LATEST == 'true'
+        if: needs.setup.outputs.IS_RELEASE == 'true'
         env:
           VERSION: ${{ needs.setup.outputs.VERSION }}
         run: |
@@ -206,7 +214,7 @@ jobs:
           cache: maven
 
       - name: Set release version
-        if: needs.setup.outputs.IS_LATEST == 'true'
+        if: needs.setup.outputs.IS_RELEASE == 'true'
         env:
           VERSION: ${{ needs.setup.outputs.VERSION }}
         run: |
@@ -269,7 +277,7 @@ jobs:
           cache: maven
 
       - name: Set release version
-        if: needs.setup.outputs.IS_LATEST == 'true'
+        if: needs.setup.outputs.IS_RELEASE == 'true'
         env:
           VERSION: ${{ needs.setup.outputs.VERSION }}
         run: |
@@ -332,7 +340,7 @@ jobs:
           cache: maven
 
       - name: Set release version
-        if: needs.setup.outputs.IS_LATEST == 'true'
+        if: needs.setup.outputs.IS_RELEASE == 'true'
         env:
           VERSION: ${{ needs.setup.outputs.VERSION }}
         run: |

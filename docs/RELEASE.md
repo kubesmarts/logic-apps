@@ -8,11 +8,13 @@
 - **MINOR** - new backward-compatible features.
 - **PATCH** - backward-compatible bug fixes.
 
+Pre-releases add a suffix, e.g. `2.0.0-Alpha4`.
+
 `main` always stays on its `-SNAPSHOT` version. A release never commits version changes: the version is applied only at build time.
 
 ## Git tags
 
-`v<MAJOR>.<MINOR>.<PATCH>`, e.g. `v1.0.0`. Tags are created by the release workflow, not by hand.
+`v<version>`, e.g. `v1.0.0` or `v2.0.0-Alpha4`. Tags are created by the release workflow, not by hand.
 
 ## Images
 
@@ -25,11 +27,11 @@ Published to quay.io for `linux/amd64` and `linux/arm64`:
 | `quay.io/kubesmarts/logic-data-index-ingestion` | MODE 3 (ingestion) | `<version>-kafka`, `latest-kafka` |
 | `quay.io/kubesmarts/logic-db-migrator` | DB migration Job | `<version>`, `latest` |
 
-`latest*` tags point to the most recent release. Pin `<version>*` in production.
+`latest*` tags point to the most recent release; pre-releases do not move them. Pin `<version>*` in production.
 
 ## How a release works
 
-Run the *Release* workflow (Actions → Release → Run workflow) with `version` (e.g. `1.0.0`). [`release.yml`](../.github/workflows/release.yml):
+Run the *Release* workflow (Actions → Release → Run workflow) with `version` without the `v` prefix (e.g. `1.0.0`, `2.0.0-Alpha4`). [`release.yml`](../.github/workflows/release.yml):
 
 1. Tags the current `main` commit `v<version>` (fails if the tag exists).
 2. Calls [`publish-images.yml`](../.github/workflows/publish-images.yml), which runs `mvn versions:set -DnewVersion=<version>` in the runner (not committed), builds the JARs and pushes the images.
