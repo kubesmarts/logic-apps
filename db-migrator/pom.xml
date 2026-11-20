@@ -18,7 +18,6 @@
 
   <properties>
     <java.module.name>org.kubesmarts.logic.apps.dbmigrator</java.module.name>
-    <version.io.quarkiverse.flow>1.3.0</version.io.quarkiverse.flow>
   </properties>
 
   <dependencies>
