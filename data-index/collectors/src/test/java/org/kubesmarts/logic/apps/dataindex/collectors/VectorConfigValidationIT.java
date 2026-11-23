@@ -4,6 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 
 import com.github.dockerjava.api.DockerClient;
@@ -44,7 +45,7 @@ class VectorConfigValidationIT {
 
     private static final Map<String, String> MODE1_ENV = Map.of(
             "NODE_NAME", "test-node",
-            "WORKFLOW_NAMESPACE", "workflows",
+            "WORKFLOW_NAMESPACES", "workflows",
             "POSTGRES_HOST", "postgresql.test.svc",
             "POSTGRES_PORT", "5432",
             "POSTGRES_DB", "dataindex",
@@ -52,9 +53,12 @@ class VectorConfigValidationIT {
             "POSTGRES_USER", "dataindex",
             "POSTGRES_PASSWORD", "test-only");
 
+    private static final String NAMESPACE_SELECTOR =
+            "extra_namespace_label_selector: \"kubernetes.io/metadata.name in (${WORKFLOW_NAMESPACES})\"";
+
     private static final Map<String, String> MODE2_ENV = Map.of(
             "NODE_NAME", "test-node",
-            "WORKFLOW_NAMESPACE", "workflows",
+            "WORKFLOW_NAMESPACES", "workflows",
             "ELASTICSEARCH_HOST", "elasticsearch.test.svc",
             "ELASTICSEARCH_PORT", "9200");
 
@@ -75,7 +79,8 @@ class VectorConfigValidationIT {
         assertThat(configContent)
                 .as("Config should define the kubernetes_logs source")
                 .contains("sources:")
-                .contains("kubernetes_logs:");
+                .contains("kubernetes_logs:")
+                .contains(NAMESPACE_SELECTOR);
 
         assertThat(configContent)
                 .as("Config should define one postgres sink per raw table")
@@ -96,7 +101,8 @@ class VectorConfigValidationIT {
         assertThat(configContent)
                 .as("Config should define sources")
                 .contains("sources:")
-                .contains("kubernetes_logs:");
+                .contains("kubernetes_logs:")
+                .contains(NAMESPACE_SELECTOR);
 
         assertThat(configContent)
                 .as("Config should define Elasticsearch sinks")
@@ -106,6 +112,24 @@ class VectorConfigValidationIT {
 
         // Validate with actual Vector container (uses real Vector validation!)
         validateWithVectorContainer(configPath, MODE2_ENV);
+    }
+
+    @Test
+    void mode1PostgreSQLConfigIsValidWithMultipleNamespaces() throws Exception {
+        validateWithVectorContainer(getConfigPath("mode1-postgresql/vector.yaml"),
+                withNamespaces(MODE1_ENV, "team-a,team-b,team-c"));
+    }
+
+    @Test
+    void mode2ElasticsearchConfigIsValidWithMultipleNamespaces() throws Exception {
+        validateWithVectorContainer(getConfigPath("mode2-elasticsearch/vector.yaml"),
+                withNamespaces(MODE2_ENV, "team-a,team-b,team-c"));
+    }
+
+    private static Map<String, String> withNamespaces(Map<String, String> env, String namespaces) {
+        Map<String, String> result = new HashMap<>(env);
+        result.put("WORKFLOW_NAMESPACES", namespaces);
+        return result;
     }
 
     /**

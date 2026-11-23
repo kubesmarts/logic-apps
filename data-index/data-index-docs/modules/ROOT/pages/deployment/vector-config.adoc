@@ -113,8 +113,12 @@ set `inserted_at` because the sink bypasses column defaults. data-index-service 
 polls these rows, normalizes them and deletes them.
 
 Required environment (set on the DaemonSet):
-`WORKFLOW_NAMESPACE`, `NODE_NAME`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`,
+`WORKFLOW_NAMESPACES`, `NODE_NAME`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`,
 `POSTGRES_USER`, `POSTGRES_PASSWORD`, optional `DEBUG_EVENTS`.
+
+`WORKFLOW_NAMESPACES` is a comma-separated list of namespaces to tail
+(e.g. `team-a,team-b`). Vector selects them by the `kubernetes.io/metadata.name`
+namespace label, so they all feed the same Data Index.
 
 == MODE 2 (Elasticsearch)
 
@@ -122,7 +126,7 @@ See xref:deployment/elasticsearch.adoc[Elasticsearch Production]. The `elasticse
 sinks write date-rolled raw indices; ES Transforms aggregate them into
 `workflow-instances` / `task-executions`.
 
-Required environment: `WORKFLOW_NAMESPACE`, `NODE_NAME`, `ELASTICSEARCH_HOST`,
+Required environment: `WORKFLOW_NAMESPACES`, `NODE_NAME`, `ELASTICSEARCH_HOST`,
 `ELASTICSEARCH_PORT`, optional `DEBUG_EVENTS`.
 
 == Deployment (Helm)

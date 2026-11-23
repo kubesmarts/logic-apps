@@ -129,7 +129,8 @@ spec:
               fieldPath: metadata.namespace
 
         # Workflow application configuration
-        - name: WORKFLOW_NAMESPACE
+        # Comma-separated list, e.g. "team-a,team-b"
+        - name: WORKFLOW_NAMESPACES
           value: "workflows"
 
         # PostgreSQL connection (MODE 1: trigger-based normalization)

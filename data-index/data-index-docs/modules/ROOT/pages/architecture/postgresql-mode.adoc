@@ -121,7 +121,7 @@ Source of truth: `data-index/collectors/vector/mode1-postgresql/vector.yaml`.
 sources:
   kubernetes_logs:
     type: kubernetes_logs
-    extra_field_selector: "metadata.namespace=${WORKFLOW_NAMESPACE}"
+    extra_namespace_label_selector: "kubernetes.io/metadata.name in (${WORKFLOW_NAMESPACES})"
 
 sinks:
   postgres_workflow:

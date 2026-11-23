@@ -38,9 +38,10 @@ sources:
   kubernetes_logs:
     type: kubernetes_logs
 
-    # Filter by namespace using field selector
-    # Only tail logs from workflow namespace (set via environment variable in DaemonSet)
-    extra_field_selector: "metadata.namespace=${WORKFLOW_NAMESPACE}"
+    # Only tail logs from the workflow namespaces, a comma-separated list
+    # (e.g. "team-a,team-b"). Field selectors can't match a set, so we select
+    # on the namespace name label (set by Kubernetes >= 1.21).
+    extra_namespace_label_selector: "kubernetes.io/metadata.name in (${WORKFLOW_NAMESPACES})"
 
     # Auto-merge partial logs (multi-line)
     auto_partial_merge: true
@@ -256,7 +257,7 @@ api:
 # ============================================================================
 #
 # Environment Variables (templated by logic-operator):
-#   - WORKFLOW_NAMESPACE: Namespace to tail logs from (default: workflows)
+#   - WORKFLOW_NAMESPACES: Comma-separated namespaces to tail logs from (default: workflows)
 #   - ELASTICSEARCH_HOST: Elasticsearch hostname (default: elasticsearch.data-index.svc.cluster.local)
 #   - ELASTICSEARCH_PORT: Elasticsearch port (default: 9200)
 #   - NODE_NAME: Kubernetes node name (set by DaemonSet downward API)

@@ -380,14 +380,14 @@ The Vector DaemonSet collects this app's container logs:
 sources:
   kubernetes_logs:
     type: kubernetes_logs
-    extra_field_selector: "metadata.namespace=${WORKFLOW_NAMESPACE}"
+    extra_namespace_label_selector: "kubernetes.io/metadata.name in (${WORKFLOW_NAMESPACES})"
 ```
 
 ### Namespace Requirement
 
-**IMPORTANT:** Must deploy to `workflows` namespace (or set Vector's `WORKFLOW_NAMESPACE`).
+**IMPORTANT:** Must deploy to `workflows` namespace (or list your namespace in Vector's `WORKFLOW_NAMESPACES`).
 
-Vector's `kubernetes_logs` source filters by `metadata.namespace=${WORKFLOW_NAMESPACE}`.
+Vector's `kubernetes_logs` source only tails namespaces listed in the comma-separated `WORKFLOW_NAMESPACES`.
 
 ### Event Format Requirement
 

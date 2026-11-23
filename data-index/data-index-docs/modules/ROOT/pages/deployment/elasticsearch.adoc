@@ -492,8 +492,8 @@ kubectl rollout status daemonset/workflows-vector-mode2 -n logging
 [source,yaml]
 ----
 env:
-- name: WORKFLOW_NAMESPACE
-  value: "workflows"  # Namespace where workflow apps run
+- name: WORKFLOW_NAMESPACES
+  value: "workflows"  # Comma-separated namespaces where workflow apps run
 - name: ELASTICSEARCH_HOST
   value: "elasticsearch.elasticsearch.svc.cluster.local"
 - name: ELASTICSEARCH_PORT
@@ -585,8 +585,7 @@ Key configuration sections in `vector.yaml`:
 sources:
   kubernetes_logs:
     type: kubernetes_logs
-    namespace_labels:
-      - "kubernetes.io/metadata.name=${WORKFLOW_NAMESPACE}"
+    extra_namespace_label_selector: "kubernetes.io/metadata.name in (${WORKFLOW_NAMESPACES})"
 ----
 
 **Transform (filter workflow events):**

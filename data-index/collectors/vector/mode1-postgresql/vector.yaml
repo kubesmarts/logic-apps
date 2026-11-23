@@ -36,9 +36,10 @@ sources:
   kubernetes_logs:
     type: kubernetes_logs
 
-    # Filter by namespace using field selector
-    # Only tail logs from workflow namespace (set via environment variable in DaemonSet)
-    extra_field_selector: "metadata.namespace=${WORKFLOW_NAMESPACE}"
+    # Only tail logs from the workflow namespaces, a comma-separated list
+    # (e.g. "team-a,team-b"). Field selectors can't match a set, so we select
+    # on the namespace name label (set by Kubernetes >= 1.21).
+    extra_namespace_label_selector: "kubernetes.io/metadata.name in (${WORKFLOW_NAMESPACES})"
 
     # Auto-merge partial logs (multi-line)
     auto_partial_merge: true
@@ -359,7 +360,7 @@ api:
 # ============================================================================
 #
 # Environment Variables (templated by logic-operator):
-#   - WORKFLOW_NAMESPACE: Namespace to tail logs from (default: workflows)
+#   - WORKFLOW_NAMESPACES: Comma-separated namespaces to tail logs from (default: workflows)
 #   - POSTGRES_HOST: PostgreSQL hostname
 #   - POSTGRES_PORT: PostgreSQL port (default: 5432)
 #   - POSTGRES_DB: PostgreSQL database name

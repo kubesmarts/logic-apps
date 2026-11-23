@@ -546,8 +546,7 @@ Vector configuration for Elasticsearch output:
 sources:
   kubernetes_logs:
     type: kubernetes_logs
-    namespace_labels:
-      - "kubernetes.io/metadata.name=${WORKFLOW_NAMESPACE}"
+    extra_namespace_label_selector: "kubernetes.io/metadata.name in (${WORKFLOW_NAMESPACES})"
 
 transforms:
   parse_json:

@@ -198,7 +198,7 @@ Config source of truth: `data-index/collectors/vector/mode1-postgresql/vector.ya
 [source,yaml]
 ----
 sources:
-  kubernetes_logs: { type: kubernetes_logs, extra_field_selector: "metadata.namespace=${WORKFLOW_NAMESPACE}" }
+  kubernetes_logs: { type: kubernetes_logs, extra_namespace_label_selector: "kubernetes.io/metadata.name in (${WORKFLOW_NAMESPACES})" }
 sinks:
   postgres_workflow: { type: postgres, table: workflow_events_raw,
     endpoint: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}" }
@@ -519,7 +519,7 @@ kubectl get pods -n workflows
 [source,bash]
 ----
 # Verify the namespace filter Vector's kubernetes_logs source applies
-kubectl get configmap -n logging vector-config -o yaml | grep -A1 extra_field_selector
+kubectl get configmap -n logging vector-config -o yaml | grep -A1 extra_namespace_label_selector
 ----
 
 See xref:developers/troubleshooting.adoc[Troubleshooting Guide] for more issues.

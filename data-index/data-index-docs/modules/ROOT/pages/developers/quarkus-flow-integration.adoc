@@ -398,7 +398,7 @@ Disable file handler
 |Use `mvn package -Pkind` or `-Dquarkus.profile=kubernetes`
 
 |Wrong namespace
-|Must be `workflows` (or update the Vector `WORKFLOW_NAMESPACE`)
+|Must be `workflows` (or listed in the Vector `WORKFLOW_NAMESPACES`)
 
 |Missing QUARKUS_PROFILE=prod
 |Add to Kubernetes env vars in properties

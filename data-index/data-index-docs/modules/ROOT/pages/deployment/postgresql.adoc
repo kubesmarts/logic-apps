@@ -342,7 +342,8 @@ vector:
   config: mode1-postgresql      # selects configs/vector/vector-mode1-postgresql.yaml
   image:
     tag: "0.54.0-distroless-libc"
-  workflowNamespace: workflows  # namespace whose container logs are tailed
+  workflowNamespaces:           # namespaces whose container logs are tailed
+    - workflows
   debugEvents: "false"          # set "true" to trace events to stdout
 ----
 
@@ -392,8 +393,9 @@ quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
 ====
 Vector is configured to tail logs from the `workflows` namespace by default.
 
-Deploy your applications to this namespace or set `vector.workflowNamespace`
-(DaemonSet env `WORKFLOW_NAMESPACE`).
+Deploy your applications to this namespace or list your namespaces in
+`vector.workflowNamespaces` (DaemonSet env `WORKFLOW_NAMESPACES`, comma-separated).
+Several namespaces can feed the same Data Index, e.g. one per team.
 ====
 
 [source,yaml]
@@ -402,7 +404,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: my-workflow-app
-  namespace: workflows  # Important: must match Vector's WORKFLOW_NAMESPACE
+  namespace: workflows  # Important: must be listed in Vector's WORKFLOW_NAMESPACES
 spec:
   template:
     spec:

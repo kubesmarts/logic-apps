@@ -645,7 +645,7 @@ File handler should be disabled in Kubernetes. Vector tails container stdout, no
 # Deploy to workflows namespace (Vector tails this namespace by default)
 quarkus.kubernetes.namespace=workflows
 
-# Or set vector.workflowNamespace / WORKFLOW_NAMESPACE to your namespace
+# Or add your namespace to vector.workflowNamespaces / WORKFLOW_NAMESPACES
 ----
 
 **Labels:**

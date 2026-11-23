@@ -10,7 +10,11 @@ See [docs/RELEASE.md](docs/RELEASE.md).
 
 ### Added
 
+- Vector (MODE 1 and MODE 2) can tail several workflow namespaces feeding one Data Index ([#86](https://github.com/kubesmarts/logic-apps/issues/86)).
+
 ### Changed
+
+- **BREAKING** Vector env `WORKFLOW_NAMESPACE` → `WORKFLOW_NAMESPACES` (comma-separated), Helm value `vector.workflowNamespace` → `vector.workflowNamespaces` (list) ([#86](https://github.com/kubesmarts/logic-apps/issues/86)).
 
 ### Deprecated
 
