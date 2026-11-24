@@ -177,8 +177,9 @@ vector:
   # Selects configs/vector/vector-<config>.yaml
   config: mode1-postgresql
 
-  # Namespace to tail logs from
-  workflowNamespace: workflows
+  # Namespaces to tail logs from
+  workflowNamespaces:
+    - workflows
 
   # Debug events (logs all events to stdout - testing only)
   debugEvents: "false"

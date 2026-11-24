@@ -8,8 +8,9 @@
 # 1. Delete existing KIND cluster
 # 2. Create fresh cluster and build/load images
 # 3. Deploy MODE 1 with Helm
-# 4. Run Java E2E tests
-# 5. Cleanup
+# 4. Verify Vector tails a second workflow namespace
+# 5. Run Java E2E tests
+# 6. Cleanup
 #
 # ============================================================================
 
@@ -32,6 +33,7 @@ readonly CLUSTER_NAME="${CLUSTER_NAME:-data-index-test}"
 readonly NAMESPACE="data-index"
 readonly RELEASE_NAME="data-index"
 readonly MODE="mode1"
+readonly SECOND_WORKFLOW_NAMESPACE="workflows-b"
 readonly RUN_WORKFLOWS="${RUN_WORKFLOWS:-0}"  # run each test workflow N times after deploy
 readonly SKIP_TESTS="${SKIP_TESTS:-false}"
 
@@ -66,6 +68,54 @@ cleanup_cluster() {
     fi
 }
 
+# Deploys a second workflow-test-app outside the chart's `workflows` namespace
+# and checks that its events reach Data Index.
+verify_second_namespace() {
+    log_info "Deploying workflow-test-app to ${SECOND_WORKFLOW_NAMESPACE}..."
+    kubectl create namespace "${SECOND_WORKFLOW_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+    helm template "${RELEASE_NAME}" "${HELM_CHART_DIR}" \
+        --values "${HELM_CHART_DIR}/values-mode1.yaml" \
+        --set workflowApp.service.type=ClusterIP \
+        --show-only templates/workflow-test-app.yaml \
+        | sed "s/namespace: workflows$/namespace: ${SECOND_WORKFLOW_NAMESPACE}/" \
+        | kubectl apply -f -
+    kubectl wait --namespace "${SECOND_WORKFLOW_NAMESPACE}" \
+        --for=condition=ready pod \
+        -l app=workflow-test-app \
+        --timeout=180s
+
+    kubectl port-forward --namespace "${SECOND_WORKFLOW_NAMESPACE}" svc/workflow-test-app 30083:8080 >/dev/null 2>&1 &
+    local pf_pid=$!
+
+    local instance_id=""
+    for _ in $(seq 1 15); do
+        instance_id=$(curl -sf -X POST http://localhost:30083/test-workflows/hello-world \
+            -H 'Content-Type: application/json' -d '{"message": "multi-namespace"}' | jq -r '.id' || true)
+        [[ -n "${instance_id}" ]] && break
+        sleep 2
+    done
+    kill "${pf_pid}" 2>/dev/null || true
+
+    if [[ -z "${instance_id}" ]]; then
+        log_error "Could not run hello-world in ${SECOND_WORKFLOW_NAMESPACE}"
+        exit 1
+    fi
+
+    log_info "Waiting for instance ${instance_id} in GraphQL..."
+    local query="{\"query\": \"{ getWorkflowInstance(id: \\\"${instance_id}\\\") { id } }\"}"
+    for _ in $(seq 1 30); do
+        if curl -sf http://localhost:30080/graphql -H 'Content-Type: application/json' -d "${query}" \
+            | jq -e '.data.getWorkflowInstance.id' >/dev/null; then
+            log_success "Events from ${SECOND_WORKFLOW_NAMESPACE} reached Data Index"
+            return
+        fi
+        sleep 2
+    done
+
+    log_error "Instance ${instance_id} from ${SECOND_WORKFLOW_NAMESPACE} never reached Data Index"
+    exit 1
+}
+
 # ============================================================================
 # Main Test Flow
 # ============================================================================
@@ -94,6 +144,7 @@ main() {
         --namespace "${NAMESPACE}" \
         --create-namespace \
         --values "${HELM_CHART_DIR}/values-mode1.yaml" \
+        --set "vector.workflowNamespaces={workflows,${SECOND_WORKFLOW_NAMESPACE}}" \
         --wait \
         --timeout 10m
 
@@ -137,6 +188,10 @@ main() {
     export POSTGRES_SCHEMA="logicapps"
     bash "${SCRIPT_DIR}/verify-infrastructure.sh" mode1
 
+    # 7. Verify a second workflow namespace
+    log_step "Step 7: Verify second workflow namespace (${SECOND_WORKFLOW_NAMESPACE})"
+    verify_second_namespace
+
     if [[ "${RUN_WORKFLOWS}" -gt 0 ]]; then
         log_step "Running test workflows"
         bash "${SCRIPT_DIR}/run-workflows.sh" "${RUN_WORKFLOWS}"
@@ -149,8 +204,8 @@ main() {
         return
     fi
 
-    # 7. Run Java E2E tests
-    log_step "Step 7: Running Java E2E Tests"
+    # 8. Run Java E2E tests
+    log_step "Step 8: Running Java E2E Tests"
 
     log_info "Navigating to E2E tests module..."
     cd "${PROJECT_ROOT}/data-index/data-index-e2e-tests"
@@ -161,7 +216,7 @@ main() {
         -De2e.graphql.url=http://localhost:30080/graphql \
         -De2e.workflow.url=http://localhost:30082
 
-    # 7. Success summary
+    # 9. Success summary
     echo ""
     echo "╔════════════════════════════════════════════════════════════════╗"
     echo "║                    ✅ MODE 1 E2E TEST PASSED                   ║"

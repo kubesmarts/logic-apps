@@ -126,7 +126,8 @@ spec:
               fieldPath: status.podIP
 
         # Workflow application configuration
-        - name: WORKFLOW_NAMESPACE
+        # Comma-separated list, e.g. "team-a,team-b"
+        - name: WORKFLOW_NAMESPACES
           value: "workflows"
 
         # Elasticsearch connection (MODE 2: Elasticsearch Transform normalization)

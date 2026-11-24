@@ -104,8 +104,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: WORKFLOW_NAMESPACE
-              value: {{ .Values.vector.workflowNamespace | quote }}
+            - name: WORKFLOW_NAMESPACES
+              value: {{ join "," .Values.vector.workflowNamespaces | quote }}
             - name: DEBUG_EVENTS
               value: {{ .Values.vector.debugEvents | quote }}
             {{- if eq .Values.mode "mode1" }}

@@ -146,7 +146,7 @@ kubectl set env daemonset/vector -n logging DEBUG_EVENTS-
 +
 If empty, Vector is not capturing events. Check:
 +
-* Workflow pod is in the `workflows` namespace (Vector filters by `WORKFLOW_NAMESPACE`)
+* Workflow pod is in one of the namespaces listed in `WORKFLOW_NAMESPACES` (`workflows` by default)
 * Vector DaemonSet is running on the same node as workflow pods
 * The event's `eventType` starts with `io.serverlessworkflow.`
 
@@ -186,7 +186,7 @@ If raw tables keep growing while normalized tables stay empty, polling is not ru
 
 Events in pod logs, but Vector not collecting them.
 
-**Cause:** Workflow pods not in `workflows` namespace, but Vector only watches `WORKFLOW_NAMESPACE` (`workflows` by default).
+**Cause:** Workflow pods are in a namespace that is not listed in `WORKFLOW_NAMESPACES` (`workflows` by default).
 
 **Solution:**
 
@@ -198,12 +198,12 @@ kubectl create namespace workflows
 kubectl apply -f workflow-app.yaml -n workflows
 ----
 
-Option B: Point Vector at your namespace:
+Option B: Add your namespace to the list Vector tails:
 
 [source,bash]
 ----
-# Helm: set vector.workflowNamespace=YOUR_NAMESPACE and upgrade, or ad-hoc:
-kubectl set env daemonset/vector -n logging WORKFLOW_NAMESPACE=YOUR_NAMESPACE
+# Helm: set vector.workflowNamespaces={workflows,YOUR_NAMESPACE} and upgrade, or ad-hoc:
+kubectl set env daemonset/vector -n logging WORKFLOW_NAMESPACES=workflows,YOUR_NAMESPACE
 kubectl rollout restart daemonset/vector -n logging
 ----
 
