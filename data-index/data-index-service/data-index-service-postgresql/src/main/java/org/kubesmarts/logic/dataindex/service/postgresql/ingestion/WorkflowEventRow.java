@@ -26,6 +26,7 @@ record WorkflowEventRow(
         String namespace,
         String name,
         String version,
+        String workflowApplicationId,
         String status,
         OffsetDateTime startedAt,
         OffsetDateTime endedAt,

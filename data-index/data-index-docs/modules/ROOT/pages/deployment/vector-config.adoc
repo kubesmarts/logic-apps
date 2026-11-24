@@ -103,7 +103,7 @@ is not drained until graceful shutdown, stranding low-volume events. The
 VRL builds one typed row per event, matching the raw table columns:
 
 * `build_workflow_row` → `workflow_events_raw`: `instance_id`, `namespace`, `name`,
-  `version`, `status`, `started_at`, `ended_at`, `last_update`, `input`, `output`,
+  `version`, `workflow_application_id`, `status`, `started_at`, `ended_at`, `last_update`, `input`, `output`,
   `error_*`, `event_timestamp`, `inserted_at`.
 * `build_task_row` → `task_events_raw`: `instance_id`, `task_name`, `task`, `status`,
   `started_at`, `ended_at`, `input`, `output`, `error_*`, `event_timestamp`, `inserted_at`.

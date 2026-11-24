@@ -74,6 +74,7 @@ public final class Mapper {
                 data.getDefinition().namespace(),
                 data.getDefinition().name(),
                 data.getDefinition().version(),
+                null,
                 WorkflowInstanceStatus.valueOf(status),
                 startedAt,
                 endedAt,

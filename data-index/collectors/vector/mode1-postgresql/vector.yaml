@@ -108,6 +108,7 @@ transforms:
       namespace = string(.flow_event.workflowNamespace) ?? null
       name = string(.flow_event.workflowName) ?? null
       version = string(.flow_event.workflowVersion) ?? null
+      workflow_application_id = string(.flow_event.workflowApplicationId) ?? null
       status = string(.flow_event.status) ?? null
 
       started_at = null
@@ -162,6 +163,7 @@ transforms:
         "namespace": namespace,
         "name": name,
         "version": version,
+        "workflow_application_id": workflow_application_id,
         "status": status,
         "started_at": started_at,
         "ended_at": ended_at,

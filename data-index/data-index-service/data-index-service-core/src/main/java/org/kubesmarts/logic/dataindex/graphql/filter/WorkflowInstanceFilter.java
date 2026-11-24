@@ -61,6 +61,9 @@ public class WorkflowInstanceFilter {
     @Description("Filter by version")
     private StringFilter version;
 
+    @Description("Filter by workflow application ID")
+    private StringFilter workflowApplicationId;
+
     @Description("Filter by status")
     private WorkflowInstanceStatusFilter status;
 
@@ -109,6 +112,14 @@ public class WorkflowInstanceFilter {
 
     public void setVersion(StringFilter version) {
         this.version = version;
+    }
+
+    public StringFilter getWorkflowApplicationId() {
+        return workflowApplicationId;
+    }
+
+    public void setWorkflowApplicationId(StringFilter workflowApplicationId) {
+        this.workflowApplicationId = workflowApplicationId;
     }
 
     public WorkflowInstanceStatusFilter getStatus() {

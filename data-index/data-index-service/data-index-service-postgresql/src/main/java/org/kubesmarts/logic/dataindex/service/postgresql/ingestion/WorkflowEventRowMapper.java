@@ -30,6 +30,7 @@ final class WorkflowEventRowMapper {
                 row.namespace(),
                 row.name(),
                 row.version(),
+                row.workflowApplicationId(),
                 row.status() != null ? WorkflowInstanceStatus.valueOf(row.status()) : null,
                 row.startedAt(),
                 row.endedAt(),

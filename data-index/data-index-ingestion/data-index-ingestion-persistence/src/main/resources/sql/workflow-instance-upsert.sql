@@ -1,8 +1,8 @@
 INSERT INTO workflow_instances (
-  id, namespace, name, version, status, started_at, ended_at, last_update,
+  id, namespace, name, version, workflow_application_id, status, started_at, ended_at, last_update,
   input, output, error_type, error_title, error_detail, error_status, error_instance,
   last_event_time, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?, ?, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
   status = CASE
     WHEN EXCLUDED.last_event_time >= workflow_instances.last_event_time
@@ -12,6 +12,7 @@ ON CONFLICT (id) DO UPDATE SET
   namespace = COALESCE(workflow_instances.namespace, EXCLUDED.namespace),
   name = COALESCE(workflow_instances.name, EXCLUDED.name),
   version = COALESCE(workflow_instances.version, EXCLUDED.version),
+  workflow_application_id = COALESCE(workflow_instances.workflow_application_id, EXCLUDED.workflow_application_id),
   started_at = COALESCE(workflow_instances.started_at, EXCLUDED.started_at),
   input = COALESCE(workflow_instances.input, EXCLUDED.input),
   ended_at = CASE

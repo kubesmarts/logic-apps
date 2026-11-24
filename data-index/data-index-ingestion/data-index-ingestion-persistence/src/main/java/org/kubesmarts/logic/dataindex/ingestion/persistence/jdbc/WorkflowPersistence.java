@@ -13,6 +13,9 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.util.List;
 
+import static java.sql.Types.INTEGER;
+import static java.sql.Types.VARCHAR;
+
 @Unremovable
 @ApplicationScoped
 public class WorkflowPersistence {
@@ -78,34 +81,35 @@ public class WorkflowPersistence {
         stmt.setString(2, event.namespace());
         stmt.setString(3, event.name());
         stmt.setString(4, event.version());
+        stmt.setString(5, event.workflowApplicationId());
         if (event.status() != null) {
-            stmt.setString(5, event.status().name());
+            stmt.setString(6, event.status().name());
         } else {
-            stmt.setNull(5, Types.VARCHAR);
+            stmt.setNull(6, Types.VARCHAR);
         }
-        stmt.setObject(6, event.startedAt());
-        stmt.setObject(7, event.endedAt());
-        stmt.setObject(8, event.lastUpdate());
+        stmt.setObject(7, event.startedAt());
+        stmt.setObject(8, event.endedAt());
+        stmt.setObject(9, event.lastUpdate());
 
         // JSON fields
-        stmt.setString(9, event.input());
-        stmt.setString(10, event.output());
+        stmt.setString(10, event.input());
+        stmt.setString(11, event.output());
 
         // Error fields
         if (event.error() != null) {
-            stmt.setString(11, event.error().getType());
-            stmt.setString(12, event.error().getTitle());
-            stmt.setString(13, event.error().getDetail());
-            stmt.setObject(14, event.error().getStatus());
-            stmt.setString(15, event.error().getInstance());
+            stmt.setString(12, event.error().getType());
+            stmt.setString(13, event.error().getTitle());
+            stmt.setString(14, event.error().getDetail());
+            stmt.setObject(15, event.error().getStatus());
+            stmt.setString(16, event.error().getInstance());
         } else {
-            stmt.setNull(11, Types.VARCHAR);
-            stmt.setNull(12, Types.VARCHAR);
-            stmt.setNull(13, Types.VARCHAR);
-            stmt.setNull(14, Types.INTEGER);
-            stmt.setNull(15, Types.VARCHAR);
+            stmt.setNull(12, VARCHAR);
+            stmt.setNull(13, VARCHAR);
+            stmt.setNull(14, VARCHAR);
+            stmt.setNull(15, INTEGER);
+            stmt.setNull(16, VARCHAR);
         }
-        stmt.setObject(16, event.eventTimestamp());
+        stmt.setObject(17, event.eventTimestamp());
     }
 
 }

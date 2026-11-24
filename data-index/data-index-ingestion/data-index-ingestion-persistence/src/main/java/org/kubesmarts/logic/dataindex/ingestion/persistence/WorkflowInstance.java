@@ -25,6 +25,7 @@ public record WorkflowInstance(
         String namespace,
         String name,
         String version,
+        String workflowApplicationId,
         WorkflowInstanceStatus status,
         OffsetDateTime startedAt,
         OffsetDateTime endedAt,
