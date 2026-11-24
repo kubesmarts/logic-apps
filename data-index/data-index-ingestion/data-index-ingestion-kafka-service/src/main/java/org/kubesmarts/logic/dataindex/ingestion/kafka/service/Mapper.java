@@ -74,7 +74,7 @@ public final class Mapper {
                 data.getDefinition().namespace(),
                 data.getDefinition().name(),
                 data.getDefinition().version(),
-                null,
+                null, // TODO: https://github.com/kubesmarts/logic-apps/issues/79
                 WorkflowInstanceStatus.valueOf(status),
                 startedAt,
                 endedAt,

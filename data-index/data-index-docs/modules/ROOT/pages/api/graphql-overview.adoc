@@ -73,7 +73,7 @@ type WorkflowInstanceError {
 * `name` - Workflow name
 * `namespace` - Workflow namespace (optional)
 * `version` - Workflow version
-* `workflowApplicationId` - Workflow application that processed the instance: the Kubernetes Lease name with durable-kubernetes, otherwise `quarkus.application.name`. First value wins. Populated in MODE 1 only, and only by Quarkus Flow versions that emit it (after 1.4.0)
+* `workflowApplicationId` - Workflow application that processed the instance.
 * `status` - Current instance status
 * `startDate` - ISO 8601 timestamp when instance started
 * `endDate` - ISO 8601 timestamp when instance ended (completed/faulted)

@@ -10,7 +10,6 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.util.List;
 
 import static java.sql.Types.INTEGER;
@@ -85,7 +84,7 @@ public class WorkflowPersistence {
         if (event.status() != null) {
             stmt.setString(6, event.status().name());
         } else {
-            stmt.setNull(6, Types.VARCHAR);
+            stmt.setNull(6, VARCHAR);
         }
         stmt.setObject(7, event.startedAt());
         stmt.setObject(8, event.endedAt());
