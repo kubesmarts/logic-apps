@@ -81,6 +81,7 @@ public class WorkflowInstanceGraphQLApiTest {
         workflow1.setNamespace("test-namespace");
         workflow1.setName("test-workflow");
         workflow1.setVersion("1.0.0");
+        workflow1.setWorkflowApplicationId("flow-pool-member-01");
         workflow1.setStatus(WorkflowInstanceStatus.COMPLETED);
         workflow1.setStartedAt(ZonedDateTime.now().minusMinutes(10));
         workflow1.setEndedAt(ZonedDateTime.now());
@@ -132,6 +133,7 @@ public class WorkflowInstanceGraphQLApiTest {
         workflow2.setNamespace("test-namespace");
         workflow2.setName("test-workflow-failed");
         workflow2.setVersion("1.0.0");
+        workflow2.setWorkflowApplicationId("flow-pool-member-02");
         workflow2.setStatus(WorkflowInstanceStatus.FAULTED);
         workflow2.setStartedAt(ZonedDateTime.now().minusMinutes(5));
         workflow2.setEndedAt(ZonedDateTime.now());
@@ -592,5 +594,28 @@ public class WorkflowInstanceGraphQLApiTest {
             .body("data.tasksByError.size()", greaterThan(0))
             .body("data.tasksByError[0].error.status", equalTo(500))
             .body("data.tasksByError[0].error.instance", equalTo("/do/0/failingTask"));
+    }
+
+    @Test
+    void testWorkflowApplicationIdFiltering() {
+        String query = """
+            {
+              getWorkflowInstances(filter: { workflowApplicationId: { eq: "flow-pool-member-01" } }) {
+                id
+                workflowApplicationId
+              }
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(Map.of("query", query))
+        .when()
+            .post("/graphql")
+        .then()
+            .statusCode(200)
+            .body("data.getWorkflowInstances.size()", equalTo(1))
+            .body("data.getWorkflowInstances[0].id", equalTo(TEST_WORKFLOW_ID_1))
+            .body("data.getWorkflowInstances[0].workflowApplicationId", equalTo("flow-pool-member-01"));
     }
 }

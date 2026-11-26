@@ -297,9 +297,9 @@ class JdbcBatchPollingTest {
         // One transaction so all three rows land in the same poll batch, stuck row first.
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);
-            helper.insertWorkflowEventRaw(conn, stuckId, "NOT_A_REAL_STATUS", now, null, "ns", "wf", "1.0", now, null);
-            helper.insertWorkflowEventRaw(conn, dlqId, "NOT_A_REAL_STATUS", now, null, "ns", "wf", "1.0", now, null);
-            helper.insertWorkflowEventRaw(conn, goodId, "RUNNING", now, null, "ns", "wf", "1.0", now, null);
+            helper.insertWorkflowEventRaw(conn, stuckId, "NOT_A_REAL_STATUS", now, null, "ns", "wf", "1.0", null, now, null);
+            helper.insertWorkflowEventRaw(conn, dlqId, "NOT_A_REAL_STATUS", now, null, "ns", "wf", "1.0", null, now, null);
+            helper.insertWorkflowEventRaw(conn, goodId, "RUNNING", now, null, "ns", "wf", "1.0", null, now, null);
             conn.commit();
         }
 
@@ -351,7 +351,7 @@ class JdbcBatchPollingTest {
         OffsetDateTime t0 = OffsetDateTime.now();
 
         // workflow.started-shaped event: immutable fields + RUNNING, no terminal data yet.
-        helper.insertWorkflowEventRaw(instanceId, "RUNNING", t0, null, "merge-ns", "merge-wf", "2.0", t0, null);
+        helper.insertWorkflowEventRaw(instanceId, "RUNNING", t0, null, "merge-ns", "merge-wf", "2.0", "merge-app-1", t0, null);
 
         await().atMost(Duration.ofSeconds(10))
                 .pollInterval(Duration.ofMillis(200))
@@ -369,14 +369,14 @@ class JdbcBatchPollingTest {
         // workflow.completed-shaped event: terminal data only, as real Quarkus Flow events
         // do - no namespace/name/version repeated on this one.
         OffsetDateTime t1 = t0.plusSeconds(5);
-        helper.insertWorkflowEventRaw(instanceId, "COMPLETED", null, t1, null, null, null, t1, "{\"ok\":true}");
+        helper.insertWorkflowEventRaw(instanceId, "COMPLETED", null, t1, null, null, null, "merge-app-2", t1, "{\"ok\":true}");
 
         await().atMost(Duration.ofSeconds(10))
                 .pollInterval(Duration.ofMillis(200))
                 .untilAsserted(() -> {
                     try (Connection conn = dataSource.getConnection();
                          PreparedStatement stmt = conn.prepareStatement(
-                                 "SELECT namespace, name, version, status, output FROM workflow_instances WHERE id = ?")) {
+                                 "SELECT namespace, name, version, workflow_application_id, status, output FROM workflow_instances WHERE id = ?")) {
                         stmt.setString(1, instanceId);
                         ResultSet rs = stmt.executeQuery();
                         assertThat(rs.next()).isTrue();
@@ -384,6 +384,7 @@ class JdbcBatchPollingTest {
                         assertThat(rs.getString("namespace")).isEqualTo("merge-ns");
                         assertThat(rs.getString("name")).isEqualTo("merge-wf");
                         assertThat(rs.getString("version")).isEqualTo("2.0");
+                        assertThat(rs.getString("workflow_application_id")).isEqualTo("merge-app-1");
                         // Terminal fields: latest event wins.
                         assertThat(rs.getString("status")).isEqualTo("COMPLETED");
                         assertThat(rs.getString("output")).contains("ok").contains("true");

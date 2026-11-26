@@ -166,6 +166,7 @@ public class WorkflowEventPoller {
                             rs.getString("namespace"),
                             rs.getString("name"),
                             rs.getString("version"),
+                            rs.getString("workflow_application_id"),
                             rs.getString("status"),
                             rs.getObject("started_at", OffsetDateTime.class),
                             rs.getObject("ended_at", OffsetDateTime.class),
@@ -206,23 +207,24 @@ public class WorkflowEventPoller {
             stmt.setString(2, row.namespace());
             stmt.setString(3, row.name());
             stmt.setString(4, row.version());
-            stmt.setString(5, row.status());
-            stmt.setObject(6, row.startedAt());
-            stmt.setObject(7, row.endedAt());
-            stmt.setObject(8, row.lastUpdate());
-            stmt.setString(9, row.input());
-            stmt.setString(10, row.output());
-            stmt.setString(11, row.errorType());
-            stmt.setString(12, row.errorTitle());
-            stmt.setString(13, row.errorDetail());
+            stmt.setString(5, row.workflowApplicationId());
+            stmt.setString(6, row.status());
+            stmt.setObject(7, row.startedAt());
+            stmt.setObject(8, row.endedAt());
+            stmt.setObject(9, row.lastUpdate());
+            stmt.setString(10, row.input());
+            stmt.setString(11, row.output());
+            stmt.setString(12, row.errorType());
+            stmt.setString(13, row.errorTitle());
+            stmt.setString(14, row.errorDetail());
             if (row.errorStatus() != null) {
-                stmt.setInt(14, row.errorStatus());
+                stmt.setInt(15, row.errorStatus());
             } else {
-                stmt.setNull(14, Types.INTEGER);
+                stmt.setNull(15, Types.INTEGER);
             }
-            stmt.setString(15, row.errorInstance());
-            stmt.setObject(16, row.eventTimestamp());
-            stmt.setString(17, failureReason);
+            stmt.setString(16, row.errorInstance());
+            stmt.setObject(17, row.eventTimestamp());
+            stmt.setString(18, failureReason);
             stmt.executeUpdate();
         }
         deleteSingle(conn, row.id());

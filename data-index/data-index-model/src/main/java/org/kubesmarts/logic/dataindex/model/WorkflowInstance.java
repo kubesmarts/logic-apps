@@ -76,6 +76,12 @@ public class WorkflowInstance {
     private String version;
 
     /**
+     * Workflow application that processed the instance.
+     * <p>Source: workflowApplicationId from Quarkus Flow events
+     */
+    private String workflowApplicationId;
+
+    /**
      * Workflow instance status.
      * <p>Source: status from Quarkus Flow events
      * <p>Values: RUNNING, COMPLETED, FAULTED, CANCELLED, SUSPENDED
@@ -179,6 +185,14 @@ public class WorkflowInstance {
 
     public void setVersion(String version) {
         this.version = version;
+    }
+
+    public String getWorkflowApplicationId() {
+        return workflowApplicationId;
+    }
+
+    public void setWorkflowApplicationId(String workflowApplicationId) {
+        this.workflowApplicationId = workflowApplicationId;
     }
 
     public WorkflowInstanceStatus getStatus() {

@@ -47,6 +47,7 @@ Vector must set `inserted_at` itself, for the same reason it can't rely on the `
 | `workflowNamespace` | `namespace` | Direct |
 | `workflowName` | `name` | Direct |
 | `workflowVersion` | `version` | Direct |
+| `workflowApplicationId` | `workflow_application_id` | Direct |
 | `status` | `status` | Direct |
 | `startTime`, `endTime`, `timestamp` | `started_at`, `ended_at`, `event_timestamp` | Epoch seconds to timestamp |
 | `input`, `output` | `input`, `output` | JSON-encoded to `TEXT` |
@@ -58,7 +59,7 @@ Vector must set `inserted_at` itself, for the same reason it can't rely on the `
 
 Idempotency lives in the UPSERT SQL in `data-index-ingestion-persistence`, not in this schema:
 
-- **First value wins**: `namespace`, `name`, `version`, `started_at`, `input`
+- **First value wins**: `namespace`, `name`, `version`, `workflow_application_id`, `started_at`, `input`
 - **Newest event wins** (by `last_event_time`): `status`, `ended_at`, `output`, `error_*`
 - **Task identity**: composite key `(instance_id, task)`
 - **Task before workflow**: a placeholder workflow row is created and later filled in

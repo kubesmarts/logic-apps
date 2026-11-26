@@ -85,26 +85,34 @@ public class JdbcBatchPollingTestHelper {
     public void insertWorkflowEventRaw(String instanceId, String status, OffsetDateTime startedAt, OffsetDateTime endedAt,
                                        String namespace, String name, String version, OffsetDateTime eventTimestamp,
                                        String output) throws SQLException {
+        insertWorkflowEventRaw(instanceId, status, startedAt, endedAt, namespace, name, version, null, eventTimestamp, output);
+    }
+
+    public void insertWorkflowEventRaw(String instanceId, String status, OffsetDateTime startedAt, OffsetDateTime endedAt,
+                                       String namespace, String name, String version, String workflowApplicationId,
+                                       OffsetDateTime eventTimestamp, String output) throws SQLException {
         try (Connection conn = dataSource.getConnection()) {
-            insertWorkflowEventRaw(conn, instanceId, status, startedAt, endedAt, namespace, name, version, eventTimestamp, output);
+            insertWorkflowEventRaw(conn, instanceId, status, startedAt, endedAt, namespace, name, version, workflowApplicationId,
+                    eventTimestamp, output);
         }
     }
 
     public void insertWorkflowEventRaw(Connection conn, String instanceId, String status, OffsetDateTime startedAt,
                                        OffsetDateTime endedAt, String namespace, String name, String version,
-                                       OffsetDateTime eventTimestamp, String output) throws SQLException {
+                                       String workflowApplicationId, OffsetDateTime eventTimestamp, String output) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement(
-                "INSERT INTO workflow_events_raw (instance_id, namespace, name, version, status, started_at, ended_at, output, event_timestamp) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                "INSERT INTO workflow_events_raw (instance_id, namespace, name, version, workflow_application_id, status, started_at, ended_at, output, event_timestamp) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             stmt.setString(1, instanceId);
             stmt.setString(2, namespace);
             stmt.setString(3, name);
             stmt.setString(4, version);
-            stmt.setString(5, status);
-            stmt.setObject(6, startedAt);
-            stmt.setObject(7, endedAt);
-            stmt.setString(8, output);
-            stmt.setObject(9, eventTimestamp);
+            stmt.setString(5, workflowApplicationId);
+            stmt.setString(6, status);
+            stmt.setObject(7, startedAt);
+            stmt.setObject(8, endedAt);
+            stmt.setString(9, output);
+            stmt.setObject(10, eventTimestamp);
             stmt.executeUpdate();
         }
     }

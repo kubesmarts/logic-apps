@@ -61,6 +61,7 @@ public class FilterConverter {
         addStringFilters(result, "name", filter.getName());
         addStringFilters(result, "namespace", filter.getNamespace());
         addStringFilters(result, "version", filter.getVersion());
+        addStringFilters(result, "workflowApplicationId", filter.getWorkflowApplicationId());
 
         // Status filter
         if (filter.getStatus() != null) {

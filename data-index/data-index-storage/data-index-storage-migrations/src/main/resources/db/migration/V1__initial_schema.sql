@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS workflow_events_raw (
   namespace VARCHAR(255),
   name VARCHAR(255),
   version VARCHAR(255),
+  workflow_application_id VARCHAR(255),
   status VARCHAR(50),
   started_at TIMESTAMP WITH TIME ZONE,
   ended_at TIMESTAMP WITH TIME ZONE,
@@ -122,6 +123,7 @@ CREATE TABLE IF NOT EXISTS workflow_events_dlq (
   namespace VARCHAR(255),
   name VARCHAR(255),
   version VARCHAR(255),
+  workflow_application_id VARCHAR(255),
   status VARCHAR(50),
   started_at TIMESTAMP WITH TIME ZONE,
   ended_at TIMESTAMP WITH TIME ZONE,
@@ -171,6 +173,7 @@ CREATE TABLE IF NOT EXISTS workflow_instances (
   namespace VARCHAR(255),
   name VARCHAR(255),
   version VARCHAR(255),
+  workflow_application_id VARCHAR(255),
   status VARCHAR(50),
   started_at TIMESTAMP WITH TIME ZONE,
   ended_at TIMESTAMP WITH TIME ZONE,
@@ -189,6 +192,7 @@ CREATE TABLE IF NOT EXISTS workflow_instances (
 
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_namespace_name ON workflow_instances (namespace, name);
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_status ON workflow_instances (status);
+CREATE INDEX IF NOT EXISTS idx_workflow_instances_workflow_application_id ON workflow_instances (workflow_application_id);
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_startedAt ON workflow_instances (started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_workflow_instances_last_event_time ON workflow_instances (last_event_time DESC);
 
