@@ -131,6 +131,7 @@ ES Transforms use **scripted metrics** to handle out-of-order events with field-
 These fields never change after initial creation:
 
 * `name`, `version`, `namespace` - Workflow metadata
+* `workflowApplicationId` - Workflow application that processed the instance
 * `start` - First event timestamp
 * `input` - Initial workflow/task input data
 
@@ -324,6 +325,7 @@ Date-based indices store complete events with ILM lifecycle:
         "workflowName": { "type": "keyword" },
         "workflowNamespace": { "type": "keyword" },
         "workflowVersion": { "type": "keyword" },
+        "workflowApplicationId": { "type": "keyword" },
         "status": { "type": "keyword" },
         "startTime": { "type": "long" },
         "endTime": { "type": "long" },
@@ -383,6 +385,7 @@ Single-document indices for GraphQL queries:
         "name": { "type": "keyword" },
         "version": { "type": "keyword" },
         "namespace": { "type": "keyword" },
+        "workflowApplicationId": { "type": "keyword" },
         "status": { "type": "keyword" },
         "start": { "type": "date" },
         "end": { "type": "date" },

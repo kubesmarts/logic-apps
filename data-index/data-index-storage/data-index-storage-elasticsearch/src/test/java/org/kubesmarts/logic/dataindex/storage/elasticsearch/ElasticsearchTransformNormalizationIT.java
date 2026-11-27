@@ -39,10 +39,12 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.kie.kogito.persistence.api.query.FilterCondition.EQUAL;
 
 /**
  * Integration tests for Elasticsearch Transform normalization of out-of-order events.
@@ -50,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Tests the workflow-instances-transform's ability to correctly handle events that arrive
  * out of chronological order, using sophisticated aggregation logic:
  * <ul>
- *   <li>Immutable fields (name, version, namespace, input) - FIRST non-null value wins
+ *   <li>Immutable fields (name, version, namespace, workflowApplicationId, input) - FIRST non-null value wins
  *   <li>Terminal fields (output, error) - LAST non-null value wins
  *   <li>Status - Terminal status (COMPLETED, FAULTED, CANCELLED) wins regardless of timestamp
  *   <li>Timestamps - start uses MIN, end uses MAX aggregation
@@ -109,6 +111,33 @@ class ElasticsearchTransformNormalizationIT {
         assertThat(normalized.getInput()).isNotNull();
         assertThat(normalized.getInput().get("customerId").asText()).isEqualTo("first");
         assertThat(normalized.getInput().get("orderId").asText()).isEqualTo("ORDER-001");
+    }
+
+    @Test
+    void testWorkflowApplicationIdFirstNonNullWins() throws Exception {
+        String instanceId = "test-app-id-" + UUID.randomUUID();
+        String firstAppId = "flow-pool-member-" + UUID.randomUUID();
+        Instant baseTime = Instant.now();
+
+        insertWorkflowEvent(instanceId, "io.serverlessworkflow.workflow.completed.v1",
+                           baseTime.plusSeconds(10), "flow-pool-member-later");
+
+        insertWorkflowEvent(instanceId, "io.serverlessworkflow.workflow.started.v1",
+                           baseTime.minusSeconds(5), null);
+
+        insertWorkflowEvent(instanceId, "io.serverlessworkflow.workflow.running.v1",
+                           baseTime, firstAppId);
+
+        waitForTransform();
+        client.indices().refresh(r -> r.index(NORMALIZED_INDEX));
+
+        List<WorkflowInstance> results = new ElasticsearchQuery<>(client, NORMALIZED_INDEX, WorkflowInstance.class)
+            .filter(List.of(new TestAttributeFilter<>("workflowApplicationId", EQUAL, firstAppId)))
+            .execute();
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getId()).isEqualTo(instanceId);
+        assertThat(results.get(0).getWorkflowApplicationId()).isEqualTo(firstAppId);
     }
 
     @Test
@@ -402,6 +431,17 @@ class ElasticsearchTransformNormalizationIT {
     private void insertWorkflowEvent(String instanceId, String eventType, Instant eventTime,
                                      Map<String, Object> input, Map<String, Object> output,
                                      Map<String, Object> error) throws IOException {
+        insertWorkflowEvent(instanceId, eventType, eventTime, input, output, error, null);
+    }
+
+    private void insertWorkflowEvent(String instanceId, String eventType, Instant eventTime,
+                                     String workflowApplicationId) throws IOException {
+        insertWorkflowEvent(instanceId, eventType, eventTime, null, null, null, workflowApplicationId);
+    }
+
+    private void insertWorkflowEvent(String instanceId, String eventType, Instant eventTime,
+                                     Map<String, Object> input, Map<String, Object> output,
+                                     Map<String, Object> error, String workflowApplicationId) throws IOException {
         Map<String, Object> event = new HashMap<>();
         event.put("@timestamp", Instant.now().toString());
         event.put("tag", "quarkus-flow.workflow");
@@ -414,6 +454,9 @@ class ElasticsearchTransformNormalizationIT {
         event.put("workflowNamespace", "test");
         event.put("instanceStatus", extractStatusFromEventType(eventType));
 
+        if (workflowApplicationId != null) {
+            event.put("workflowApplicationId", workflowApplicationId);
+        }
         if (input != null) {
             event.put("input", input);
         }
