@@ -63,6 +63,9 @@
             }
           }
         },
+        "workflowApplicationId": {
+          "type": "keyword"
+        },
         "status": {
           "type": "text",
           "fields": {

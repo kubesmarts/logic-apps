@@ -89,6 +89,14 @@
           "reduce_script": "for (s in states) { if (s != null) { return s } } return null"
         }
       },
+      "workflowApplicationId": {
+        "scripted_metric": {
+          "init_script": "state.data = null; state.ts = 'ZZZZ'",
+          "map_script": "if (params._source.workflowApplicationId != null) { String ts = params._source.eventTime != null ? params._source.eventTime : String.valueOf(params._source.timestamp); if (ts != null && ts.compareTo(state.ts) < 0) { state.data = params._source.workflowApplicationId; state.ts = ts } }",
+          "combine_script": "return state",
+          "reduce_script": "def earliest = ['data': null, 'ts': 'ZZZZ']; for (s in states) { if (s != null && s.get('ts') != null && s.ts.compareTo(earliest.ts) < 0) { earliest = s } } return earliest.data"
+        }
+      },
       "status": {
         "scripted_metric": {
           "init_script": "state.status = null; state.priority = 0",
