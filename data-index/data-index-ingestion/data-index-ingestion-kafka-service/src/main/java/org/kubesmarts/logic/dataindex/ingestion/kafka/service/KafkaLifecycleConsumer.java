@@ -23,6 +23,7 @@ import io.cloudevents.core.builder.CloudEventBuilder;
 import io.cloudevents.core.data.BytesCloudEventData;
 import io.cloudevents.jackson.JsonCloudEventData;
 import org.apache.kafka.common.header.Header;
+import io.serverlessworkflow.impl.LifecycleEvents;
 import io.serverlessworkflow.impl.lifecycle.ce.TaskCEData;
 import io.serverlessworkflow.impl.lifecycle.ce.WorkflowCEData;
 import io.smallrye.reactive.messaging.MutinyEmitter;
@@ -243,7 +244,7 @@ public class KafkaLifecycleConsumer {
      *   <li>Batch mode ({@code Message<ConsumerRecords<...>>}) bypasses SmallRye's automatic CE extraction</li>
      *   <li>SmallRye's {@code CloudEventMetadata} only works in per-message mode</li>
      *   <li>Manual reconstruction provides: CloudEvents spec validation, uniform abstraction, future-proof field extraction</li>
-     *   <li>Currently used fields: {@code time} (→ event_timestamp), {@code type} (→ event routing)</li>
+     *   <li>Currently used fields: {@code time} (→ event_timestamp), {@code type} (→ event routing), {@code applicationid} (→ workflow_application_id)</li>
      *   <li>Reconstruction overhead is negligible compared to DB UPSERT operations</li>
      * </ul>
      *
@@ -325,6 +326,11 @@ public class KafkaLifecycleConsumer {
 
         if (time != null) {
             builder.withTime(java.time.OffsetDateTime.parse(time));
+        }
+
+        String applicationId = getHeaderValue(record, "ce_" + LifecycleEvents.APPLICATION_ID_EXTENSION);
+        if (applicationId != null) {
+            builder.withExtension(LifecycleEvents.APPLICATION_ID_EXTENSION, applicationId);
         }
 
         return builder.build();

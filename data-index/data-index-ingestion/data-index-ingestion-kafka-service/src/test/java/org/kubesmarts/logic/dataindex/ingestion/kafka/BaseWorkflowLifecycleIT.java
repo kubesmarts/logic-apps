@@ -286,6 +286,7 @@ public abstract class BaseWorkflowLifecycleIT {
                 "id", UUID.randomUUID().toString(),
                 "time", cloudEventTime != null ? cloudEventTime.toInstant().toString() : Instant.now().toString(),
                 "datacontenttype", "application/json",
+                "applicationid", "test-app",
                 "data", data);
 
         String json = mapper.writeValueAsString(event);

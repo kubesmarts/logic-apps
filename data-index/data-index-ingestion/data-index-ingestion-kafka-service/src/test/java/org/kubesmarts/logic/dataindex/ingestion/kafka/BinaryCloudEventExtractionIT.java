@@ -110,6 +110,7 @@ public class BinaryCloudEventExtractionIT extends BaseWorkflowLifecycleIT {
         record.headers().add(new RecordHeader("ce_source", "binary-test".getBytes(StandardCharsets.UTF_8)));
         record.headers().add(new RecordHeader("ce_id", UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)));
         record.headers().add(new RecordHeader("ce_time", eventTime.toString().getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader("ce_applicationid", "binary-app".getBytes(StandardCharsets.UTF_8)));
         record.headers().add(new RecordHeader("content-type", "application/json".getBytes(StandardCharsets.UTF_8)));
 
         log.info("Publishing binary CloudEvent with ce_* headers...");
@@ -123,12 +124,13 @@ public class BinaryCloudEventExtractionIT extends BaseWorkflowLifecycleIT {
                 .untilAsserted(() -> {
                     try (Connection conn = dataSource.getConnection();
                          PreparedStatement stmt = conn.prepareStatement(
-                                 "SELECT id, status, name FROM workflow_instances WHERE id = ?")) {
+                                 "SELECT id, status, name, workflow_application_id FROM workflow_instances WHERE id = ?")) {
                         stmt.setString(1, instanceId);
                         ResultSet rs = stmt.executeQuery();
                         assertThat(rs.next()).isTrue();
                         assertThat(rs.getString("id")).isEqualTo(instanceId);
                         assertThat(rs.getString("status")).isEqualTo("RUNNING");
+                        assertThat(rs.getString("workflow_application_id")).isEqualTo("binary-app");
                         log.info("✓ Workflow persisted from binary CloudEvent");
                     }
                 });
