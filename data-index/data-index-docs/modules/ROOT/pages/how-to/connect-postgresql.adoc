@@ -1,0 +1,71 @@
+= Connect to PostgreSQL
+:page-aliases:
+
+Run the `-postgresql` image against an existing PostgreSQL 13+ database.
+It serves the API for PostgreSQL storage with either ingestion source.
+
+== Before you start
+
+The database must already have the Data Index tables.
+See xref:how-to/prepare-database.adoc[Prepare the database].
+
+== Set the connection
+
+Pass the standard Quarkus datasource variables.
+The command uses the `postgres` container and `data-index` network from xref:how-to/prepare-database.adoc[Prepare the database]:
+
+[source,bash,subs="attributes+"]
+----
+docker run -d --name data-index --network data-index -p 8080:8080 \
+  -e QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/dataindex \
+  -e QUARKUS_DATASOURCE_USERNAME=dataindex \
+  -e QUARKUS_DATASOURCE_PASSWORD=secret \
+  quay.io/kubesmarts/logic-data-index:{image-version}-postgresql
+----
+
+With your own server, replace `postgres:5432` with its address and drop `--network data-index`.
+
+To use a schema other than `public`, add `currentSchema` to the URL, for example `jdbc:postgresql://postgres:5432/dataindex?currentSchema=logicapps`.
+Use the same schema for the migrations and for whatever writes the raw events.
+
+== Choose the ingestion source
+
+The image polls the raw event tables by default.
+
+* *Raw events*: keep the default. Tune polling if needed:
++
+[source,bash]
+----
+-e DATA_INDEX_INGESTION_JDBC_BATCH_POLL_INTERVAL=1s \
+-e DATA_INDEX_INGESTION_JDBC_BATCH_BATCH_SIZE=10000
+----
+* *Kafka*: turn polling off, because the Kafka ingestion service writes the normalized tables directly:
++
+[source,bash]
+----
+-e DATA_INDEX_INGESTION_JDBC_BATCH_ENABLED=false
+----
+
+== Size the connection pool
+
+The pool defaults to 5–20 connections.
+With raw-table polling, each poller holds up to two connections while it processes a batch, so leave room for GraphQL queries:
+
+[source,bash]
+----
+-e QUARKUS_DATASOURCE_JDBC_MAX_SIZE=30
+----
+
+== Check it works
+
+[source,bash]
+----
+curl -s http://localhost:8080/q/health/ready
+----
+
+The `Database connections health check` must be `UP`.
+
+== See also
+
+* xref:reference/configuration.adoc[Configuration]
+* xref:explanation/postgresql-storage.adoc[PostgreSQL storage]

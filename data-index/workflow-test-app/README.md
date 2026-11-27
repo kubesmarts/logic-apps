@@ -403,8 +403,8 @@ Other formats (ISO 8601) leave MODE 1 timestamp columns `NULL`; epoch-millis is 
 
 - [Quarkus Flow Documentation](https://docs.quarkiverse.io/quarkus-flow/dev/)
 - [Structured Logging Configuration](https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html)
-- [Data Index Integration Tests](../data-index-docs/modules/ROOT/pages/deployment/kind-local.adoc)
-- [Vector Configuration](../data-index-docs/modules/ROOT/pages/deployment/vector-config.adoc)
+- [Data Index Integration Tests](../data-index-docs/modules/ROOT/pages/tutorials/run-locally.adoc)
+- [Vector Configuration](../data-index-docs/modules/ROOT/pages/explanation/vector.adoc)
 
 ## Contributing
 

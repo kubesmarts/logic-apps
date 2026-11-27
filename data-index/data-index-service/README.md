@@ -169,7 +169,7 @@ QUARKUS_DATASOURCE_USERNAME=dataindex
 QUARKUS_DATASOURCE_PASSWORD=***
 ```
 
-See: [Configuration Reference](../data-index-docs/modules/ROOT/pages/developers/configuration.adoc)
+See: [Configuration Reference](../data-index-docs/modules/ROOT/pages/reference/configuration.adoc)
 
 ## Development
 
@@ -314,11 +314,11 @@ mvn verify
 
 ### Local Development
 
-See: [Local Development Guide](../data-index-docs/modules/ROOT/pages/deployment/kind-local.adoc)
+See: [Local Development Guide](../data-index-docs/modules/ROOT/pages/tutorials/run-locally.adoc)
 
 ### Kubernetes
 
-See: [PostgreSQL Deployment](../data-index-docs/modules/ROOT/pages/deployment/postgresql.adoc)
+See: [PostgreSQL Deployment](../data-index-docs/modules/ROOT/pages/how-to/connect-postgresql.adoc)
 
 ### KIND (Kubernetes in Docker)
 
@@ -357,9 +357,9 @@ MODE=postgresql ./install-dependencies.sh
 
 ## Related Documentation
 
-- [Architecture Overview](../data-index-docs/modules/ROOT/pages/architecture/overview.adoc)
-- [Configuration Reference](../data-index-docs/modules/ROOT/pages/developers/configuration.adoc)
-- [GraphQL API Guide](../data-index-docs/modules/ROOT/pages/api/graphql.adoc)
+- [Architecture Overview](../data-index-docs/modules/ROOT/pages/explanation/architecture.adoc)
+- [Configuration Reference](../data-index-docs/modules/ROOT/pages/reference/configuration.adoc)
+- [GraphQL API Guide](../data-index-docs/modules/ROOT/pages/reference/graphql-api.adoc)
 - [Developer Guide](../data-index-docs/modules/ROOT/pages/developers/contributing.adoc)
 
 ## Contributing

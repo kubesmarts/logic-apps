@@ -1,0 +1,162 @@
+= Run Data Index locally
+:page-aliases:
+
+In this tutorial you run Data Index with PostgreSQL storage on your machine, write a few raw events by hand, and query them through GraphQL.
+It takes about ten minutes and needs only a container runtime.
+
+You will:
+
+. Start PostgreSQL.
+. Create the Data Index tables with the db-migrator image.
+. Start Data Index.
+. Insert raw lifecycle events, the way a collector or any other writer would.
+. Query the normalized result.
+
+== Prerequisites
+
+* Docker or Podman. The commands use `docker`; with Podman, replace `docker` with `podman`.
+* `curl`. `jq` is optional, for readable output.
+
+== 1. Create a network and start PostgreSQL
+
+The three containers talk to each other over a dedicated network:
+
+[source,bash]
+----
+docker network create data-index
+
+docker run -d --name postgres --network data-index \
+  -e POSTGRES_DB=dataindex \
+  -e POSTGRES_USER=dataindex \
+  -e POSTGRES_PASSWORD=dataindex \
+  postgres:16
+----
+
+Wait until PostgreSQL accepts connections:
+
+[source,bash]
+----
+until docker exec postgres pg_isready -U dataindex -d dataindex; do sleep 1; done
+----
+
+== 2. Create the schema
+
+The Data Index image does not create its own tables.
+Run the db-migrator image once, asking it for the `data-index` migrations only:
+
+[source,bash,subs="attributes+"]
+----
+docker run --rm --network data-index \
+  -e QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/dataindex \
+  -e QUARKUS_DATASOURCE_USERNAME=dataindex \
+  -e QUARKUS_DATASOURCE_PASSWORD=dataindex \
+  -e LOGIC_APPS_MIGRATOR_INCLUDE=data-index \
+  -e LOGIC_APPS_MIGRATOR_TERMINATION_LOG_PATH=/tmp/migration-report.json \
+  quay.io/kubesmarts/logic-db-migrator:{image-version}
+----
+
+The last lines of the output show the result:
+
+[source,text]
+----
+Stream data-index: applied 1 migration(s), now at version 1
+{"streams":[{"name":"DATA_INDEX","appliedVersion":"1","appliedCount":1}]}
+----
+
+`LOGIC_APPS_MIGRATOR_TERMINATION_LOG_PATH` is needed only outside Kubernetes, where `/dev/termination-log` does not exist.
+
+== 3. Start Data Index
+
+[source,bash,subs="attributes+"]
+----
+docker run -d --name data-index --network data-index -p 8080:8080 \
+  -e QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/dataindex \
+  -e QUARKUS_DATASOURCE_USERNAME=dataindex \
+  -e QUARKUS_DATASOURCE_PASSWORD=dataindex \
+  quay.io/kubesmarts/logic-data-index:{image-version}-postgresql
+----
+
+Check that it is ready:
+
+[source,bash]
+----
+curl -s http://localhost:8080/q/health/ready
+----
+
+You should see `"status": "UP"`.
+
+== 4. Send events
+
+Raw events are Data Index's ingestion contract: something outside Data Index writes one row per lifecycle event into `workflow_events_raw` and `task_events_raw`.
+Usually that is a log collector; here you insert them yourself: a workflow starts, one task completes, then the workflow completes.
+
+[source,bash]
+----
+docker exec -i postgres psql -U dataindex -d dataindex <<'SQL'
+INSERT INTO workflow_events_raw (instance_id, namespace, name, version, status, started_at, input, event_timestamp)
+VALUES ('wf-1', 'org.acme', 'order-processing', '1.0.0', 'RUNNING',
+        now() - interval '2 seconds', '{"orderId":"ORD-1"}', now() - interval '2 seconds');
+
+INSERT INTO task_events_raw (instance_id, task_name, task, status, started_at, ended_at, output, event_timestamp)
+VALUES ('wf-1', 'validateOrder', '/do/0/validateOrder', 'COMPLETED',
+        now() - interval '2 seconds', now() - interval '1 second', '{"valid":true}', now() - interval '1 second');
+
+INSERT INTO workflow_events_raw (instance_id, status, ended_at, output, event_timestamp)
+VALUES ('wf-1', 'COMPLETED', now(), '{"orderId":"ORD-1","approved":true}', now());
+SQL
+----
+
+Data Index polls these tables every second, merges the rows into `workflow_instances` and `task_instances`, and deletes them from the raw tables.
+
+== 5. Query
+
+[source,bash]
+----
+curl -s http://localhost:8080/graphql \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"{ getWorkflowInstances { id name status startedAt endedAt inputData outputData taskExecutions { taskName task status } } }"}' \
+  | jq .
+----
+
+The three events became one workflow instance with one task:
+
+[source,json]
+----
+{
+  "data": {
+    "getWorkflowInstances": [
+      {
+        "id": "wf-1",
+        "name": "order-processing",
+        "status": "COMPLETED",
+        "startedAt": "2026-11-27T01:10:09.562267Z",
+        "endedAt": "2026-11-27T01:10:11.563701Z",
+        "inputData": "{\"orderId\":\"ORD-1\"}",
+        "outputData": "{\"orderId\":\"ORD-1\",\"approved\":true}",
+        "taskExecutions": [
+          { "taskName": "validateOrder", "task": "/do/0/validateOrder", "status": "COMPLETED" }
+        ]
+      }
+    ]
+  }
+}
+----
+
+Notice that `name` and `startedAt` come from the first event, while `status`, `endedAt` and `outputData` come from the last one.
+xref:explanation/event-idempotency.adoc[Event idempotency] explains these merge rules.
+
+Open http://localhost:8080/q/graphql-ui/ to explore the schema interactively.
+
+== Clean up
+
+[source,bash]
+----
+docker rm -f data-index postgres
+docker network rm data-index
+----
+
+== Next steps
+
+* Connect Data Index to your own database: xref:how-to/connect-postgresql.adoc[Connect to PostgreSQL].
+* Emit real events from a workflow app: xref:how-to/configure-quarkus-flow-app.adoc[Configure a Quarkus Flow app].
+* Write more queries: xref:how-to/query-workflow-data.adoc[Query workflow data].

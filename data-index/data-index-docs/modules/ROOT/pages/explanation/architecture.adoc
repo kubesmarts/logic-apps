@@ -1,0 +1,71 @@
+= Architecture
+:page-aliases:
+
+Data Index turns a stream of lifecycle events into a queryable picture of every workflow instance.
+It has three stages; the first two depend on the xref:explanation/storage-and-ingestion.adoc[storage and ingestion source] you choose.
+
+[mermaid,architecture,svg]
+....
+flowchart TB
+  app["Quarkus Flow app"]
+  subgraph source["Ingestion source"]
+    raw_pg["Raw event tables<br/>workflow_events_raw, task_events_raw<br/>(PostgreSQL)"]
+    raw_es["Raw event indices<br/>workflow-events-*, task-events-*<br/>(Elasticsearch)"]
+    kafka["Kafka topic<br/>flow-lifecycle-out<br/>(PostgreSQL)"]
+  end
+  subgraph storage["Storage"]
+    pg["workflow_instances / task_instances<br/>(PostgreSQL)"]
+    es["workflow-instances / task-executions<br/>(Elasticsearch)"]
+  end
+  api["GraphQL API (read-only)"]
+  app -- "lifecycle events, shipped by a collector or a Kafka producer" --> source
+  source -- "normalization: merge events per instance and task" --> storage
+  storage --> api
+....
+
+== Normalization
+
+A workflow instance produces many events: started, task started, task completed, completed.
+Normalization folds them into one row per instance and one row per task, so the API never has to replay events.
+
+[cols="1,1,3"]
+|===
+|Storage |Ingestion source |Normalization
+
+|PostgreSQL
+|Raw events
+|Pollers inside the `-postgresql` image read the raw tables every second, UPSERT into the normalized tables and delete the raw rows.
+
+|Elasticsearch
+|Raw events
+|Elasticsearch continuous transforms, created by the `-elasticsearch` image, aggregate raw indices into normalized indices.
+
+|PostgreSQL
+|Kafka
+|The Kafka ingestion service UPSERTs each event directly into the normalized tables. There are no raw tables.
+|===
+
+Polling and Kafka ingestion share the same JDBC persistence code, so PostgreSQL normalizes the same way whatever the source.
+Events can arrive late, twice or out of order; xref:explanation/event-idempotency.adoc[Event idempotency] explains how the result stays correct.
+
+== Query service
+
+The API is SmallRye GraphQL on Quarkus, backed by JPA for PostgreSQL or the Elasticsearch Java client.
+The domain model, `WorkflowInstance` and `TaskExecution`, is shared, so clients see one schema regardless of storage.
+Input and output payloads are kept as JSON and returned as strings.
+
+== Boundaries
+
+Data Index owns the ingestion source schema, normalization, storage and the API.
+It does not:
+
+* emit lifecycle events (the app's job) or ship them to the ingestion source (a collector's or the app's Kafka producer's job),
+* execute workflows or change their state,
+* store workflow definitions,
+* deploy itself or its dependencies (that is {logic-operator-url}[logic-operator^]'s job).
+
+== Latency
+
+Events become queryable a few seconds after the runtime emits them.
+Polling and transforms each run every second, on top of whatever batching the collector does (about one second for Vector).
+Kafka ingestion writes as soon as a batch is consumed.

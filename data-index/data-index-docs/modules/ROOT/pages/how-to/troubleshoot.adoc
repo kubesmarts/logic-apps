@@ -1,0 +1,115 @@
+= Troubleshoot
+:page-aliases:
+
+Find the stage where events stop.
+Each section starts from a symptom and lists the checks in order.
+
+Data Index starts at the ingestion source. If events never reach the raw tables, raw indices or Kafka topic, look at whatever writes them; for Vector, see xref:integrations/vector-reliability.adoc[Vector reliability] and the {logic-operator-url}[logic-operator documentation^].
+
+== The service does not start
+
+Read the container log first:
+
+[source,bash]
+----
+docker logs data-index
+----
+
+[cols="2,3"]
+|===
+|Log message |Fix
+
+|`Connection to ... refused` / `UnknownHostException`
+|Check `QUARKUS_DATASOURCE_JDBC_URL` or `ELASTICSEARCH_HOST`/`ELASTICSEARCH_PORT`, and that the container can reach that host.
+
+|`relation "workflow_events_raw" does not exist`
+|The PostgreSQL schema was not created. See xref:how-to/prepare-database.adoc[Prepare the database]. If you use a non-default schema, add `currentSchema` to the JDBC URL.
+
+|`password authentication failed`
+|Check `QUARKUS_DATASOURCE_USERNAME` / `QUARKUS_DATASOURCE_PASSWORD`.
+
+|`security_exception` from Elasticsearch on startup
+|The user can't create ILM policies, templates or transforms. Grant them, or xref:how-to/connect-elasticsearch.adoc#_manage_the_schema_yourself[manage the schema yourself].
+|===
+
+Readiness at `/q/health/ready` lists each check and its status.
+
+== GraphQL returns no data
+
+=== PostgreSQL with raw events
+
+. *Are events reaching the raw tables?* Rows are deleted once normalized, so a count of zero is normal. Insert a test row as in the xref:tutorials/run-locally.adoc#_4_send_events[tutorial]; if it gets normalized, Data Index works and the problem is upstream, in whatever writes the raw events.
+. *Are raw tables growing?*
++
+[source,sql]
+----
+SELECT count(*) FROM workflow_events_raw;
+SELECT count(*) FROM task_events_raw;
+----
++
+A growing count means polling is off or failing. Check that `DATA_INDEX_INGESTION_JDBC_BATCH_ENABLED` is not `false`, and look for poller errors in the service log.
+. *Did rows fail?*
++
+[source,sql]
+----
+SELECT instance_id, failure_reason, failed_at FROM workflow_events_dlq ORDER BY failed_at DESC LIMIT 20;
+SELECT instance_id, task, failure_reason, failed_at FROM task_events_dlq ORDER BY failed_at DESC LIMIT 20;
+----
++
+The `data_index_jdbc_batch_events_dlq_total` metric counts them.
+
+=== Elasticsearch
+
+. *Are raw events indexed?* `curl "$ES/workflow-events-*/_count"`. If zero, the problem is upstream, in whatever writes the raw events.
+. *Are the transforms running?*
++
+[source,bash]
+----
+curl -s "$ES/_transform/workflow-instances-transform/_stats" | jq '.transforms[0] | {state, reason}'
+----
++
+If `stopped`, start it with `POST $ES/_transform/workflow-instances-transform/_start`.
+If `failed`, read `reason`, then stop it with `?force=true`, delete it and restart Data Index to recreate it.
+. *Is the event old?* Transforms only reprocess events older than the smart-filter window (`1h` by default) for unfinished instances.
+
+The `data_index_transform_state` and `data_index_transform_lag` metrics track this. See xref:reference/endpoints.adoc#_metrics[Metrics].
+
+=== PostgreSQL with Kafka
+
+. *Is the consumer ready?* `/q/health/ready` on the ingestion service includes the Kafka channel.
+. *Are events dead-lettered?* Read the `data-index-events-dlq` topic. Malformed CloudEvents (missing `type`, `time` or `data`) end up there.
+. *Is the query service polling?* It should not be: set `DATA_INDEX_INGESTION_JDBC_BATCH_ENABLED=false` on the `-postgresql` image.
+
+== Timestamps are null
+
+The app is not using `quarkus.flow.structured-logging.timestamp-format=epoch-seconds`.
+See xref:how-to/configure-quarkus-flow-app.adoc[Configure a Quarkus Flow app].
+
+== Events appear late
+
+Expect a few seconds end to end: normalization runs every second, plus whatever batching the writer does (about one second for Vector).
+If it is much slower:
+
+* PostgreSQL: the raw tables are growing. Raise `DATA_INDEX_INGESTION_JDBC_BATCH_BATCH_SIZE` or the connection pool, or check database load.
+* Elasticsearch: `data_index_transform_lag` is high. Check cluster health.
+
+== A query fails with `FieldUndefined`
+
+The field does not exist in the schema.
+Common cases: task position is `task` (not `taskPosition`), times are `startedAt`/`endedAt` (not `startDate`/`endDate`).
+See xref:reference/graphql-api.adoc[GraphQL API].
+
+== A task is missing or duplicated
+
+Tasks are keyed by `(instance_id, task)`.
+With PostgreSQL storage, a task event that arrives before its workflow creates a placeholder workflow row, which the workflow event fills in later.
+Check for orphans:
+
+[source,sql]
+----
+SELECT t.instance_id, t.task FROM task_instances t
+LEFT JOIN workflow_instances w ON w.id = t.instance_id
+WHERE w.name IS NULL;
+----
+
+Rows here mean the workflow events never arrived.

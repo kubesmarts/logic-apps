@@ -1,0 +1,79 @@
+= Ingest from Kafka
+:page-aliases:
+
+Use Kafka as the ingestion source for PostgreSQL storage.
+It takes two images:
+
+* `logic-data-index-ingestion:<version>-kafka` consumes lifecycle CloudEvents from Kafka and writes them to PostgreSQL.
+* `logic-data-index:<version>-postgresql` serves the GraphQL API from the same database.
+
+== Before you start
+
+* The database must have the Data Index tables. See xref:how-to/prepare-database.adoc[Prepare the database].
+* Your Quarkus Flow apps must publish lifecycle events to Kafka. See xref:how-to/configure-quarkus-flow-app.adoc#_kafka_ingestion_publish_to_kafka[Configure a Quarkus Flow app].
+* The topics `flow-lifecycle-out` and `data-index-events-dlq` must exist, or the broker must allow topic auto-creation.
+
+== Run the ingestion service
+
+[source,bash,subs="attributes+"]
+----
+docker run -d --name data-index-ingestion \
+  -e KAFKA_BOOTSTRAP_SERVERS=kafka.example.com:9092 \
+  -e QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://db.example.com:5432/dataindex \
+  -e QUARKUS_DATASOURCE_USERNAME=dataindex \
+  -e QUARKUS_DATASOURCE_PASSWORD=secret \
+  quay.io/kubesmarts/logic-data-index-ingestion:{image-version}-kafka
+----
+
+To use other topic names or consumer group:
+
+[source,bash]
+----
+-e MP_MESSAGING_INCOMING_DATA_INDEX_EVENTS_TOPIC=my-lifecycle-topic \
+-e MP_MESSAGING_INCOMING_DATA_INDEX_EVENTS_GROUP_ID=my-group \
+-e MP_MESSAGING_OUTGOING_DATA_INDEX_EVENTS_DLQ_TOPIC=my-dlq-topic
+----
+
+== Secure the connection
+
+Kafka client properties set with the `kafka.` prefix apply to every channel.
+Set them as `KAFKA_*` environment variables, for example:
+
+[source,bash]
+----
+-e KAFKA_SECURITY_PROTOCOL=SASL_SSL \
+-e KAFKA_SASL_MECHANISM=SCRAM-SHA-512 \
+-e KAFKA_SASL_JAAS_CONFIG='org.apache.kafka.common.security.scram.ScramLoginModule required username="..." password="...";'
+----
+
+== Run the query service
+
+Start the `-postgresql` image as in xref:how-to/connect-postgresql.adoc[Connect to PostgreSQL], with raw-table polling turned off:
+
+[source,bash]
+----
+-e DATA_INDEX_INGESTION_JDBC_BATCH_ENABLED=false
+----
+
+== Check it works
+
+The ingestion service has no GraphQL API.
+Its readiness includes the Kafka consumer:
+
+[source,bash]
+----
+docker exec data-index-ingestion curl -s localhost:8080/q/health/ready
+----
+
+Events that fail processing go to the dead-letter topic:
+
+[source,bash]
+----
+kafka-console-consumer.sh --bootstrap-server kafka.example.com:9092 \
+  --topic data-index-events-dlq --from-beginning
+----
+
+== See also
+
+* xref:reference/configuration.adoc#_kafka_ingestion_service[Configuration: Kafka ingestion service]
+* xref:explanation/kafka-ingestion.adoc[Kafka ingestion]

@@ -1,0 +1,113 @@
+= PostgreSQL storage
+:page-aliases:
+
+With PostgreSQL storage, normalized data lives in two tables and the `-postgresql` image serves the API from them through JPA.
+Events reach those tables from one of two ingestion sources: raw event tables in the same database (default), or xref:explanation/kafka-ingestion.adoc[Kafka].
+
+== Tables
+
+[cols="1,3"]
+|===
+|Table |Role
+
+|`workflow_events_raw`, `task_events_raw`
+|Raw events: the ingestion contract. Written by anything outside Data Index.
+
+|`workflow_events_dlq`, `task_events_dlq`
+|Raw rows that failed normalization.
+
+|`workflow_instances`
+|One row per workflow instance. Queried by the API.
+
+|`task_instances`
+|One row per task in an instance. Queried by the API.
+|===
+
+Columns are listed in xref:reference/database-schema.adoc#_postgresql[Storage schema].
+The schema is created by `logic-db-migrator`, see xref:how-to/prepare-database.adoc[Prepare the database].
+
+== Raw events ingestion
+
+[mermaid,postgresql-raw-events,svg]
+....
+flowchart TB
+  writer["Writer (collector, job, app)"]
+  raw["workflow_events_raw / task_events_raw"]
+  norm["workflow_instances / task_instances"]
+  api["GraphQL API"]
+  writer -- "INSERT" --> raw
+  raw -- "Data Index polls, idempotent UPSERT, deletes the raw rows" --> norm
+  norm -- "JPA" --> api
+....
+
+Raw tables are a short-lived inbox with typed columns, not an event history.
+Rows are deleted as soon as they are normalized, so these tables stay near-empty.
+A growing row count means normalization is falling behind or turned off.
+
+=== Polling
+
+Each Data Index instance runs one poller per raw table:
+
+. *Select a batch*: oldest rows first, locked with `FOR UPDATE SKIP LOCKED`.
+. *UPSERT*: through the same `WorkflowPersistence` / `TaskPersistence` layer that Kafka ingestion uses.
+. *Delete*: normalized rows are removed from the raw table.
+
+If a batch fails, its rows are retried one at a time.
+A row that still fails moves to `workflow_events_dlq` or `task_events_dlq` with a `failure_reason`, so it can't block the rows behind it.
+
+Polling is on by default and controlled by `data-index.ingestion.jdbc-batch.*`, see xref:reference/configuration.adoc#_raw_event_polling[Configuration].
+
+*Benefits:*
+
+* No separate ingestion service to deploy.
+* Same idempotent persistence code as Kafka ingestion.
+* Duplicates and out-of-order events are handled.
+* Failed events are kept and inspectable.
+
+*Trade-offs:*
+
+* Normalization lags by up to one poll interval (default 1s).
+* Polling shares the service's connection pool with GraphQL queries (up to 2 connections per poller during a batch).
+
+== Kafka ingestion
+
+The Kafka ingestion service writes `workflow_instances` and `task_instances` directly, and raw-table polling is turned off.
+See xref:explanation/kafka-ingestion.adoc[Kafka ingestion].
+
+== Characteristics
+
+[cols="1,3"]
+|===
+|Characteristic |Details
+
+|Latency
+|About 1s for normalization (poll interval), a few seconds end to end.
+
+|Consistency
+|ACID transactions; normalized data lags raw events by up to the poll interval.
+
+|Throughput
+|Under about 50K workflows/day (single PostgreSQL writer).
+
+|Search
+|Filters and JSONB; no full-text search.
+|===
+
+== Scaling
+
+Vertical:
+
+* Larger PostgreSQL instance, more CPU and memory for write throughput, SSD storage.
+
+Horizontal:
+
+* Read replicas for GraphQL queries.
+* Multiple Data Index instances. Each one also polls; `SKIP LOCKED` keeps them from claiming the same rows.
+
+For higher throughput or full-text search, consider xref:explanation/elasticsearch-storage.adoc[Elasticsearch storage].
+
+== See also
+
+* xref:how-to/connect-postgresql.adoc[Connect to PostgreSQL]
+* xref:explanation/storage-and-ingestion.adoc[Storage and ingestion]
+* xref:explanation/event-idempotency.adoc[Event idempotency]

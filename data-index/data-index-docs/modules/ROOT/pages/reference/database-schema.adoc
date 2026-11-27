@@ -1,0 +1,127 @@
+= Storage schema
+:page-aliases:
+
+== PostgreSQL
+
+Created by the `data-index` stream of `logic-db-migrator` from `data-index-storage-migrations`.
+Flyway history is kept in `flyway_data_index_history`.
+
+[cols="1,1,3"]
+|===
+|Table |Written by |Purpose
+
+|`workflow_events_raw`
+|Anything outside Data Index
+|Raw events: inbox of workflow events. Rows are deleted once normalized.
+
+|`task_events_raw`
+|Anything outside Data Index
+|Raw events: inbox of task events. Rows are deleted once normalized.
+
+|`workflow_events_dlq`
+|Data Index (polling)
+|Workflow rows that failed normalization, with `failure_reason` and `failed_at`.
+
+|`task_events_dlq`
+|Data Index (polling)
+|Task rows that failed normalization, with `failure_reason` and `failed_at`.
+
+|`workflow_instances`
+|Data Index (polling) or Kafka ingestion
+|One row per workflow instance. Queried by the API.
+
+|`task_instances`
+|Data Index (polling) or Kafka ingestion
+|One row per task in an instance. Queried by the API.
+|===
+
+=== `workflow_events_raw`
+
+The raw events contract: the columns a writer must fill.
+`id` and `inserted_at` are set by the database.
+
+[cols="2,2,3"]
+|===
+|Column |Type |Content
+
+|`instance_id` |`VARCHAR(255) NOT NULL` |Workflow instance ID.
+|`namespace` |`VARCHAR(255)` |Workflow namespace.
+|`name` |`VARCHAR(255)` |Workflow name.
+|`version` |`VARCHAR(255)` |Workflow version.
+|`workflow_application_id` |`VARCHAR(255)` |Application that ran the instance.
+|`status` |`VARCHAR(50)` |`RUNNING`, `COMPLETED`, `FAULTED`, `CANCELLED`, `SUSPENDED`, ...
+|`started_at` |`TIMESTAMPTZ` |Instance start.
+|`ended_at` |`TIMESTAMPTZ` |Instance end.
+|`last_update` |`TIMESTAMPTZ` |Last update reported by the runtime.
+|`input` |`TEXT` |Input as JSON.
+|`output` |`TEXT` |Output as JSON.
+|`error_type`, `error_title`, `error_detail`, `error_status`, `error_instance` | |Error, RFC 7807 style.
+|`event_timestamp` |`TIMESTAMPTZ` |When the event happened. Orders out-of-order events.
+|===
+
+=== `task_events_raw`
+
+[cols="2,2,3"]
+|===
+|Column |Type |Content
+
+|`instance_id` |`VARCHAR(255) NOT NULL` |Owning workflow instance.
+|`task_name` |`VARCHAR(255)` |Task name.
+|`task` |`VARCHAR(255) NOT NULL` |Task position as a JSON Pointer, for example `/do/0/validateOrder`.
+|`status` |`VARCHAR(50)` |Task status.
+|`started_at`, `ended_at` |`TIMESTAMPTZ` |Task start and end.
+|`input`, `output` |`TEXT` |JSON.
+|`error_*` | |As for workflows.
+|`event_timestamp` |`TIMESTAMPTZ` |When the event happened.
+|===
+
+=== `workflow_instances` and `task_instances`
+
+Same fields as the raw tables, with `input` and `output` as `JSONB`, plus:
+
+* `last_event_time`: timestamp of the newest event applied, used for idempotency.
+* `created_at`, `updated_at`: row bookkeeping.
+
+`workflow_instances` is keyed by `id`.
+`task_instances` is keyed by `(instance_id, task)`, with a foreign key to `workflow_instances(id)` that cascades on delete.
+The API exposes a task's ID as `<instance_id>:<task>`.
+
+== Elasticsearch
+
+Created on startup by the `-elasticsearch` image, unless schema initialization is turned off.
+
+[cols="2,1,3"]
+|===
+|Resource |Kind |Purpose
+
+|`workflow-events-*`
+|Index (daily)
+|Raw workflow events, written from outside Data Index.
+
+|`task-events-*`
+|Index (daily)
+|Raw task events, written from outside Data Index.
+
+|`workflow-instances`
+|Index
+|Normalized workflows. Queried by the API.
+
+|`task-executions`
+|Index
+|Normalized tasks. Queried by the API.
+
+|`data-index-events-retention`
+|ILM policy
+|Deletes raw indices after the retention period (`30d` by default).
+
+|`data-index-ingest-timestamp`
+|Ingest pipeline
+|Sets `event.ingested` on raw events. Default pipeline of the raw templates.
+
+|`workflow-instances-transform`, `task-executions-transform`
+|Transform
+|Aggregate raw events into the normalized indices.
+|===
+
+Index templates with the same names as the indices define the mappings.
+The source files are in `data-index-storage-elasticsearch-schema/src/main/resources/elasticsearch/`.

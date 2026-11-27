@@ -1,0 +1,190 @@
+= Configuration
+:page-aliases:
+
+Every property can be set as an environment variable: upper-case it and replace `.` and `-` with `_`.
+For example, `data-index.ingestion.jdbc-batch.enabled` becomes `DATA_INDEX_INGESTION_JDBC_BATCH_ENABLED`.
+
+Any other https://quarkus.io/guides/all-config[Quarkus property^] can be set the same way.
+
+== PostgreSQL image (`-postgresql`)
+
+=== Connection
+
+[cols="3,1,3"]
+|===
+|Variable |Default |Description
+
+|`QUARKUS_DATASOURCE_JDBC_URL`
+|_required_
+|JDBC URL, for example `jdbc:postgresql://host:5432/dataindex`. Add `?currentSchema=<name>` for a non-default schema.
+
+|`QUARKUS_DATASOURCE_USERNAME`
+|_required_
+|Database user.
+
+|`QUARKUS_DATASOURCE_PASSWORD`
+|_required_
+|Database password.
+
+|`QUARKUS_DATASOURCE_JDBC_MIN_SIZE`
+|`5`
+|Minimum pool size.
+
+|`QUARKUS_DATASOURCE_JDBC_MAX_SIZE`
+|`20`
+|Maximum pool size. Shared by GraphQL queries and the raw-table pollers.
+|===
+
+=== Raw event polling
+
+[cols="3,1,3"]
+|===
+|Variable |Default |Description
+
+|`DATA_INDEX_INGESTION_JDBC_BATCH_ENABLED`
+|`true`
+|Poll `workflow_events_raw` and `task_events_raw`. Set to `false` when using Kafka ingestion.
+
+|`DATA_INDEX_INGESTION_JDBC_BATCH_POLL_INTERVAL`
+|`1s`
+|Time between polls, per raw table.
+
+|`DATA_INDEX_INGESTION_JDBC_BATCH_BATCH_SIZE`
+|`10000`
+|Maximum rows read per poll, per raw table.
+|===
+
+== Elasticsearch image (`-elasticsearch`)
+
+=== Connection
+
+[cols="3,1,3"]
+|===
+|Variable |Default |Description
+
+|`ELASTICSEARCH_HOST`
+|`elasticsearch.elasticsearch.svc.cluster.local`
+|Host name.
+
+|`ELASTICSEARCH_PORT`
+|`9200`
+|Port.
+
+|`ELASTICSEARCH_PROTOCOL`
+|`http`
+|`http` or `https`. TLS certificates are trusted without verification.
+
+|`ELASTICSEARCH_USERNAME`
+|_empty_
+|Basic-auth user.
+
+|`ELASTICSEARCH_PASSWORD`
+|_empty_
+|Basic-auth password.
+|===
+
+=== Schema and transforms
+
+[cols="3,1,3"]
+|===
+|Variable |Default |Description
+
+|`LOGIC_APPS_DATA_INDEX_STORAGE_SKIP_INIT_SCHEMA`
+|`false`
+|Skip creating the ILM policy, ingest pipeline, index templates and transforms on startup.
+
+|`LOGIC_APPS_DATA_INDEX_ELASTICSEARCH_SCHEMA_INIT_ENABLED`
+|`true`
+|Same effect as above when `false`. `SKIP_INIT_SCHEMA=true` wins.
+
+|`LOGIC_APPS_DATA_INDEX_TRANSFORM_SMART_FILTER_TIME_WINDOW`
+|`1h`
+|Events older than this are reprocessed only for unfinished instances.
+
+|`LOGIC_APPS_DATA_INDEX_ILM_RAW_EVENTS_RETENTION`
+|`30d`
+|Raw event retention. Must be longer than the time window.
+
+|`DATA_INDEX_TRANSFORM_SYNC_DELAY`
+|`5s`
+|Transform checkpoint delay. Must cover the time from ingest to searchable.
+
+|`LOGIC_APPS_DATA_INDEX_ELASTICSEARCH_WORKFLOW_INSTANCE_INDEX`
+|`workflow-instances`
+|Normalized workflow index queried by the API.
+
+|`LOGIC_APPS_DATA_INDEX_ELASTICSEARCH_TASK_EXECUTION_INDEX`
+|`task-executions`
+|Normalized task index queried by the API.
+|===
+
+=== Metrics
+
+[cols="3,1,3"]
+|===
+|Variable |Default |Description
+
+|`LOGIC_APPS_DATA_INDEX_METRICS_TRANSFORM_ENABLED`
+|`true`
+|Poll the transform stats API and publish `data_index_transform_*` gauges.
+
+|`LOGIC_APPS_DATA_INDEX_METRICS_TRANSFORM_POLL_INTERVAL`
+|`30s`
+|How often to poll transform stats.
+|===
+
+== Kafka ingestion service
+
+The `logic-data-index-ingestion` image reads from Kafka and writes to PostgreSQL.
+
+[cols="3,1,3"]
+|===
+|Variable |Default |Description
+
+|`KAFKA_BOOTSTRAP_SERVERS`
+|_required_
+|Comma-separated broker list.
+
+|`QUARKUS_DATASOURCE_JDBC_URL`, `_USERNAME`, `_PASSWORD`
+|_required_
+|PostgreSQL connection, as for the `-postgresql` image.
+
+|`MP_MESSAGING_INCOMING_DATA_INDEX_EVENTS_TOPIC`
+|`flow-lifecycle-out`
+|Topic with lifecycle CloudEvents.
+
+|`MP_MESSAGING_INCOMING_DATA_INDEX_EVENTS_GROUP_ID`
+|`data-index-ingestion`
+|Consumer group.
+
+|`MP_MESSAGING_INCOMING_DATA_INDEX_EVENTS_AUTO_OFFSET_RESET`
+|`earliest`
+|Where a new consumer group starts.
+
+|`MP_MESSAGING_OUTGOING_DATA_INDEX_EVENTS_DLQ_TOPIC`
+|`data-index-events-dlq`
+|Dead-letter topic for records that fail processing.
+
+|`LOGIC_APPS_DATA_INDEX_INGESTION_DB_BATCH_SIZE`
+|`1000`
+|Rows per JDBC batch.
+
+|`KAFKA_*`
+|
+|Any Kafka client property, applied to all channels, for example `KAFKA_SECURITY_PROTOCOL=SASL_SSL`.
+|===
+
+== Common to all images
+
+[cols="3,1,3"]
+|===
+|Variable |Default |Description
+
+|`QUARKUS_HTTP_PORT`
+|`8080`
+|HTTP port.
+
+|`QUARKUS_LOG_LEVEL`
+|`INFO`
+|Root log level.
+|===

@@ -1,0 +1,49 @@
+= Container images
+:page-aliases:
+
+All images are published to `quay.io/kubesmarts` for `linux/amd64` and `linux/arm64`.
+
+[cols="2,2,1,3"]
+|===
+|Image |Tag |Used for |Contents
+
+|`quay.io/kubesmarts/logic-data-index`
+|`<version>-postgresql`
+|PostgreSQL storage
+|GraphQL API on PostgreSQL, with raw-table polling.
+
+|`quay.io/kubesmarts/logic-data-index`
+|`<version>-elasticsearch`
+|Elasticsearch storage
+|GraphQL API on Elasticsearch, with schema initialization.
+
+|`quay.io/kubesmarts/logic-data-index-ingestion`
+|`<version>-kafka`
+|Kafka ingestion
+|Kafka consumer that writes to PostgreSQL. No GraphQL API.
+
+|`quay.io/kubesmarts/logic-db-migrator`
+|`<version>`
+|PostgreSQL storage
+|One-shot Flyway runner that creates and upgrades the PostgreSQL schema.
+|===
+
+`<version>` is the release, for example `{image-version}`.
+Final releases also move the `latest-postgresql`, `latest-elasticsearch`, `latest-kafka` and `latest` tags; pre-releases do not.
+
+Run the Data Index images and the migrator from the same release.
+
+== Runtime
+
+* Base image: `registry.access.redhat.com/ubi9/openjdk-17-runtime`
+* User: `185`
+* Entrypoint: `java -jar /deployments/quarkus-run.jar`
+* Exposed port: `8080` (not the migrator)
+
+Each image carries OCI labels for version, git revision and build date:
+
+[source,bash,subs="attributes+"]
+----
+docker inspect quay.io/kubesmarts/logic-data-index:{image-version}-postgresql \
+  --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}'
+----

@@ -1,0 +1,58 @@
+= Choose a setup
+:page-aliases:
+
+A setup is a storage plus an ingestion source.
+All setups serve the same GraphQL API, so the choice only affects how events arrive and where data lives.
+xref:explanation/storage-and-ingestion.adoc[Storage and ingestion] explains both.
+
+== Decide
+
+. *Pick the storage.*
+  Use PostgreSQL unless you need full-text search, aggregations or horizontal scaling; then use Elasticsearch.
+. *Pick the ingestion source.*
+  Use raw events unless your apps publish lifecycle CloudEvents to Kafka and you prefer that over shipping logs, or need an encrypted, authenticated transport; then use Kafka (PostgreSQL only).
+
+[cols="1,2,2,2"]
+|===
+| |PostgreSQL + raw events |Elasticsearch + raw events |PostgreSQL + Kafka
+
+|Events arrive as
+|Rows in the raw tables
+|Documents in the raw indices
+|CloudEvents on a Kafka topic
+
+|You already run
+|PostgreSQL
+|Elasticsearch
+|Kafka and PostgreSQL
+
+|Pick it when
+|You want the fewest moving parts
+|You need full-text search, aggregations or horizontal scaling
+|Your apps publish to Kafka, or you need SSL/SASL transport
+|===
+
+When unsure, start with PostgreSQL and raw events.
+You can switch later: the API stays the same, only the deployment changes.
+
+== What to run
+
+[cols="1,3,2"]
+|===
+|Setup |Images |Then
+
+|PostgreSQL + raw events
+|`logic-data-index:<version>-postgresql`, plus `logic-db-migrator` once to create the tables
+|xref:how-to/connect-postgresql.adoc[Connect to PostgreSQL]
+
+|Elasticsearch + raw events
+|`logic-data-index:<version>-elasticsearch` (creates its own indices and transforms)
+|xref:how-to/connect-elasticsearch.adoc[Connect to Elasticsearch]
+
+|PostgreSQL + Kafka
+|`logic-data-index-ingestion:<version>-kafka` and `logic-data-index:<version>-postgresql` with polling turned off, plus `logic-db-migrator` once
+|xref:how-to/connect-kafka.adoc[Ingest from Kafka]
+|===
+
+With raw events, something must write them.
+xref:integrations/vector.adoc[Vector] does it from container logs; any other writer that follows the xref:reference/database-schema.adoc[Storage schema] works too.

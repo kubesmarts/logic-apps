@@ -1,114 +1,49 @@
-= Data Index Documentation
+= Data Index
 :page-aliases:
 
-== What is Data Index?
+Data Index is a read-only query service for Open Workflow 1.0.0 execution data.
+It ingests workflow and task lifecycle events, normalizes them into workflow instances and task executions, and serves them through a GraphQL API.
 
-Data Index is a *query service* for Open Workflow 1.0.0 runtime execution data.
-It reads workflow and task lifecycle events from supported data sources and exposes them through a single GraphQL API for querying workflow instances and task executions from Quarkus Flow applications.
+It does not execute workflows, change workflow state, or store workflow definitions.
 
-[sidebar]
-****
-*Key Features:*
+== What it runs as
 
-* 📊 **GraphQL API** - Query workflow instances and task executions
-* 🚀 **Near Real-time** - Events become queryable about 1s after they reach the data source
-* 🔍 **Flexible Filtering** - Filter by status, name, namespace, time ranges
-* 🎯 **Production Ready** - Every supported data source is fully tested
-* 🔄 **Multiple Data Sources** - Same GraphQL API regardless of the data source
-****
+Data Index ships as container images, one per backend:
 
-== How It Works
-
-Data Index reads raw lifecycle events from a data source,
-normalizes them into workflow instances and task executions, and serves them through GraphQL.
-
-[NOTE]
-====
-Getting the events into the data source is outside Data Index.
-====
-
-Two terms are used throughout this documentation:
-
-* *Data source* - where Data Index reads raw lifecycle events from.
-* *Storage backend* - where Data Index keeps the normalized data that the GraphQL API queries.
-
-They can be the same system or different ones.
-In MODE 3, for example, Kafka is the data source and PostgreSQL is the storage backend.
-
-Example with PostgreSQL (MODE 1):
-
-[source,text]
-----
-Quarkus Flow App
-    ↓ (lifecycle events, delivered by a log collector)
-PostgreSQL raw event tables          (data source)
-    ↓ (Data Index polls and normalizes)
-PostgreSQL normalized tables         (storage backend)
-    ↓
-GraphQL API
-----
-
-Other data sources follow the same idea: Data Index starts from the raw events and owns everything from normalization to the API.
-
-== Storage Backends
-
-Data Index supports two production-ready storage backends:
-
-[cols="1,3,2"]
+[cols="2,1,3"]
 |===
-|Backend |Best For |Status
+|Image |Role |Job
 
-|**PostgreSQL** (MODE 1)
-|Most deployments - ACID transactions, simple operations, <50K workflows/day
-|✅ Production Ready
+|`quay.io/kubesmarts/logic-data-index:<version>-postgresql`
+|PostgreSQL storage
+|GraphQL API on PostgreSQL. Also polls the raw event tables and normalizes them, unless Kafka ingestion is used.
 
-|**Elasticsearch** (MODE 2)
-|High throughput (100K+ workflows/day), full-text search, advanced analytics
-|✅ Production Ready
+|`quay.io/kubesmarts/logic-data-index:<version>-elasticsearch`
+|Elasticsearch storage
+|GraphQL API on Elasticsearch. Creates the indices and transforms that normalize raw events.
 
+|`quay.io/kubesmarts/logic-data-index-ingestion:<version>-kafka`
+|Kafka ingestion
+|Consumes lifecycle CloudEvents from Kafka and writes them to PostgreSQL. No API.
 |===
 
-**Both backends provide:**
+See xref:reference/images.adoc[Container images] for tags.
 
-* Same GraphQL API (backend-agnostic queries)
-* Same data model (WorkflowInstance, TaskExecution)
-* Production-grade reliability and performance
+== Storage and ingestion
 
-Choose based on your requirements - see xref:architecture/overview.adoc#_decision_matrix[Decision Matrix] for detailed comparison.
+A setup is two choices, explained in xref:explanation/storage-and-ingestion.adoc[Storage and ingestion]:
 
-== Quick Links
+* *Storage*: PostgreSQL or Elasticsearch, where workflow data lives and what the API reads.
+* *Ingestion source*: raw events written into the storage's raw tables or indices, or CloudEvents consumed from Kafka.
 
-* xref:getting-started.adoc[Getting Started] - Install and verify Data Index
-* xref:developers/quarkus-flow-apps.adoc[Quarkus Flow Apps] - Structure and deploy your workflows
-* xref:api/graphql-overview.adoc[GraphQL API] - Query workflow data
-* xref:architecture/overview.adoc[Architecture] - Understand how it works
+Data Index owns the ingestion source, normalization and storage.
+Shipping events to the ingestion source is outside Data Index: use a collector such as xref:integrations/vector.adoc[Vector], your own writer, or a Kafka producer in the app.
 
-== What Data Index Does NOT Do
+To deploy Data Index on Kubernetes together with a collector and your workflows, use the {logic-operator-url}[logic-operator^].
 
-[WARNING]
-====
-The Data Index API is *read-only*. It does **NOT**:
+== Where to start
 
-* Execute workflows (that's Quarkus Flow's job)
-* Modify workflow state
-* Provide workflow management operations (start/stop/retry)
-====
-
-== System Requirements
-
-**Core:**
-
-* Kubernetes cluster (or KIND for local development)
-* Vector 0.54+ (deployed by the Helm chart)
-* Quarkus Flow applications with https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html[structured logging^] enabled
-
-**Storage backend (choose one):**
-
-* PostgreSQL 13+ (MODE 1)
-* Elasticsearch 7.10+ (MODE 2)
-
-== Next Steps
-
-Ready to get started? Check out the xref:getting-started.adoc[Getting Started Guide].
-
-Already have Data Index running? Learn how to xref:developers/quarkus-flow-apps.adoc[structure and deploy your Quarkus Flow applications].
+* New to Data Index: xref:tutorials/run-locally.adoc[Run Data Index locally].
+* Picking storage and ingestion: xref:how-to/choose-a-setup.adoc[Choose a setup].
+* Querying: xref:reference/graphql-api.adoc[GraphQL API].
+* How it works: xref:explanation/architecture.adoc[Architecture].

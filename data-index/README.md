@@ -29,10 +29,10 @@ mvn quarkus:dev -Dquarkus.profile=postgresql
 📚 **[Complete Documentation](data-index-docs/)** - Build with `mvn clean package`
 
 **Key Resources:**
-- [Getting Started](data-index-docs/modules/ROOT/pages/getting-started.adoc)
-- [Architecture Overview](data-index-docs/modules/ROOT/pages/architecture/overview.adoc)
-- [Deployment Guides](data-index-docs/modules/ROOT/pages/deployment/)
-- [GraphQL API](data-index-docs/modules/ROOT/pages/api/)
+- [Getting Started](data-index-docs/modules/ROOT/pages/tutorials/run-locally.adoc)
+- [Architecture Overview](data-index-docs/modules/ROOT/pages/explanation/architecture.adoc)
+- [How-to Guides](data-index-docs/modules/ROOT/pages/how-to/)
+- [GraphQL API](data-index-docs/modules/ROOT/pages/reference/graphql-api.adoc)
 
 For AI assistants working on this codebase, see [CLAUDE.md](../CLAUDE.md) for comprehensive guidelines.
 
@@ -60,7 +60,7 @@ Requires Java 17 and Maven 3.9.11+.
 
 ## Configuration
 
-See [Configuration Guide](data-index-docs/modules/ROOT/pages/developers/configuration.adoc) for all configuration options.
+See [Configuration Guide](data-index-docs/modules/ROOT/pages/reference/configuration.adoc) for all configuration options.
 
 ## License
 

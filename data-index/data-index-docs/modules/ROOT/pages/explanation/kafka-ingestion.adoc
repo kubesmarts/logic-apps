@@ -1,0 +1,192 @@
+= Kafka ingestion
+:page-aliases:
+
+== Overview
+
+Kafka ingestion is an ingestion source for xref:explanation/postgresql-storage.adoc[PostgreSQL storage].
+Instead of reading raw event tables, Data Index consumes lifecycle CloudEvents from Kafka with a separate ingestion service and writes them straight into the normalized tables.
+
+While it runs, turn raw-table polling off on the `-postgresql` image.
+
+Event pipeline:
+[mermaid,kafka-ingestion,svg]
+....
+flowchart TB
+  app["Quarkus Flow"]
+  topic["Kafka topic: flow-lifecycle-out"]
+  consumer["KafkaLifecycleConsumer"]
+  proc["WorkflowEventProcessor / TaskExecutionProcessor"]
+  tables["PostgreSQL normalized tables"]
+  api["Data Index GraphQL API"]
+  dlq["data-index-events-dlq topic"]
+  app -- "publishes CloudEvents" --> topic
+  topic -- "SmallRye Reactive Messaging" --> consumer
+  consumer -- "event validation and routing" --> proc
+  proc -- "JDBC UPSERT with field-level idempotency" --> tables
+  tables -- "JPA/Hibernate" --> api
+  consumer -. "failed records" .-> dlq
+....
+
+== Components
+
+=== KafkaLifecycleConsumer
+
+Listens to the `flow-lifecycle-out` topic and:
+
+* Validates incoming CloudEvents (specversion, type, time)
+* Routes to processors based on event type prefix:
+  ** `io.serverlessworkflow.workflow.*` → WorkflowEventProcessor
+  ** `io.serverlessworkflow.task.*` → TaskExecutionProcessor
+* Throws `ProcessEventFailedException` on errors (triggers DLQ)
+
+=== Event Processors
+
+==== WorkflowEventProcessor
+
+Normalizes workflow lifecycle events:
+
+* `workflow.started` → INSERT/UPDATE workflow_instances with status=RUNNING
+* `workflow.completed` → UPDATE status=COMPLETED, set end time and output
+* `workflow.faulted` → UPDATE status=FAULTED, set error fields
+* `workflow.suspended` → UPDATE status=SUSPENDED
+* `workflow.cancelled` → UPDATE status=CANCELLED
+
+Uses field-level idempotency (see Idempotency section below).
+
+==== TaskExecutionProcessor
+
+Normalizes task lifecycle events:
+
+* `task.started` → INSERT/UPDATE task_instances with status=RUNNING
+* `task.completed` → UPDATE status=COMPLETED, set end time and output
+* `task.faulted` → UPDATE status=FAULTED, set error fields
+* `task.suspended` → UPDATE status=SUSPENDED
+* `task.cancelled` → UPDATE status=CANCELLED
+
+Also handles out-of-order recovery (see Out-of-Order Handling below).
+
+=== Persistence Layer
+
+`WorkflowPersistence` and `TaskPersistence` write batches with a JDBC UPSERT, shared with raw-table polling:
+
+* `workflow_instances` is keyed by `id`, `task_instances` by `(instance_id, task)`.
+* Merge rules are described in xref:explanation/event-idempotency.adoc[Event idempotency].
+* If a task arrives before its workflow, the insert is retried after creating a placeholder workflow row (see below).
+
+== Event Format
+
+=== CloudEvent (v1.0)
+
+[source,json]
+----
+{
+  "specversion": "1.0",
+  "type": "io.serverlessworkflow.workflow.started.v1",
+  "source": "/workflow/executions/01KSGKY66DMS0KPPMFMMR3BJZX",
+  "id": "event-123",
+  "time": "2026-05-25T22:40:10.676900Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "instanceId": "01KSGKY66DMS0KPPMFMMR3BJZX",
+    "workflowName": "order-processing",
+    "workflowNamespace": "org.acme",
+    "workflowVersion": "1.0.0",
+    "status": "RUNNING",
+    "startTime": "2026-05-25T19:40:10.676802-03:00",
+    "lastUpdateTime": "2026-05-25T19:40:10.676802-03:00",
+    "input": { "orderId": "ORD-789" }
+  }
+}
+----
+
+=== Timestamp Handling
+
+All timestamp fields are automatically converted to UTC OffsetDateTime (TIMESTAMP WITH TIME ZONE).
+
+Accepted formats:
+
+* ISO-8601 with offset: `2026-05-25T19:40:10.676802-03:00` (recommended)
+* ISO-8601 UTC: `2026-05-25T22:40:10.676900Z`
+* Unix epoch seconds: `1747486200`
+
+== Idempotency
+
+Kafka ingestion uses the same UPSERT as raw-table polling. See xref:explanation/event-idempotency.adoc[Event idempotency].
+
+== Out-of-Order Event Handling
+
+Task events are not lost when they arrive before their workflow.
+
+=== FK Recovery Flow
+
+. **Task event consumed**: Instance for workflow not yet in database
+. **Initial INSERT fails**: Foreign key constraint violation (SQL state 23503)
+. **Savepoint rolled back**: Transaction restored to known point
+. **Placeholder workflow created**: Minimal row inserted
+  ** `id = task.instanceId`
+  ** `created_at = NOW()`
+  ** `last_event_time = task.eventTimestamp`
+. **Task INSERT retried**: Now succeeds (FK satisfied)
+. **Workflow event arrives later**: Updates placeholder with full data
+
+=== Example
+
+[mermaid,kafka-fk-recovery,svg]
+....
+sequenceDiagram
+  participant K as Kafka
+  participant I as Ingestion service
+  participant W as workflow_instances
+  participant T as task_instances
+  K->>I: task.started(wf-1)
+  I->>T: INSERT task
+  T--xI: FK violation, wf-1 does not exist
+  I->>W: INSERT placeholder (id = wf-1)
+  I->>T: retry INSERT task
+  K->>I: task.completed(wf-1)
+  I->>T: UPDATE task
+  K->>I: workflow.started(wf-1)
+  I->>W: UPDATE name, namespace, ... (replaces placeholder)
+  Note over W,T: Result: 1 workflow row, task rows for wf-1
+....
+
+== Error Handling
+
+=== Failed Event Processing
+
+When an event cannot be processed (deserialization error, DB constraint violation, etc.):
+
+. Exception thrown: `ProcessEventFailedException` wraps the underlying error
+. Dead-letter queue: Record automatically sent to `data-index-events-dlq` topic
+. Consumer continues: Next message is processed immediately (fail-fast disabled)
+. Monitoring: Check DLQ topic to inspect and replay failed events
+
+Failure reasons:
+* Malformed CloudEvent (missing type, time, or data)
+* Network errors
+* Serialization/deserialization errors
+
+=== Monitoring & Recovery
+
+Monitor the DLQ:
+[source,bash]
+----
+kafka-console-consumer.sh \
+  --bootstrap-server kafka:9092 \
+  --topic data-index-events-dlq \
+  --from-beginning
+----
+
+Replay failed events:
+. Fix the root cause (fix event publisher, upgrade service, resolve DB issues)
+. Copy failed event from DLQ back to main topic
+. Service automatically reprocesses
+
+== Comparison with raw events
+
+See xref:explanation/storage-and-ingestion.adoc[Storage and ingestion].
+
+== See also
+
+* xref:how-to/connect-kafka.adoc[Connect to Kafka]
+* xref:reference/configuration.adoc#_kafka_ingestion_service[Configuration: Kafka ingestion service]
