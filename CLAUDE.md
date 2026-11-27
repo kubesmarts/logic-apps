@@ -498,7 +498,7 @@ mvn quarkus:dev -Dquarkus.profile=elasticsearch
 - `workflow-instances-transform.json` - Workflow normalization transform
 - `task-executions-transform.json` - Task normalization transform
 
-**See:** `data-index-docs/modules/ROOT/pages/developers/configuration.adoc`
+**See:** `data-index-docs/modules/ROOT/pages/reference/configuration.adoc`
 
 ---
 
@@ -517,7 +517,7 @@ mvn quarkus:dev -Dquarkus.profile=elasticsearch
 - ❌ Don't split polling back out into a separate service
 - ❌ Don't add normalization triggers
 
-**See:** `data-index/data-index-docs/modules/ROOT/pages/architecture/postgresql-mode.adoc`
+**See:** `data-index/data-index-docs/modules/ROOT/pages/explanation/mode-1-postgresql.adoc`
 
 ### 1b. Transform-Based Normalization (MODE 2 - Elasticsearch)
 
@@ -545,7 +545,7 @@ Status: COMPLETED/FAULTED/CANCELLED > RUNNING > CREATED
 - Reduces processing as data grows
 - Constant performance regardless of total workflow count
 
-**See:** `data-index/data-index-docs/modules/ROOT/pages/architecture/elasticsearch-mode.adoc`
+**See:** `data-index/data-index-docs/modules/ROOT/pages/explanation/mode-2-elasticsearch.adoc`
 
 ### 1c. Task Instance Composite Key (Quarkus Flow ID Issue)
 
@@ -1323,9 +1323,9 @@ curl http://localhost:9200/_transform/workflow-instances-transform/_stats
 ## Key Files Reference
 
 **Architecture & Documentation:**
-- `data-index/data-index-docs/modules/ROOT/pages/architecture/postgresql-mode.adoc` - MODE 1 (PostgreSQL) details
-- `data-index/data-index-docs/modules/ROOT/pages/architecture/elasticsearch-mode.adoc` - MODE 2 (Elasticsearch) details
-- `data-index/data-index-docs/modules/ROOT/pages/architecture/kafka-mode.adoc` - MODE 3 (Kafka) details
+- `data-index/data-index-docs/modules/ROOT/pages/explanation/mode-1-postgresql.adoc` - MODE 1 (PostgreSQL) details
+- `data-index/data-index-docs/modules/ROOT/pages/explanation/mode-2-elasticsearch.adoc` - MODE 2 (Elasticsearch) details
+- `data-index/data-index-docs/modules/ROOT/pages/explanation/mode-3-kafka.adoc` - MODE 3 (Kafka) details
 - `data-index/data-index-ingestion/README.md` - MODE 3 (Kafka) overview
 - `data-index/data-index-ingestion/data-index-ingestion-kafka-service/README.md` - MODE 3 (Kafka) service details
 - `data-index/docs/elasticsearch/TRANSFORM_OPTIMIZATION.md` - Transform optimization & metrics guide

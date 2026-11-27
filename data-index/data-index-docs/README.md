@@ -65,33 +65,20 @@ npm run serve
 
 ## Documentation Structure
 
+Pages follow [Diátaxis](https://diataxis.fr):
+
 ```
 modules/ROOT/
-├── nav.adoc                    # Navigation menu
+├── nav.adoc
 └── pages/
-    ├── index.adoc              # Introduction
-    ├── getting-started.adoc    # Getting started guide
-    ├── api/                    # API reference
-    │   ├── graphql-overview.adoc
-    │   └── queries.adoc
-    ├── architecture/           # Architecture documentation
-    │   ├── overview.adoc
-    │   ├── postgresql-mode.adoc
-    │   └── elasticsearch-mode.adoc
-    ├── deployment/             # Deployment guides
-    │   ├── overview.adoc
-    │   ├── kind-local.adoc
-    │   ├── postgresql.adoc
-    │   ├── elasticsearch.adoc
-    │   └── vector-config.adoc
-    ├── developers/             # Developer guides
-    │   ├── quarkus-flow-apps.adoc
-    │   ├── quarkus-flow-integration.adoc
-    │   ├── configuration.adoc
-    │   └── troubleshooting.adoc
-    └── operations/             # Operations guides
-        └── event-reliability.adoc
+    ├── index.adoc
+    ├── tutorials/     # Learn by doing: run the image locally
+    ├── how-to/        # Tasks: connect a backend, run migrations, troubleshoot
+    ├── reference/     # Facts: images, configuration, endpoints, GraphQL, schema
+    └── explanation/   # Concepts: architecture, ingestion modes, idempotency
 ```
+
+Kubernetes, Helm and collector deployment belong to the [logic-operator docs](https://kubesmarts.org/logic-operator), not here.
 
 ## Editing Documentation
 

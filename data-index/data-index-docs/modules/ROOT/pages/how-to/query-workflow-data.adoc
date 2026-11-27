@@ -1,0 +1,180 @@
+= Query workflow data
+:page-aliases:
+
+Recipes for common questions.
+The examples use `http://localhost:8080/graphql`; replace it with your Data Index address.
+All fields and operators are listed in xref:reference/graphql-api.adoc[GraphQL API].
+
+== Send a query
+
+[source,bash]
+----
+curl -s http://localhost:8080/graphql \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"{ getWorkflowInstances(limit: 5) { id name status } }"}' | jq .
+----
+
+Use variables instead of building query strings:
+
+[source,bash]
+----
+curl -s http://localhost:8080/graphql \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "query": "query($id: String!) { getWorkflowInstance(id: $id) { id status taskExecutions { task status startedAt endedAt } } }",
+    "variables": { "id": "wf-1" }
+  }' | jq .
+----
+
+For interactive exploration with autocompletion, open `/q/graphql-ui/`.
+
+== Get one instance with its tasks
+
+[source,graphql]
+----
+{
+  getWorkflowInstance(id: "wf-1") {
+    id
+    name
+    status
+    startedAt
+    endedAt
+    inputData
+    outputData
+    taskExecutions {
+      task
+      taskName
+      status
+      startedAt
+      endedAt
+    }
+  }
+}
+----
+
+`inputData` and `outputData` are JSON strings. Parse them on the client, for example with `jq '.data.getWorkflowInstance.outputData | fromjson'`.
+
+== List the latest failures
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: { status: { eq: FAULTED } }
+    orderBy: { startTime: DESC }
+    limit: 20
+  ) {
+    id
+    name
+    startedAt
+    error { type title detail status }
+  }
+}
+----
+
+== List running instances of one workflow
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      namespace: { eq: "org.acme" }
+      name: { eq: "order-processing" }
+      status: { in: [RUNNING, WAITING, SUSPENDED] }
+    }
+    orderBy: { startTime: ASC }
+  ) {
+    id
+    startedAt
+    lastUpdate
+  }
+}
+----
+
+== Find instances by business data
+
+Filter on a field of the input or output JSON:
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: { input: { eq: [{ key: "orderId", value: "ORD-1" }] } }
+  ) {
+    id
+    status
+  }
+}
+----
+
+Nested fields use dots: `{ key: "customer.id", value: "C-42" }`.
+For tasks, use `inputArgs` / `outputArgs`.
+
+== Find tasks at a position
+
+`taskPosition` matches the task's JSON Pointer. `like` takes `*` as a wildcard:
+
+[source,graphql]
+----
+{
+  getTaskExecutions(
+    filter: { taskPosition: { like: "/do/0/*" } }
+    orderBy: { enter: DESC }
+    limit: 50
+  ) {
+    id
+    instanceId
+    taskName
+    status
+  }
+}
+----
+
+== Find failed tasks by error status
+
+[source,graphql]
+----
+{
+  getTaskExecutions(filter: { error: { status: { gte: 500 } } }) {
+    instanceId
+    task
+    error { title detail status }
+  }
+}
+----
+
+== Page through results
+
+Combine `orderBy` with `limit` and `offset`.
+Without `orderBy`, the order between pages is not guaranteed.
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(orderBy: { startTime: DESC }, limit: 20, offset: 40) {
+    id
+    status
+  }
+}
+----
+
+== Call it from code
+
+Any HTTP client works. In Java:
+
+[source,java]
+----
+String body = """
+    {"query":"query($id: String!) { getWorkflowInstance(id: $id) { id status } }",
+     "variables":{"id":"wf-1"}}
+    """;
+HttpResponse<String> response = HttpClient.newHttpClient().send(
+    HttpRequest.newBuilder(URI.create("http://localhost:8080/graphql"))
+        .header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(body))
+        .build(),
+    HttpResponse.BodyHandlers.ofString());
+----
+
+The SDL at `/graphql/schema.graphql` can feed a typed client generator.

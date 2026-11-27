@@ -333,7 +333,7 @@ kubectl exec -n postgresql postgresql-0 -- \
 ## See Also
 
 - [FluentBit Configuration Guide](../../data-index-docs/modules/ROOT/pages/deployment/fluentbit-config.adoc)
-- [Event Reliability Guide](../../data-index-docs/modules/ROOT/pages/operations/event-reliability.adoc)
-- [KIND Deployment Guide](../../data-index-docs/modules/ROOT/pages/deployment/kind-local.adoc)
+- [Event Reliability Guide](../../data-index-docs/modules/ROOT/pages/explanation/event-reliability.adoc)
+- [KIND Deployment Guide](../../data-index-docs/modules/ROOT/pages/tutorials/run-locally.adoc)
 - [Quarkus Flow Structured Logging](https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html)
 - [FluentBit Documentation](https://docs.fluentbit.io/)

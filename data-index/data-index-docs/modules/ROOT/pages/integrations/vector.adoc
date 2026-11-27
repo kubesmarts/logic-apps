@@ -1,0 +1,23 @@
+= Vector
+:page-aliases:
+
+Data Index does not collect logs.
+With raw events as the ingestion source, something outside Data Index has to write them, and https://vector.dev[Vector^] is the ready-made option: {logic-operator-url}[logic-operator^] deploys it by default.
+
+It runs as a DaemonSet and, on each node:
+
+. tails the container logs of the namespaces that run workflows,
+. keeps JSON lines whose `eventType` starts with `io.serverlessworkflow.`,
+. splits workflow and task events,
+. writes them to the `workflow_events_raw` / `task_events_raw` tables (PostgreSQL storage) or the `workflow-events-*` / `task-events-*` indices (Elasticsearch storage).
+
+From there, Data Index takes over.
+
+Vector is one writer among many.
+Any collector, job or application that writes the same rows or documents works; the contract is in xref:reference/database-schema.adoc[Storage schema].
+
+The app must log its events in the format Vector expects, see xref:how-to/configure-quarkus-flow-app.adoc#_raw_events_through_a_log_collector[Configure a Quarkus Flow app].
+Where events can be lost on this path, and how to harden it, is covered in xref:integrations/vector-reliability.adoc[Vector reliability].
+
+The Vector configurations live in this repository under `data-index/collectors/vector/`.
+Installation and configuration are covered by the {logic-operator-url}[logic-operator documentation^].

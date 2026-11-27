@@ -1,28 +1,33 @@
 * xref:index.adoc[Introduction]
-* xref:getting-started.adoc[Getting Started]
 
-* Deployment
-** xref:deployment/overview.adoc[Overview]
-** xref:deployment/kind-local.adoc[Local Development (KIND)]
-** xref:deployment/postgresql.adoc[PostgreSQL Production]
-** xref:deployment/elasticsearch.adoc[Elasticsearch Production]
-** xref:deployment/kafka.adoc[Kafka Production]
-** xref:deployment/vector-config.adoc[Vector Configuration]
+* Tutorials
+** xref:tutorials/run-locally.adoc[Run Data Index locally]
 
-* Operations
-** xref:operations/event-reliability.adoc[Event Reliability]
+* How-to guides
+** xref:how-to/choose-a-setup.adoc[Choose a setup]
+** xref:how-to/connect-postgresql.adoc[Connect to PostgreSQL]
+** xref:how-to/connect-elasticsearch.adoc[Connect to Elasticsearch]
+** xref:how-to/connect-kafka.adoc[Ingest from Kafka]
+** xref:how-to/prepare-database.adoc[Prepare the database]
+** xref:how-to/configure-quarkus-flow-app.adoc[Configure a Quarkus Flow app]
+** xref:how-to/query-workflow-data.adoc[Query workflow data]
+** xref:how-to/troubleshoot.adoc[Troubleshoot]
 
-* Developers Guide
-** xref:developers/quarkus-flow-apps.adoc[Quarkus Flow Apps]
-** xref:developers/configuration.adoc[Configuration Reference]
-** xref:developers/troubleshooting.adoc[Troubleshooting]
+* Reference
+** xref:reference/images.adoc[Container images]
+** xref:reference/configuration.adoc[Configuration]
+** xref:reference/endpoints.adoc[Ports and endpoints]
+** xref:reference/graphql-api.adoc[GraphQL API]
+** xref:reference/database-schema.adoc[Storage schema]
 
-* API Reference
-** xref:api/graphql-overview.adoc[GraphQL Overview]
-** xref:api/queries.adoc[Query Examples]
+* Explanation
+** xref:explanation/architecture.adoc[Architecture]
+** xref:explanation/storage-and-ingestion.adoc[Storage and ingestion]
+** xref:explanation/postgresql-storage.adoc[PostgreSQL storage]
+** xref:explanation/elasticsearch-storage.adoc[Elasticsearch storage]
+** xref:explanation/kafka-ingestion.adoc[Kafka ingestion]
+** xref:explanation/event-idempotency.adoc[Event idempotency]
 
-* Architecture
-** xref:architecture/overview.adoc[How Data Index Works]
-** xref:architecture/postgresql-mode.adoc[PostgreSQL Mode]
-** xref:architecture/elasticsearch-mode.adoc[Elasticsearch Mode]
-** xref:architecture/kafka-mode.adoc[Kafka Mode]
+* Integrations
+** xref:integrations/vector.adoc[Vector]
+** xref:integrations/vector-reliability.adoc[Vector reliability]

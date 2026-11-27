@@ -1,30 +1,33 @@
-= Event Reliability and Loss Prevention
+= Vector reliability
 :page-aliases:
 
-Data Index uses stdout-based log collection with Vector. This guide describes
-potential event-loss scenarios and how Vector's design and configuration
-mitigate them.
+When xref:integrations/vector.adoc[Vector] writes the raw events, they travel from the app's stdout to the raw tables or indices outside Data Index.
+This page describes where events can be lost or duplicated on that path, and how Vector's design and configuration mitigate it.
+Kafka ingestion does not use this path and is not covered here.
+
+Deploying and configuring the collector is covered by the {logic-operator-url}[logic-operator documentation^]; the commands below are illustrations for a Kubernetes setup.
 
 Option reference: https://vector.dev/docs/reference/configuration/.
 
 == Event Flow and Guarantees
 
-[source,text]
-----
-Quarkus Flow App
-    ↓ (stdout write - OS buffer)
-Kernel / container runtime
-    ↓ (write to disk)
-/var/log/containers/<pod>_<namespace>_<container>.log
-    ↓ (Vector kubernetes_logs - offset checkpointed in data_dir)
-Vector transforms (parse_json -> filter -> route -> build row)
-    ↓
-Vector per-sink buffer (MODE 1: in-memory; MODE 2: disk)
-    ↓ (postgres / elasticsearch sink - retries with backoff)
-Storage Backend (PostgreSQL raw tables / Elasticsearch raw indices)
-    ↓ (Normalization: data-index-service JDBC polling / ES Transforms)
-Normalized Data
-----
+[mermaid,vector-event-flow,svg]
+....
+flowchart TB
+  app["Quarkus Flow app"]
+  kernel["Kernel / container runtime"]
+  file["/var/log/containers/pod_namespace_container.log"]
+  transforms["Vector transforms<br/>parse_json, filter, route, build row"]
+  buffer["Vector per-sink buffer<br/>PostgreSQL: in-memory, Elasticsearch: disk"]
+  raw["Raw tables / raw indices"]
+  norm["Normalized data"]
+  app -- "stdout write, OS buffer" --> kernel
+  kernel -- "write to disk" --> file
+  file -- "kubernetes_logs, offset checkpointed in data_dir" --> transforms
+  transforms --> buffer
+  buffer -- "postgres / elasticsearch sink, retries with backoff" --> raw
+  raw -- "Data Index polling / ES Transforms" --> norm
+....
 
 **Critical points of failure:**
 
@@ -83,14 +86,17 @@ kubectl get events --field-selector reason=Evicted
 
 **Scenario:**
 
-[source,text]
-----
-kubelet rotates /var/log/containers/pod.log  (size > containerLogMaxSize)
-  pod.log -> pod.log.1 ; new pod.log created
-Vector is still reading pod.log.1
-kubelet deletes pod.log.6 (containerLogMaxFiles reached)
--> events in pod.log.6 are lost if Vector never opened it
-----
+[mermaid,vector-log-rotation,svg]
+....
+sequenceDiagram
+  participant K as kubelet
+  participant F as Log files
+  participant V as Vector
+  K->>F: rotate pod.log to pod.log.1 (size over containerLogMaxSize)
+  V->>F: still reading pod.log.1
+  K->>F: delete pod.log.6 (containerLogMaxFiles reached)
+  Note over F,V: events in pod.log.6 are lost if Vector never opened it
+....
 
 **Risk:** Low-to-Medium. Vector's `kubernetes_logs` source uses
 `oldest_first: true` and a very large `rotate_wait_secs`, so it keeps reading a
@@ -148,12 +154,12 @@ sinks:
   postgres_workflow:
     # ...
     buffer:
-      type: disk           # survives Vector restart; MODE 2 already uses this
+      type: disk           # survives Vector restart; the Elasticsearch config already uses this
       max_size: 268435456  # 256 MiB
       when_full: block
 ----
 
-NOTE: MODE 1 ships the default in-memory buffer on purpose - in Vector 0.54 the
+NOTE: The PostgreSQL config ships the default in-memory buffer on purpose - in Vector 0.54 the
 `postgres` sink does not drain a small `disk` buffer until graceful shutdown.
 Raise `buffer.max_events` (memory) before reaching for `type: disk`, and test.
 
@@ -189,20 +195,28 @@ rate(vector_component_utilization{component_id="postgres_workflow"}[5m])   # ~1.
 
 **Scenario:**
 
-[source,text]
-----
-Vector reads events from pod.log and sends them to storage (success)
-Vector crashes before persisting the new file offset in data_dir
-Vector restarts, resumes from the last persisted offset
--> the same events are read and sent again  (duplication, not loss)
-----
+[mermaid,vector-crash-duplication,svg]
+....
+sequenceDiagram
+  participant F as pod.log
+  participant V as Vector
+  participant D as data_dir (offsets)
+  participant S as Storage
+  V->>F: read events
+  V->>S: send events (success)
+  V--xD: crash before the new offset is persisted
+  V->>D: restart, load last persisted offset
+  V->>F: read the same events again
+  V->>S: send them again
+  Note over V,S: duplication, not loss
+....
 
 **Risk:** Low - duplicates are harmless:
 
-* MODE 1: the poller upserts workflows with `INSERT ... ON CONFLICT (id) DO UPDATE`
+* PostgreSQL: the poller upserts workflows with `INSERT ... ON CONFLICT (id) DO UPDATE`
   and tasks on `(instance_id, task)`. A re-inserted raw row just re-runs the
   idempotent UPSERT.
-* MODE 2: ES Transforms aggregate by document key; re-processing converges.
+* Elasticsearch: ES Transforms aggregate by document key; re-processing converges.
 
 Optionally enable end-to-end acknowledgements so the source offset only advances
 after the sink confirms the write (reduces the duplication window):
@@ -243,7 +257,7 @@ sinks:
       retry_initial_backoff_secs: 1
       retry_max_duration_secs: 120     # allow longer per-request retry windows
     buffer:
-      type: disk                       # MODE 2 default; consider for MODE 1 if outages are expected
+      type: disk                       # Elasticsearch default; consider for PostgreSQL if outages are expected
       max_size: 536870912              # 512 MiB
 ----
 
@@ -312,7 +326,7 @@ curl -s http://<vector-pod>:9598/metrics | grep vector_component_errors_total
 === Baseline (shipped defaults)
 
 * `kubernetes_logs` with checkpointing in `data_dir`
-* Sinks: in-memory buffer (MODE 1) / disk buffer (MODE 2), unlimited retries,
+* Sinks: in-memory buffer (PostgreSQL) / disk buffer (Elasticsearch), unlimited retries,
   `batch.timeout_secs: 1`
 * **Expected loss:** negligible under normal conditions; bounded by scenario 2
   (node kill) and scenario 4 (sustained overload).
@@ -349,7 +363,7 @@ Plus node-level `containerLogMaxSize: 100Mi` / `containerLogMaxFiles: 10`, and
 
 If any loss is unacceptable, bypass log collection:
 
-* **MODE 3 (Kafka)** - Quarkus Flow publishes CloudEvents to Kafka; Data Index
+* **Kafka ingestion** - Quarkus Flow publishes CloudEvents to Kafka; Data Index
   consumes them directly with a dead-letter topic. No stdout, no log files.
 * **App-level dual write** - the app writes to storage directly in addition to
   stdout (couples the app to Data Index).
@@ -375,7 +389,7 @@ vector_component_utilization{component_id=~"postgres_.*"}      # ~1.0 => saturat
 rate(vector_component_errors_total[5m])
 ----
 
-=== Data-side sanity check (MODE 1)
+=== Data-side sanity check (PostgreSQL)
 
 [source,sql]
 ----
@@ -393,7 +407,7 @@ SELECT
 * **Warning:** sink `vector_component_utilization` > 0.8 for 10m; source ingest
   rate > 1 MB/s sustained; retry rate > 10/min.
 
-== Event Loss Detection (MODE 1)
+== Event Loss Detection (PostgreSQL)
 
 === Workflows that started but never finished
 
@@ -439,7 +453,7 @@ kubectl logs <node-debugger-pod> > missed.jsonl
 kubectl delete pod <node-debugger-pod>
 ----
 
-**3. Manual replay into the raw tables** (MODE 1) - the poller normalizes them on its next run. Workflow events shown; this recipe skips `error` fields, so don't use it for faulted events:
+**3. Manual replay into the raw tables** (PostgreSQL) - the poller normalizes them on its next run. Workflow events shown; this recipe skips `error` fields, so don't use it for faulted events:
 
 [source,bash]
 ----
@@ -462,5 +476,5 @@ done < missed.jsonl
 stdout-based collection can lose events at the edges (node kill before disk
 write; sustained overload that outruns log rotation). Vector's defaults - keep
 reading rotated files, unlimited retries, block-on-full - keep this small.
-For workloads where any loss is unacceptable, use MODE 3 (Kafka) instead of log
+For workloads where any loss is unacceptable, use Kafka ingestion instead of log
 collection.

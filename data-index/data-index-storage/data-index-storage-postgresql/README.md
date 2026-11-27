@@ -239,7 +239,7 @@ Schema is managed by Flyway migrations in `data-index-storage-migrations` module
 
 **Normalization:** `data-index-service-postgresql` polls the staging tables and UPSERTs through `data-index-ingestion-persistence`.
 
-See: [Database Schema Documentation](../../data-index-docs/modules/ROOT/pages/developers/database-schema.adoc)
+See: [Database Schema Documentation](../../data-index-docs/modules/ROOT/pages/reference/database-schema.adoc)
 
 ## Configuration
 

@@ -1,0 +1,102 @@
+= Prepare the database
+:page-aliases:
+
+PostgreSQL storage needs a database with the Data Index tables before the service starts.
+Data Index creates neither the database nor the tables: you create the database, and the `logic-db-migrator` image creates the tables.
+
+Elasticsearch storage needs no preparation, see <<_elasticsearch>>.
+
+== PostgreSQL
+
+=== 1. Have a PostgreSQL server
+
+You need PostgreSQL 13 or later.
+If you don't have one, start a throwaway container on its own network, so the migrator can reach it later:
+
+[source,bash]
+----
+docker network create data-index
+
+docker run -d --name postgres --network data-index \
+  -e POSTGRES_PASSWORD=admin \
+  postgres:16
+----
+
+The commands below use this container.
+With your own server, run `psql` against it directly, and in the migrator command replace `postgres:5432` with its address and drop `--network data-index`.
+
+=== 2. Create the user and the database
+
+The user needs to create tables in the target schema; the simplest way is to make it the owner of the database.
+Connect as an administrator:
+
+[source,bash]
+----
+docker exec -it postgres psql -U postgres
+----
+
+and run:
+
+[source,sql]
+----
+CREATE USER dataindex WITH PASSWORD 'secret';
+CREATE DATABASE dataindex OWNER dataindex;
+----
+
+No extensions are required.
+
+=== 3. Optional: create a schema
+
+To keep the tables out of `public`, create a schema owned by the user, in the new database:
+
+[source,sql]
+----
+\c dataindex
+CREATE SCHEMA logicapps AUTHORIZATION dataindex;
+----
+
+Then add `?currentSchema=logicapps` to the JDBC URL in the next step and in xref:how-to/connect-postgresql.adoc[Connect to PostgreSQL].
+
+=== 4. Create the tables
+
+Run the `logic-db-migrator` image once per release, before starting Data Index.
+It applies the Flyway migrations and exits.
+
+[source,bash,subs="attributes+"]
+----
+docker run --rm --network data-index \
+  -e QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/dataindex \
+  -e QUARKUS_DATASOURCE_USERNAME=dataindex \
+  -e QUARKUS_DATASOURCE_PASSWORD=secret \
+  -e LOGIC_APPS_MIGRATOR_INCLUDE=data-index \
+  -e LOGIC_APPS_MIGRATOR_TERMINATION_LOG_PATH=/tmp/migration-report.json \
+  quay.io/kubesmarts/logic-db-migrator:{image-version}
+----
+
+* Use the migrator from the same release as the Data Index image.
+* Exit code `0` means every requested migration was applied. Exit code `1` means at least one failed; the log says which.
+* Running it again is safe: migrations already applied are skipped.
+* On Kubernetes, leave `LOGIC_APPS_MIGRATOR_TERMINATION_LOG_PATH` unset. The report then goes to `/dev/termination-log`.
+
+The migrator records its progress in the `flyway_data_index_history` table.
+
+=== 5. Check the tables
+
+[source,bash]
+----
+docker exec postgres psql -U dataindex -d dataindex -c '\dt'
+----
+
+The list includes `workflow_events_raw`, `task_events_raw`, `workflow_instances` and `task_instances`.
+With a custom schema, list it explicitly: `\dt logicapps.*`.
+
+== Elasticsearch
+
+Nothing to run.
+The service creates its indices, templates and transforms on startup.
+To manage them yourself, see xref:how-to/connect-elasticsearch.adoc#_manage_the_schema_yourself[Manage the schema yourself].
+
+== See also
+
+* xref:how-to/connect-postgresql.adoc[Connect to PostgreSQL]
+* xref:reference/database-schema.adoc[Storage schema]

@@ -26,11 +26,10 @@ open target/generated-docs/index.html
 ## Migration Status
 
 ✅ **Migrated to Antora:**
-- Architecture documentation → `data-index-docs/modules/ROOT/pages/architecture/`
-- Deployment guides → `data-index-docs/modules/ROOT/pages/deployment/`
-- Developer guides → `data-index-docs/modules/ROOT/pages/developers/`
-- Operations guides → `data-index-docs/modules/ROOT/pages/operations/`
-- API documentation → `data-index-docs/modules/ROOT/pages/api/`
+- Tutorials → `data-index-docs/modules/ROOT/pages/tutorials/`
+- How-to guides → `data-index-docs/modules/ROOT/pages/how-to/`
+- Reference → `data-index-docs/modules/ROOT/pages/reference/`
+- Explanation → `data-index-docs/modules/ROOT/pages/explanation/`
 
 ❌ **Removed:**
 - All internal development phase references

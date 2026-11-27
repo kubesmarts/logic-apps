@@ -1,0 +1,65 @@
+= Event idempotency
+:page-aliases:
+
+Lifecycle events are not guaranteed to arrive once or in order.
+A collector may resend after a restart, Kafka redelivers on rebalance, and a task event can overtake the workflow event that precedes it.
+Data Index merges events so that the result does not depend on how many times or in what order they arrive.
+
+== Merge rules
+
+Each field follows one of three rules.
+
+=== First value wins
+
+Fields that describe how the instance began never change once set:
+
+* Workflow: `name`, `namespace`, `version`, `workflowApplicationId`, `startedAt`, `input`
+* Task: `startedAt`, `input`
+
+A duplicate `started` event cannot move the start time.
+
+=== Newest non-null value wins
+
+Fields that describe how the instance ended are taken from the newest event that carries them, by event timestamp:
+
+* `endedAt`, `output`, `lastUpdate`
+* `error.type`, `error.title`, `error.detail`, `error.status`, `error.instance`
+
+A `null` never erases a value already stored.
+A task's `taskName` also follows this rule.
+
+=== Status
+
+Status follows the newest event.
+An event older than the last one applied cannot change it:
+
+[mermaid,status-late-event,svg]
+....
+sequenceDiagram
+  participant E as Events (arrival order)
+  participant R as Workflow row
+  E->>R: workflow.started @ 10:00
+  Note right of R: RUNNING, last event 10:00
+  E->>R: workflow.completed @ 10:05
+  Note right of R: COMPLETED, last event 10:05
+  E-xR: workflow.completed @ 10:01 (late)
+  Note right of R: ignored, 10:01 is older than 10:05
+....
+
+With Elasticsearch storage the transform also ranks terminal states (`COMPLETED`, `FAULTED`, `CANCELLED`) above `RUNNING`.
+
+== How each storage applies them
+
+* *PostgreSQL*, with raw events or Kafka, uses the same SQL UPSERT. `COALESCE` keeps first values, and `last_event_time` on each row decides whether an incoming event is newer.
+* *Elasticsearch* applies the same rules in the transforms' Painless scripts, recomputing each instance from its raw events.
+
+== Tasks before their workflow
+
+With PostgreSQL storage a task row needs its workflow row (foreign key).
+If a task event arrives first, Data Index inserts a placeholder workflow with only the ID, then the task.
+The workflow event fills the placeholder in when it arrives.
+
+== Task identity
+
+Quarkus Flow gives each event of the same task a different `taskExecutionId`, so it cannot identify a task.
+Data Index keys tasks by `(instance ID, task position)` instead, and exposes the ID as `<instanceId>:<task>`.

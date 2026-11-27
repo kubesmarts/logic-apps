@@ -1,0 +1,81 @@
+= Configure a Quarkus Flow app
+:page-aliases:
+
+Make a Quarkus Flow application emit the lifecycle events Data Index reads.
+What to configure depends on the xref:explanation/storage-and-ingestion.adoc[ingestion source] and on how events get there.
+
+== Raw events through a log collector
+
+With raw events as the ingestion source, a log collector such as xref:integrations/vector.adoc[Vector] can write them for you.
+It reads the app's container output, so the app must write each event as one JSON line on stdout.
+
+Add to `application.properties`:
+
+[source,properties]
+----
+quarkus.flow.structured-logging.enabled=true
+quarkus.flow.structured-logging.events=workflow.*
+quarkus.flow.structured-logging.include-workflow-payloads=true
+quarkus.flow.structured-logging.include-task-payloads=false
+quarkus.flow.structured-logging.timestamp-format=epoch-seconds
+quarkus.flow.structured-logging.log-level=INFO
+
+# Print events as raw JSON, one per line
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".enabled=true
+quarkus.log.handler.console."FLOW_EVENTS_CONSOLE".format=%s%n
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".handlers=FLOW_EVENTS_CONSOLE
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".use-parent-handlers=false
+quarkus.log.category."io.quarkiverse.flow.structuredlogging".level=INFO
+
+# Quarkus Flow also adds a file handler; containers usually can't write its path
+%prod.quarkus.log.handler.file."FLOW_EVENTS".enabled=false
+----
+
+Things that commonly go wrong:
+
+* `timestamp-format` must be `epoch-seconds`. The collector converts numeric timestamps; any other format ends up as `NULL`.
+* The log category is `io.quarkiverse.flow.structuredlogging`, not `io.quarkiverse.flow`.
+* Without the dedicated console handler, events are wrapped in the normal log format and are no longer valid JSON.
+
+Set `include-task-payloads=true` if you want task `inputData` and `outputData` in Data Index.
+
+See the https://docs.quarkiverse.io/quarkus-flow/dev/structured-logging.html[Quarkus Flow structured logging guide^] for all options.
+
+=== Check the output
+
+Run the app and start a workflow. Its log should contain lines like:
+
+[source,json]
+----
+{"instanceId":"01KQ...","eventType":"io.serverlessworkflow.workflow.started.v1","timestamp":1777298089.549604, ...}
+{"instanceId":"01KQ...","eventType":"io.serverlessworkflow.task.started.v1", ...}
+----
+
+The collector keeps only lines whose `eventType` starts with `io.serverlessworkflow.`.
+It also has to be told which namespaces to read; with logic-operator this is part of the platform setup.
+
+== Kafka ingestion: publish to Kafka
+
+Add `quarkus-messaging-kafka` to the app and enable lifecycle messaging:
+
+[source,properties]
+----
+quarkus.flow.structured-logging.enabled=false
+quarkus.flow.messaging.lifecycle-enabled=true
+quarkus.flow.messaging.defaults-enabled=true
+
+mp.messaging.outgoing.flow-lifecycle-out.connector=smallrye-kafka
+mp.messaging.outgoing.flow-lifecycle-out.topic=flow-lifecycle-out
+mp.messaging.outgoing.flow-lifecycle-out.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+mp.messaging.outgoing.flow-lifecycle-out.value.serializer=org.apache.kafka.common.serialization.StringSerializer
+
+kafka.bootstrap.servers=kafka.example.com:9092
+----
+
+The topic must match the one the ingestion service consumes (`flow-lifecycle-out` by default).
+Binary and structured CloudEvents are both accepted.
+
+== See also
+
+* xref:integrations/vector.adoc[Vector]
+* xref:explanation/kafka-ingestion.adoc#_event_format[Kafka ingestion event format]

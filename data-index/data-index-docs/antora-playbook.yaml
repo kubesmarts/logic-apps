@@ -12,7 +12,13 @@ ui:
     snapshot: false
 
 asciidoc:
+  extensions:
+    - asciidoctor-kroki
   attributes:
+    # Diagrams are rendered by a Kroki server at build time and saved into the site,
+    # so /docs works offline. Override kroki-server-url to use a self-hosted Kroki.
+    kroki-server-url: https://kroki.io
+    kroki-fetch-diagram: ''
     page-pagination: ''
     hide-uri-scheme: '@'
     tabs-sync-option: '@'

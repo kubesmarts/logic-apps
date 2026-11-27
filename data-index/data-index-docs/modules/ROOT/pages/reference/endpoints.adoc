@@ -1,0 +1,109 @@
+= Ports and endpoints
+:page-aliases:
+
+All images listen on port `8080` by default.
+Change it with `QUARKUS_HTTP_PORT`, see xref:reference/configuration.adoc#_common_to_all_images[Configuration].
+
+== Data Index (`-postgresql`, `-elasticsearch`)
+
+[cols="2,1,3"]
+|===
+|Path |Method |Description
+
+|`/graphql`
+|POST
+|GraphQL API. See xref:reference/graphql-api.adoc[GraphQL API].
+
+|`/graphql/schema.graphql`
+|GET
+|Schema in SDL.
+
+|`/q/graphql-ui/`
+|GET
+|Interactive GraphQL UI.
+
+|`/docs/`
+|GET
+|This documentation.
+
+|`/`
+|GET
+|Landing page with version and git commit.
+
+|`/q/health/live`
+|GET
+|Liveness.
+
+|`/q/health/ready`
+|GET
+|Readiness. Includes the storage connection check.
+
+|`/q/metrics`
+|GET
+|Prometheus metrics.
+|===
+
+== Kafka ingestion service
+
+[cols="2,1,3"]
+|===
+|Path |Method |Description
+
+|`/q/health/live`
+|GET
+|Liveness.
+
+|`/q/health/ready`
+|GET
+|Readiness. Includes the Kafka consumer channel and the database.
+
+|`/q/metrics`
+|GET
+|Prometheus metrics.
+|===
+
+== Metrics
+
+Besides the standard JVM, HTTP and connection-pool metrics, Data Index publishes:
+
+=== Raw event polling (`-postgresql`)
+
+[cols="2,3"]
+|===
+|Metric |Description
+
+|`+data_index_jdbc_batch_events_processed_total{type}+`
+|Raw rows normalized. `type` is `workflow` or `task`.
+
+|`+data_index_jdbc_batch_events_dlq_total{type}+`
+|Raw rows moved to `workflow_events_dlq` / `task_events_dlq`.
+
+|`+data_index_jdbc_batch_dlq_write_failed_total{type}+`
+|Rows that could not be written to the DLQ table. Should stay at 0.
+|===
+
+=== Elasticsearch transforms (`-elasticsearch`)
+
+All gauges have a `transform` label: `workflow-instances-transform` or `task-executions-transform`.
+
+[cols="2,3"]
+|===
+|Metric |Description
+
+|`data_index_transform_state`
+|`1` started, `0` stopped, `2` failed, `-1` unknown.
+
+|`data_index_transform_lag`
+|Documents waiting to be processed.
+
+|`data_index_transform_documents_processed`
+|Documents read since the transform started.
+
+|`data_index_transform_documents_indexed`
+|Documents written to the normalized index.
+
+|`data_index_transform_last_checkpoint`
+|Last completed checkpoint.
+|===
+
+Alert when `data_index_transform_state != 1` or when `data_index_transform_lag` keeps growing.

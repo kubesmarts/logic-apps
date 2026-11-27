@@ -1,0 +1,183 @@
+= GraphQL API
+:page-aliases:
+
+`POST /graphql` with a JSON body `{"query": "...", "variables": {...}}`.
+The full schema is served at `/graphql/schema.graphql`, and `/q/graphql-ui/` lets you explore it.
+
+The API is the same for every storage and ingestion source.
+
+== Queries
+
+[cols="2,3"]
+|===
+|Query |Returns
+
+|`getWorkflowInstance(id: String!)`
+|One `WorkflowInstance`, or `null`.
+
+|`getWorkflowInstances(filter, orderBy, limit, offset)`
+|`[WorkflowInstance]`. All arguments optional.
+
+|`getTaskExecution(id: String!)`
+|One `TaskExecution`, or `null`. The ID is `<instanceId>:<task>`.
+
+|`getTaskExecutions(filter, orderBy, limit, offset)`
+|`[TaskExecution]`. All arguments optional.
+
+|`getTaskExecutionsByWorkflowInstance(workflowInstanceId: String)`
+|`[TaskExecution]` of one instance.
+|===
+
+Without `limit`, a list query returns every match.
+
+== Types
+
+=== WorkflowInstance
+
+[cols="2,2,3"]
+|===
+|Field |Type |Description
+
+|`id` |`String` |Instance ID from the runtime.
+|`namespace` |`String` |Workflow namespace.
+|`name` |`String` |Workflow name.
+|`version` |`String` |Workflow version.
+|`workflowApplicationId` |`String` |Application that ran the instance.
+|`status` |`WorkflowInstanceStatus` |Current status.
+|`startedAt` |`DateTime` |Start time.
+|`endedAt` |`DateTime` |End time, set when the instance completes, faults or is cancelled.
+|`lastUpdate` |`DateTime` |Last update reported by the runtime.
+|`eventTimestamp` |`DateTime` |Timestamp of the newest event applied.
+|`inputData` |`String` |Input, as a JSON string.
+|`outputData` |`String` |Output, as a JSON string.
+|`error` |`Error` |Set when the instance faulted.
+|`taskExecutions` |`[TaskExecution]` |Tasks of this instance.
+|===
+
+=== TaskExecution
+
+[cols="2,2,3"]
+|===
+|Field |Type |Description
+
+|`id` |`String` |`<instanceId>:<task>`.
+|`instanceId` |`String` |Owning workflow instance.
+|`task` |`String` |Task position as a JSON Pointer, for example `/do/0/validateOrder`.
+|`taskName` |`String` |Task name.
+|`status` |`String` |Task status.
+|`startedAt` |`DateTime` |Start time.
+|`endedAt` |`DateTime` |End time.
+|`eventTimestamp` |`DateTime` |Timestamp of the newest event applied.
+|`inputData` |`String` |Input, as a JSON string.
+|`outputData` |`String` |Output, as a JSON string.
+|`error` |`Error` |Set when the task faulted.
+|===
+
+=== Error
+
+Follows RFC 7807: `type`, `title`, `detail`, `status` (`Int`), `instance`.
+
+=== WorkflowInstanceStatus
+
+`PENDING`, `RUNNING`, `WAITING`, `SUSPENDED`, `COMPLETED`, `FAULTED`, `CANCELLED`.
+
+=== JSON fields
+
+`inputData` and `outputData` are strings. Parse them on the client.
+You cannot select fields inside them, but you can filter on them (see below).
+
+== Filters
+
+=== WorkflowInstanceFilterInput
+
+[cols="2,2"]
+|===
+|Field |Filter type
+
+|`id`, `name`, `namespace`, `version`, `workflowApplicationId` |`StringFilterInput`
+|`status` |`WorkflowInstanceStatusFilterInput`
+|`startTime`, `endTime` |`DateTimeFilterInput`
+|`input`, `output` |`JsonFilterInput`
+|`error` |`ErrorFilterInput`
+|===
+
+=== TaskExecutionFilterInput
+
+[cols="2,2,2"]
+|===
+|Field |Filter type |Matches
+
+|`id`, `taskName` |`StringFilterInput` |
+|`taskPosition` |`StringFilterInput` |`task`
+|`enter`, `exit` |`DateTimeFilterInput` |`startedAt`, `endedAt`
+|`inputArgs`, `outputArgs` |`JsonFilterInput` |`inputData`, `outputData`
+|`error` |`ErrorFilterInput` |
+|===
+
+=== Filter types
+
+[cols="2,3"]
+|===
+|Type |Operators
+
+|`StringFilterInput`
+|`eq`, `in: [String]`, `like` (`*` is the wildcard)
+
+|`WorkflowInstanceStatusFilterInput`
+|`eq`, `in`
+
+|`DateTimeFilterInput`
+|`eq`, `gt`, `gte`, `lt`, `lte`. ISO 8601 values.
+
+|`IntFilterInput`
+|`eq`, `in`, `gt`, `gte`, `lt`, `lte`
+
+|`ErrorFilterInput`
+|`type`, `title`, `detail`, `instance` as `StringFilterInput`; `status` as `IntFilterInput`
+
+|`JsonFilterInput`
+|`eq: [{key, value}]`. `key` is a field path such as `customerId` or `order.priority`. All pairs must match.
+|===
+
+All fields set in one filter must match (AND).
+
+== Ordering
+
+`orderBy` takes one or more fields, each `ASC` or `DESC`.
+
+* Workflows: `id`, `name`, `namespace`, `version`, `status`, `startTime`, `endTime`, `lastUpdate`.
+* Tasks: `id`, `taskName`, `taskPosition`, `enter`, `exit`.
+
+== Example
+
+[source,graphql]
+----
+{
+  getWorkflowInstances(
+    filter: {
+      status: { in: [COMPLETED, FAULTED] }
+      name: { like: "order*" }
+      input: { eq: [{ key: "orderId", value: "ORD-1" }] }
+    }
+    orderBy: { startTime: DESC }
+    limit: 10
+  ) {
+    id
+    status
+    startedAt
+    error { title detail }
+    taskExecutions { task taskName status }
+  }
+}
+----
+
+More in xref:how-to/query-workflow-data.adoc[Query workflow data].
+
+== Errors
+
+Invalid queries return HTTP 200 with an `errors` array, for example:
+
+[source,json]
+----
+{"errors":[{"message":"Validation error (FieldUndefined@[getWorkflowInstances/taskExecutions/taskPosition]) : Field 'taskPosition' in type 'TaskExecution' is undefined", ...}]}
+----
