@@ -1,0 +1,43 @@
+name: Docs Preview Teardown
+
+on:
+  # pull_request_target so fork PRs get SURGE_TOKEN; no code is checked out.
+  pull_request_target:
+    types: [closed]
+    paths:
+      - 'data-index/data-index-docs/**'
+      - '.github/workflows/docs-preview.yml'
+
+permissions:
+  pull-requests: write
+
+jobs:
+  teardown:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tear down Surge previews
+        env:
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          npm install --global surge@0.56.0
+          domains=$(surge list | grep -oE "logic-apps-docs-pr-$PR(-[0-9a-f]+)?-preview\.surge\.sh" | sort -u || true)
+          for domain in $domains; do
+            surge teardown "$domain"
+          done
+
+      - name: Update PR comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const marker = '<!-- docs-preview -->';
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number });
+            const existing = comments.find((c) => c.user.type === 'Bot' && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: existing.id,
+                body: `${marker}\n🧹 PR closed, docs preview removed.`,
+              });
+            }

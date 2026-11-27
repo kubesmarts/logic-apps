@@ -1,0 +1,46 @@
+name: Docs Preview
+
+# Builds untrusted PR code with no secrets; docs-preview-deploy.yml publishes the result.
+on:
+  pull_request:
+    paths:
+      - 'data-index/data-index-docs/**'
+      - '.github/workflows/docs-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Uploaded before the build so the deploy workflow can report failures too.
+      - name: Save PR number
+        run: echo "${{ github.event.pull_request.number }}" > "$RUNNER_TEMP/pr-number"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pr-number
+          path: ${{ runner.temp }}/pr-number
+          retention-days: 1
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build Docs with Maven
+        run: mvn clean package -pl data-index/data-index-docs -am
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: generated-docs
+          path: data-index/data-index-docs/target/generated-docs
+          retention-days: 1

@@ -1,0 +1,96 @@
+name: Docs Preview Deploy
+
+# Runs from main with secrets. Artifacts come from PR code, so treat them as untrusted.
+on:
+  workflow_run:
+    workflows: [Docs Preview]
+    types: [completed]
+
+permissions:
+  actions: read
+  pull-requests: write
+
+concurrency:
+  group: docs-preview-deploy-${{ github.event.workflow_run.head_sha }}
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion != 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: pr-number
+          path: ${{ runner.temp }}/pr
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      # The artifact is writable by the PR, so only trust it if it points at an open PR whose head is this run's commit.
+      - name: Resolve PR
+        id: pr
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const raw = require('fs').readFileSync(`${process.env.RUNNER_TEMP}/pr/pr-number`, 'utf8').trim();
+            if (!/^\d+$/.test(raw)) {
+              core.setFailed(`Invalid PR number: ${raw}`);
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: Number(raw) });
+            const headSha = context.payload.workflow_run.head_sha;
+            if (pr.state !== 'open' || pr.head.sha !== headSha) {
+              core.notice(`Skipping: PR #${pr.number} is ${pr.state} at ${pr.head.sha}, run is for ${headSha}`);
+              return;
+            }
+            core.setOutput('number', pr.number);
+            core.setOutput('sha', headSha.slice(0, 7));
+
+      - uses: actions/download-artifact@v8
+        if: steps.pr.outputs.number && github.event.workflow_run.conclusion == 'success'
+        with:
+          name: generated-docs
+          path: ${{ runner.temp }}/generated-docs
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Deploy to Surge
+        id: deploy
+        if: steps.pr.outputs.number && github.event.workflow_run.conclusion == 'success'
+        env:
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+          PR: ${{ steps.pr.outputs.number }}
+          SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          npm install --global surge@0.56.0
+          surge "$RUNNER_TEMP/generated-docs" "logic-apps-docs-pr-$PR-$SHA-preview.surge.sh"
+          surge "$RUNNER_TEMP/generated-docs" "logic-apps-docs-pr-$PR-preview.surge.sh"
+
+      - name: Comment on PR
+        if: always() && steps.pr.outputs.number
+        uses: actions/github-script@v8
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          SHA: ${{ steps.pr.outputs.sha }}
+          DEPLOYED: ${{ steps.deploy.outcome == 'success' }}
+        with:
+          script: |
+            const { PR, SHA, DEPLOYED } = process.env;
+            const marker = '<!-- docs-preview -->';
+            const body = DEPLOYED === 'true'
+              ? `${marker}
+            📖 Docs preview is ready.
+
+            | | URL |
+            | :--- | :--- |
+            | Latest | https://logic-apps-docs-pr-${PR}-preview.surge.sh |
+            | Commit \`${SHA}\` | https://logic-apps-docs-pr-${PR}-${SHA}-preview.surge.sh |`
+              : `${marker}
+            ❌ Docs preview failed for \`${SHA}\`. See the [workflow run](${context.payload.workflow_run.html_url}).`;
+
+            const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: Number(PR) });
+            const existing = comments.find((c) => c.user.type === 'Bot' && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: Number(PR), body });
+            }
