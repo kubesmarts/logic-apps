@@ -93,13 +93,14 @@ public class KafkaIngestionIT extends BaseWorkflowLifecycleIT {
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
-                     "SELECT id, status, name, namespace, version FROM workflow_instances WHERE id = ?")) {
+                     "SELECT id, status, name, namespace, version, workflow_application_id FROM workflow_instances WHERE id = ?")) {
             stmt.setString(1, instanceId);
             try (ResultSet rs = stmt.executeQuery()) {
                 assertThat(rs.next()).isTrue();
                 assertThat(rs.getString("status")).isEqualTo("RUNNING");
                 assertThat(rs.getString("name")).isEqualTo("test-workflow");
                 assertThat(rs.getString("namespace")).isEqualTo("default");
+                assertThat(rs.getString("workflow_application_id")).isEqualTo("test-app");
             }
         }
     }

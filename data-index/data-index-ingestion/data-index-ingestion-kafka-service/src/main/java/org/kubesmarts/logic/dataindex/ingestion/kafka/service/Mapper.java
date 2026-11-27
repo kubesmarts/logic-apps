@@ -68,13 +68,15 @@ public final class Mapper {
         if (data instanceof WorkflowCompletedCEDataWithOutput withOutput && withOutput.getOutput() != null) {
             output = objectMapper.writeValueAsString(withOutput.getOutput());
         }
+        
+        String workflowApplicationId = (String) cloudEvent.getExtension(LifecycleEvents.APPLICATION_ID_EXTENSION);
 
         return new WorkflowInstance(
                 id,
                 data.getDefinition().namespace(),
                 data.getDefinition().name(),
                 data.getDefinition().version(),
-                null, // TODO: https://github.com/kubesmarts/logic-apps/issues/79
+                workflowApplicationId,
                 WorkflowInstanceStatus.valueOf(status),
                 startedAt,
                 endedAt,

@@ -138,7 +138,7 @@ Unlike SmallRye's automatic CloudEvent extraction (which only works in per-messa
 1. **Validation**: CloudEventBuilder ensures events comply with CloudEvents spec
 2. **Abstraction**: Uniform interface regardless of binary vs structured mode
 3. **Future-proof**: Easy to extract additional CE attributes (`source`, `id`, extensions) if needed
-4. **Currently used fields**: `time` (→ `event_timestamp`), `type` (→ event routing)
+4. **Currently used fields**: `time` (→ `event_timestamp`), `type` (→ event routing), `applicationid` extension (→ `workflow_application_id`; `ce_applicationid` header in binary mode)
 
 The overhead of CloudEvent reconstruction is negligible compared to DB UPSERT operations.
 
@@ -172,7 +172,7 @@ The Kafka ingestion service is composed of two Maven modules:
 ### Idempotency Rules
 
 **Immutable fields** (first value wins):
-- `namespace`, `name`, `version` (workflow)
+- `namespace`, `name`, `version`, `workflow_application_id` (workflow)
 - `start`, `input` (workflow and task)
 - `task_name`, `task_position` (task)
 

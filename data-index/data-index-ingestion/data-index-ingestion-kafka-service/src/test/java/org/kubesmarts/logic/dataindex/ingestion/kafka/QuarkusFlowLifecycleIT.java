@@ -97,7 +97,7 @@ public class QuarkusFlowLifecycleIT extends BaseWorkflowLifecycleIT {
                 .untilAsserted(() -> {
                     try (Connection conn = dataSource.getConnection();
                          PreparedStatement stmt = conn.prepareStatement(
-                                 "SELECT id, namespace, name, version, status FROM workflow_instances WHERE name = ?")) {
+                                 "SELECT id, namespace, name, version, status, workflow_application_id FROM workflow_instances WHERE name = ?")) {
                         stmt.setString(1, "e2e-test-workflow");
                         ResultSet rs = stmt.executeQuery();
 
@@ -114,6 +114,7 @@ public class QuarkusFlowLifecycleIT extends BaseWorkflowLifecycleIT {
                         assertEquals("e2e-test-workflow", name);
                         assertNotNull(version, "Version should not be null");
                         assertEquals("COMPLETED", status);
+                        assertNotNull(rs.getString("workflow_application_id"), "Workflow application ID should not be null");
 
                         log.info("✓ Workflow instance persisted:");
                         log.info("  ID: {}", id);

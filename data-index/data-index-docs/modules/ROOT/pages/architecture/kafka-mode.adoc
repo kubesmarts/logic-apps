@@ -71,7 +71,7 @@ JDBC-based UPSERT for workflow_instances:
 [source,sql]
 ----
 INSERT INTO workflow_instances (
-  id, namespace, name, version, status, start, "end", last_update,
+  id, namespace, name, version, workflow_application_id, status, start, "end", last_update,
   input, output, error_type, error_title, error_detail, error_status, error_instance,
   last_event_time, created_at, updated_at
 ) VALUES (...)
@@ -154,7 +154,7 @@ Once set, never updated:
 
 **Workflow:**
 
-* start, input, name, version, namespace
+* start, input, name, version, namespace, workflow_application_id
 
 **Task:**
 
