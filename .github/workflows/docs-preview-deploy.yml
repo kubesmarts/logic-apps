@@ -28,7 +28,7 @@ jobs:
       # The artifact is writable by the PR, so only trust it if it points at an open PR whose head is this run's commit.
       - name: Resolve PR
         id: pr
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const raw = require('fs').readFileSync(`${process.env.RUNNER_TEMP}/pr/pr-number`, 'utf8').trim();
@@ -67,7 +67,7 @@ jobs:
 
       - name: Comment on PR
         if: always() && steps.pr.outputs.number
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           PR: ${{ steps.pr.outputs.number }}
           SHA: ${{ steps.pr.outputs.sha }}
